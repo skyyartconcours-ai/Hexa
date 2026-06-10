@@ -5,7 +5,10 @@ jouer entre amis quand votre boîte physique est… dans une autre langue.
 L'appli remplace uniquement les cartes : vous jouez autour de la table comme
 d'habitude, chacun avec son téléphone.
 
-- 27 lieux classiques de la première édition, 7 rôles chacun, tout traduit en français
+- Les 27 lieux de **Spyfall 1** et les 25 lieux de **Spyfall 2** avec leurs
+  rôles officiels, tout traduit en français
+- Choix du paquet au lancement de chaque manche : Spyfall 1, Spyfall 2, ou
+  les deux mélangés (52 lieux)
 - Un espion tiré au hasard, les autres reçoivent le lieu + un rôle
 - Chrono configurable (8 minutes par défaut), liste des lieux consultable en jeu
 - Aucune dépendance : un seul fichier serveur en Node.js

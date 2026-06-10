@@ -4,7 +4,7 @@ const http = require("http");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const LOCATIONS = require("./locations");
+const DECKS = require("./locations");
 
 const PORT = process.env.PORT || 3000;
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000; // salles supprimées après 3 h d'inactivité
@@ -41,6 +41,7 @@ function createRoom(name) {
     status: "lobby", // lobby | playing | reveal
     round: null,
     durationMin: 8,
+    deck: "spyfall1",
     lastActivity: Date.now(),
   };
   rooms.set(room.code, room);
@@ -72,12 +73,14 @@ function getPlayer(room, playerId) {
   return player;
 }
 
-function startRound(room, player, durationMin) {
+function startRound(room, player, durationMin, deck) {
   if (!player.isHost) throw httpError(403, "Seul l'hôte peut lancer la manche.");
   if (room.players.length < 3) throw httpError(400, "Il faut au moins 3 joueurs.");
   const minutes = Math.min(20, Math.max(1, Number(durationMin) || room.durationMin));
   room.durationMin = minutes;
-  const location = LOCATIONS[crypto.randomInt(LOCATIONS.length)];
+  if (DECKS[deck]) room.deck = deck;
+  const pool = DECKS[room.deck].locations;
+  const location = pool[crypto.randomInt(pool.length)];
   const spy = room.players[crypto.randomInt(room.players.length)];
   const shuffledRoles = [...location.roles].sort(() => Math.random() - 0.5);
   const cards = {};
@@ -88,7 +91,14 @@ function startRound(room, player, durationMin) {
         ? { spy: true }
         : { spy: false, location: location.name, role: shuffledRoles[i++ % shuffledRoles.length] };
   }
-  room.round = { locationName: location.name, spyId: spy.id, cards, startedAt: Date.now(), durationMs: minutes * 60 * 1000 };
+  room.round = {
+    locationName: location.name,
+    poolNames: pool.map((l) => l.name),
+    spyId: spy.id,
+    cards,
+    startedAt: Date.now(),
+    durationMs: minutes * 60 * 1000,
+  };
   room.status = "playing";
   touch(room);
 }
@@ -113,13 +123,15 @@ function stateFor(room, playerId) {
     code: room.code,
     status: room.status,
     durationMin: room.durationMin,
+    deck: room.deck,
+    decks: Object.fromEntries(Object.entries(DECKS).map(([k, d]) => [k, { label: d.label, count: d.locations.length }])),
     you: { id: player.id, name: player.name, isHost: player.isHost },
     players: room.players.map((p) => ({ name: p.name, isHost: p.isHost })),
-    locations: LOCATIONS.map((l) => l.name),
   };
   if (room.status === "playing") {
     state.card = room.round.cards[player.id];
     state.endsAt = room.round.startedAt + room.round.durationMs;
+    state.locations = room.round.poolNames;
   }
   if (room.status === "reveal") {
     const spy = room.players.find((p) => p.id === room.round.spyId);
@@ -192,7 +204,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const room = getRoom(code);
       const player = getPlayer(room, body.playerId);
-      if (action === "start") startRound(room, player, body.durationMin);
+      if (action === "start") startRound(room, player, body.durationMin, body.deck);
       else if (action === "end") endRound(room, player);
       else backToLobby(room, player);
       return sendJSON(res, 200, stateFor(room, player.id));

@@ -93,6 +93,12 @@ function render(state) {
       .join("");
     $("host-controls").classList.toggle("hidden", !state.you.isHost);
     $("lobby-hint").classList.toggle("hidden", state.you.isHost);
+    if (state.you.isHost && !$("deck-select").options.length) {
+      $("deck-select").innerHTML = Object.entries(state.decks)
+        .map(([k, d]) => `<option value="${k}">${escapeHtml(d.label)} (${d.count} lieux)</option>`)
+        .join("");
+      $("deck-select").value = state.deck;
+    }
   } else if (state.status === "playing") {
     if (lastStatus !== "playing") {
       // Nouvelle manche : carte de nouveau face cachée.
@@ -139,6 +145,7 @@ $("btn-start").onclick = async () => {
     const state = await api(`/api/rooms/${session.code}/start`, {
       playerId: session.playerId,
       durationMin: Number($("duration-input").value),
+      deck: $("deck-select").value,
     });
     render(state);
   } catch (e) {

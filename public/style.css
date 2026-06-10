@@ -23,15 +23,15 @@ h1 { font-size: 2rem; text-align: center; }
 
 label { font-size: 0.85rem; color: #9aa3b2; }
 
-input, button {
+input, select, button {
   font-size: 1.05rem;
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid #2c3442;
 }
 
-input { background: #1d232e; color: #e8e6e3; width: 100%; }
-input:focus { outline: 2px solid #5b8def; border-color: transparent; }
+input, select { background: #1d232e; color: #e8e6e3; width: 100%; }
+input:focus, select:focus { outline: 2px solid #5b8def; border-color: transparent; }
 
 button {
   background: #2c3442;
