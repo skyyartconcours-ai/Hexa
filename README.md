@@ -28,11 +28,36 @@ ordinateur et donnez son adresse locale aux joueurs, par exemple
 Le serveur est un simple processus Node sans base de données, il tourne
 partout :
 
-- **Render / Railway / Fly.io** (offres gratuites) : pointez le service sur ce
-  dépôt avec la commande de démarrage `node server.js`. Le port est lu depuis
-  la variable d'environnement `PORT` automatiquement.
-- **Un VPS ou un Raspberry Pi** : `node server.js` derrière un reverse proxy
-  (Caddy, Nginx) suffit.
+### Sur un VPS (Hetzner, OVH…)
+
+Une seule commande, en SSH sur le serveur :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/skyyartconcours-ai/Hexa/claude/korean-speyfold-localization-14sse8/deploy/deploy.sh | sudo bash
+```
+
+Le script installe le jeu dans `/opt/spyfall` comme service systemd
+`spyfall`, sur le **port 3210** uniquement : il ne touche à aucune autre
+application déjà hébergée sur le serveur. Le jeu est ensuite accessible sur
+`http://<ip-du-serveur>:3210` (ouvrez le port dans le pare-feu si besoin).
+Relancez la même commande pour mettre à jour ; `SPYFALL_PORT=4000` avant le
+`bash` change le port.
+
+Pour une jolie adresse type `spyfall.mondomaine.com`, ajoutez à votre
+reverse proxy existant (exemple Nginx) :
+
+```nginx
+server {
+    server_name spyfall.mondomaine.com;
+    location / { proxy_pass http://127.0.0.1:3210; }
+}
+```
+
+### Sur une plateforme (Render / Railway / Fly.io)
+
+Offres gratuites : pointez le service sur ce dépôt avec la commande de
+démarrage `node server.js`. Le port est lu depuis la variable
+d'environnement `PORT` automatiquement.
 
 Les parties sont stockées en mémoire et expirent après 3 h d'inactivité.
 
