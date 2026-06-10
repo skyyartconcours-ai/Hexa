@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spyfall — édition française</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main id="app">
+
+    <!-- Accueil -->
+    <section id="screen-home" class="screen">
+      <h1>🕵️ Spyfall</h1>
+      <p class="subtitle">Les cartes du jeu, en français, sur vos téléphones.</p>
+      <label for="name-input">Votre prénom</label>
+      <input id="name-input" maxlength="20" autocomplete="given-name" placeholder="ex. Léa" />
+      <button id="btn-create" class="primary">Créer une partie</button>
+      <div class="join-row">
+        <input id="code-input" maxlength="4" placeholder="CODE" autocapitalize="characters" />
+        <button id="btn-join">Rejoindre</button>
+      </div>
+      <p id="home-error" class="error"></p>
+    </section>
+
+    <!-- Salon d'attente -->
+    <section id="screen-lobby" class="screen hidden">
+      <h1>Salon</h1>
+      <p class="subtitle">Code de la salle — partagez-le autour de la table :</p>
+      <p id="lobby-code" class="room-code"></p>
+      <ul id="lobby-players" class="players"></ul>
+      <div id="host-controls" class="hidden">
+        <label for="duration-input">Durée de la manche (minutes)</label>
+        <input id="duration-input" type="number" min="1" max="20" value="8" />
+        <button id="btn-start" class="primary">Lancer la manche</button>
+      </div>
+      <p id="lobby-hint" class="hint">En attente que l'hôte lance la manche… (3 joueurs minimum)</p>
+      <p id="lobby-error" class="error"></p>
+    </section>
+
+    <!-- Manche en cours -->
+    <section id="screen-game" class="screen hidden">
+      <p id="timer" class="timer">8:00</p>
+      <div id="card" class="card">
+        <button id="btn-flip" class="card-cover">👆 Touchez pour voir votre carte<br /><small>(ne la montrez à personne)</small></button>
+        <div id="card-content" class="hidden"></div>
+      </div>
+      <details class="locations">
+        <summary>📋 Liste des lieux possibles</summary>
+        <ul id="locations-list"></ul>
+      </details>
+      <button id="btn-end" class="danger hidden">Terminer la manche (révéler)</button>
+      <p id="game-error" class="error"></p>
+    </section>
+
+    <!-- Révélation -->
+    <section id="screen-reveal" class="screen hidden">
+      <h1>Fin de manche</h1>
+      <p class="reveal-line">L'espion était <strong id="reveal-spy"></strong></p>
+      <p class="reveal-line">Le lieu était <strong id="reveal-location"></strong></p>
+      <button id="btn-again" class="primary hidden">Rejouer une manche</button>
+      <p id="reveal-error" class="error"></p>
+    </section>
+
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
