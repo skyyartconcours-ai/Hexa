@@ -1,41 +1,41 @@
 // Les 27 lieux du jeu Spyfall (première édition), en français,
-// avec 7 rôles chacun. L'espion ne reçoit aucun lieu.
+// avec les 7 rôles officiels de chaque carte. L'espion ne reçoit aucun lieu.
 module.exports = [
   {
     name: "Avion",
-    roles: ["Pilote", "Copilote", "Hôtesse de l'air", "Mécanicien", "Passager en première classe", "Passager touriste", "Agent de sûreté"],
+    roles: ["Commandant de bord", "Copilote", "Hôtesse de l'air", "Mécanicien", "Agent de sûreté", "Passager en première classe", "Passager en classe éco"],
   },
   {
     name: "Banque",
-    roles: ["Directeur d'agence", "Guichetier", "Client", "Agent de sécurité", "Consultant", "Convoyeur de fonds", "Braqueur"],
+    roles: ["Directeur d'agence", "Guichetier", "Consultant", "Agent de sécurité", "Convoyeur de fonds", "Braqueur", "Client"],
   },
   {
     name: "Plage",
-    roles: ["Maître-nageur", "Vendeur de glaces", "Surfeur", "Vacancier", "Photographe", "Joueur de beach-volley", "Voleur à la tire"],
+    roles: ["Maître-nageur", "Kitesurfeur", "Serveuse de plage", "Photographe de plage", "Vendeur de glaces", "Vacancier", "Voleur"],
   },
   {
     name: "Casino",
-    roles: ["Croupier", "Chef de salle", "Joueur professionnel", "Agent de sécurité", "Barman", "Touriste chanceux", "Tricheur"],
+    roles: ["Croupier", "Directeur", "Chef de la sécurité", "Videur", "Barman", "Arnaqueur", "Joueur"],
   },
   {
     name: "Cathédrale",
-    roles: ["Prêtre", "Sacristain", "Choriste", "Fidèle", "Touriste", "Mendiant", "Pécheur repenti"],
+    roles: ["Prêtre", "Choriste", "Mécène", "Fidèle", "Touriste", "Mendiant", "Pécheur"],
   },
   {
     name: "Chapiteau de cirque",
-    roles: ["Acrobate", "Dompteur de fauves", "Magicien", "Clown", "Jongleur", "Lanceur de couteaux", "Spectateur"],
+    roles: ["Acrobate", "Dompteur", "Magicien", "Cracheur de feu", "Clown", "Jongleur", "Spectateur"],
   },
   {
     name: "Soirée d'entreprise",
-    roles: ["PDG", "Responsable RH", "Comptable", "Stagiaire", "Serveur", "Animateur de soirée", "Invité surprise"],
+    roles: ["Patron", "Manager", "Comptable", "Secrétaire", "Animateur", "Livreur", "Invité indésirable"],
   },
   {
     name: "Armée des croisés",
-    roles: ["Chevalier", "Archer", "Moine", "Écuyer", "Serviteur", "Médecin de guerre", "Prisonnier"],
+    roles: ["Chevalier", "Archer", "Évêque", "Moine", "Écuyer", "Serviteur", "Sarrasin prisonnier"],
   },
   {
     name: "Spa",
-    roles: ["Masseur", "Esthéticienne", "Réceptionniste", "Coach bien-être", "Agent d'entretien", "Client en peignoir", "Client enveloppé dans une serviette"],
+    roles: ["Masseuse", "Styliste", "Manucure", "Maquilleuse", "Dermatologue", "Esthéticienne", "Client"],
   },
   {
     name: "Ambassade",
@@ -47,66 +47,66 @@ module.exports = [
   },
   {
     name: "Hôtel",
-    roles: ["Directeur", "Réceptionniste", "Groom", "Femme de chambre", "Barman", "Agent de sécurité", "Client"],
+    roles: ["Directeur", "Portier", "Groom", "Femme de chambre", "Barman", "Agent de sécurité", "Client"],
   },
   {
     name: "Base militaire",
-    roles: ["Colonel", "Officier", "Soldat", "Sentinelle", "Tireur d'élite", "Médecin militaire", "Déserteur"],
+    roles: ["Colonel", "Officier", "Soldat", "Tireur d'élite", "Médecin militaire", "Mécanicien de char", "Déserteur"],
   },
   {
     name: "Studio de cinéma",
-    roles: ["Réalisateur", "Acteur célèbre", "Cascadeur", "Cadreur", "Ingénieur du son", "Maquilleuse", "Figurant"],
+    roles: ["Réalisateur", "Producteur", "Acteur", "Cascadeur", "Cadreur", "Ingénieur du son", "Costumier"],
   },
   {
     name: "Paquebot de croisière",
-    roles: ["Capitaine", "Matelot", "Cuisinier", "Barman", "Musicien", "Passager fortuné", "Passager clandestin"],
+    roles: ["Capitaine", "Cuisinier", "Barman", "Serveur", "Musicien", "Mécanicien", "Passager fortuné"],
   },
   {
     name: "Train de voyageurs",
-    roles: ["Conducteur", "Contrôleur", "Serveur du wagon-restaurant", "Agent de bord", "Mécanicien", "Passager", "Voyageur sans billet"],
+    roles: ["Conducteur", "Mécanicien", "Chauffeur de chaudière", "Agent de bord", "Garde-frontière", "Chef du wagon-restaurant", "Passager"],
   },
   {
     name: "Bateau pirate",
-    roles: ["Capitaine", "Canonnier", "Matelot", "Mousse", "Cuisinier", "Marin rebelle", "Prisonnier attaché"],
+    roles: ["Vaillant capitaine", "Canonnier", "Matelot", "Mousse", "Cuisinier", "Esclave", "Prisonnier ligoté"],
   },
   {
     name: "Station polaire",
-    roles: ["Chef d'expédition", "Météorologue", "Biologiste", "Géologue", "Glaciologue", "Radio-opérateur", "Médecin"],
+    roles: ["Chef d'expédition", "Météorologue", "Biologiste", "Géologue", "Hydrologue", "Radio-opérateur", "Médecin"],
   },
   {
     name: "Commissariat de police",
-    roles: ["Inspecteur", "Policier de patrouille", "Archiviste", "Avocat", "Journaliste", "Criminel", "Personne en garde à vue"],
+    roles: ["Inspecteur", "Policier de patrouille", "Expert en criminalistique", "Archiviste", "Avocat", "Journaliste", "Criminel"],
   },
   {
     name: "Restaurant",
-    roles: ["Chef cuisinier", "Maître d'hôtel", "Serveur", "Plongeur", "Musicien d'ambiance", "Critique gastronomique", "Client"],
+    roles: ["Chef cuisinier", "Maître d'hôtel", "Serveur", "Videur", "Musicien", "Critique gastronomique", "Client"],
   },
   {
     name: "École",
-    roles: ["Directeur", "Professeur", "Surveillant", "Concierge", "Cantinière", "Infirmière scolaire", "Élève"],
+    roles: ["Directeur", "Prof de gym", "Surveillant", "Concierge", "Cantinière", "Agent d'entretien", "Élève"],
   },
   {
     name: "Station-service",
-    roles: ["Pompiste", "Mécanicien", "Caissier", "Laveur de pare-brise", "Automobiliste", "Motard", "Livreur"],
+    roles: ["Gérant", "Mécanicien auto", "Spécialiste des pneus", "Électricien", "Laveur de voitures", "Motard", "Automobiliste"],
   },
   {
     name: "Station spatiale",
-    roles: ["Commandant", "Spationaute", "Ingénieur", "Scientifique", "Pilote", "Médecin de bord", "Touriste spatial"],
+    roles: ["Commandant", "Ingénieur", "Scientifique", "Pilote", "Médecin de bord", "Touriste spatial", "Extraterrestre"],
   },
   {
     name: "Sous-marin",
-    roles: ["Commandant", "Sonariste", "Torpilleur", "Radio-opérateur", "Mécanicien", "Cuisinier", "Matelot"],
+    roles: ["Commandant", "Navigateur", "Sonariste", "Technicien électronique", "Radio-opérateur", "Cuisinier", "Matelot"],
   },
   {
     name: "Supermarché",
-    roles: ["Caissier", "Magasinier", "Boucher", "Démonstratrice", "Agent de sécurité", "Client", "Voleur à l'étalage"],
+    roles: ["Caissier", "Boucher", "Magasinier", "Démonstratrice", "Agent d'entretien", "Agent de sécurité", "Client"],
   },
   {
     name: "Théâtre",
-    roles: ["Metteur en scène", "Acteur", "Souffleur", "Machiniste", "Ouvreuse", "Critique", "Spectateur"],
+    roles: ["Metteur en scène", "Acteur", "Souffleur", "Machiniste", "Caissier", "Dame du vestiaire", "Spectateur"],
   },
   {
     name: "Université",
-    roles: ["Doyen", "Professeur", "Chercheur", "Bibliothécaire", "Psychologue", "Gardien", "Étudiant"],
+    roles: ["Doyen", "Professeur", "Doctorant", "Psychologue", "Bibliothécaire", "Concierge", "Étudiant"],
   },
 ];
