@@ -101,13 +101,11 @@ function render(state) {
     }
   } else if (state.status === "playing") {
     if (lastStatus !== "playing") {
-      // Nouvelle manche : carte de nouveau face cachée.
+      // Nouvelle manche : carte de nouveau face cachée, ratures effacées.
       $("btn-flip").classList.remove("hidden");
       $("card-content").classList.add("hidden");
       renderCard(state.card);
-      $("locations-list").innerHTML = state.locations
-        .map((l) => `<li>${escapeHtml(l)}</li>`)
-        .join("");
+      renderLocations(state.locations);
     }
     $("btn-end").classList.toggle("hidden", !state.you.isHost);
     startCountdown(state.endsAt);
@@ -130,6 +128,36 @@ function renderCard(card) {
        <p class="card-title">${escapeHtml(card.location)}</p>
        <p class="card-label">Votre rôle</p>
        <p class="card-role">${escapeHtml(card.role)}</p>`;
+}
+
+// Liste des lieux groupée par thème. Toucher un thème ou un lieu le raye :
+// c'est un pense-bête personnel (rien n'est partagé), surtout utile à
+// l'espion pour éliminer des thématiques entières.
+function renderLocations(locations) {
+  const byTheme = new Map();
+  for (const l of locations) {
+    if (!byTheme.has(l.theme)) byTheme.set(l.theme, []);
+    byTheme.get(l.theme).push(l.name);
+  }
+  $("locations-list").innerHTML = [...byTheme.entries()]
+    .map(
+      ([theme, names]) => `
+      <div class="loc-group">
+        <button class="loc-theme">${escapeHtml(theme)} <span>(${names.length})</span></button>
+        <ul>${names.map((n) => `<li class="loc-item">${escapeHtml(n)}</li>`).join("")}</ul>
+      </div>`
+    )
+    .join("");
+  for (const btn of document.querySelectorAll(".loc-theme")) {
+    btn.onclick = () => {
+      const off = btn.classList.toggle("eliminated");
+      for (const li of btn.parentElement.querySelectorAll(".loc-item"))
+        li.classList.toggle("eliminated", off);
+    };
+  }
+  for (const li of document.querySelectorAll(".loc-item")) {
+    li.onclick = () => li.classList.toggle("eliminated");
+  }
 }
 
 $("btn-flip").onclick = () => {

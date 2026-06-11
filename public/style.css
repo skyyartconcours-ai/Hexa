@@ -92,14 +92,32 @@ button.danger { background: #b9483f; color: #fff; }
 .card-role { font-size: 1.3rem; font-weight: 600; color: #5b8def; }
 
 .locations summary { cursor: pointer; padding: 10px; color: #9aa3b2; }
-.locations ul {
+
+.loc-group { margin-bottom: 10px; }
+.loc-theme {
+  width: 100%;
+  text-align: left;
+  background: #232b38;
+  font-size: 0.95rem;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+.loc-theme span { color: #9aa3b2; font-weight: 400; }
+.loc-group ul {
   list-style: none;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
-  padding: 10px 0;
 }
-.locations li { background: #1d232e; padding: 8px 10px; border-radius: 8px; font-size: 0.9rem; }
+.loc-item {
+  background: #1d232e;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+}
+.eliminated { opacity: 0.35; text-decoration: line-through; }
 
 .reveal-line { text-align: center; font-size: 1.2rem; }
 .reveal-line strong { color: #5b8def; }

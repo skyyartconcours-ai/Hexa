@@ -93,7 +93,7 @@ function startRound(room, player, durationMin, deck) {
   }
   room.round = {
     locationName: location.name,
-    poolNames: pool.map((l) => l.name),
+    poolNames: pool.map((l) => ({ name: l.name, theme: l.theme })),
     spyId: spy.id,
     cards,
     startedAt: Date.now(),

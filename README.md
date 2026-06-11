@@ -7,8 +7,14 @@ d'habitude, chacun avec son téléphone.
 
 - Les 27 lieux de **Spyfall 1** et les 25 lieux de **Spyfall 2** avec leurs
   rôles officiels, tout traduit en français
-- Choix du paquet au lancement de chaque manche : Spyfall 1, Spyfall 2, ou
-  les deux mélangés (52 lieux)
+- Un paquet **Délire (RP)** : 70 lieux originaux taillés pour le roleplay
+  (Kebab à 3 h du matin, Réunion secrète des Illuminati, Magasin de meubles
+  suédois…), classés en 10 thématiques
+- Choix du paquet au lancement de chaque manche : Spyfall 1, Spyfall 2,
+  les deux, Délire, ou tout mélangé (122 lieux)
+- En jeu, la liste des lieux est groupée par thème : on peut rayer un
+  thème entier ou un lieu d'un simple toucher (pense-bête personnel,
+  l'outil d'élimination de l'espion)
 - Un espion tiré au hasard, les autres reçoivent le lieu + un rôle
 - Chrono configurable (8 minutes par défaut), liste des lieux consultable en jeu
 - Aucune dépendance : un seul fichier serveur en Node.js
