@@ -1,7 +1,7 @@
 // Paquets de lieux, en français.
 // - spyfall1 : les 27 lieux officiels de la 1re édition (7 rôles officiels)
 // - spyfall2 : les 25 lieux officiels de Spyfall 2 (10 rôles officiels)
-// - delire   : 70 lieux originaux taillés pour le roleplay, classés par thème
+// - delire   : 70 lieux originaux taillés pour le roleplay (9 rôles chacun)
 // Chaque lieu porte un `theme` utilisé par les filtres d'élimination en jeu.
 // Les rôles en double sur certaines cartes de Spyfall 2 sont d'origine.
 
@@ -289,370 +289,370 @@ const delire = [
   {
     name: "Vol low-cost",
     theme: T.transport,
-    roles: ["Pilote qui rassure un peu trop", "Hôtesse à bout de nerfs", "Passager qui applaudit à l'atterrissage", "Passager du siège du milieu", "Influenceur qui filme « sa première classe »", "Passager au bagage très limite", "Mamie qui offre des bonbons à tout l'avion"],
+    roles: ["Pilote qui rassure un peu trop", "Hôtesse à bout de nerfs", "Passager qui applaudit à l'atterrissage", "Passager du siège du milieu", "Influenceur qui filme « sa première classe »", "Passager au bagage très limite", "Mamie qui offre des bonbons à tout l'avion", "Steward qui vend des billets à gratter", "Passager qui n'a pas payé le supplément bagage"],
   },
   {
     name: "Covoiturage de 8 heures",
     theme: T.transport,
-    roles: ["Conducteur fier de sa playlist douteuse", "Passager qui parle depuis Lyon", "Passagère qui fait semblant de dormir", "Étudiant fauché", "Passager qui mange un kebab", "Copilote autoproclamé du GPS", "Passagère avec un chat pas prévu"],
+    roles: ["Conducteur fier de sa playlist douteuse", "Passager qui parle depuis Lyon", "Passagère qui fait semblant de dormir", "Étudiant fauché", "Passager qui mange un kebab", "Copilote autoproclamé du GPS", "Passagère avec un chat pas prévu", "Passager qui propose de « mettre un son »", "Passager qui critique la conduite en silence (mais fort)"],
   },
   {
     name: "Croisière du troisième âge",
     theme: T.transport,
-    roles: ["Animateur sous pression", "Capitaine en fin de carrière", "Retraitée reine du buffet", "Couple qui se dispute depuis l'embarquement", "Magicien has-been", "Serveur trop bronzé", "Jeune monté sur le mauvais bateau"],
+    roles: ["Animateur sous pression", "Capitaine en fin de carrière", "Retraitée reine du buffet", "Couple qui se dispute depuis l'embarquement", "Magicien has-been", "Serveur trop bronzé", "Jeune monté sur le mauvais bateau", "Prof de danse de salon très demandé", "Veuve très entourée"],
   },
   {
     name: "Téléphérique bloqué",
     theme: T.transport,
-    roles: ["Technicien qui répète que « c'est normal »", "Touriste qui panique", "Guide de montagne très zen", "Enfant absolument ravi", "Couple en lune de miel", "Influenceuse qui filme tout", "Skieur qui rate son après-midi"],
+    roles: ["Technicien qui répète que « c'est normal »", "Touriste qui panique", "Guide de montagne très zen", "Enfant absolument ravi", "Couple en lune de miel", "Influenceuse qui filme tout", "Skieur qui rate son après-midi", "Passager qui avait justement très envie de faire pipi", "Papy qui raconte la panne de 1987"],
   },
   {
     name: "Aire d'autoroute un 15 août",
     theme: T.transport,
-    roles: ["Pompiste débordé", "Père de famille au bord du craquage", "Enfant momentanément égaré", "Routier philosophe", "Caissière blasée", "Motard en combinaison intégrale", "Vacancier dans la file des toilettes"],
+    roles: ["Pompiste débordé", "Père de famille au bord du craquage", "Enfant momentanément égaré", "Routier philosophe", "Caissière blasée", "Motard en combinaison intégrale", "Vacancier dans la file des toilettes", "Ado scotché à la machine à pinces", "Chauffeur de colonie qui recompte les enfants"],
   },
   {
     name: "Taxi de nuit",
     theme: T.transport,
-    roles: ["Chauffeur philosophe", "Client de fin de soirée", "Couple qui se dispute à l'arrière", "Touriste qui surveille le compteur", "Stagiaire en retard pour son premier jour", "DJ avec tout son matos", "Client qui a oublié son portefeuille"],
+    roles: ["Chauffeur philosophe", "Client de fin de soirée", "Couple qui se dispute à l'arrière", "Touriste qui surveille le compteur", "Stagiaire en retard pour son premier jour", "DJ avec tout son matos", "Client qui a oublié son portefeuille", "Cliente qui raconte toute sa vie", "Client persuadé de connaître un raccourci"],
   },
   {
     name: "Vol en montgolfière",
     theme: T.transport,
-    roles: ["Pilote étrangement calme", "Passager avec le vertige", "Photographe de paysages", "Amoureux qui prépare sa demande", "Gagnante d'un concours", "Instructeur bavard", "Enfant qui veut toucher les nuages"],
+    roles: ["Pilote étrangement calme", "Passager avec le vertige", "Photographe de paysages", "Amoureux qui prépare sa demande", "Gagnante d'un concours", "Instructeur bavard", "Enfant qui veut toucher les nuages", "Passager qui demande où sont les toilettes", "Contrôleur aérien à la retraite très stressé"],
   },
 
   // 🌴 Nature & vacances
   {
     name: "Camping municipal",
     theme: T.nature,
-    roles: ["Gérant tatillon sur le règlement", "Campeur installé là depuis 1998", "Famille sous l'orage", "Animateur du tournoi de pétanque", "Ado en quête de wifi", "Voisin de tente bruyant", "Randonneur qui s'est trompé de camping"],
+    roles: ["Gérant tatillon sur le règlement", "Campeur installé là depuis 1998", "Famille sous l'orage", "Animateur du tournoi de pétanque", "Ado en quête de wifi", "Voisin de tente bruyant", "Randonneur qui s'est trompé de camping", "Roi du barbecue autoproclamé", "Gamin à vélo dès 6 h du matin"],
   },
   {
     name: "Club de vacances tout inclus",
     theme: T.nature,
-    roles: ["Animateur survolté", "Stratège du buffet", "Maître-nageur dragueur", "Enfant roi du mini-club", "DJ de la piscine", "Retraité au transat dès 6 h", "Serveur de cocktails à fleurs"],
+    roles: ["Animateur survolté", "Stratège du buffet", "Maître-nageur dragueur", "Enfant roi du mini-club", "DJ de la piscine", "Retraité au transat dès 6 h", "Serveur de cocktails à fleurs", "Champion contesté du tournoi de fléchettes", "Touriste qui réserve les transats à la serviette"],
   },
   {
     name: "Randonnée en haute montagne",
     theme: T.nature,
-    roles: ["Guide trop optimiste", "Randonneur suréquipé", "Randonneur en tongs", "Berger pas impressionné", "Influenceuse en legging", "Secouriste de permanence", "Retardataire du groupe"],
+    roles: ["Guide trop optimiste", "Randonneur suréquipé", "Randonneur en tongs", "Berger pas impressionné", "Influenceuse en legging", "Secouriste de permanence", "Retardataire du groupe", "Papa qui jure que « c'est plus très loin »", "Traileur qui double tout le monde en courant"],
   },
   {
     name: "Île déserte après naufrage",
     theme: T.nature,
-    roles: ["Capitaine déchu", "Survivaliste secrètement ravi", "Touriste qui bronze quand même", "Cuisinier sans rien à cuisiner", "Optimiste qui construit un radeau", "Pessimiste officiel du groupe", "Naufragé qui parle à une noix de coco"],
+    roles: ["Capitaine déchu", "Survivaliste secrètement ravi", "Touriste qui bronze quand même", "Cuisinier sans rien à cuisiner", "Optimiste qui construit un radeau", "Pessimiste officiel du groupe", "Naufragé qui parle à une noix de coco", "Influenceuse qui poste sans réseau", "Comptable qui fait l'inventaire des bananes"],
   },
   {
     name: "Jardin partagé du quartier",
     theme: T.nature,
-    roles: ["Président du jardin un peu tyrannique", "Mamie aux tomates légendaires", "Passionné de permaculture", "Voleur de courgettes", "Enfant qui piétine les semis", "Apiculteur anxieux", "Membre qui n'a jamais rien planté"],
+    roles: ["Président du jardin un peu tyrannique", "Mamie aux tomates légendaires", "Passionné de permaculture", "Voleur de courgettes", "Enfant qui piétine les semis", "Apiculteur anxieux", "Membre qui n'a jamais rien planté", "Retraité qui arrose même quand il pleut", "Ado en travaux d'intérêt général pas concerné"],
   },
   {
     name: "Safari photo",
     theme: T.nature,
-    roles: ["Guide qui exagère chaque anecdote", "Touriste imprudent", "Photographe professionnel", "Enfant qui veut caresser les lions", "Chauffeur de 4x4", "Influenceur déçu par le réseau", "Ranger fatigué des touristes"],
+    roles: ["Guide qui exagère chaque anecdote", "Touriste imprudent", "Photographe professionnel", "Enfant qui veut caresser les lions", "Chauffeur de 4x4", "Influenceur déçu par le réseau", "Ranger fatigué des touristes", "Mamie qui trouve que « le lion a l'air gentil »", "Stagiaire vétérinaire émerveillée"],
   },
   {
     name: "Station de ski en plein redoux",
     theme: T.nature,
-    roles: ["Moniteur qui garde le sourire", "Skieur débutant", "Snowboardeur fanfaron", "Vendeur de forfaits embarrassé", "Pisteur fataliste", "Touriste en doudoune léopard", "Enfant échappé de la garderie"],
+    roles: ["Moniteur qui garde le sourire", "Skieur débutant", "Snowboardeur fanfaron", "Vendeur de forfaits embarrassé", "Pisteur fataliste", "Touriste en doudoune léopard", "Enfant échappé de la garderie", "Skieur en jean", "DJ de l'après-ski"],
   },
 
   // 🎉 Fête & soirée
   {
     name: "Enterrement de vie de garçon",
     theme: T.fete,
-    roles: ["Futur marié déguisé en licorne", "Témoin organisateur dépassé", "Pote relou", "Pote raisonnable qui surveille tout", "Inconnu incrusté au groupe", "Pote qui filme absolument tout", "Serveur complice"],
+    roles: ["Futur marié déguisé en licorne", "Témoin organisateur dépassé", "Pote relou", "Pote raisonnable qui surveille tout", "Inconnu incrusté au groupe", "Pote qui filme absolument tout", "Serveur complice", "Pote qui a « un plan »", "Chauffeur de limousine blasé"],
   },
   {
     name: "Réveillon du Nouvel An",
     theme: T.fete,
-    roles: ["Hôte stressé par son four", "Invité déjà ivre à 22 h", "Moitié de couple qui attend minuit", "Personne qui appelle sa mère à 00 h 01", "DJ amateur à la playlist contestée", "Voisin venu se plaindre, resté pour le buffet", "Enfant caché sous la table"],
+    roles: ["Hôte stressé par son four", "Invité déjà ivre à 22 h", "Moitié de couple qui attend minuit", "Personne qui appelle sa mère à 00 h 01", "DJ amateur à la playlist contestée", "Voisin venu se plaindre, resté pour le buffet", "Enfant caché sous la table", "Invité qui lance le débat politique", "Cousin venu avec un tupperware vide"],
   },
   {
     name: "Anniversaire surprise raté",
     theme: T.fete,
-    roles: ["Organisatrice paniquée", "Fêté pas surpris du tout", "Invité arrivé trop tôt", "Pote qui a vendu la mèche", "Livreur de gâteau en retard", "Ex pas invité mais présent", "Cousin éloigné que personne ne reconnaît"],
+    roles: ["Organisatrice paniquée", "Fêté pas surpris du tout", "Invité arrivé trop tôt", "Pote qui a vendu la mèche", "Livreur de gâteau en retard", "Ex pas invité mais présent", "Cousin éloigné que personne ne reconnaît", "Pote caché derrière le canapé depuis 40 minutes", "Maître du chien qui a goûté le gâteau"],
   },
   {
     name: "Soirée jeux de société",
     theme: T.fete,
-    roles: ["Maître du jeu tyrannique", "Mauvais perdant notoire", "Tricheur en exercice", "Débutante qui gagne tout", "Celui qui lit les règles à voix haute", "Spectateur qui commente sans jouer", "Invité venu juste pour discuter"],
+    roles: ["Maître du jeu tyrannique", "Mauvais perdant notoire", "Tricheur en exercice", "Débutante qui gagne tout", "Celui qui lit les règles à voix haute", "Spectateur qui commente sans jouer", "Invité venu juste pour discuter", "Joueur qui « connaît une variante »", "Moitié de couple qui règle ses comptes via le jeu"],
   },
   {
     name: "Karaoké de quartier",
     theme: T.fete,
-    roles: ["Patron mélomane", "Étoile déchue du dimanche", "Groupe d'enterrement de vie de jeune fille", "Habitué de la même chanson depuis dix ans", "Couple en duo dramatique", "Client qui attend son tour depuis deux heures", "Serveur aux bouchons d'oreilles"],
+    roles: ["Patron mélomane", "Étoile déchue du dimanche", "Groupe d'enterrement de vie de jeune fille", "Habitué de la même chanson depuis dix ans", "Couple en duo dramatique", "Client qui attend son tour depuis deux heures", "Serveur aux bouchons d'oreilles", "Type qui prend Bohemian Rhapsody en entier", "Inconnu étonnamment doué"],
   },
   {
     name: "Festival de musique sous la boue",
     theme: T.fete,
-    roles: ["Festivalier prévoyant en bottes", "Festivalier en claquettes", "Vendeur de ponchos en or", "Agent de sécurité stoïque", "Chanteur de la scène secondaire", "Égaré qui cherche ses potes depuis hier", "Ingé son sous la pluie"],
+    roles: ["Festivalier prévoyant en bottes", "Festivalier en claquettes", "Vendeur de ponchos en or", "Agent de sécurité stoïque", "Chanteur de la scène secondaire", "Égaré qui cherche ses potes depuis hier", "Ingé son sous la pluie", "Festivalier qui a perdu une botte", "Couple qui s'est rencontré ici l'an dernier"],
   },
   {
     name: "Crémaillère dans 20 m²",
     theme: T.fete,
-    roles: ["Hôte très fier de son studio", "Invitée coincée dans la kitchenette", "Pote qui offre une plante", "Voisin curieux", "Couple assis sur le lit", "Pote qui a ramené six inconnus", "Invité qui remonte déjà l'étagère"],
+    roles: ["Hôte très fier de son studio", "Invitée coincée dans la kitchenette", "Pote qui offre une plante", "Voisin curieux", "Couple assis sur le lit", "Pote qui a ramené six inconnus", "Invité qui remonte déjà l'étagère", "Ex du propriétaire venue « en amie »", "Pote qui calcule le loyer au m²"],
   },
 
   // 💼 Boulot & commerce
   {
     name: "Réunion qui aurait pu être un mail",
     theme: T.boulot,
-    roles: ["Manager à slides", "Stagiaire qui note tout", "Collègue qui pose LA question à 17 h 59", "Dormeur discret du fond", "Collègue en visio figée", "RH enthousiaste", "Consultant en buzzwords"],
+    roles: ["Manager à slides", "Stagiaire qui note tout", "Collègue qui pose LA question à 17 h 59", "Dormeur discret du fond", "Collègue en visio figée", "RH enthousiaste", "Consultant en buzzwords", "Collègue qui répète ce qu'on vient de dire, en plus fort", "Responsable du vidéoprojecteur qui ne marche pas"],
   },
   {
     name: "Start-up en levée de fonds",
     theme: T.boulot,
-    roles: ["CEO visionnaire", "CTO épuisé", "Stagiaire payé en tickets resto", "Investisseur sceptique", "Growth hacker mystérieux", "Office manager du baby-foot", "Employé qui ignore ce que fait la boîte"],
+    roles: ["CEO visionnaire", "CTO épuisé", "Stagiaire payé en tickets resto", "Investisseur sceptique", "Growth hacker mystérieux", "Office manager du baby-foot", "Employé qui ignore ce que fait la boîte", "Coach agile", "Dev qui déploie en prod un vendredi"],
   },
   {
     name: "Marché du dimanche",
     theme: T.boulot,
-    roles: ["Maraîcher gouailleur", "Fromager généreux en échantillons", "Mamie qui négocie tout", "Touriste qui photographie les légumes", "Poissonnier tonitruant", "Cliente au panier en osier", "Goûteur professionnel jamais acheteur"],
+    roles: ["Maraîcher gouailleur", "Fromager généreux en échantillons", "Mamie qui négocie tout", "Touriste qui photographie les légumes", "Poissonnier tonitruant", "Cliente au panier en osier", "Goûteur professionnel jamais acheteur", "Vendeur d'olives qui fait goûter de force", "Élu local en tournée de poignées de main"],
   },
   {
     name: "Magasin de meubles suédois",
     theme: T.boulot,
-    roles: ["Vendeur introuvable", "Couple au bord de la rupture", "Enfant perdu dans les showrooms", "Client qui teste tous les canapés", "Pro des raccourcis du magasin", "Client venu juste pour les boulettes", "Étudiant qui meuble son premier appart"],
+    roles: ["Vendeur introuvable", "Couple au bord de la rupture", "Enfant perdu dans les showrooms", "Client qui teste tous les canapés", "Pro des raccourcis du magasin", "Client venu juste pour les boulettes", "Étudiant qui meuble son premier appart", "Couple qui teste le lit trop longtemps", "Vendeur de hot-dogs de la sortie"],
   },
   {
     name: "Centre d'appels",
     theme: T.boulot,
-    roles: ["Téléconseiller zen", "Nouveau qui découvre le script", "Collègue en pause café permanente", "Manager motivationnel", "Téléconseillère vedette du plateau", "Stagiaire au casque cassé", "Syndicaliste vigilant"],
+    roles: ["Téléconseiller zen", "Nouveau qui découvre le script", "Collègue en pause café permanente", "Manager motivationnel", "Téléconseillère vedette du plateau", "Stagiaire au casque cassé", "Syndicaliste vigilant", "Conseiller qui change d'accent à chaque appel", "Employé du mois depuis quatorze mois"],
   },
   {
     name: "Salon de coiffure de quartier",
     theme: T.boulot,
-    roles: ["Coiffeuse bavarde", "Client qui voulait « juste les pointes »", "Mamie sous le casque", "Apprenti au balai", "Client endormi", "Cliente à la couleur ratée", "Habitué du samedi matin"],
+    roles: ["Coiffeuse bavarde", "Client qui voulait « juste les pointes »", "Mamie sous le casque", "Apprenti au balai", "Client endormi", "Cliente à la couleur ratée", "Habitué du samedi matin", "Représentant en shampoings", "Client qui montre une photo de footballeur"],
   },
   {
     name: "Vide-grenier",
     theme: T.boulot,
-    roles: ["Organisateur au mégaphone", "Vendeur trop attaché à ses objets", "Acheteuse négociatrice impitoyable", "Collectionneur de vinyles", "Enfant qui vend ses jouets à contrecœur", "Brocanteur pro déguisé en amateur", "Voisin qui vend les affaires de son ex"],
+    roles: ["Organisateur au mégaphone", "Vendeur trop attaché à ses objets", "Acheteuse négociatrice impitoyable", "Collectionneur de vinyles", "Enfant qui vend ses jouets à contrecœur", "Brocanteur pro déguisé en amateur", "Voisin qui vend les affaires de son ex", "Vendeur d'un seul objet : un jacuzzi", "Chineuse arrivée à 6 h avec une lampe frontale"],
   },
 
   // 🎭 Culture & spectacle
   {
     name: "Tournage de télé-réalité",
     theme: T.culture,
-    roles: ["Candidat stratège", "Candidate venue « pour l'aventure »", "Caméraman blasé", "Producteur machiavélique", "Éliminé qui traîne encore sur le plateau", "Psy de production", "Monteur qui invente l'histoire"],
+    roles: ["Candidat stratège", "Candidate venue « pour l'aventure »", "Caméraman blasé", "Producteur machiavélique", "Éliminé qui traîne encore sur le plateau", "Psy de production", "Monteur qui invente l'histoire", "Candidat qui parle de lui à la troisième personne", "Infirmier du plateau"],
   },
   {
     name: "Vernissage d'art contemporain",
     theme: T.culture,
-    roles: ["Artiste incompris", "Critique en écharpe", "Invité venu pour le buffet", "Collectionneur snob", "Galeriste en pleine vente", "Visiteur qui hoche la tête sans comprendre", "Agent d'entretien qui a failli jeter l'œuvre"],
+    roles: ["Artiste incompris", "Critique en écharpe", "Invité venu pour le buffet", "Collectionneur snob", "Galeriste en pleine vente", "Visiteur qui hoche la tête sans comprendre", "Agent d'entretien qui a failli jeter l'œuvre", "Mécène qui admire l'extincteur", "Stagiaire qui ressert le champagne trop vite"],
   },
   {
     name: "Plateau de cinéma de série Z",
     theme: T.culture,
-    roles: ["Réalisateur passionné", "Acteur principal cabotin", "Cascadeuse sous-payée", "Maquilleur d'effets douteux", "Figurant zombie", "Producteur fauché", "Perchman maudit"],
+    roles: ["Réalisateur passionné", "Acteur principal cabotin", "Cascadeuse sous-payée", "Maquilleur d'effets douteux", "Figurant zombie", "Producteur fauché", "Perchman maudit", "Acteur dans le costume du monstre en mousse", "Scripte qui a renoncé à la cohérence"],
   },
   {
     name: "Escape game",
     theme: T.culture,
-    roles: ["Game master au micro", "Joueur qui fouille même le plafond", "Joueuse qui a déjà tout résolu", "Paniqué des pièces fermées", "Celui qui casse le décor", "Collègue en team building forcé", "Couple en rendez-vous galant"],
+    roles: ["Game master au micro", "Joueur qui fouille même le plafond", "Joueuse qui a déjà tout résolu", "Paniqué des pièces fermées", "Celui qui casse le décor", "Collègue en team building forcé", "Couple en rendez-vous galant", "Joueur qui demande un indice toutes les 30 secondes", "Claustrophobe qui l'a découvert trop tard"],
   },
   {
     name: "Scène ouverte de stand-up",
     theme: T.culture,
-    roles: ["Humoriste qui débute", "Humoriste qui « teste du nouveau matériel »", "Patron du bar", "Spectatrice du premier rang", "Chahuteur professionnel", "Pote venu soutenir", "Serveuse qui a tout entendu cent fois"],
+    roles: ["Humoriste qui débute", "Humoriste qui « teste du nouveau matériel »", "Patron du bar", "Spectatrice du premier rang", "Chahuteur professionnel", "Pote venu soutenir", "Serveuse qui a tout entendu cent fois", "Humoriste qui ne parle que de son ex", "Vidéaste qui filme « pour les réseaux »"],
   },
   {
     name: "Émission de cuisine en direct",
     theme: T.culture,
-    roles: ["Chef juré impitoyable", "Candidat au bord des larmes", "Candidate beaucoup trop sûre d'elle", "Présentateur survolté", "Caméraman affamé", "Coach culinaire en coulisses", "Plongeur du studio"],
+    roles: ["Chef juré impitoyable", "Candidat au bord des larmes", "Candidate beaucoup trop sûre d'elle", "Présentateur survolté", "Caméraman affamé", "Coach culinaire en coulisses", "Plongeur du studio", "Candidat qui refait un flan pour la troisième fois", "Nutritionniste de plateau jamais écoutée"],
   },
   {
     name: "Opéra",
     theme: T.culture,
-    roles: ["Diva", "Ténor enrhumé", "Chef d'orchestre", "Spectateur endormi au premier acte", "Mécène du premier rang", "Ouvreuse", "Critique impitoyable"],
+    roles: ["Diva", "Ténor enrhumé", "Chef d'orchestre", "Spectateur endormi au premier acte", "Mécène du premier rang", "Ouvreuse", "Critique impitoyable", "Spectateur dont le téléphone sonne", "Doublure qui attend son heure depuis vingt ans"],
   },
 
   // ⚽ Sport & loisirs
   {
     name: "Salle de sport en janvier",
     theme: T.sport,
-    roles: ["Coach débordant de motivation", "Résolutionnaire du 1er janvier", "Bodybuilder fasciné par le miroir", "Squatteuse du seul rameur", "Nouveau complètement perdu", "Vendeur de protéines", "Habitué qui ne range jamais ses poids"],
+    roles: ["Coach débordant de motivation", "Résolutionnaire du 1er janvier", "Bodybuilder fasciné par le miroir", "Squatteuse du seul rameur", "Nouveau complètement perdu", "Vendeur de protéines", "Habitué qui ne range jamais ses poids", "Couple qui s'entraîne en synchronisé", "Type qui filme chaque série"],
   },
   {
     name: "Match de foot de district",
     theme: T.sport,
-    roles: ["Arbitre contesté", "Gardien poète", "Buteur vétéran", "Parent ultra en tribune", "Coach en survêtement intégral", "Remplaçant frigorifié", "Responsable de la buvette"],
+    roles: ["Arbitre contesté", "Gardien poète", "Buteur vétéran", "Parent ultra en tribune", "Coach en survêtement intégral", "Remplaçant frigorifié", "Responsable de la buvette", "Attaquant qui réclame un penalty à chaque contact", "Mascotte du club en costume de blaireau"],
   },
   {
     name: "Tournoi d'échecs",
     theme: T.sport,
-    roles: ["Grand maître arrogant", "Prodige de neuf ans", "Joueur qui réfléchit quarante minutes", "Arbitre du silence", "Parent plus stressé que l'enfant", "Joueur qui propose nulle à tout le monde", "Spectateur qui n'y comprend rien"],
+    roles: ["Grand maître arrogant", "Prodige de neuf ans", "Joueur qui réfléchit quarante minutes", "Arbitre du silence", "Parent plus stressé que l'enfant", "Joueur qui propose nulle à tout le monde", "Spectateur qui n'y comprend rien", "Joueur qui mange des chips très fort", "Streameuse qui commente en chuchotant"],
   },
   {
     name: "Laser game d'anniversaire",
     theme: T.sport,
-    roles: ["Gamin tireur d'élite", "Papa beaucoup trop investi", "Ado blasé", "Animateur du briefing", "Campeur assumé", "Joueur qui a oublié ses lunettes", "Équipier traître"],
+    roles: ["Gamin tireur d'élite", "Papa beaucoup trop investi", "Ado blasé", "Animateur du briefing", "Campeur assumé", "Joueur qui a oublié ses lunettes", "Équipier traître", "Gamine qui connaît tous les recoins", "Tonton qui transpire dès le briefing"],
   },
   {
     name: "Piscine municipale",
     theme: T.sport,
-    roles: ["Maître-nageur au sifflet facile", "Tyran du couloir de nage", "Star de l'aquagym", "Enfant du grand plongeoir", "Ado qui parade", "Caissière des entrées", "Baigneur au bonnet réglementaire"],
+    roles: ["Maître-nageur au sifflet facile", "Tyran du couloir de nage", "Star de l'aquagym", "Enfant du grand plongeoir", "Ado qui parade", "Caissière des entrées", "Baigneur au bonnet réglementaire", "Champion local de la bombe", "Prof d'aquabike sur son podium"],
   },
   {
     name: "Marathon",
     theme: T.sport,
-    roles: ["Coureur déguisé en banane", "Athlète d'élite", "Coureur qui marche dès le 3e kilomètre", "Bénévole du ravitaillement", "Supporter à pancarte", "Médecin de course", "Journaliste essoufflé"],
+    roles: ["Coureur déguisé en banane", "Athlète d'élite", "Coureur qui marche dès le 3e kilomètre", "Bénévole du ravitaillement", "Supporter à pancarte", "Médecin de course", "Journaliste essoufflé", "Coureur inscrit à cause d'un pari", "Papy qui finit toujours, peu importe l'heure"],
   },
   {
     name: "Bowling",
     theme: T.sport,
-    roles: ["Champion de la ligue locale", "Abonné de la gouttière", "Enfant avec la rampe", "Serveur de nachos", "Joueur venu avec sa propre boule", "Couple en premier rendez-vous", "Technicien des quilles"],
+    roles: ["Champion de la ligue locale", "Abonné de la gouttière", "Enfant avec la rampe", "Serveur de nachos", "Joueur venu avec sa propre boule", "Couple en premier rendez-vous", "Technicien des quilles", "Joueur qui danse après chaque strike", "Animateur de l'anniversaire de la piste 4"],
   },
 
   // 🏛️ Institutions & public
   {
     name: "Guichet de la préfecture",
     theme: T.public,
-    roles: ["Agent du guichet 4", "Usager au mauvais guichet", "Détenteur du ticket 842", "Stagiaire de la préfecture", "Vigile", "Usager endormi", "Dame qui a « juste une petite question »"],
+    roles: ["Agent du guichet 4", "Usager au mauvais guichet", "Détenteur du ticket 842", "Stagiaire de la préfecture", "Vigile", "Usager endormi", "Dame qui a « juste une petite question »", "Usager à qui il manque LA photocopie", "Agent qui part en pause à 11 h 58"],
   },
   {
     name: "Cabinet de dentiste",
     theme: T.public,
-    roles: ["Dentiste qui pose des questions la bouche pleine", "Patient terrorisé", "Assistante dentaire", "Enfant venu pour l'autocollant", "Patient qui jure ne pas avoir mal", "Commercial en matériel dentaire", "Patiente très en retard"],
+    roles: ["Dentiste qui pose des questions la bouche pleine", "Patient terrorisé", "Assistante dentaire", "Enfant venu pour l'autocollant", "Patient qui jure ne pas avoir mal", "Commercial en matériel dentaire", "Patiente très en retard", "Patient qui répond la bouche grande ouverte", "Enfant qui mord"],
   },
   {
     name: "Examen du permis de conduire",
     theme: T.public,
-    roles: ["Inspecteur impassible", "Candidat à la cinquième tentative", "Candidate trop confiante", "Moniteur fataliste", "Élève du créneau éternel", "Secrétaire de l'auto-école", "Candidat qui cale au rond-point"],
+    roles: ["Inspecteur impassible", "Candidat à la cinquième tentative", "Candidate trop confiante", "Moniteur fataliste", "Élève du créneau éternel", "Secrétaire de l'auto-école", "Candidat qui cale au rond-point", "Inspecteur qui freine de son côté", "Candidate qui remercie à chaque stop"],
   },
   {
     name: "Tribunal pour litige de voisinage",
     theme: T.public,
-    roles: ["Juge fatigué", "Plaignant de la haie de thuyas", "Accusé du barbecue dominical", "Avocat commis d'office", "Témoin mythomane", "Greffière imperturbable", "Voisin venu pour le spectacle"],
+    roles: ["Juge fatigué", "Plaignant de la haie de thuyas", "Accusé du barbecue dominical", "Avocat commis d'office", "Témoin mythomane", "Greffière imperturbable", "Voisin venu pour le spectacle", "Expert assermenté en haies de thuyas", "Maire venu témoigner pour les deux camps"],
   },
   {
     name: "Caserne de pompiers",
     theme: T.public,
-    roles: ["Capitaine", "Jeune recrue zélée", "Cuisinier de la caserne", "Pompier du calendrier", "Standardiste du 18", "Vétéran nostalgique", "Élève en visite scolaire"],
+    roles: ["Capitaine", "Jeune recrue zélée", "Cuisinier de la caserne", "Pompier du calendrier", "Standardiste du 18", "Vétéran nostalgique", "Élève en visite scolaire", "Propriétaire du chat coincé dans l'arbre", "Photographe du calendrier"],
   },
   {
     name: "Mairie un jour de mariage",
     theme: T.public,
-    roles: ["Maire à l'écharpe", "Adjoint qui remplace au pied levé", "Marié pressé", "Témoin en retard", "Photographe officiel", "Employée de l'état civil", "Invité resté du mariage précédent"],
+    roles: ["Maire à l'écharpe", "Adjoint qui remplace au pied levé", "Marié pressé", "Témoin en retard", "Photographe officiel", "Employée de l'état civil", "Invité resté du mariage précédent", "Mamie qui pleure dès le couloir", "Enfant d'honneur qui a perdu les alliances"],
   },
   {
     name: "Salle d'attente des urgences",
     theme: T.public,
-    roles: ["Infirmier d'accueil", "Patient au doigt d'une couleur étrange", "Hypocondriaque de garde", "Enfant avec un Lego dans le nez", "Médecin à sa 36e heure", "Patient qui attend « depuis six heures »", "Vigile de nuit"],
+    roles: ["Infirmier d'accueil", "Patient au doigt d'une couleur étrange", "Hypocondriaque de garde", "Enfant avec un Lego dans le nez", "Médecin à sa 36e heure", "Patient qui attend « depuis six heures »", "Vigile de nuit", "Blessé déguisé en Superman", "Patiente qui diagnostique tout le monde grâce à Internet"],
   },
 
   // ⚔️ Aventure & extrême
   {
     name: "Base secrète de super-vilain",
     theme: T.aventure,
-    roles: ["Vilain mégalomane", "Bras droit incompétent", "Scientifique kidnappé", "Stagiaire du mal", "Garde n°7", "Espion infiltré (un autre)", "Technicienne de surface du volcan"],
+    roles: ["Vilain mégalomane", "Bras droit incompétent", "Scientifique kidnappé", "Stagiaire du mal", "Garde n°7", "Espion infiltré (un autre)", "Technicienne de surface du volcan", "Responsable du bassin à requins", "Stagiaire qui a laissé la porte du hangar ouverte"],
   },
   {
     name: "Expédition sur Mars",
     theme: T.aventure,
-    roles: ["Commandante", "Botaniste optimiste", "Ingénieur qui répare tout au scotch", "Touriste milliardaire", "Géologue émerveillé", "Médecin de mission", "Passager clandestin inexplicable"],
+    roles: ["Commandante", "Botaniste optimiste", "Ingénieur qui répare tout au scotch", "Touriste milliardaire", "Géologue émerveillé", "Médecin de mission", "Passager clandestin inexplicable", "Astronaute qui a le mal de l'espace", "Community manager de la mission"],
   },
   {
     name: "Château hanté",
     theme: T.aventure,
-    roles: ["Fantôme du comte", "Chasseuse de fantômes suréquipée", "Médium approximative", "Héritier sceptique", "Majordome centenaire", "Touriste à caméra thermique", "Guide de la visite nocturne"],
+    roles: ["Fantôme du comte", "Chasseuse de fantômes suréquipée", "Médium approximative", "Héritier sceptique", "Majordome centenaire", "Touriste à caméra thermique", "Guide de la visite nocturne", "Fantôme timide qui n'ose pas hanter", "Agent immobilier qui tente quand même de vendre"],
   },
   {
     name: "Donjon médiéval-fantastique",
     theme: T.aventure,
-    roles: ["Chevalier niveau 1", "Magicienne à court de mana", "Nain grognon", "Barde inutile mais motivé", "Gobelin syndiqué", "Marchand ambulant des couloirs", "Voleuse du groupe"],
+    roles: ["Chevalier niveau 1", "Magicienne à court de mana", "Nain grognon", "Barde inutile mais motivé", "Gobelin syndiqué", "Marchand ambulant des couloirs", "Voleuse du groupe", "Paladin au code d'honneur encombrant", "Squelette réceptionniste"],
   },
   {
     name: "Camp d'entraînement de ninjas",
     theme: T.aventure,
-    roles: ["Maître zen", "Élève très bruyant pour un ninja", "Ninja vedette du dojo", "Cuisinier du camp", "Espion d'un clan rival", "Inscrit qui croyait à un cours de yoga", "Forgeron de shurikens"],
+    roles: ["Maître zen", "Élève très bruyant pour un ninja", "Ninja vedette du dojo", "Cuisinier du camp", "Espion d'un clan rival", "Inscrit qui croyait à un cours de yoga", "Forgeron de shurikens", "Ninja qui fait craquer toutes les lattes du plancher", "Vendeur de fumigènes"],
   },
   {
     name: "Saloon du Far West",
     theme: T.aventure,
-    roles: ["Shérif", "Hors-la-loi recherché", "Barman qui essuie toujours le même verre", "Pianiste qui s'arrête quand quelqu'un entre", "Chercheuse d'or", "Joueur de poker tricheur", "Croque-mort optimiste"],
+    roles: ["Shérif", "Hors-la-loi recherché", "Barman qui essuie toujours le même verre", "Pianiste qui s'arrête quand quelqu'un entre", "Chercheuse d'or", "Joueur de poker tricheur", "Croque-mort optimiste", "Cowboy qui rate le crachoir", "Chanteuse de saloon"],
   },
   {
     name: "Supermarché barricadé en pleine apocalypse zombie",
     theme: T.aventure,
-    roles: ["Chef autoproclamé", "Survivante pragmatique", "Mordu qui le cache", "Ado qui gaspille les munitions", "Mamie d'un calme olympien", "Scientifique en quête de remède", "Pillard repenti"],
+    roles: ["Chef autoproclamé", "Survivante pragmatique", "Mordu qui le cache", "Ado qui gaspille les munitions", "Mamie d'un calme olympien", "Scientifique en quête de remède", "Pillard repenti", "Type qui veut « juste discuter » avec les zombies", "Gérant qui fait encore payer aux caisses"],
   },
 
   // 🍕 Bouffe & boisson
   {
     name: "Kebab à 3 h du matin",
     theme: T.bouffe,
-    roles: ["Patron philosophe", "Client affamé post-soirée", "Duo en train de devenir un couple", "Client qui pleure sur ses frites", "Livreur en pause", "Habitué du « comme d'habitude »", "Végétarien arrivé là par erreur"],
+    roles: ["Patron philosophe", "Client affamé post-soirée", "Duo en train de devenir un couple", "Client qui pleure sur ses frites", "Livreur en pause", "Habitué du « comme d'habitude »", "Végétarien arrivé là par erreur", "Videur du bar d'à côté en pause", "Cliente qui jure qu'elle ne boira plus jamais"],
   },
   {
     name: "Restaurant gastronomique étoilé",
     theme: T.bouffe,
-    roles: ["Chef tyrannique", "Critique incognito", "Client qui ne comprend pas le menu", "Sommelier lyrique", "Plongeur philosophe", "Serveur au ballet millimétré", "Client qui demande du ketchup"],
+    roles: ["Chef tyrannique", "Critique incognito", "Client qui ne comprend pas le menu", "Sommelier lyrique", "Plongeur philosophe", "Serveur au ballet millimétré", "Client qui demande du ketchup", "Deuxième inspecteur incognito (ils s'ignorent)", "Cliente qui photographie chaque micro-portion"],
   },
   {
     name: "Cours de cuisine",
     theme: T.bouffe,
-    roles: ["Chef pédagogue", "Élève qui brûle tout", "Élève qui a « déjà fait mieux »", "Moitié de couple en activité imposée", "Mamie meilleure que le chef", "Élève qui goûte trop la pâte", "Assistant qui nettoie en silence"],
+    roles: ["Chef pédagogue", "Élève qui brûle tout", "Élève qui a « déjà fait mieux »", "Moitié de couple en activité imposée", "Mamie meilleure que le chef", "Élève qui goûte trop la pâte", "Assistant qui nettoie en silence", "Élève qui filme sa story au lieu de cuisiner", "Voisin attiré par l'odeur"],
   },
   {
     name: "Dégustation dans une cave à vin",
     theme: T.bouffe,
-    roles: ["Œnologue lyrique", "Client qui recrache", "Client qui ne recrache jamais", "Novice qui trouve que « ça sent le vin »", "Sommelière", "Propriétaire du domaine", "Acheteur professionnel"],
+    roles: ["Œnologue lyrique", "Client qui recrache", "Client qui ne recrache jamais", "Novice qui trouve que « ça sent le vin »", "Sommelière", "Propriétaire du domaine", "Acheteur professionnel", "Client qui détecte « des notes de banane »", "Chauffeur désigné au regard triste"],
   },
   {
     name: "Fast-food à minuit",
     theme: T.bouffe,
-    roles: ["Équipier étudiant", "Manager de 22 ans", "Client perdu devant la borne", "Table d'anniversaire tardive", "Livreur qui attend la commande 847", "Client qui réclame le menu du matin", "Habitué du drive… à pied"],
+    roles: ["Équipier étudiant", "Manager de 22 ans", "Client perdu devant la borne", "Table d'anniversaire tardive", "Livreur qui attend la commande 847", "Client qui réclame le menu du matin", "Habitué du drive… à pied", "Équipe de basket au complet", "Client qui philosophe au comptoir"],
   },
   {
     name: "Buffet à volonté",
     theme: T.bouffe,
-    roles: ["Gérant inquiet", "Stratège de l'assiette niveau 9", "Enfant lâché au bar à desserts", "Cuisinier qui regarnit sans fin", "Cliente au septième passage", "Moitié de couple officiellement au régime", "Inspecteur d'hygiène en visite"],
+    roles: ["Gérant inquiet", "Stratège de l'assiette niveau 9", "Enfant lâché au bar à desserts", "Cuisinier qui regarnit sans fin", "Cliente au septième passage", "Moitié de couple officiellement au régime", "Inspecteur d'hygiène en visite", "Papy qui emporte des crevettes en douce", "Ado lancé dans le défi du bar à piments"],
   },
   {
     name: "Boulangerie du village",
     theme: T.bouffe,
-    roles: ["Boulanger debout depuis 4 h", "Vendeuse au sourire commercial", "Mamie de 7 h 02 précises", "Client de la baguette « bien cuite »", "Touriste qui veut un croissant à 17 h", "Apprenti enfariné", "Représentant en farine"],
+    roles: ["Boulanger debout depuis 4 h", "Vendeuse au sourire commercial", "Mamie de 7 h 02 précises", "Client de la baguette « bien cuite »", "Touriste qui veut un croissant à 17 h", "Apprenti enfariné", "Représentant en farine", "Enfant envoyé avec la monnaie comptée", "Cliente du dimanche aux douze croissants"],
   },
 
   // 🤪 Insolite & imaginaire
   {
     name: "Convention de sosies d'Elvis",
     theme: T.insolite,
-    roles: ["Sosie vétéran", "Sosie débutant", "Sosie qui ne ressemble à rien", "Organisateur en costume à paillettes", "Fan de la première heure", "Juge du concours", "Vendeur de perruques"],
+    roles: ["Sosie vétéran", "Sosie débutant", "Sosie qui ne ressemble à rien", "Organisateur en costume à paillettes", "Fan de la première heure", "Juge du concours", "Vendeur de perruques", "Sosie de Johnny qui s'est trompé de salon", "Coiffeur spécialiste de la banane"],
   },
   {
     name: "Réunion secrète des Illuminati",
     theme: T.insolite,
-    roles: ["Grand Maître", "Nouveau qui a mal lu l'invitation", "Trésorier des fonds secrets", "Complotiste infiltré absolument ravi", "Stagiaire en charge des bougies", "Membre au déguisement de lézard douteux", "Secrétaire qui rédige le compte rendu du complot"],
+    roles: ["Grand Maître", "Nouveau qui a mal lu l'invitation", "Trésorier des fonds secrets", "Complotiste infiltré absolument ravi", "Stagiaire en charge des bougies", "Membre au déguisement de lézard douteux", "Secrétaire qui rédige le compte rendu du complot", "Livreur de pizzas assermenté", "Membre qui pose beaucoup trop de questions"],
   },
   {
     name: "Village viking",
     theme: T.insolite,
-    roles: ["Jarl", "Berserker très doux", "Forgeronne", "Explorateur obsédé par l'ouest", "Druide météorologue", "Rameur fatigué", "Poète scalde envahissant"],
+    roles: ["Jarl", "Berserker très doux", "Forgeronne", "Explorateur obsédé par l'ouest", "Druide météorologue", "Rameur fatigué", "Poète scalde envahissant", "Viking végétarien", "Capitaine de drakkar qui a le mal de mer"],
   },
   {
     name: "Maison de retraite pour super-héros",
     theme: T.insolite,
-    roles: ["Ex-justicier nostalgique", "Infirmière blindée", "Super-vilain réconcilié", "Héros au pouvoir en panne", "Acolyte devenu directeur", "Fan en visite", "Journaliste en quête de scoop"],
+    roles: ["Ex-justicier nostalgique", "Infirmière blindée", "Super-vilain réconcilié", "Héros au pouvoir en panne", "Acolyte devenu directeur", "Fan en visite", "Journaliste en quête de scoop", "Kiné spécialiste des super-dos", "Ancien méchant qui anime le loto"],
   },
   {
     name: "Cours de yoga pour chiens",
     theme: T.insolite,
-    roles: ["Prof d'un calme absolu", "Chienne star d'Instagram", "Maître plus stressé que son chien", "Carlin qui dort depuis le début", "Berger allemand premier de la classe", "Débutant traîné par sa compagne", "Chat infiltré"],
+    roles: ["Prof d'un calme absolu", "Chienne star d'Instagram", "Maître plus stressé que son chien", "Carlin qui dort depuis le début", "Berger allemand premier de la classe", "Débutant traîné par sa compagne", "Chat infiltré", "Chihuahua anxieux", "Stagiaire préposé aux petits accidents"],
   },
   {
     name: "Bureau des objets trouvés",
     theme: T.insolite,
-    roles: ["Fonctionnaire du rayon parapluies", "Client qui cherche son dentier", "Détective des valises orphelines", "Collectionneur un peu suspect", "Touriste qui a absolument tout perdu", "Employé qui garde les objets cool", "Enfant venu pour son doudou"],
+    roles: ["Fonctionnaire du rayon parapluies", "Client qui cherche son dentier", "Détective des valises orphelines", "Collectionneur un peu suspect", "Touriste qui a absolument tout perdu", "Employé qui garde les objets cool", "Enfant venu pour son doudou", "Musicien qui a perdu son tuba", "Dame venue « juste regarder »"],
   },
   {
     name: "Concours du plus gros légume",
     theme: T.insolite,
-    roles: ["Juré de la foire agricole", "Agriculteur favori du concours", "Rival jaloux", "Mamie aux citrouilles suspectes", "Journaliste de la gazette locale", "Maire qui remet le prix", "Inspecteur anti-dopage végétal"],
+    roles: ["Juré de la foire agricole", "Agriculteur favori du concours", "Rival jaloux", "Mamie aux citrouilles suspectes", "Journaliste de la gazette locale", "Maire qui remet le prix", "Inspecteur anti-dopage végétal", "Reporter radio en direct", "Petit-fils qui s'ennuie fermement"],
   },
 ];
 
