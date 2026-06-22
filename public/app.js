@@ -34,10 +34,25 @@ function setError(id, msg) {
 
 // --- Accueil ---------------------------------------------------------------
 
+// Charge les modes proposés à la création (écran d'accueil, avant toute salle).
+async function loadDecks() {
+  try {
+    const { decks } = await api("/api/decks");
+    $("mode-select").innerHTML = Object.entries(decks)
+      .map(([k, d]) => `<option value="${k}">${escapeHtml(d.label)} (${d.count} lieux)</option>`)
+      .join("");
+  } catch {
+    /* réseau indisponible : on réessaiera, la création échouera proprement sinon */
+  }
+}
+
 $("btn-create").onclick = async () => {
   setError("home-error", "");
   try {
-    const { code, playerId } = await api("/api/rooms", { name: $("name-input").value });
+    const { code, playerId } = await api("/api/rooms", {
+      name: $("name-input").value,
+      deck: $("mode-select").value,
+    });
     saveSession({ code, playerId });
     startPolling();
   } catch (e) {
@@ -227,5 +242,6 @@ function escapeHtml(s) {
 }
 
 // Reprise de session après rechargement de la page.
+loadDecks();
 if (session) startPolling();
 else show("screen-home");

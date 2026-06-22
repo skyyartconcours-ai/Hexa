@@ -775,5 +775,6 @@ module.exports = {
   both: { label: "Spyfall 1 + 2", locations: [...spyfall1, ...spyfall2] },
   delire: { label: "Délire (RP)", locations: delire },
   delire2: { label: "Délire 2 (corsé) 🔞", locations: delire2 },
+  delireBoth: { label: "Délire + Délire 2 🔞", locations: [...delire, ...delire2] },
   tout: { label: "Tout", locations: [...spyfall1, ...spyfall2, ...delire, ...delire2] },
 };

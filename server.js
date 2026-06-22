@@ -6,6 +6,10 @@ const fs = require("fs");
 const path = require("path");
 const DECKS = require("./locations");
 
+// Modes proposés à la création (et au lancement) — sous-ensemble de DECKS.
+const ALLOWED_DECKS = ["both", "delire", "delire2", "delireBoth"];
+const DEFAULT_DECK = "both";
+
 const PORT = process.env.PORT || 3000;
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000; // salles supprimées après 3 h d'inactivité
 const MAX_ROOMS = 500;
@@ -17,7 +21,7 @@ function makeRoomCode() {
   const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   let code;
   do {
-    code = Array.from({ length: 4 }, () => letters[crypto.randomInt(letters.length)]).join("");
+    code = Array.from({ length: 2 }, () => letters[crypto.randomInt(letters.length)]).join("");
   } while (rooms.has(code));
   return code;
 }
@@ -33,7 +37,7 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000).unref();
 
-function createRoom(name) {
+function createRoom(name, deck) {
   if (rooms.size >= MAX_ROOMS) throw httpError(503, "Trop de salles ouvertes, réessayez plus tard.");
   const room = {
     code: makeRoomCode(),
@@ -41,7 +45,7 @@ function createRoom(name) {
     status: "lobby", // lobby | playing | reveal
     round: null,
     durationMin: 8,
-    deck: "spyfall1",
+    deck: ALLOWED_DECKS.includes(deck) ? deck : DEFAULT_DECK,
     lastActivity: Date.now(),
   };
   rooms.set(room.code, room);
@@ -78,7 +82,7 @@ function startRound(room, player, durationMin, deck) {
   if (room.players.length < 3) throw httpError(400, "Il faut au moins 3 joueurs.");
   const minutes = Math.min(20, Math.max(1, Number(durationMin) || room.durationMin));
   room.durationMin = minutes;
-  if (DECKS[deck]) room.deck = deck;
+  if (ALLOWED_DECKS.includes(deck)) room.deck = deck;
   const pool = DECKS[room.deck].locations;
   const location = pool[crypto.randomInt(pool.length)];
   const spy = room.players[crypto.randomInt(room.players.length)];
@@ -124,7 +128,7 @@ function stateFor(room, playerId) {
     status: room.status,
     durationMin: room.durationMin,
     deck: room.deck,
-    decks: Object.fromEntries(Object.entries(DECKS).map(([k, d]) => [k, { label: d.label, count: d.locations.length }])),
+    decks: Object.fromEntries(ALLOWED_DECKS.map((k) => [k, { label: DECKS[k].label, count: DECKS[k].locations.length }])),
     you: { id: player.id, name: player.name, isHost: player.isHost },
     players: room.players.map((p) => ({ name: p.name, isHost: p.isHost })),
   };
@@ -186,14 +190,21 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Liste des modes proposés à la création (écran d'accueil, avant toute salle).
+    if (req.method === "GET" && url.pathname === "/api/decks") {
+      return sendJSON(res, 200, {
+        decks: Object.fromEntries(ALLOWED_DECKS.map((k) => [k, { label: DECKS[k].label, count: DECKS[k].locations.length }])),
+      });
+    }
+
     // API : /api/rooms et /api/rooms/:code/(join|start|end|lobby|state)
-    const match = url.pathname.match(/^\/api\/rooms(?:\/([A-Za-z]{4})(?:\/(join|start|end|lobby|state))?)?$/);
+    const match = url.pathname.match(/^\/api\/rooms(?:\/([A-Za-z]{2})(?:\/(join|start|end|lobby|state))?)?$/);
     if (!match) throw httpError(404, "Page introuvable.");
     const [, code, action] = match;
 
     if (req.method === "POST" && !code) {
       const body = await readBody(req);
-      const { room, player } = createRoom(body.name);
+      const { room, player } = createRoom(body.name, body.deck);
       return sendJSON(res, 201, { code: room.code, playerId: player.id });
     }
     if (req.method === "POST" && action === "join") {

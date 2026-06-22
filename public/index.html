@@ -15,9 +15,11 @@
       <p class="subtitle">Les cartes du jeu, en français, sur vos téléphones.</p>
       <label for="name-input">Votre prénom</label>
       <input id="name-input" maxlength="20" autocomplete="given-name" placeholder="ex. Léa" />
-      <button id="btn-create" class="primary">Créer une partie</button>
+      <label for="mode-select">Mode de jeu (choisi par l'hôte à la création)</label>
+      <select id="mode-select"></select>
+      <button id="btn-create" class="primary">Créer une partie (vous êtes hôte + joueur)</button>
       <div class="join-row">
-        <input id="code-input" maxlength="4" placeholder="CODE" autocapitalize="characters" />
+        <input id="code-input" maxlength="2" placeholder="AB" autocapitalize="characters" />
         <button id="btn-join">Rejoindre</button>
       </div>
       <p id="home-error" class="error"></p>
@@ -30,7 +32,7 @@
       <p id="lobby-code" class="room-code"></p>
       <ul id="lobby-players" class="players"></ul>
       <div id="host-controls" class="hidden">
-        <label for="deck-select">Paquet de lieux</label>
+        <label for="deck-select">Mode de jeu</label>
         <select id="deck-select"></select>
         <label for="duration-input">Durée de la manche (minutes)</label>
         <input id="duration-input" type="number" min="1" max="20" value="8" />
@@ -47,8 +49,8 @@
         <button id="btn-flip" class="card-cover">👆 Touchez pour voir votre carte<br /><small>(ne la montrez à personne)</small></button>
         <div id="card-content" class="hidden"></div>
       </div>
-      <details class="locations">
-        <summary>📋 Lieux possibles — touchez un thème ou un lieu pour le rayer</summary>
+      <details class="locations" open>
+        <summary>❌ Éliminer les lieux impossibles — touchez un lieu (ou un thème entier) pour le rayer</summary>
         <div id="locations-list"></div>
       </details>
       <button id="btn-end" class="danger hidden">Terminer la manche (révéler)</button>
