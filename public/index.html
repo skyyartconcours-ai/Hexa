@@ -9,8 +9,17 @@
 <body>
   <main id="app">
 
+    <!-- Portail : un seul champ mot de passe -->
+    <section id="screen-gate" class="screen hidden">
+      <h1>🕵️ Spyfall</h1>
+      <p class="subtitle">Entrez le mot de passe pour accéder au jeu.</p>
+      <input id="gate-pass" type="password" placeholder="Mot de passe" autocomplete="current-password" />
+      <button id="btn-gate" class="primary">Entrer</button>
+      <p id="gate-error" class="error"></p>
+    </section>
+
     <!-- Accueil -->
-    <section id="screen-home" class="screen">
+    <section id="screen-home" class="screen hidden">
       <h1>🕵️ Spyfall</h1>
       <p class="subtitle">Les cartes du jeu, en français, sur vos téléphones.</p>
       <label for="name-input">Votre prénom</label>

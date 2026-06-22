@@ -10,6 +10,19 @@ const DECKS = require("./locations");
 const ALLOWED_DECKS = ["both", "delire", "delire2", "delireBoth"];
 const DEFAULT_DECK = "both";
 
+// Portail à un seul champ : mot de passe partagé lu dans l'environnement.
+// Vide => aucun portail (accès libre, pratique en local). Le mot de passe
+// n'est jamais écrit dans le dépôt : il est fourni via SPYFALL_PASSWORD.
+const ACCESS_PASSWORD = process.env.SPYFALL_PASSWORD || "";
+const GATE_ON = ACCESS_PASSWORD.length > 0;
+
+function passOk(given) {
+  if (!GATE_ON) return true;
+  const a = Buffer.from(String(given || ""));
+  const b = Buffer.from(ACCESS_PASSWORD);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 const PORT = process.env.PORT || 3000;
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000; // salles supprimées après 3 h d'inactivité
 const MAX_ROOMS = 500;
@@ -190,6 +203,17 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Le client demande s'il faut afficher le portail mot de passe.
+    if (req.method === "GET" && url.pathname === "/api/config") {
+      return sendJSON(res, 200, { gate: GATE_ON });
+    }
+    // Vérification du mot de passe du portail (un seul champ).
+    if (req.method === "POST" && url.pathname === "/api/access") {
+      const body = await readBody(req);
+      if (!passOk(body.password)) throw httpError(401, "Mot de passe incorrect.");
+      return sendJSON(res, 200, { ok: true });
+    }
+
     // Liste des modes proposés à la création (écran d'accueil, avant toute salle).
     if (req.method === "GET" && url.pathname === "/api/decks") {
       return sendJSON(res, 200, {
@@ -201,6 +225,9 @@ const server = http.createServer(async (req, res) => {
     const match = url.pathname.match(/^\/api\/rooms(?:\/([A-Za-z]{2})(?:\/(join|start|end|lobby|state))?)?$/);
     if (!match) throw httpError(404, "Page introuvable.");
     const [, code, action] = match;
+
+    // Toutes les actions de jeu exigent le mot de passe du portail.
+    if (!passOk(req.headers["x-spyfall-pass"])) throw httpError(401, "Mot de passe requis.");
 
     if (req.method === "POST" && !code) {
       const body = await readBody(req);

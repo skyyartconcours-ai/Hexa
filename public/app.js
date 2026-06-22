@@ -12,14 +12,22 @@ function saveSession(s) {
   else localStorage.removeItem("spyfall-session");
 }
 
+function authHeaders() {
+  const p = localStorage.getItem("spyfall-pass");
+  return p ? { "x-spyfall-pass": p } : {};
+}
+
 async function api(path, options) {
-  const res = await fetch(path, options && {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(options),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Erreur réseau");
+  const init = options
+    ? { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify(options) }
+    : { headers: authHeaders() };
+  const res = await fetch(path, init);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const e = new Error(data.error || "Erreur réseau");
+    e.status = res.status;
+    throw e;
+  }
   return data;
 }
 
@@ -91,8 +99,13 @@ async function poll() {
     const state = await api(`/api/rooms/${session.code}/state?playerId=${session.playerId}`);
     render(state);
   } catch (e) {
-    // Salle expirée ou joueur inconnu : retour à l'accueil.
     stopPolling();
+    if (e.status === 401) {
+      // Mot de passe changé/expiré : on revient au portail.
+      lockGate("Ré-entrez le mot de passe.");
+      return;
+    }
+    // Salle expirée ou joueur inconnu : retour à l'accueil.
     saveSession(null);
     show("screen-home");
     setError("home-error", e.message);
@@ -241,7 +254,56 @@ function escapeHtml(s) {
   );
 }
 
-// Reprise de session après rechargement de la page.
-loadDecks();
-if (session) startPolling();
-else show("screen-home");
+// --- Portail (un seul champ mot de passe) ------------------------------------
+
+function lockGate(msg) {
+  stopPolling();
+  localStorage.removeItem("spyfall-pass");
+  show("screen-gate");
+  setError("gate-error", msg || "");
+}
+
+function enterApp() {
+  loadDecks();
+  if (session) startPolling();
+  else show("screen-home");
+}
+
+async function tryPassword(pass) {
+  const res = await fetch("/api/access", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: pass }),
+  });
+  return res.ok;
+}
+
+$("btn-gate").onclick = async () => {
+  setError("gate-error", "");
+  const pass = $("gate-pass").value;
+  try {
+    if (!(await tryPassword(pass))) throw new Error("Mot de passe incorrect.");
+    localStorage.setItem("spyfall-pass", pass);
+    enterApp();
+  } catch (e) {
+    setError("gate-error", e.message);
+  }
+};
+$("gate-pass").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("btn-gate").click();
+});
+
+// Démarrage : portail si nécessaire, sinon reprise de session / accueil.
+(async function boot() {
+  let gate = false;
+  try {
+    gate = (await (await fetch("/api/config")).json()).gate;
+  } catch {
+    /* si /api/config échoue, on tente l'accès libre */
+  }
+  if (!gate) return enterApp();
+  const stored = localStorage.getItem("spyfall-pass");
+  if (stored && (await tryPassword(stored).catch(() => false))) return enterApp();
+  localStorage.removeItem("spyfall-pass");
+  show("screen-gate");
+})();
