@@ -15,6 +15,8 @@ let editorPack = null;
 let editorBusy = false;
 let settingsInitForCode = null; // pour ne pas écraser les réglages de l'hôte au polling
 let lastVoteKey = null;         // évite de reconstruire le panneau de vote inutilement
+let lastRevealShown = null;     // pour ne déclencher l'animation de victoire qu'une fois
+let confettiRAF = null;
 
 function saveSession(s) {
   session = s;
@@ -153,7 +155,7 @@ function renderLobby(state) {
   }
 
   $("lobby-players").innerHTML = state.players
-    .map((p) => `<li>${escapeHtml(p.name)}${p.isHost ? " 👑" : ""}${p.name === state.you.name ? " <span class=\"you-tag\">(vous)</span>" : ""}</li>`)
+    .map((p) => `<li><span class="pdot pdot-${p.presence || "actif"}" title="${p.presence || ""}"></span>${escapeHtml(p.name)}${p.isHost ? " 👑" : ""}${p.name === state.you.name ? " <span class=\"you-tag\">(vous)</span>" : ""}</li>`)
     .join("");
 
   const isHost = state.you.isHost;
@@ -189,7 +191,7 @@ function renderScoreboard(id, scores, history) {
   const box = $(id);
   if (!scores || !scores.length || scores.every((s) => s.score === 0)) { box.innerHTML = ""; return; }
   let html = `<h2 class="sb-title">🏆 Classement</h2><ol class="sb-list">` +
-    scores.map((s) => `<li><span>${escapeHtml(s.name)}${s.isHost ? " 👑" : ""}${s.you ? " (vous)" : ""}</span><strong>${s.score}</strong></li>`).join("") +
+    scores.map((s) => `<li><span><span class="pdot pdot-${s.presence || "actif"}"></span>${escapeHtml(s.name)}${s.isHost ? " 👑" : ""}${s.you ? " (vous)" : ""}</span><strong>${s.score}</strong></li>`).join("") +
     `</ol>`;
   box.innerHTML = html;
 }
@@ -358,7 +360,58 @@ function renderReveal(state) {
   $("reveal-spy").textContent = r.spies.join(", ") || "(parti)";
   renderScoreboard("reveal-scoreboard", state.scores, state.history);
   $("btn-again").classList.toggle("hidden", !state.you.isHost);
-  if (!vibratedTimeUp) { vibratedTimeUp = true; try { navigator.vibrate && navigator.vibrate([60, 40, 60]); } catch {} }
+
+  // Mise en scène jouée UNE seule fois par manche (pas à chaque sondage).
+  const key = `${state.roundNo}|${r.outcome}`;
+  if (key !== lastRevealShown) {
+    lastRevealShown = key;
+    const sec = $("screen-reveal");
+    sec.classList.remove("reveal-anim");
+    void sec.offsetWidth; // relance les animations CSS
+    sec.classList.add("reveal-anim");
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (r.winners === "innocents") { if (!reduce) launchConfetti(); try { navigator.vibrate && navigator.vibrate([40, 40, 90]); } catch {} }
+    else { if (!reduce) flashDefeat(); try { navigator.vibrate && navigator.vibrate(220); } catch {} }
+  }
+}
+
+// Confettis dorés (canvas maison, zéro dépendance) pour une victoire des innocents.
+function launchConfetti() {
+  const cv = $("confetti");
+  const ctx = cv.getContext("2d");
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = window.innerWidth * dpr;
+  cv.height = window.innerHeight * dpr;
+  cv.style.opacity = "1";
+  const colors = ["#e6c87a", "#f1d99a", "#9a7a2e", "#f3ead6", "#c9a24a"];
+  const parts = Array.from({ length: 150 }, () => ({
+    x: Math.random() * cv.width, y: -Math.random() * cv.height * 0.4,
+    r: (4 + Math.random() * 6) * dpr, c: colors[Math.floor(Math.random() * colors.length)],
+    vx: (Math.random() - 0.5) * 2.2 * dpr, vy: (2 + Math.random() * 4) * dpr,
+    rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.32,
+  }));
+  let start = null;
+  if (confettiRAF) cancelAnimationFrame(confettiRAF);
+  const frame = (ts) => {
+    if (start === null) start = ts;
+    const elapsed = ts - start;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    for (const p of parts) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.03 * dpr; p.rot += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.globalAlpha = Math.max(0, 1 - elapsed / 3600);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 0.6); ctx.restore();
+    }
+    if (elapsed < 3600) confettiRAF = requestAnimationFrame(frame);
+    else { ctx.clearRect(0, 0, cv.width, cv.height); cv.style.opacity = "0"; confettiRAF = null; }
+  };
+  confettiRAF = requestAnimationFrame(frame);
+}
+// Pulsation rouge pour une victoire des espions.
+function flashDefeat() {
+  document.body.classList.remove("defeat-flash");
+  void document.body.offsetWidth;
+  document.body.classList.add("defeat-flash");
 }
 
 $("btn-again").onclick = () => withBusy($("btn-again"), async () => {
@@ -409,27 +462,17 @@ function doLeave() {
   if (session) { try { api(`/api/rooms/${session.code}/leave`, { playerId: session.playerId }); } catch {} }
   stopPolling(); releaseWake(); stopCountdown();
   saveSession(null);
-  lastStatus = null; lastCardKey = null; qrRenderedCode = null; settingsInitForCode = null; lastVoteKey = null;
+  lastStatus = null; lastCardKey = null; qrRenderedCode = null; settingsInitForCode = null; lastVoteKey = null; lastRevealShown = null;
   show("screen-home");
   loadDecks();
 }
 for (const id of ["btn-leave-lobby", "btn-leave-game", "btn-leave-reveal"]) {
   $(id).onclick = () => { if (confirm("Quitter la partie ?")) doLeave(); };
 }
-// Sortie propre quand on ferme l'onglet. On utilise fetch(keepalive) plutôt que
-// sendBeacon pour pouvoir transmettre l'en-tête du mot de passe (sinon 401 avec
-// portail actif). Le heartbeat serveur (20 s) reste le filet de sécurité.
-window.addEventListener("pagehide", () => {
-  if (!session) return;
-  try {
-    fetch(`/api/rooms/${session.code}/leave`, {
-      method: "POST",
-      keepalive: true,
-      headers: { "Content-Type": "application/json", ...authHeaders() },
-      body: JSON.stringify({ playerId: session.playerId }),
-    });
-  } catch {}
-});
+// Grâce de reconnexion : verrouiller/masquer l'onglet ne fait PAS quitter la
+// partie. Le serveur garde le joueur (avec sa carte/rôle) pendant 90 s ; on
+// retire seulement les joueurs réellement absents au-delà de ce délai. Seul le
+// bouton « Quitter » provoque un départ immédiat.
 
 // --- Chrono (basé sur le temps restant serveur, sans dérive d'horloge) --------
 
@@ -458,7 +501,11 @@ async function requestWake() {
   try { if ("wakeLock" in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch {}
 }
 function releaseWake() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch {} }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && lastStatus === "playing") requestWake(); });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") return;
+  if (session) { if (!pollTimer) startPolling(); else poll(); } // reconnexion immédiate au retour
+  if (lastStatus === "playing") requestWake();
+});
 
 // --- Éditeur de lieux & rôles ------------------------------------------------
 

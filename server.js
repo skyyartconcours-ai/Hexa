@@ -25,8 +25,17 @@ function passOk(given) {
 const PORT = process.env.PORT || 3000;
 const ROOM_TTL_MS = 3 * 60 * 60 * 1000; // salles supprimées après 3 h d'inactivité
 const HOST_TIMEOUT_MS = 20 * 1000; // hôte réputé parti après 20 s sans activité
+const PRESENCE_GONE_MS = 90 * 1000; // grâce de reconnexion : retiré après 90 s d'absence réelle
 const MAX_ROOMS = 200; // < 576 codes 2 lettres : marge confortable, codes rapides
 const MAX_PLAYERS = 12;
+
+// État de présence dérivé de lastSeen (verrouiller son téléphone ne fait PAS quitter).
+function presenceOf(p) {
+  const d = nowMs() - p.lastSeen;
+  if (d < 12000) return "actif";
+  if (d < 40000) return "inactif";
+  return "parti";
+}
 
 // ---------------------------------------------------------------------------
 // Lieux & rôles éditables, persistés sur disque (écriture ATOMIQUE).
@@ -212,6 +221,10 @@ setInterval(() => {
   const t = nowMs();
   for (const [code, room] of rooms) {
     if (t - room.lastActivity > ROOM_TTL_MS) { rooms.delete(code); continue; }
+    // Retire les joueurs réellement absents (au-delà de la grâce de reconnexion).
+    const gone = room.players.filter((p) => t - p.lastSeen > PRESENCE_GONE_MS).map((p) => p.id);
+    for (const id of gone) leaveRoom(room, id);
+    if (!rooms.has(code)) continue;
     maybeExpireRound(room);
     reassignHostIfNeeded(room);
   }
@@ -464,7 +477,7 @@ function stateFor(room, playerId) {
   maybeExpireRound(room);
 
   const scoreboard = room.players
-    .map((p) => ({ name: p.name, isHost: p.isHost, score: room.scores[p.id] || 0, you: p.id === playerId }))
+    .map((p) => ({ name: p.name, isHost: p.isHost, score: room.scores[p.id] || 0, you: p.id === playerId, presence: presenceOf(p) }))
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
 
   const state = {
@@ -476,7 +489,7 @@ function stateFor(room, playerId) {
     decks: deckMeta(),
     roundNo: room.roundNo,
     you: { id: player.id, name: player.name, isHost: player.isHost },
-    players: room.players.map((p) => ({ name: p.name, isHost: p.isHost })),
+    players: room.players.map((p) => ({ name: p.name, isHost: p.isHost, presence: presenceOf(p) })),
     scores: scoreboard,
     history: room.history,
   };
