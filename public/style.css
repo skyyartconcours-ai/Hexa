@@ -214,3 +214,54 @@ button.ghost {
   gap: 10px;
 }
 .add-title { font-size: 1.1rem; }
+
+/* --- Améliorations : salon, jeu, vote, score, QR ------------------------ */
+
+.net-banner {
+  position: fixed; top: 0; left: 0; right: 0;
+  background: #5a3a12; color: #ffe0a3; text-align: center;
+  padding: 8px; font-size: 0.9rem; z-index: 50;
+}
+
+button.danger-ghost { background: transparent; border: 1px solid #5a2e2e; color: #d99; }
+
+.code-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.icon-btn { padding: 10px 12px; font-size: 1.2rem; min-width: 48px; }
+
+.qr-box { display: flex; justify-content: center; }
+.qr-box svg { border-radius: 10px; border: 4px solid #fff; background: #fff; max-width: 180px; height: auto; }
+
+.you-tag { color: #5b8def; font-size: 0.85rem; }
+
+.duration-presets { display: flex; gap: 8px; align-items: center; }
+.duration-presets button { flex: 0 0 auto; padding: 10px 14px; }
+.duration-presets input { flex: 1; min-width: 64px; }
+
+.scoreboard { margin-top: 4px; }
+.sb-title { font-size: 1.05rem; text-align: center; margin-bottom: 6px; }
+.sb-list { list-style: none; counter-reset: rank; display: flex; flex-direction: column; gap: 4px; }
+.sb-list li { display: flex; justify-content: space-between; align-items: center; background: #1d232e; padding: 8px 12px; border-radius: 8px; }
+.sb-list li::before { counter-increment: rank; content: counter(rank) ". "; color: #9aa3b2; margin-right: 6px; }
+.sb-list li span { flex: 1; }
+.sb-list li strong { color: #e6c87a; font-variant-numeric: tabular-nums; }
+.sb-list li:first-child strong { color: #ffd54a; }
+
+.first-player { text-align: center; color: #9aa3b2; font-size: 0.95rem; min-height: 1.2em; }
+
+.role-help summary { cursor: pointer; color: #9aa3b2; font-size: 0.85rem; margin-top: 6px; }
+.role-help ul { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
+.role-help li { background: #232b38; border-radius: 999px; padding: 4px 10px; font-size: 0.85rem; }
+
+.actions { background: #1d232e; border: 1px solid #2c3442; border-radius: 12px; padding: 4px 12px; }
+.actions summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+.picker { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 10px; }
+.pick-btn { background: #2c3442; padding: 12px 14px; flex: 1 1 calc(50% - 8px); min-height: 44px; }
+
+.vote-panel { background: #2a2212; border: 1px solid #6b5318; border-radius: 12px; padding: 14px; text-align: center; }
+.vote-q { font-size: 1.05rem; margin-bottom: 10px; }
+.vote-btns { display: flex; gap: 10px; }
+.vote-btns button { flex: 1; min-height: 48px; }
+
+.reveal-verdict { text-align: center; font-size: 1.2rem; font-weight: 700; padding: 14px; border-radius: 12px; }
+.reveal-verdict.win-innocents { background: #15301d; color: #aef0c4; border: 1px solid #2e6e44; }
+.reveal-verdict.win-spy { background: #301515; color: #f0aeae; border: 1px solid #6e2e2e; }

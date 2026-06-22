@@ -5,6 +5,16 @@ let session = JSON.parse(localStorage.getItem("spyfall-session") || "null");
 let pollTimer = null;
 let countdownTimer = null;
 let lastStatus = null;
+let timerBase = null;        // { remaining, at } pour un chrono sans dérive d'horloge
+let vibratedTimeUp = false;
+let wakeLock = null;
+let qrRenderedCode = null;
+let lastCardKey = null;
+let editorData = null;
+let editorPack = null;
+let editorBusy = false;
+let settingsInitForCode = null; // pour ne pas écraser les réglages de l'hôte au polling
+let lastVoteKey = null;         // évite de reconstruire le panneau de vote inutilement
 
 function saveSession(s) {
   session = s;
@@ -33,28 +43,30 @@ async function api(path, options) {
 
 function show(screenId) {
   for (const s of document.querySelectorAll(".screen")) s.classList.add("hidden");
-  $(screenId).classList.remove("hidden");
+  const el = $(screenId);
+  el.classList.remove("hidden");
+  const focusable = el.querySelector("h1, [tabindex], button:not(.hidden), input");
+  if (focusable) try { focusable.focus({ preventScroll: false }); } catch {}
 }
 
-function setError(id, msg) {
-  $(id).textContent = msg || "";
+function setError(id, msg) { $(id).textContent = msg || ""; }
+
+function netBanner(on) { $("net-banner").classList.toggle("hidden", !on); }
+
+// Désactive un bouton pendant une action réseau (anti double-tap).
+async function withBusy(btn, fn) {
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try { return await fn(); } finally { btn.disabled = false; }
 }
 
-// --- Accueil ---------------------------------------------------------------
-
-// Charge les modes proposés à la création (écran d'accueil, avant toute salle).
-async function loadDecks() {
-  try {
-    const { decks } = await api("/api/decks");
-    $("mode-select").innerHTML = Object.entries(decks)
-      .map(([k, d]) => `<option value="${k}">${escapeHtml(d.label)} (${d.count} lieux)</option>`)
-      .join("");
-  } catch {
-    /* réseau indisponible : on réessaiera, la création échouera proprement sinon */
-  }
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-$("btn-create").onclick = async () => {
+// --- Accueil -----------------------------------------------------------------
+
+$("btn-create").onclick = () => withBusy($("btn-create"), async () => {
   setError("home-error", "");
   try {
     const { code, playerId } = await api("/api/rooms", {
@@ -63,104 +75,167 @@ $("btn-create").onclick = async () => {
     });
     saveSession({ code, playerId });
     startPolling();
-  } catch (e) {
-    setError("home-error", e.message);
-  }
-};
+  } catch (e) { setError("home-error", e.message); }
+});
 
-$("btn-join").onclick = async () => {
+$("btn-join").onclick = () => withBusy($("btn-join"), async () => {
   setError("home-error", "");
   const code = $("code-input").value.trim().toUpperCase();
   try {
     const { playerId } = await api(`/api/rooms/${code}/join`, { name: $("name-input").value });
     saveSession({ code, playerId });
     startPolling();
-  } catch (e) {
-    setError("home-error", e.message);
-  }
-};
+  } catch (e) { setError("home-error", e.message); }
+});
+
+async function loadDecks() {
+  try {
+    const { decks } = await api("/api/decks");
+    $("mode-select").innerHTML = Object.entries(decks)
+      .map(([k, d]) => `<option value="${k}">${escapeHtml(d.label)} (${d.count} lieux)</option>`)
+      .join("");
+  } catch {}
+}
 
 // --- Synchronisation ---------------------------------------------------------
 
-function startPolling() {
-  stopPolling();
-  poll();
-  pollTimer = setInterval(poll, 2000);
-}
-
-function stopPolling() {
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = null;
-}
+function startPolling() { stopPolling(); poll(); pollTimer = setInterval(poll, 2000); }
+function stopPolling() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
 
 async function poll() {
   if (!session) return;
   try {
     const state = await api(`/api/rooms/${session.code}/state?playerId=${session.playerId}`);
+    netBanner(false);
     render(state);
   } catch (e) {
-    stopPolling();
-    if (e.status === 401) {
-      // Mot de passe changé/expiré : on revient au portail.
-      lockGate("Ré-entrez le mot de passe.");
+    if (e.status === 401) { stopPolling(); lockGate("Ré-entrez le mot de passe."); return; }
+    if (e.status) {
+      // Salle expirée ou joueur inconnu : retour à l'accueil.
+      stopPolling();
+      saveSession(null);
+      releaseWake();
+      show("screen-home");
+      setError("home-error", e.message);
       return;
     }
-    // Salle expirée ou joueur inconnu : retour à l'accueil.
-    saveSession(null);
-    show("screen-home");
-    setError("home-error", e.message);
+    // Erreur réseau transitoire : on garde la session et on réessaiera.
+    netBanner(true);
   }
 }
 
 function render(state) {
-  if (state.status === "lobby") {
-    show("screen-lobby");
-    $("lobby-code").textContent = state.code;
-    $("lobby-players").innerHTML = state.players
-      .map((p) => `<li>${escapeHtml(p.name)}${p.isHost ? " 👑" : ""}</li>`)
-      .join("");
-    $("host-controls").classList.toggle("hidden", !state.you.isHost);
-    $("lobby-hint").classList.toggle("hidden", state.you.isHost);
-    if (state.you.isHost && !$("deck-select").options.length) {
-      $("deck-select").innerHTML = Object.entries(state.decks)
-        .map(([k, d]) => `<option value="${k}">${escapeHtml(d.label)} (${d.count} lieux)</option>`)
-        .join("");
-      $("deck-select").value = state.deck;
-    }
-  } else if (state.status === "playing") {
-    if (lastStatus !== "playing") {
-      // Nouvelle manche : carte de nouveau face cachée, ratures effacées.
-      $("btn-flip").classList.remove("hidden");
-      $("card-content").classList.add("hidden");
-      renderCard(state.card);
-      renderLocations(state.locations);
-    }
-    $("btn-end").classList.toggle("hidden", !state.you.isHost);
-    startCountdown(state.endsAt);
-    show("screen-game");
-  } else if (state.status === "reveal") {
-    stopCountdown();
-    show("screen-reveal");
-    $("reveal-spy").textContent = state.reveal.spyName;
-    $("reveal-location").textContent = state.reveal.location;
-    $("btn-again").classList.toggle("hidden", !state.you.isHost);
-  }
+  if (state.status === "lobby") renderLobby(state);
+  else if (state.status === "playing") renderGame(state);
+  else if (state.status === "reveal") renderReveal(state);
   lastStatus = state.status;
 }
 
-function renderCard(card) {
-  $("card-content").innerHTML = card.spy
-    ? `<p class="card-title spy">🤫 Vous êtes l'ESPION</p>
-       <p>Vous ne connaissez pas le lieu. Écoutez, bluffez, et essayez de le deviner !</p>`
-    : `<p class="card-label">Lieu</p>
-       <p class="card-title">${escapeHtml(card.location)}</p>
-       <p class="card-label">Votre rôle</p>
-       <p class="card-role">${escapeHtml(card.role)}</p>`;
+// --- Salon -------------------------------------------------------------------
+
+function renderLobby(state) {
+  releaseWake();
+  stopCountdown();
+  show("screen-lobby");
+  $("lobby-code").textContent = state.code;
+
+  // QR + partage (une fois par code).
+  if (qrRenderedCode !== state.code) {
+    qrRenderedCode = state.code;
+    const url = location.origin + "/?code=" + state.code;
+    try { $("qr-box").innerHTML = window.QR ? window.QR.svg(url, { px: 168 }) : ""; }
+    catch { $("qr-box").innerHTML = ""; }
+    $("btn-share").classList.toggle("hidden", !navigator.share);
+  }
+
+  $("lobby-players").innerHTML = state.players
+    .map((p) => `<li>${escapeHtml(p.name)}${p.isHost ? " 👑" : ""}${p.name === state.you.name ? " <span class=\"you-tag\">(vous)</span>" : ""}</li>`)
+    .join("");
+
+  const isHost = state.you.isHost;
+  $("host-controls").classList.toggle("hidden", !isHost);
+  $("lobby-hint").textContent = isHost
+    ? (state.players.length < 3 ? `Il manque ${3 - state.players.length} joueur(s) pour lancer (minimum 3).` : "Prêt à lancer !")
+    : "En attente que l'hôte lance la manche… (3 joueurs minimum)";
+
+  if (isHost) {
+    // Reconstruit la liste des modes (counts à jour) en PRÉSERVANT le choix de l'hôte.
+    // Les réglages ne sont (ré)initialisés qu'à la première entrée dans CETTE salle,
+    // ensuite le polling ne les écrase plus (sinon presets/sélections seraient annulés).
+    const deckSel = $("deck-select");
+    const init = settingsInitForCode !== state.code;
+    const keepDeck = init ? state.deck : (deckSel.value || state.deck);
+    deckSel.innerHTML = Object.entries(state.decks)
+      .map(([k, d]) => `<option value="${k}">${escapeHtml(d.label)} (${d.count} lieux)</option>`).join("");
+    deckSel.value = keepDeck;
+    if (init) {
+      $("spy-select").value = state.spyMode;
+      $("duration-input").value = state.durationMin;
+      settingsInitForCode = state.code;
+    }
+    const btn = $("btn-start");
+    btn.disabled = state.players.length < 3;
+    btn.textContent = state.players.length < 3 ? `Lancer (${state.players.length}/3 joueurs)` : "Lancer la manche";
+  }
+
+  renderScoreboard("lobby-scoreboard", state.scores, state.history);
 }
 
-// Liste des lieux groupée par thème. Toucher un thème ou un lieu le raye :
-// c'est un pense-bête personnel (rien n'est partagé), surtout utile à
-// l'espion pour éliminer des thématiques entières.
+function renderScoreboard(id, scores, history) {
+  const box = $(id);
+  if (!scores || !scores.length || scores.every((s) => s.score === 0)) { box.innerHTML = ""; return; }
+  let html = `<h2 class="sb-title">🏆 Classement</h2><ol class="sb-list">` +
+    scores.map((s) => `<li><span>${escapeHtml(s.name)}${s.isHost ? " 👑" : ""}${s.you ? " (vous)" : ""}</span><strong>${s.score}</strong></li>`).join("") +
+    `</ol>`;
+  box.innerHTML = html;
+}
+
+// --- Manche en cours ---------------------------------------------------------
+
+function renderGame(state) {
+  show("screen-game");
+  requestWake();
+
+  const cardKey = state.card ? JSON.stringify(state.card) : "";
+  if (lastStatus !== "playing" || cardKey !== lastCardKey) {
+    // Nouvelle manche : carte de nouveau face cachée, ratures effacées.
+    lastCardKey = cardKey;
+    vibratedTimeUp = false;
+    $("btn-flip").classList.remove("hidden");
+    $("card-content").classList.add("hidden");
+    renderCard(state);
+    renderLocations(state.locations);
+    renderSpyPanel(state);
+    renderAccuseList(state);
+    if (!countdownTimer) startCountdown();
+  }
+
+  $("first-player").textContent = state.firstPlayer ? `🎙️ ${state.firstPlayer} commence et choisit qui interroger.` : "";
+  timerBase = { remaining: state.remainingMs, at: Date.now() };
+
+  $("btn-end").classList.toggle("hidden", !state.you.isHost);
+
+  renderVotePanel(state);
+}
+
+function renderCard(state) {
+  const card = state.card;
+  if (card.spy) {
+    const extra = state.spyCount > 1 ? `<p>Vous n'êtes pas seul : il y a <strong>${state.spyCount} espions</strong> (vous ne savez pas qui est l'autre).</p>` : "";
+    $("card-content").innerHTML =
+      `<p class="card-title spy">🤫 Vous êtes l'ESPION</p>
+       <p>Vous ne connaissez pas le lieu. Écoutez, bluffez, et essayez de le deviner !</p>${extra}`;
+  } else {
+    const roles = (state.locationRoles || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
+    $("card-content").innerHTML =
+      `<p class="card-label">Lieu</p>
+       <p class="card-title">${escapeHtml(card.location)}</p>
+       <p class="card-label">Votre rôle</p>
+       <p class="card-role">${escapeHtml(card.role)}</p>
+       ${roles ? `<details class="role-help"><summary>Rôles possibles ici</summary><ul>${roles}</ul></details>` : ""}`;
+  }
+}
+
 function renderLocations(locations) {
   const byTheme = new Map();
   for (const l of locations) {
@@ -168,72 +243,223 @@ function renderLocations(locations) {
     byTheme.get(l.theme).push(l.name);
   }
   $("locations-list").innerHTML = [...byTheme.entries()]
-    .map(
-      ([theme, names]) => `
+    .map(([theme, names]) => `
       <div class="loc-group">
         <button class="loc-theme">${escapeHtml(theme)} <span>(${names.length})</span></button>
-        <ul>${names.map((n) => `<li class="loc-item">${escapeHtml(n)}</li>`).join("")}</ul>
-      </div>`
-    )
+        <ul>${names.map((n) => `<li class="loc-item" role="button" aria-pressed="false">${escapeHtml(n)}</li>`).join("")}</ul>
+      </div>`)
     .join("");
   for (const btn of document.querySelectorAll(".loc-theme")) {
     btn.onclick = () => {
       const off = btn.classList.toggle("eliminated");
-      for (const li of btn.parentElement.querySelectorAll(".loc-item"))
-        li.classList.toggle("eliminated", off);
+      for (const li of btn.parentElement.querySelectorAll(".loc-item")) { li.classList.toggle("eliminated", off); li.setAttribute("aria-pressed", String(off)); }
     };
   }
   for (const li of document.querySelectorAll(".loc-item")) {
-    li.onclick = () => li.classList.toggle("eliminated");
+    li.onclick = () => { const off = li.classList.toggle("eliminated"); li.setAttribute("aria-pressed", String(off)); };
   }
 }
 
-$("btn-flip").onclick = () => {
-  $("btn-flip").classList.add("hidden");
-  $("card-content").classList.remove("hidden");
-};
+function renderSpyPanel(state) {
+  const panel = $("spy-panel");
+  panel.classList.toggle("hidden", !state.youAreSpy);
+  if (!state.youAreSpy) return;
+  $("spy-guess-list").innerHTML = state.locations
+    .map((l) => `<button class="pick-btn" data-loc="${escapeHtml(l.name)}">${escapeHtml(l.name)}</button>`).join("");
+  for (const b of $("spy-guess-list").querySelectorAll(".pick-btn")) {
+    b.onclick = () => withBusy(b, async () => {
+      setError("game-error", "");
+      try { render(await api(`/api/rooms/${session.code}/guess`, { playerId: session.playerId, location: b.dataset.loc })); }
+      catch (e) { setError("game-error", e.message); }
+    });
+  }
+}
 
-// --- Actions de l'hôte -------------------------------------------------------
+function renderAccuseList(state) {
+  $("accuse-list").innerHTML = state.players
+    .filter((p) => p.name !== state.you.name)
+    .map((p) => `<button class="pick-btn" data-name="${escapeHtml(p.name)}">${escapeHtml(p.name)}</button>`).join("");
+  for (const b of $("accuse-list").querySelectorAll(".pick-btn")) {
+    b.onclick = () => withBusy(b, async () => {
+      setError("game-error", "");
+      try { render(await api(`/api/rooms/${session.code}/accuse`, { playerId: session.playerId, suspect: b.dataset.name })); $("accuse-panel").open = false; }
+      catch (e) { setError("game-error", e.message); }
+    });
+  }
+}
 
-$("btn-start").onclick = async () => {
+function renderVotePanel(state) {
+  const vp = $("vote-panel");
+  const acc = state.accusation;
+  // Pendant un vote, on masque les actions individuelles.
+  $("spy-panel").style.display = acc ? "none" : "";
+  $("accuse-panel").style.display = acc ? "none" : "";
+  if (!acc) { vp.classList.add("hidden"); vp.innerHTML = ""; lastVoteKey = null; return; }
+  vp.classList.remove("hidden");
+  // Ne reconstruit le panneau que si son état a changé (évite le flicker et de
+  // recréer un bouton « actif » pendant qu'une requête de vote est en vol).
+  const key = `${acc.accuser}|${acc.suspect}|${acc.youAreSuspect}|${acc.canVote}|${acc.votedCount}/${acc.votersCount}`;
+  if (key === lastVoteKey) return;
+  lastVoteKey = key;
+  if (acc.youAreSuspect) {
+    vp.innerHTML = `<p class="vote-q">😱 <strong>${escapeHtml(acc.accuser)}</strong> vous accuse d'être l'espion !</p>
+      <p class="hint">Vote en cours… (${acc.votedCount}/${acc.votersCount})</p>`;
+  } else if (acc.canVote) {
+    vp.innerHTML = `<p class="vote-q"><strong>${escapeHtml(acc.accuser)}</strong> accuse <strong>${escapeHtml(acc.suspect)}</strong>. Coupable ?</p>
+      <div class="vote-btns"><button id="vote-yes" class="primary">Oui, c'est l'espion</button><button id="vote-no" class="danger">Non</button></div>`;
+    $("vote-yes").onclick = () => sendVote(true);
+    $("vote-no").onclick = () => sendVote(false);
+  } else {
+    vp.innerHTML = `<p class="vote-q"><strong>${escapeHtml(acc.accuser)}</strong> accuse <strong>${escapeHtml(acc.suspect)}</strong>.</p>
+      <p class="hint">Vote en cours… (${acc.votedCount}/${acc.votersCount})</p>`;
+  }
+}
+
+function sendVote(agree) {
+  const b = agree ? $("vote-yes") : $("vote-no");
+  return withBusy(b, async () => {
+    setError("game-error", "");
+    try { render(await api(`/api/rooms/${session.code}/vote`, { playerId: session.playerId, agree })); }
+    catch (e) { setError("game-error", e.message); }
+  });
+}
+
+$("btn-flip").onclick = () => { $("btn-flip").classList.add("hidden"); $("card-content").classList.remove("hidden"); };
+
+$("btn-end").onclick = () => withBusy($("btn-end"), async () => {
+  setError("game-error", "");
+  try { render(await api(`/api/rooms/${session.code}/end`, { playerId: session.playerId })); }
+  catch (e) { setError("game-error", e.message); }
+});
+
+// --- Révélation --------------------------------------------------------------
+
+function renderReveal(state) {
+  releaseWake();
+  stopCountdown();
+  show("screen-reveal");
+  const r = state.reveal;
+  const info = r.info || {};
+  const verdicts = {
+    spy_guessed_right: `🎯 L'espion ${escapeHtml(info.by || "")} a deviné le lieu (${escapeHtml(info.guess || "")}) — les espions gagnent !`,
+    spy_guessed_wrong: `❌ L'espion ${escapeHtml(info.by || "")} a tenté « ${escapeHtml(info.guess || "")} » — raté ! Les innocents gagnent.`,
+    spy_caught: `🕵️ ${escapeHtml(info.suspect || "")} était bien un espion — démasqué ! Les innocents gagnent.`,
+    wrong_accusation: `🙅 ${escapeHtml(info.suspect || "")} était innocent — accusation ratée ! Les espions gagnent.`,
+    timeout: `⏰ Temps écoulé — l'espion a survécu ! Les espions gagnent.`,
+  };
+  const vp = $("reveal-verdict");
+  vp.innerHTML = verdicts[r.outcome] || "";
+  vp.className = "reveal-verdict " + (r.winners === "spy" ? "win-spy" : "win-innocents");
+  $("reveal-location").textContent = r.location;
+  $("reveal-spy").textContent = r.spies.join(", ") || "(parti)";
+  renderScoreboard("reveal-scoreboard", state.scores, state.history);
+  $("btn-again").classList.toggle("hidden", !state.you.isHost);
+  if (!vibratedTimeUp) { vibratedTimeUp = true; try { navigator.vibrate && navigator.vibrate([60, 40, 60]); } catch {} }
+}
+
+$("btn-again").onclick = () => withBusy($("btn-again"), async () => {
+  setError("reveal-error", "");
+  try { render(await api(`/api/rooms/${session.code}/lobby`, { playerId: session.playerId })); }
+  catch (e) { setError("reveal-error", e.message); }
+});
+
+$("btn-reset-scores").onclick = () => withBusy($("btn-reset-scores"), async () => {
+  setError("lobby-error", "");
+  try { render(await api(`/api/rooms/${session.code}/scores`, { playerId: session.playerId })); }
+  catch (e) { setError("lobby-error", e.message); }
+});
+
+// --- Lancement de manche & réglages hôte -------------------------------------
+
+$("btn-start").onclick = () => withBusy($("btn-start"), async () => {
   setError("lobby-error", "");
   try {
-    const state = await api(`/api/rooms/${session.code}/start`, {
+    render(await api(`/api/rooms/${session.code}/start`, {
       playerId: session.playerId,
       durationMin: Number($("duration-input").value),
       deck: $("deck-select").value,
+      spyMode: $("spy-select").value,
+    }));
+  } catch (e) { setError("lobby-error", e.message); }
+});
+
+for (const b of $("duration-presets").querySelectorAll("button")) {
+  b.onclick = () => { $("duration-input").value = b.dataset.min; };
+}
+
+// --- Copier / partager / quitter ---------------------------------------------
+
+$("btn-copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(session.code); }
+  catch {}
+  const old = $("btn-copy").textContent;
+  $("btn-copy").textContent = "✅";
+  setTimeout(() => { $("btn-copy").textContent = old; }, 1200);
+};
+$("btn-share").onclick = async () => {
+  try { await navigator.share({ title: "Spyfall", text: `Rejoins ma partie (code ${session.code})`, url: location.origin + "/?code=" + session.code }); }
+  catch {}
+};
+
+function doLeave() {
+  if (session) { try { api(`/api/rooms/${session.code}/leave`, { playerId: session.playerId }); } catch {} }
+  stopPolling(); releaseWake(); stopCountdown();
+  saveSession(null);
+  lastStatus = null; lastCardKey = null; qrRenderedCode = null; settingsInitForCode = null; lastVoteKey = null;
+  show("screen-home");
+  loadDecks();
+}
+for (const id of ["btn-leave-lobby", "btn-leave-game", "btn-leave-reveal"]) {
+  $(id).onclick = () => { if (confirm("Quitter la partie ?")) doLeave(); };
+}
+// Sortie propre quand on ferme l'onglet. On utilise fetch(keepalive) plutôt que
+// sendBeacon pour pouvoir transmettre l'en-tête du mot de passe (sinon 401 avec
+// portail actif). Le heartbeat serveur (20 s) reste le filet de sécurité.
+window.addEventListener("pagehide", () => {
+  if (!session) return;
+  try {
+    fetch(`/api/rooms/${session.code}/leave`, {
+      method: "POST",
+      keepalive: true,
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ playerId: session.playerId }),
     });
-    render(state);
-  } catch (e) {
-    setError("lobby-error", e.message);
-  }
-};
+  } catch {}
+});
 
-$("btn-end").onclick = async () => {
-  setError("game-error", "");
-  try {
-    render(await api(`/api/rooms/${session.code}/end`, { playerId: session.playerId }));
-  } catch (e) {
-    setError("game-error", e.message);
-  }
-};
+// --- Chrono (basé sur le temps restant serveur, sans dérive d'horloge) --------
 
-$("btn-again").onclick = async () => {
-  setError("reveal-error", "");
-  try {
-    render(await api(`/api/rooms/${session.code}/lobby`, { playerId: session.playerId }));
-  } catch (e) {
-    setError("reveal-error", e.message);
+function startCountdown() { stopCountdown(); tickTimer(); countdownTimer = setInterval(tickTimer, 500); }
+function stopCountdown() { if (countdownTimer) clearInterval(countdownTimer); countdownTimer = null; }
+function tickTimer() {
+  if (!timerBase) return;
+  const remaining = Math.max(0, timerBase.remaining - (Date.now() - timerBase.at));
+  const m = Math.floor(remaining / 60000);
+  const s = Math.floor((remaining % 60000) / 1000);
+  const t = $("timer");
+  if (remaining <= 0) {
+    t.textContent = "0:00";
+    t.classList.add("urgent");
+    $("first-player").textContent = "⏰ Temps écoulé — en attente de l'hôte…";
+    if (!vibratedTimeUp) { vibratedTimeUp = true; try { navigator.vibrate && navigator.vibrate(200); } catch {} }
+  } else {
+    t.textContent = `${m}:${String(s).padStart(2, "0")}`;
+    t.classList.toggle("urgent", remaining < 60000);
   }
-};
+}
+
+// --- Wake Lock (garde l'écran allumé pendant la manche) ----------------------
+
+async function requestWake() {
+  try { if ("wakeLock" in navigator && !wakeLock) { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } } catch {}
+}
+function releaseWake() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch {} }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && lastStatus === "playing") requestWake(); });
 
 // --- Éditeur de lieux & rôles ------------------------------------------------
 
-let editorData = null;
-let editorPack = null;
-
 $("btn-open-editor").onclick = openEditor;
-$("btn-editor-back").onclick = () => show("screen-home");
+$("btn-editor-back").onclick = () => { loadDecks(); show("screen-home"); };
 
 async function openEditor() {
   setError("home-error", "");
@@ -242,54 +468,60 @@ async function openEditor() {
     editorPack = editorData.packs[0].key;
     renderEditor();
     show("screen-editor");
-  } catch (e) {
-    setError("home-error", e.message);
-  }
+  } catch (e) { setError("home-error", e.message); }
 }
 
 async function editOp(payload) {
+  if (editorBusy) return false;
+  editorBusy = true;
   setError("editor-error", "");
-  try {
-    editorData = await api("/api/locations", payload);
-    renderEditor();
-    return true;
-  } catch (e) {
-    setError("editor-error", e.message);
-    return false;
-  }
+  try { editorData = await api("/api/locations", payload); renderEditor(); return true; }
+  catch (e) { setError("editor-error", e.message); return false; }
+  finally { editorBusy = false; }
+}
+
+// Ajoute plusieurs rôles (séparés par des virgules) à un lieu.
+async function addRoles(loc, raw) {
+  const roles = String(raw).split(",").map((r) => r.trim()).filter(Boolean);
+  for (const role of roles) { if (!(await editOp({ op: "addRole", pack: editorPack, name: loc, role }))) break; }
 }
 
 function renderEditor() {
+  // Sauve les saisies de rôles en cours pour ne pas les perdre au re-rendu.
+  const saved = {};
+  document.querySelectorAll(".ed-role-input").forEach((i) => { if (i.value) saved[i.dataset.loc] = i.value; });
+  const activeLoc = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("ed-role-input")
+    ? document.activeElement.dataset.loc : null;
+
   $("pack-tabs").innerHTML = editorData.packs
     .map((p) => `<button class="pack-tab${p.key === editorPack ? " active" : ""}" data-pack="${escapeHtml(p.key)}">${escapeHtml(p.label)} <span>(${p.locations.length})</span></button>`)
     .join("");
-  $("new-loc-theme").innerHTML = editorData.themes
-    .map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`)
-    .join("");
+  $("theme-list").innerHTML = editorData.themes.map((t) => `<option value="${escapeHtml(t)}"></option>`).join("");
+
   const pack = editorData.packs.find((p) => p.key === editorPack);
   $("editor-list").innerHTML = pack.locations
-    .map(
-      (l) => `
+    .map((l) => `
       <div class="ed-loc">
         <div class="ed-loc-head">
           <div class="ed-loc-id">
             <span class="ed-loc-name">${escapeHtml(l.name)}</span>
             <span class="ed-loc-theme">${escapeHtml(l.theme)}</span>
           </div>
-          <button class="ed-del-loc" data-name="${escapeHtml(l.name)}" title="Supprimer ce lieu">🗑️</button>
+          <button class="ed-del-loc" data-name="${escapeHtml(l.name)}" title="Supprimer ce lieu" aria-label="Supprimer le lieu ${escapeHtml(l.name)}">🗑️</button>
         </div>
         <div class="ed-roles">
-          ${l.roles
-            .map((r) => `<span class="ed-role">${escapeHtml(r)}<button class="ed-del-role" data-loc="${escapeHtml(l.name)}" data-role="${escapeHtml(r)}" title="Retirer ce rôle">×</button></span>`)
-            .join("")}
+          ${l.roles.map((r) => `<span class="ed-role">${escapeHtml(r)}<button class="ed-del-role" data-loc="${escapeHtml(l.name)}" data-role="${escapeHtml(r)}" title="Retirer ce rôle" aria-label="Retirer le rôle ${escapeHtml(r)}">×</button></span>`).join("")}
         </div>
         <div class="ed-addrole">
-          <input class="ed-role-input" maxlength="40" placeholder="Nouveau rôle…" />
+          <input class="ed-role-input" data-loc="${escapeHtml(l.name)}" maxlength="120" placeholder="Rôle(s), séparés par des virgules…" />
           <button class="ed-add-role" data-loc="${escapeHtml(l.name)}">+ Rôle</button>
         </div>
-      </div>`
-    )
+      </div>`)
     .join("");
+
+  // Restaure les saisies + le focus.
+  document.querySelectorAll(".ed-role-input").forEach((i) => { if (saved[i.dataset.loc]) i.value = saved[i.dataset.loc]; });
+  if (activeLoc) { const el = document.querySelector(`.ed-role-input[data-loc="${CSS.escape(activeLoc)}"]`); if (el) { el.focus(); const v = el.value; el.value = ""; el.value = v; } }
 }
 
 $("pack-tabs").onclick = (e) => {
@@ -301,123 +533,63 @@ $("pack-tabs").onclick = (e) => {
 
 $("editor-list").onclick = (e) => {
   const delLoc = e.target.closest(".ed-del-loc");
-  if (delLoc) {
-    if (confirm(`Supprimer le lieu « ${delLoc.dataset.name} » ?`))
-      editOp({ op: "deleteLocation", pack: editorPack, name: delLoc.dataset.name });
-    return;
-  }
+  if (delLoc) { if (confirm(`Supprimer le lieu « ${delLoc.dataset.name} » ?`)) editOp({ op: "deleteLocation", pack: editorPack, name: delLoc.dataset.name }); return; }
   const delRole = e.target.closest(".ed-del-role");
-  if (delRole) {
-    editOp({ op: "deleteRole", pack: editorPack, name: delRole.dataset.loc, role: delRole.dataset.role });
-    return;
-  }
+  if (delRole) { editOp({ op: "deleteRole", pack: editorPack, name: delRole.dataset.loc, role: delRole.dataset.role }); return; }
   const addRole = e.target.closest(".ed-add-role");
   if (addRole) {
     const input = addRole.closest(".ed-loc").querySelector(".ed-role-input");
-    if (input.value.trim()) editOp({ op: "addRole", pack: editorPack, name: addRole.dataset.loc, role: input.value });
+    const val = input.value.trim();
+    if (val) { input.value = ""; addRoles(addRole.dataset.loc, val); } // vidé avant le re-rendu
   }
 };
-
 $("editor-list").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && e.target.classList.contains("ed-role-input")) {
-    const btn = e.target.closest(".ed-loc").querySelector(".ed-add-role");
-    if (e.target.value.trim()) editOp({ op: "addRole", pack: editorPack, name: btn.dataset.loc, role: e.target.value });
+    const val = e.target.value.trim();
+    if (val) { e.target.value = ""; addRoles(e.target.dataset.loc, val); }
   }
 });
 
-$("btn-add-loc").onclick = async () => {
+$("btn-add-loc").onclick = () => withBusy($("btn-add-loc"), async () => {
   const name = $("new-loc-name").value;
-  if (!name.trim()) {
-    setError("editor-error", "Donnez un nom au lieu.");
-    return;
-  }
-  const ok = await editOp({
-    op: "addLocation",
-    pack: editorPack,
-    name,
-    theme: $("new-loc-theme").value,
-    roles: $("new-loc-role").value.trim() ? [$("new-loc-role").value] : [],
-  });
-  if (ok) {
-    $("new-loc-name").value = "";
-    $("new-loc-role").value = "";
-  }
-};
-
-// --- Chrono -------------------------------------------------------------------
-
-function startCountdown(endsAt) {
-  stopCountdown();
-  const tick = () => {
-    const remaining = Math.max(0, endsAt - Date.now());
-    const m = Math.floor(remaining / 60000);
-    const s = Math.floor((remaining % 60000) / 1000);
-    $("timer").textContent = `${m}:${String(s).padStart(2, "0")}`;
-    $("timer").classList.toggle("urgent", remaining < 60000);
-    if (remaining === 0) stopCountdown();
-  };
-  tick();
-  countdownTimer = setInterval(tick, 500);
-}
-
-function stopCountdown() {
-  if (countdownTimer) clearInterval(countdownTimer);
-  countdownTimer = null;
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
-  );
-}
+  if (!name.trim()) { setError("editor-error", "Donnez un nom au lieu."); return; }
+  const roles = $("new-loc-role").value.split(",").map((r) => r.trim()).filter(Boolean);
+  const ok = await editOp({ op: "addLocation", pack: editorPack, name, theme: $("new-loc-theme").value, roles });
+  if (ok) { $("new-loc-name").value = ""; $("new-loc-role").value = ""; $("new-loc-theme").value = ""; }
+});
 
 // --- Portail (un seul champ mot de passe) ------------------------------------
 
 function lockGate(msg) {
-  stopPolling();
+  stopPolling(); releaseWake();
   localStorage.removeItem("spyfall-pass");
   show("screen-gate");
   setError("gate-error", msg || "");
 }
-
 function enterApp() {
   loadDecks();
+  const params = new URLSearchParams(location.search);
+  const c = (params.get("code") || "").toUpperCase();
+  if (c && /^[A-HJ-NP-Z]{2}$/.test(c) && !session) $("code-input").value = c; // alphabet sans I ni O
   if (session) startPolling();
   else show("screen-home");
 }
-
 async function tryPassword(pass) {
-  const res = await fetch("/api/access", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password: pass }),
-  });
+  const res = await fetch("/api/access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pass }) });
   return res.ok;
 }
-
-$("btn-gate").onclick = async () => {
+$("btn-gate").onclick = () => withBusy($("btn-gate"), async () => {
   setError("gate-error", "");
   const pass = $("gate-pass").value;
-  try {
-    if (!(await tryPassword(pass))) throw new Error("Mot de passe incorrect.");
-    localStorage.setItem("spyfall-pass", pass);
-    enterApp();
-  } catch (e) {
-    setError("gate-error", e.message);
-  }
-};
-$("gate-pass").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") $("btn-gate").click();
+  try { if (!(await tryPassword(pass))) throw new Error("Mot de passe incorrect."); localStorage.setItem("spyfall-pass", pass); enterApp(); }
+  catch (e) { setError("gate-error", e.message); }
 });
+$("gate-pass").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-gate").click(); });
 
-// Démarrage : portail si nécessaire, sinon reprise de session / accueil.
+// Démarrage : portail si nécessaire (fail-closed si /api/config échoue), sinon reprise.
 (async function boot() {
-  let gate = false;
-  try {
-    gate = (await (await fetch("/api/config")).json()).gate;
-  } catch {
-    /* si /api/config échoue, on tente l'accès libre */
-  }
+  let gate = true; // par défaut on suppose un portail (sécurité)
+  try { gate = (await (await fetch("/api/config")).json()).gate; } catch { gate = false; }
   if (!gate) return enterApp();
   const stored = localStorage.getItem("spyfall-pass");
   if (stored && (await tryPassword(stored).catch(() => false))) return enterApp();

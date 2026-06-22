@@ -26,7 +26,12 @@ node server.js
 ```
 
 Puis ouvrez `http://localhost:3000`. L'hôte crée une partie, partage le code à
-4 lettres, les autres rejoignent depuis leur téléphone (3 joueurs minimum).
+**2 lettres** (ou un lien / QR code), les autres rejoignent depuis leur
+téléphone (3 joueurs minimum).
+
+Pour protéger l'accès, lancez avec un mot de passe partagé :
+`SPYFALL_PASSWORD=monmotdepasse node server.js` (un seul champ à l'entrée ;
+vide = accès libre).
 
 Pour jouer sur le même Wi-Fi sans hébergement : lancez le serveur sur un
 ordinateur et donnez son adresse locale aux joueurs, par exemple
@@ -73,11 +78,19 @@ Les parties sont stockées en mémoire et expirent après 3 h d'inactivité.
 ## Comment on joue (rappel des règles)
 
 1. Chaque joueur regarde sa carte en secret. Tous voient le même lieu et un
-   rôle, sauf **l'espion**, qui ne voit rien.
+   rôle, sauf **l'espion** (1 espion, ou 2 dès 7 joueurs), qui ne voit rien.
+   Un joueur tiré au sort commence et choisit qui interroger.
 2. À tour de rôle, on se pose des questions sur le lieu. Trop vague et l'espion
    passe inaperçu ; trop précis et il devine le lieu.
-3. Avant la fin du chrono : les joueurs peuvent accuser quelqu'un d'être
-   l'espion, et l'espion peut à tout moment annoncer le lieu pour gagner.
-4. L'hôte termine la manche pour révéler l'espion et le lieu.
+3. Tout se joue **dans l'appli** :
+   - n'importe qui peut **accuser** un joueur ; les autres votent — à
+     l'unanimité on révèle (espion démasqué = innocents gagnent ; innocent
+     accusé = l'espion gagne) ;
+   - l'**espion** peut **deviner le lieu** à tout moment pour tenter de gagner ;
+   - à la fin du chrono (géré par le serveur), l'espion l'emporte s'il a tenu.
+4. Le **score** se cumule sur plusieurs manches : un classement s'affiche.
+
+Les lieux et les rôles sont **modifiables en ligne** depuis l'appli
+(bouton « Modifier les lieux & rôles »), pour tous les joueurs.
 
 Bon jeu ! 🎲
