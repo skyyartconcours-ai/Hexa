@@ -109,7 +109,11 @@ async function poll() {
     netBanner(false);
     render(state);
   } catch (e) {
-    if (e.status === 401) { stopPolling(); lockGate("Ré-entrez le mot de passe."); return; }
+    if (e.status === 401 || e.status === 429) {
+      stopPolling();
+      lockGate(e.status === 429 ? "Trop de tentatives — patientez quelques minutes puis ré-entrez le mot de passe." : "Ré-entrez le mot de passe.");
+      return;
+    }
     if (e.status) {
       // Salle expirée ou joueur inconnu : retour à l'accueil.
       stopPolling();
@@ -221,7 +225,7 @@ function renderGame(state) {
 function renderCard(state) {
   const card = state.card;
   if (card.spy) {
-    const extra = state.spyCount > 1 ? `<p>Vous n'êtes pas seul : il y a <strong>${state.spyCount} espions</strong> (vous ne savez pas qui est l'autre).</p>` : "";
+    const extra = state.spyCount > 1 ? `<p>Vous n'êtes pas seul : il y a <strong>${state.spyCount} espions</strong> (vous ne savez pas qui est l'autre). ⚠️ Si vous tentez le lieu et vous trompez, les deux espions perdent.</p>` : "";
     $("card-content").innerHTML =
       `<p class="card-title spy">🤫 Vous êtes l'ESPION</p>
        <p>Vous ne connaissez pas le lieu. Écoutez, bluffez, et essayez de le deviner !</p>${extra}`;

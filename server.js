@@ -64,6 +64,7 @@ function validPack(arr) {
         typeof l.name === "string" &&
         l.name.trim() &&
         typeof l.theme === "string" &&
+        l.theme.trim() &&
         Array.isArray(l.roles) &&
         l.roles.length > 0 &&
         l.roles.every((r) => typeof r === "string" && r.trim())
@@ -86,9 +87,12 @@ function loadEditable() {
 function saveEditable() {
   try {
     const tmp = DATA_FILE + ".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(editable, null, 2));
-    try { if (fs.existsSync(DATA_FILE)) fs.copyFileSync(DATA_FILE, DATA_FILE + ".bak"); } catch {}
+    const fd = fs.openSync(tmp, "w");
+    fs.writeSync(fd, JSON.stringify(editable, null, 2));
+    fs.fsyncSync(fd); // garantit que le contenu est sur disque AVANT le rename (anti fichier vide)
+    fs.closeSync(fd);
     fs.renameSync(tmp, DATA_FILE); // remplacement atomique
+    try { fs.copyFileSync(DATA_FILE, DATA_FILE + ".bak"); } catch {} // .bak depuis la version saine
   } catch (e) {
     console.error("Écriture data.json impossible :", e.message);
   }
@@ -107,7 +111,7 @@ function deckMeta() {
 }
 function allThemes() {
   const s = new Set(CANON_THEMES);
-  for (const k of BASE_PACKS) for (const l of editable[k]) s.add(l.theme);
+  for (const k of BASE_PACKS) for (const l of editable[k]) if (l.theme && l.theme.trim()) s.add(l.theme);
   return [...s];
 }
 function locationsPayload() {
@@ -134,7 +138,7 @@ function applyEdit(body) {
     list.push({ name, theme, roles });
     return;
   }
-  const loc = list.find((l) => l.name === body.name);
+  const loc = list.find((l) => l.name.toLowerCase() === String(body.name || "").toLowerCase());
   if (body.op === "deleteLocation") {
     if (!loc) throw httpError(404, "Lieu introuvable.");
     if (list.length <= 1) throw httpError(400, "Un paquet doit garder au moins un lieu.");
@@ -152,7 +156,7 @@ function applyEdit(body) {
     return;
   }
   if (body.op === "deleteRole") {
-    const idx = loc.roles.indexOf(String(body.role || ""));
+    const idx = loc.roles.findIndex((r) => r.toLowerCase() === String(body.role || "").toLowerCase());
     if (idx === -1) throw httpError(404, "Rôle introuvable.");
     if (loc.roles.length <= 1) throw httpError(400, "Un lieu doit garder au moins un rôle.");
     loc.roles.splice(idx, 1);
@@ -277,7 +281,8 @@ function getPlayer(room, playerId) {
 function leaveRoom(room, playerId) {
   const idx = room.players.findIndex((p) => p.id === playerId);
   if (idx === -1) return;
-  const wasHost = room.players[idx].isHost;
+  const departing = room.players[idx];
+  const wasHost = departing.isHost;
   room.players.splice(idx, 1);
   delete room.scores[playerId];
   if (!room.players.length) { rooms.delete(room.code); return; }
@@ -296,8 +301,10 @@ function leaveRoom(room, playerId) {
       room.status = "lobby";
       room.round = null;
       room.lastReveal = null;
-    } else if (r.accusation) {
-      maybeResolveVote(room); // le départ a peut-être complété l'unanimité
+    } else {
+      // Le premier joueur est parti : on en re-tire un parmi ceux qui restent.
+      if (r.firstPlayerName === departing.name) r.firstPlayerName = room.players[crypto.randomInt(room.players.length)].name;
+      if (r.accusation) maybeResolveVote(room); // le départ a peut-être complété l'unanimité
     }
   }
   touch(room);
@@ -343,6 +350,7 @@ function startRound(room, player, opts) {
     firstPlayerName: first.name,
     accusation: null,
     spentAccusers: [],
+    clearedSuspects: [],
   };
   room.status = "playing";
   room.lastReveal = null;
@@ -363,6 +371,7 @@ function accuse(room, player, suspectName) {
   const suspect = room.players.find((p) => p.name === suspectName);
   if (!suspect) throw httpError(404, "Joueur introuvable.");
   if (suspect.id === player.id) throw httpError(400, "Vous ne pouvez pas vous accuser vous-même.");
+  if (room.round.clearedSuspects.includes(suspect.id)) throw httpError(400, "Ce joueur a déjà été innocenté ce tour.");
   room.round.accusation = {
     accuserId: player.id,
     accuserName: player.name,
@@ -394,6 +403,7 @@ function maybeResolveVote(room) {
     resolveRound(room, caught ? "spy_caught" : "wrong_accusation", { accuser: acc.accuserName, suspect: acc.suspectName });
   } else {
     room.round.spentAccusers.push(acc.accuserId); // l'accusateur a épuisé sa tentative
+    room.round.clearedSuspects.push(acc.suspectId); // ce suspect ne peut plus être ré-accusé ce tour
     room.round.accusation = null;
     touch(room);
   }
@@ -519,6 +529,7 @@ function sendJSON(res, status, data) {
 }
 function readBody(req) {
   return new Promise((resolve, reject) => {
+    if (Number(req.headers["content-length"] || 0) > 10_000) { reject(httpError(413, "Requête trop grosse.")); return; }
     const chunks = [];
     let size = 0;
     let done = false;
@@ -656,6 +667,11 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Spyfall FR prêt sur http://localhost:${PORT}`);
+// Derrière un proxy (TRUST_PROXY=1, ex. Caddy) on n'écoute QUE sur la loopback :
+// Node n'est jamais joignable directement, donc X-Forwarded-For est fiable et le
+// rate-limit ne peut être ni contourné ni globalisé. En local, on écoute partout
+// (jeu en LAN). Surchargeable via HOST.
+const HOST = process.env.HOST || (TRUST_PROXY ? "127.0.0.1" : "0.0.0.0");
+server.listen(PORT, HOST, () => {
+  console.log(`Spyfall FR prêt sur http://localhost:${PORT} (hôte ${HOST})`);
 });

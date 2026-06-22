@@ -90,6 +90,12 @@ Les parties sont stockées en mémoire et expirent après 3 h d'inactivité.
    - à la fin du chrono (géré par le serveur), l'espion l'emporte s'il a tenu.
 4. Le **score** se cumule sur plusieurs manches : un classement s'affiche.
 
+**Barème** : espion qui devine le lieu, ou qui survit au chrono, ou victime
+d'une accusation ratée → **+2 par espion**. Espion qui se trompe en devinant,
+ou démasqué par un vote unanime → **+1 par innocent** (et **+1 bonus** pour
+l'accusateur juste). En mode 2 espions (auto dès 7 joueurs), démasquer **un**
+espion suffit à faire gagner les innocents.
+
 Les lieux et les rôles sont **modifiables en ligne** depuis l'appli
 (bouton « Modifier les lieux & rôles »), pour tous les joueurs.
 
