@@ -10,6 +10,110 @@ const DECKS = require("./locations");
 const ALLOWED_DECKS = ["both", "delire", "delire2", "delireBoth"];
 const DEFAULT_DECK = "both";
 
+// --- Lieux & rôles éditables, persistés sur disque -------------------------
+// Les 4 paquets de base sont modifiables depuis l'app (ajout/suppression de
+// lieux et de rôles). On charge data.json s'il existe (il SURVIT aux
+// redéploiements car non suivi par git), sinon on l'initialise depuis
+// locations.js. Les modes de jeu (both / delireBoth) se recomposent à la volée.
+const DATA_FILE = path.join(__dirname, "data.json");
+const BASE_PACKS = ["spyfall1", "spyfall2", "delire", "delire2"];
+const LABELS = {
+  spyfall1: "Spyfall 1",
+  spyfall2: "Spyfall 2",
+  both: "Spyfall 1 + 2",
+  delire: "Délire (RP)",
+  delire2: "Délire 2 (corsé) 🔞",
+  delireBoth: "Délire + Délire 2 🔞",
+};
+const editable = {};
+
+function clonePack(k) {
+  return DECKS[k].locations.map((l) => ({ name: l.name, theme: l.theme, roles: [...l.roles] }));
+}
+function saveEditable() {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(editable, null, 2));
+  } catch (e) {
+    console.error("Écriture data.json impossible :", e.message);
+  }
+}
+function loadEditable() {
+  let saved = null;
+  try { saved = JSON.parse(fs.readFileSync(DATA_FILE, "utf8")); } catch { saved = null; }
+  for (const k of BASE_PACKS) editable[k] = saved && Array.isArray(saved[k]) ? saved[k] : clonePack(k);
+  if (!saved) saveEditable();
+}
+function poolFor(deckKey) {
+  switch (deckKey) {
+    case "both": return [...editable.spyfall1, ...editable.spyfall2];
+    case "delire": return editable.delire;
+    case "delire2": return editable.delire2;
+    case "delireBoth": return [...editable.delire, ...editable.delire2];
+    default: return [...editable.spyfall1, ...editable.spyfall2];
+  }
+}
+function deckMeta() {
+  return Object.fromEntries(ALLOWED_DECKS.map((k) => [k, { label: LABELS[k], count: poolFor(k).length }]));
+}
+function allThemes() {
+  const set = new Set();
+  for (const k of BASE_PACKS) for (const l of editable[k]) set.add(l.theme);
+  return [...set];
+}
+function locationsPayload() {
+  return {
+    packs: BASE_PACKS.map((k) => ({ key: k, label: LABELS[k], locations: editable[k] })),
+    themes: allThemes(),
+  };
+}
+function cleanStr(s, max) {
+  return String(s == null ? "" : s).trim().replace(/\s+/g, " ").slice(0, max);
+}
+// Applique une opération d'édition (jette httpError si invalide).
+function applyEdit(body) {
+  if (!BASE_PACKS.includes(body.pack)) throw httpError(400, "Paquet inconnu.");
+  const list = editable[body.pack];
+  if (body.op === "addLocation") {
+    const name = cleanStr(body.name, 40);
+    if (!name) throw httpError(400, "Donnez un nom au lieu.");
+    if (list.some((l) => l.name.toLowerCase() === name.toLowerCase()))
+      throw httpError(400, "Ce lieu existe déjà dans ce paquet.");
+    const theme = cleanStr(body.theme, 40) || allThemes()[0] || "Autres";
+    let roles = [...new Set((Array.isArray(body.roles) ? body.roles : []).map((r) => cleanStr(r, 40)).filter(Boolean))];
+    if (roles.length > 30) throw httpError(400, "Trop de rôles (30 max).");
+    if (!roles.length) roles = ["Habitué"];
+    list.push({ name, theme, roles });
+    return;
+  }
+  const loc = list.find((l) => l.name === body.name);
+  if (body.op === "deleteLocation") {
+    if (!loc) throw httpError(404, "Lieu introuvable.");
+    if (list.length <= 1) throw httpError(400, "Un paquet doit garder au moins un lieu.");
+    list.splice(list.indexOf(loc), 1);
+    return;
+  }
+  if (!loc) throw httpError(404, "Lieu introuvable.");
+  if (body.op === "addRole") {
+    const role = cleanStr(body.role, 40);
+    if (!role) throw httpError(400, "Donnez un nom au rôle.");
+    if (loc.roles.some((r) => r.toLowerCase() === role.toLowerCase()))
+      throw httpError(400, "Ce rôle existe déjà dans ce lieu.");
+    if (loc.roles.length >= 30) throw httpError(400, "Trop de rôles pour ce lieu (30 max).");
+    loc.roles.push(role);
+    return;
+  }
+  if (body.op === "deleteRole") {
+    const idx = loc.roles.indexOf(String(body.role || ""));
+    if (idx === -1) throw httpError(404, "Rôle introuvable.");
+    if (loc.roles.length <= 1) throw httpError(400, "Un lieu doit garder au moins un rôle.");
+    loc.roles.splice(idx, 1);
+    return;
+  }
+  throw httpError(400, "Opération inconnue.");
+}
+
+loadEditable();
+
 // Portail à un seul champ : mot de passe partagé lu dans l'environnement.
 // Vide => aucun portail (accès libre, pratique en local). Le mot de passe
 // n'est jamais écrit dans le dépôt : il est fourni via SPYFALL_PASSWORD.
@@ -96,7 +200,8 @@ function startRound(room, player, durationMin, deck) {
   const minutes = Math.min(20, Math.max(1, Number(durationMin) || room.durationMin));
   room.durationMin = minutes;
   if (ALLOWED_DECKS.includes(deck)) room.deck = deck;
-  const pool = DECKS[room.deck].locations;
+  const pool = poolFor(room.deck);
+  if (!pool.length) throw httpError(400, "Ce mode n'a aucun lieu. Ajoutez-en dans l'éditeur.");
   const location = pool[crypto.randomInt(pool.length)];
   const spy = room.players[crypto.randomInt(room.players.length)];
   const shuffledRoles = [...location.roles].sort(() => Math.random() - 0.5);
@@ -141,7 +246,7 @@ function stateFor(room, playerId) {
     status: room.status,
     durationMin: room.durationMin,
     deck: room.deck,
-    decks: Object.fromEntries(ALLOWED_DECKS.map((k) => [k, { label: DECKS[k].label, count: DECKS[k].locations.length }])),
+    decks: deckMeta(),
     you: { id: player.id, name: player.name, isHost: player.isHost },
     players: room.players.map((p) => ({ name: p.name, isHost: p.isHost })),
   };
@@ -216,9 +321,19 @@ const server = http.createServer(async (req, res) => {
 
     // Liste des modes proposés à la création (écran d'accueil, avant toute salle).
     if (req.method === "GET" && url.pathname === "/api/decks") {
-      return sendJSON(res, 200, {
-        decks: Object.fromEntries(ALLOWED_DECKS.map((k) => [k, { label: DECKS[k].label, count: DECKS[k].locations.length }])),
-      });
+      return sendJSON(res, 200, { decks: deckMeta() });
+    }
+
+    // Éditeur de lieux & rôles (protégé par le mot de passe du portail).
+    if (url.pathname === "/api/locations") {
+      if (!passOk(req.headers["x-spyfall-pass"])) throw httpError(401, "Mot de passe requis.");
+      if (req.method === "GET") return sendJSON(res, 200, locationsPayload());
+      if (req.method === "POST") {
+        applyEdit(await readBody(req));
+        saveEditable();
+        return sendJSON(res, 200, locationsPayload());
+      }
+      throw httpError(405, "Méthode non autorisée.");
     }
 
     // API : /api/rooms et /api/rooms/:code/(join|start|end|lobby|state)

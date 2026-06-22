@@ -227,6 +227,123 @@ $("btn-again").onclick = async () => {
   }
 };
 
+// --- Éditeur de lieux & rôles ------------------------------------------------
+
+let editorData = null;
+let editorPack = null;
+
+$("btn-open-editor").onclick = openEditor;
+$("btn-editor-back").onclick = () => show("screen-home");
+
+async function openEditor() {
+  setError("home-error", "");
+  try {
+    editorData = await api("/api/locations");
+    editorPack = editorData.packs[0].key;
+    renderEditor();
+    show("screen-editor");
+  } catch (e) {
+    setError("home-error", e.message);
+  }
+}
+
+async function editOp(payload) {
+  setError("editor-error", "");
+  try {
+    editorData = await api("/api/locations", payload);
+    renderEditor();
+    return true;
+  } catch (e) {
+    setError("editor-error", e.message);
+    return false;
+  }
+}
+
+function renderEditor() {
+  $("pack-tabs").innerHTML = editorData.packs
+    .map((p) => `<button class="pack-tab${p.key === editorPack ? " active" : ""}" data-pack="${escapeHtml(p.key)}">${escapeHtml(p.label)} <span>(${p.locations.length})</span></button>`)
+    .join("");
+  $("new-loc-theme").innerHTML = editorData.themes
+    .map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`)
+    .join("");
+  const pack = editorData.packs.find((p) => p.key === editorPack);
+  $("editor-list").innerHTML = pack.locations
+    .map(
+      (l) => `
+      <div class="ed-loc">
+        <div class="ed-loc-head">
+          <div class="ed-loc-id">
+            <span class="ed-loc-name">${escapeHtml(l.name)}</span>
+            <span class="ed-loc-theme">${escapeHtml(l.theme)}</span>
+          </div>
+          <button class="ed-del-loc" data-name="${escapeHtml(l.name)}" title="Supprimer ce lieu">🗑️</button>
+        </div>
+        <div class="ed-roles">
+          ${l.roles
+            .map((r) => `<span class="ed-role">${escapeHtml(r)}<button class="ed-del-role" data-loc="${escapeHtml(l.name)}" data-role="${escapeHtml(r)}" title="Retirer ce rôle">×</button></span>`)
+            .join("")}
+        </div>
+        <div class="ed-addrole">
+          <input class="ed-role-input" maxlength="40" placeholder="Nouveau rôle…" />
+          <button class="ed-add-role" data-loc="${escapeHtml(l.name)}">+ Rôle</button>
+        </div>
+      </div>`
+    )
+    .join("");
+}
+
+$("pack-tabs").onclick = (e) => {
+  const t = e.target.closest(".pack-tab");
+  if (!t) return;
+  editorPack = t.dataset.pack;
+  renderEditor();
+};
+
+$("editor-list").onclick = (e) => {
+  const delLoc = e.target.closest(".ed-del-loc");
+  if (delLoc) {
+    if (confirm(`Supprimer le lieu « ${delLoc.dataset.name} » ?`))
+      editOp({ op: "deleteLocation", pack: editorPack, name: delLoc.dataset.name });
+    return;
+  }
+  const delRole = e.target.closest(".ed-del-role");
+  if (delRole) {
+    editOp({ op: "deleteRole", pack: editorPack, name: delRole.dataset.loc, role: delRole.dataset.role });
+    return;
+  }
+  const addRole = e.target.closest(".ed-add-role");
+  if (addRole) {
+    const input = addRole.closest(".ed-loc").querySelector(".ed-role-input");
+    if (input.value.trim()) editOp({ op: "addRole", pack: editorPack, name: addRole.dataset.loc, role: input.value });
+  }
+};
+
+$("editor-list").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.classList.contains("ed-role-input")) {
+    const btn = e.target.closest(".ed-loc").querySelector(".ed-add-role");
+    if (e.target.value.trim()) editOp({ op: "addRole", pack: editorPack, name: btn.dataset.loc, role: e.target.value });
+  }
+});
+
+$("btn-add-loc").onclick = async () => {
+  const name = $("new-loc-name").value;
+  if (!name.trim()) {
+    setError("editor-error", "Donnez un nom au lieu.");
+    return;
+  }
+  const ok = await editOp({
+    op: "addLocation",
+    pack: editorPack,
+    name,
+    theme: $("new-loc-theme").value,
+    roles: $("new-loc-role").value.trim() ? [$("new-loc-role").value] : [],
+  });
+  if (ok) {
+    $("new-loc-name").value = "";
+    $("new-loc-role").value = "";
+  }
+};
+
 // --- Chrono -------------------------------------------------------------------
 
 function startCountdown(endsAt) {

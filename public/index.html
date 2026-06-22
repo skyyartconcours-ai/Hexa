@@ -31,6 +31,7 @@
         <input id="code-input" maxlength="2" placeholder="AB" autocapitalize="characters" />
         <button id="btn-join">Rejoindre</button>
       </div>
+      <button id="btn-open-editor" class="ghost">✏️ Modifier les lieux &amp; rôles</button>
       <p id="home-error" class="error"></p>
     </section>
 
@@ -73,6 +74,25 @@
       <p class="reveal-line">Le lieu était <strong id="reveal-location"></strong></p>
       <button id="btn-again" class="primary hidden">Rejouer une manche</button>
       <p id="reveal-error" class="error"></p>
+    </section>
+
+    <!-- Éditeur de lieux & rôles -->
+    <section id="screen-editor" class="screen hidden">
+      <div class="editor-top">
+        <button id="btn-editor-back" class="ghost">← Retour</button>
+        <h1>Lieux &amp; rôles</h1>
+      </div>
+      <p class="hint">Modifiez les lieux et les personnages. Les changements s'appliquent à toutes les futures parties.</p>
+      <div id="pack-tabs" class="pack-tabs"></div>
+      <div id="editor-list"></div>
+      <div class="add-loc">
+        <h2 class="add-title">➕ Ajouter un lieu</h2>
+        <input id="new-loc-name" maxlength="40" placeholder="Nom du lieu (ex. Sous-marin)" />
+        <select id="new-loc-theme"></select>
+        <input id="new-loc-role" maxlength="40" placeholder="Premier rôle (optionnel)" />
+        <button id="btn-add-loc" class="primary">Ajouter le lieu</button>
+      </div>
+      <p id="editor-error" class="error"></p>
     </section>
 
   </main>

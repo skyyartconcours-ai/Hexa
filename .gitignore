@@ -1,0 +1,4 @@
+node_modules/
+# État runtime de l'éditeur (lieux/rôles modifiés) — propre à chaque serveur,
+# initialisé depuis locations.js au premier démarrage.
+data.json

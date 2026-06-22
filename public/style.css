@@ -121,3 +121,96 @@ button.danger { background: #b9483f; color: #fff; }
 
 .reveal-line { text-align: center; font-size: 1.2rem; }
 .reveal-line strong { color: #5b8def; }
+
+/* --- Éditeur de lieux & rôles ------------------------------------------- */
+
+button.ghost {
+  background: transparent;
+  border: 1px solid #2c3442;
+  color: #c7d0de;
+}
+
+.editor-top { display: flex; align-items: center; gap: 10px; }
+.editor-top h1 { font-size: 1.5rem; text-align: left; flex: 1; }
+#btn-editor-back { flex: 0 0 auto; padding: 10px 12px; }
+
+.pack-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+.pack-tab {
+  flex: 0 0 auto;
+  background: #1d232e;
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+.pack-tab.active { background: #5b8def; color: #fff; }
+.pack-tab span { opacity: 0.7; font-weight: 400; }
+
+.ed-loc {
+  background: #1d232e;
+  border: 1px solid #2c3442;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ed-loc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.ed-loc-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ed-loc-name { font-size: 1.15rem; font-weight: 700; word-break: break-word; }
+.ed-loc-theme { font-size: 0.8rem; color: #9aa3b2; }
+.ed-del-loc {
+  flex: 0 0 auto;
+  background: #2a1f22;
+  border: 1px solid #5a2e2e;
+  font-size: 1.1rem;
+  padding: 8px 10px;
+}
+
+.ed-roles { display: flex; flex-wrap: wrap; gap: 6px; }
+.ed-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #232b38;
+  border-radius: 999px;
+  padding: 6px 6px 6px 12px;
+  font-size: 0.9rem;
+}
+.ed-del-role {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+  background: #3a4456;
+  color: #e8e6e3;
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ed-del-role:active { background: #b9483f; }
+
+.ed-addrole { display: flex; gap: 8px; }
+.ed-role-input { flex: 1; font-size: 0.95rem; padding: 10px 12px; }
+.ed-add-role { flex: 0 0 auto; background: #2c3442; padding: 10px 14px; }
+
+.add-loc {
+  margin-top: 18px;
+  padding: 14px;
+  background: #161b23;
+  border: 1px dashed #2c3442;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.add-title { font-size: 1.1rem; }
