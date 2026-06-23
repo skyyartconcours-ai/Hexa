@@ -17,6 +17,10 @@ let settingsInitForCode = null; // pour ne pas écraser les réglages de l'hôte
 let lastVoteKey = null;         // évite de reconstruire le panneau de vote inutilement
 let lastRevealShown = null;     // pour ne déclencher l'animation de victoire qu'une fois
 let confettiRAF = null;
+let lobbyKnownNames = null;     // détection des arrivées dans le salon (#4)
+let iWasSpyThisRound = false;   // pour les stats du Casier (#6)
+let seatsAtRoundStart = 0;      // pour proposer 'inviter' si un siège se libère (#1)
+let tutoStep = 0;
 
 function saveSession(s) {
   session = s;
@@ -131,10 +135,29 @@ async function poll() {
 }
 
 function render(state) {
+  if (state.status !== "lobby") lobbyKnownNames = null; // réinitialise la détection d'arrivées
   if (state.status === "lobby") renderLobby(state);
   else if (state.status === "playing") renderGame(state);
   else if (state.status === "reveal") renderReveal(state);
   lastStatus = state.status;
+}
+
+// Petit toast éphémère (arrivées, copie de lien…).
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.remove("hidden");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.add("hidden"), 2200);
+}
+
+// Invitation par partage natif (Web Share), repli copie du lien.
+async function shareInvite() {
+  if (!session) return;
+  const url = location.origin + "/?code=" + session.code;
+  const text = `Rejoins ma partie d'Hexa 🕵️ — salle ${session.code}\n${url}`;
+  if (navigator.share) { try { await navigator.share({ title: "Hexa — partie en cours", text, url }); } catch {} }
+  else { try { await navigator.clipboard.writeText(url); toast("Lien copié — colle-le dans ton groupe !"); } catch {} }
 }
 
 // --- Salon -------------------------------------------------------------------
@@ -154,9 +177,28 @@ function renderLobby(state) {
     $("btn-share").classList.toggle("hidden", !navigator.share);
   }
 
+  // Détection des arrivées (lobby vivant #4).
+  const names = state.players.map((p) => p.name);
+  const isNew = (n) => lobbyKnownNames && !lobbyKnownNames.has(n);
+  if (lobbyKnownNames) for (const n of names) if (!lobbyKnownNames.has(n) && n !== state.you.name) toast(`${n} a rejoint 👋`);
   $("lobby-players").innerHTML = state.players
-    .map((p) => `<li><span class="pdot pdot-${p.presence || "actif"}" title="${p.presence || ""}"></span>${escapeHtml(p.name)}${p.isHost ? " 👑" : ""}${p.name === state.you.name ? " <span class=\"you-tag\">(vous)</span>" : ""}</li>`)
+    .map((p) => `<li class="${isNew(p.name) ? "just-joined" : ""}"><span class="pdot pdot-${p.presence || "actif"}" title="${p.presence || ""}"></span>${escapeHtml(p.name)}${p.isHost ? " 👑" : ""}${p.name === state.you.name ? " <span class=\"you-tag\">(vous)</span>" : ""}</li>`)
     .join("");
+  lobbyKnownNames = new Set(names);
+
+  // Mur d'invitation incitatif (#2) + barre de remplissage + compteur de parties.
+  const n = state.players.length;
+  const wall = $("invite-wall");
+  if (n < 3) {
+    wall.classList.remove("hidden");
+    $("invite-count").textContent = `Il manque ${3 - n} joueur${3 - n > 1 ? "s" : ""} pour lancer — invite tes potes !`;
+  } else wall.classList.add("hidden");
+  const fb = $("fill-bar-inner");
+  fb.style.width = Math.min(100, (n / 3) * 100) + "%";
+  fb.classList.toggle("ready", n >= 3);
+  const ag = $("active-games");
+  if (state.activeGames >= 3) { ag.classList.remove("hidden"); ag.textContent = `🎲 ${state.activeGames} parties en cours`; }
+  else ag.classList.add("hidden");
 
   const isHost = state.you.isHost;
   $("host-controls").classList.toggle("hidden", !isHost);
@@ -207,6 +249,8 @@ function renderGame(state) {
     // Nouvelle manche : carte de nouveau face cachée, ratures effacées.
     lastCardKey = cardKey;
     vibratedTimeUp = false;
+    iWasSpyThisRound = !!state.youAreSpy;
+    seatsAtRoundStart = state.players.length;
     $("btn-flip").classList.remove("hidden");
     $("card-content").classList.add("hidden");
     renderCard(state);
@@ -359,12 +403,17 @@ function renderReveal(state) {
   $("reveal-location").textContent = r.location;
   $("reveal-spy").textContent = r.spies.join(", ") || "(parti)";
   renderScoreboard("reveal-scoreboard", state.scores, state.history);
+  $("reveal-series").textContent = state.roundNo > 0 ? `🔥 ${state.roundNo} manche${state.roundNo > 1 ? "s" : ""} jouée${state.roundNo > 1 ? "s" : ""} ce soir !` : "";
+  $("btn-revanche").classList.toggle("hidden", !state.you.isHost);
   $("btn-again").classList.toggle("hidden", !state.you.isHost);
+  const seatFreed = seatsAtRoundStart && state.players.length < seatsAtRoundStart;
+  $("btn-invite-reveal").classList.toggle("hidden", !seatFreed);
 
   // Mise en scène jouée UNE seule fois par manche (pas à chaque sondage).
   const key = `${state.roundNo}|${r.outcome}`;
   if (key !== lastRevealShown) {
     lastRevealShown = key;
+    recordRound(r, iWasSpyThisRound); // met à jour les stats locales du Casier (#6)
     const sec = $("screen-reveal");
     sec.classList.remove("reveal-anim");
     void sec.offsetWidth; // relance les animations CSS
@@ -609,6 +658,136 @@ $("btn-add-loc").onclick = () => withBusy($("btn-add-loc"), async () => {
   if (ok) { $("new-loc-name").value = ""; $("new-loc-role").value = ""; $("new-loc-theme").value = ""; }
 });
 
+// --- Invitation / Revanche (#1, #2) ------------------------------------------
+
+$("btn-invite").onclick = () => shareInvite();
+$("btn-invite-reveal").onclick = () => shareInvite();
+$("btn-revanche").onclick = () => withBusy($("btn-revanche"), async () => {
+  setError("reveal-error", "");
+  try { render(await api(`/api/rooms/${session.code}/start`, { playerId: session.playerId })); } // réutilise les réglages de la salle
+  catch (e) { setError("reveal-error", e.message); }
+});
+// Mémorise le prénom pour le pré-remplir (onboarding fluide).
+$("name-input").addEventListener("input", () => { try { localStorage.setItem("spyfall-name", $("name-input").value.trim().slice(0, 20)); } catch {} });
+
+// --- Casier d'identité (#6, stats LOCALES, carte Canvas client) ---------------
+
+function loadStats() { try { return JSON.parse(localStorage.getItem("spyfall-stats")) || {}; } catch { return {}; } }
+function recordRound(reveal, wasSpy) {
+  const s = loadStats();
+  s.parties = (s.parties || 0) + 1;
+  const won = reveal.winners === (wasSpy ? "spy" : "innocents");
+  if (won) s.wins = (s.wins || 0) + 1;
+  if (wasSpy) { s.asSpy = (s.asSpy || 0) + 1; if (won) s.spyWins = (s.spyWins || 0) + 1; }
+  try { localStorage.setItem("spyfall-stats", JSON.stringify(s)); } catch {}
+}
+function casierTitle(s) {
+  const p = s.parties || 0;
+  if (!p) return "Recrue";
+  const spyRate = s.asSpy ? (s.spyWins || 0) / s.asSpy : 0;
+  const winRate = (s.wins || 0) / p;
+  if (s.asSpy >= 5 && spyRate >= 0.6) return "Espion fantôme 👻";
+  if (s.asSpy >= 5 && spyRate <= 0.2) return "Espion grillé 🔥";
+  if (p >= 5 && winRate >= 0.6) return "Fin limier 🕵️";
+  if (p >= 5 && winRate <= 0.3) return "Pigeon attitré 🐦";
+  if (p >= 20) return "Vétéran d'Hexa";
+  return "Apprenti espion";
+}
+function casierBadges(s) {
+  const b = [];
+  if ((s.parties || 0) >= 5) b.push("🎯 5 parties");
+  if ((s.parties || 0) >= 20) b.push("🏅 20 parties");
+  if ((s.spyWins || 0) >= 5) b.push("🕶️ 5 wins espion");
+  if ((s.spyWins || 0) >= 10) b.push("👑 10 wins espion");
+  if ((s.wins || 0) >= 10) b.push("🏆 10 victoires");
+  return b.length ? b : ["— pas encore de badge —"];
+}
+function buildCasierCanvas() {
+  const s = loadStats();
+  const W = 1080, H = 1350;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const x = cv.getContext("2d");
+  const g = x.createRadialGradient(W / 2, 0, 120, W / 2, H * 0.45, H);
+  g.addColorStop(0, "#1a140c"); g.addColorStop(1, "#070605");
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.strokeStyle = "#9a7a2e"; x.lineWidth = 8; x.strokeRect(30, 30, W - 60, H - 60);
+  x.textAlign = "center";
+  x.fillStyle = "#e6c87a"; x.font = "bold 60px Georgia, serif"; x.fillText("🕵️ CASIER HEXA", W / 2, 150);
+  const name = (localStorage.getItem("spyfall-name") || "Joueur").slice(0, 18);
+  x.fillStyle = "#f3ead6"; x.font = "bold 86px Georgia, serif"; x.fillText(name, W / 2, 280);
+  x.fillStyle = "#f1d99a"; x.font = "italic 54px Georgia, serif"; x.fillText(casierTitle(s), W / 2, 372);
+  const lines = [
+    ["Parties jouées", String(s.parties || 0)],
+    ["Victoires", `${s.wins || 0} (${Math.round(((s.wins || 0) / (s.parties || 1)) * 100)}%)`],
+    ["Manches en espion", String(s.asSpy || 0)],
+    ["Bluffs réussis", s.asSpy ? `${s.spyWins || 0} (${Math.round(((s.spyWins || 0) / s.asSpy) * 100)}%)` : "—"],
+  ];
+  x.font = "44px Arial, sans-serif"; let yy = 530;
+  for (const [k, v] of lines) {
+    x.textAlign = "left"; x.fillStyle = "#9b9078"; x.fillText(k, 110, yy);
+    x.textAlign = "right"; x.fillStyle = "#e6c87a"; x.fillText(v, W - 110, yy);
+    yy += 92;
+  }
+  x.textAlign = "center"; x.fillStyle = "#f3ead6"; x.font = "38px Arial, sans-serif";
+  let by = yy + 50; for (const bg of casierBadges(s)) { x.fillText(bg, W / 2, by); by += 64; }
+  x.fillStyle = "#9a7a2e"; x.font = "34px Georgia, serif"; x.fillText("spy.skyyarttools.fr", W / 2, H - 70);
+  return cv;
+}
+function openCasier() {
+  const s = loadStats();
+  const wrap = $("casier-wrap");
+  wrap.innerHTML = "";
+  if (!(s.parties > 0)) {
+    $("casier-empty").classList.remove("hidden");
+    $("btn-casier-share").classList.add("hidden");
+  } else {
+    $("casier-empty").classList.add("hidden");
+    const cv = buildCasierCanvas();
+    const img = document.createElement("img");
+    img.src = cv.toDataURL("image/png"); img.className = "casier-img"; img.alt = "Mon Casier Hexa";
+    wrap.appendChild(img);
+    wrap._canvas = cv;
+    $("btn-casier-share").classList.remove("hidden");
+  }
+  show("screen-casier");
+}
+async function shareCasier() {
+  const cv = $("casier-wrap")._canvas;
+  if (!cv) return;
+  try {
+    const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
+    const file = new File([blob], "casier-hexa.png", { type: "image/png" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], text: "Mon Casier Hexa 🕵️ — spy.skyyarttools.fr" });
+      return;
+    }
+  } catch {}
+  const a = document.createElement("a"); a.href = cv.toDataURL("image/png"); a.download = "casier-hexa.png"; a.click();
+}
+$("btn-casier").onclick = openCasier;
+$("btn-casier-back").onclick = () => show("screen-home");
+$("btn-casier-share").onclick = () => shareCasier();
+
+// --- Tutoriel express (#8, scripté, sans fausse IA) --------------------------
+
+const TUTO_STEPS = [
+  `<h2>🕵️ Le but</h2><p>Tout le monde reçoit le <b>même lieu</b> et un rôle… sauf <b>l'espion</b>, qui ne connaît pas le lieu.</p><div class="tuto-demo"><span class="card-label">Lieu</span><span class="card-title">Plage</span><span class="card-label">Ton rôle</span><span class="card-role">Maître-nageur</span></div>`,
+  `<h2>❓ On enquête</h2><p>Chacun son tour, on se pose des questions pour démasquer l'espion — sans être trop précis, sinon il devine le lieu.</p><div class="tuto-chat"><p><b>Léa :</b> « Tu mets de la crème solaire ? »</p><p><b>Max :</b> « …euh, parfois. »</p><p class="tuto-tip">👀 Max hésite : suspect !</p></div>`,
+  `<h2>🙋 On accuse</h2><p>N'importe qui peut accuser un joueur. Si <b>tout le monde est d'accord</b>, on révèle son rôle.</p><div class="tuto-demo"><span class="vote-q">« Max est l'espion ? »</span><span class="card-role">3 / 3 votes ✔️</span></div>`,
+  `<h2>🎯 L'espion peut tenter</h2><p>À tout moment, l'espion peut <b>deviner le lieu</b> pour gagner d'un coup. Risqué : s'il se trompe, il perd.</p>`,
+  `<h2>🏆 La révélation</h2><div class="reveal-verdict win-innocents" style="margin:12px 0">🕵️ Max était l'espion — démasqué ! Les innocents gagnent.</div><p>Score cumulé, classement, Revanche en 1 tap… <b>c'est 100× mieux entre amis 👇</b></p>`,
+];
+function renderTuto() {
+  $("tuto-card").innerHTML = TUTO_STEPS[tutoStep];
+  $("tuto-dots").innerHTML = TUTO_STEPS.map((_, i) => `<span class="tuto-dot${i === tutoStep ? " on" : ""}"></span>`).join("");
+  $("btn-tuto-next").textContent = tutoStep === TUTO_STEPS.length - 1 ? "🎮 Créer une partie" : "Suivant";
+}
+function openTuto() { tutoStep = 0; renderTuto(); show("screen-tutorial"); }
+function endTuto() { try { localStorage.setItem("spyfall-seen-tuto", "1"); } catch {} show("screen-home"); try { $("name-input").focus(); } catch {} }
+$("btn-tuto").onclick = openTuto;
+$("btn-tuto-skip").onclick = endTuto;
+$("btn-tuto-next").onclick = () => { if (tutoStep < TUTO_STEPS.length - 1) { tutoStep++; renderTuto(); } else endTuto(); };
+
 // --- Portail (un seul champ mot de passe) ------------------------------------
 
 function lockGate(msg) {
@@ -619,11 +798,16 @@ function lockGate(msg) {
 }
 function enterApp() {
   loadDecks();
+  const storedName = localStorage.getItem("spyfall-name");
+  if (storedName && !$("name-input").value) $("name-input").value = storedName;
   const params = new URLSearchParams(location.search);
   const c = (params.get("code") || "").toUpperCase();
-  if (c && /^[A-HJ-NP-Z]{2}$/.test(c) && !session) $("code-input").value = c; // alphabet sans I ni O
-  if (session) startPolling();
-  else show("screen-home");
+  const hasCode = /^[A-Z0-9]{3,8}$/.test(c);
+  if (hasCode && !session) $("code-input").value = c;
+  if (session) { startPolling(); return; }
+  // Première visite (et pas arrivé par un lien de salle) : tutoriel express.
+  if (!hasCode && !localStorage.getItem("spyfall-seen-tuto")) { openTuto(); return; }
+  show("screen-home");
 }
 async function tryPassword(pass) {
   const res = await fetch("/api/access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pass }) });

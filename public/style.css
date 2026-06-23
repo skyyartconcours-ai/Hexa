@@ -322,6 +322,60 @@ body.defeat-flash::after {
 }
 @keyframes defeatPulse { 0% { opacity: 0; } 22% { opacity: 1; } 100% { opacity: 0; } }
 
+/* --- Socle viral : toast, invitation, lobby vivant, casier, tutoriel ----- */
+
+.toast {
+  position: fixed; left: 50%; top: 18px; transform: translateX(-50%);
+  background: linear-gradient(180deg, var(--panneau-2), var(--panneau));
+  border: 1px solid var(--bronze); color: var(--creme);
+  padding: 10px 16px; border-radius: 999px; font-size: 0.92rem; z-index: 80;
+  box-shadow: var(--ombre); max-width: 90vw; text-align: center;
+  animation: toastIn 0.25s ease;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } }
+
+.home-links { display: flex; gap: 8px; }
+.home-links button { flex: 1; }
+
+.dictate-hint { text-align: center; color: var(--or); font-size: 0.92rem; }
+
+.invite-wall {
+  background: radial-gradient(120% 120% at 50% 0%, #2c2415, var(--laque-2));
+  border: 1px solid var(--bronze); border-radius: 14px; padding: 14px; text-align: center;
+  box-shadow: 0 0 22px rgba(230, 200, 122, 0.12); display: flex; flex-direction: column; gap: 10px;
+}
+#invite-count { color: var(--creme); font-size: 1rem; }
+#btn-invite { min-height: 52px; }
+
+.fill-bar { height: 9px; background: var(--laque-2); border: 1px solid var(--bord); border-radius: 999px; overflow: hidden; }
+#fill-bar-inner { height: 100%; width: 0; background: linear-gradient(90deg, var(--bronze), var(--or)); transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+#fill-bar-inner.ready { background: linear-gradient(90deg, #2e7a4a, var(--vert)); }
+
+.active-games { text-align: center; color: var(--doux); font-size: 0.88rem; }
+
+.players li.just-joined { animation: pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1); }
+@keyframes pop { 0% { transform: scale(0.85); opacity: 0; } 60% { transform: scale(1.04); } 100% { transform: scale(1); opacity: 1; } }
+
+.reveal-series { text-align: center; color: var(--or); font-size: 1rem; }
+
+.casier-wrap { display: flex; justify-content: center; }
+.casier-img { max-width: 100%; border-radius: 14px; box-shadow: var(--ombre); border: 1px solid var(--bronze); }
+
+.tuto-card { background: linear-gradient(180deg, var(--panneau-2), var(--panneau)); border: 1px solid var(--bord); border-radius: 16px; padding: 22px; min-height: 290px; box-shadow: var(--ombre), var(--liseret); }
+.tuto-card h2 { font-family: var(--serif); color: var(--or); font-size: 1.5rem; margin-bottom: 12px; text-align: center; }
+.tuto-card p { color: var(--texte); line-height: 1.5; margin-bottom: 10px; }
+.tuto-card b { color: var(--or-clair); }
+.tuto-demo { display: flex; flex-direction: column; gap: 4px; align-items: center; background: var(--laque-2); border: 1px solid var(--bord); border-radius: 12px; padding: 16px; margin-top: 12px; }
+.tuto-chat { background: var(--laque-2); border: 1px solid var(--bord); border-radius: 12px; padding: 14px; margin-top: 10px; }
+.tuto-chat p { margin-bottom: 6px; }
+.tuto-tip { color: var(--or) !important; font-style: italic; }
+.tuto-dots { display: flex; gap: 8px; justify-content: center; }
+.tuto-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bord); }
+.tuto-dot.on { background: var(--or); box-shadow: 0 0 8px rgba(230, 200, 122, 0.5); }
+.tuto-nav { display: flex; gap: 10px; }
+.tuto-nav .ghost { flex: 0 0 auto; }
+.tuto-nav .primary { flex: 1; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }

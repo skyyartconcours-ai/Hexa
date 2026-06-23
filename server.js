@@ -195,13 +195,29 @@ for (const [p, [file, type]] of Object.entries(STATIC_FILES)) {
 // ---------------------------------------------------------------------------
 const rooms = new Map();
 const nowMs = () => Date.now();
+const activeGamesCount = () => { let n = 0; for (const r of rooms.values()) if (r.status === "playing") n++; return n; };
 
+// Codes de salle = mots FR courts, clairs et DICTABLES à voix haute (soirée,
+// stream, vocal Discord). Triés pour éviter homophones/ambiguïtés/vulgarité.
+const CODE_WORDS = [
+  "LION", "OURS", "LOUP", "PUMA", "LAMA", "ZEBRE", "TIGRE", "PANDA", "KOALA", "COBRA",
+  "HIBOU", "AIGLE", "BISON", "MORSE", "PHOQUE", "RENARD", "CASTOR", "OTARIE", "REQUIN", "CHEVAL",
+  "MOUTON", "LAPIN", "FAUCON", "HERON", "DAUPHIN", "TABLE", "LIVRE", "STYLO", "LAMPE", "PORTE",
+  "RADIO", "PIANO", "ROBOT", "CASQUE", "VOILE", "TRAIN", "AVION", "METRO", "KAYAK", "VELO",
+  "MOTO", "BOITE", "CARTE", "FUSEE", "VIOLON", "FLUTE", "HARPE", "IGLOO", "TIPI", "CABANE",
+  "MOULIN", "PONT", "TOUR", "NEIGE", "GLACE", "ORAGE", "NUAGE", "FORET", "OCEAN", "PLAGE",
+  "DUNE", "VAGUE", "CACTUS", "PALME", "CEDRE", "ERABLE", "BAMBOU", "ROSE", "TULIPE", "ETOILE",
+  "COMETE", "VOLCAN", "SOLEIL", "ECLAIR", "MELON", "CITRON", "KIWI", "MANGUE", "CACAO", "MIEL",
+  "PATES", "PIZZA", "SUSHI", "GAUFRE", "CREPE", "NOUGAT", "OLIVE", "RAISIN", "POIRE", "FRAISE",
+  "CERISE", "BANANE", "TOMATE", "RADIS", "POMME", "ANANAS", "BISCUIT", "CHOCO",
+];
 function makeRoomCode() {
-  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  let code;
-  do {
-    code = Array.from({ length: 2 }, () => letters[crypto.randomInt(letters.length)]).join("");
-  } while (rooms.has(code));
+  for (let i = 0; i < 50; i++) {
+    const w = CODE_WORDS[crypto.randomInt(CODE_WORDS.length)];
+    if (!rooms.has(w)) return w;
+  }
+  let code; // repli si beaucoup de salles : mot + chiffre, reste dictable
+  do { code = CODE_WORDS[crypto.randomInt(CODE_WORDS.length)] + crypto.randomInt(10); } while (rooms.has(code));
   return code;
 }
 function touch(room) { room.lastActivity = nowMs(); }
@@ -489,6 +505,7 @@ function stateFor(room, playerId) {
     decks: deckMeta(),
     roundNo: room.roundNo,
     you: { id: player.id, name: player.name, isHost: player.isHost },
+    activeGames: activeGamesCount(),
     players: room.players.map((p) => ({ name: p.name, isHost: p.isHost, presence: presenceOf(p) })),
     scores: scoreboard,
     history: room.history,
@@ -637,7 +654,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // API des salles.
-    const match = url.pathname.match(/^\/api\/rooms(?:\/([A-Za-z]{2})(?:\/(join|start|end|lobby|state|leave|guess|accuse|vote|scores))?)?$/);
+    const match = url.pathname.match(/^\/api\/rooms(?:\/([A-Za-z0-9]{3,8})(?:\/(join|start|end|lobby|state|leave|guess|accuse|vote|scores))?)?$/);
     if (!match) throw httpError(404, "Page introuvable.");
     const [, code, action] = match;
 

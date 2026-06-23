@@ -8,6 +8,7 @@
 </head>
 <body>
   <div id="net-banner" class="net-banner hidden">⚠️ Reconnexion…</div>
+  <div id="toast" class="toast hidden"></div>
   <canvas id="confetti" aria-hidden="true"></canvas>
   <main id="app">
 
@@ -30,8 +31,12 @@
       <select id="mode-select"></select>
       <button id="btn-create" class="primary">Créer une partie (vous êtes hôte + joueur)</button>
       <div class="join-row">
-        <input id="code-input" maxlength="2" placeholder="AB" autocapitalize="characters" inputmode="text" />
+        <input id="code-input" maxlength="8" placeholder="OURS" autocapitalize="characters" inputmode="text" />
         <button id="btn-join">Rejoindre</button>
+      </div>
+      <div class="home-links">
+        <button id="btn-tuto" class="ghost">▶️ Découvrir en 1 min</button>
+        <button id="btn-casier" class="ghost">🎖️ Mon Casier</button>
       </div>
       <button id="btn-open-editor" class="ghost">✏️ Modifier les lieux &amp; rôles</button>
       <p id="home-error" class="error" role="alert"></p>
@@ -46,7 +51,14 @@
         <button id="btn-copy" class="ghost icon-btn" title="Copier le code" aria-label="Copier le code">📋</button>
         <button id="btn-share" class="ghost icon-btn hidden" title="Partager le lien" aria-label="Partager le lien">🔗</button>
       </div>
+      <p class="dictate-hint">🔊 Dis le code à voix haute pour faire venir tout le monde</p>
       <div id="qr-box" class="qr-box" aria-label="QR code pour rejoindre"></div>
+      <div id="invite-wall" class="invite-wall hidden">
+        <p id="invite-count"></p>
+        <button id="btn-invite" class="primary">📲 Inviter des amis</button>
+      </div>
+      <div class="fill-bar"><div id="fill-bar-inner"></div></div>
+      <p id="active-games" class="active-games hidden"></p>
       <ul id="lobby-players" class="players"></ul>
       <div id="host-controls" class="hidden">
         <label for="deck-select">Mode de jeu</label>
@@ -106,7 +118,10 @@
       <p class="reveal-line">Lieu : <strong id="reveal-location"></strong></p>
       <p class="reveal-line">Espion(s) : <strong id="reveal-spy"></strong></p>
       <div id="reveal-scoreboard" class="scoreboard"></div>
-      <button id="btn-again" class="primary hidden">Rejouer une manche</button>
+      <p id="reveal-series" class="reveal-series"></p>
+      <button id="btn-revanche" class="primary hidden">🔄 Revanche</button>
+      <button id="btn-invite-reveal" class="ghost hidden">📲 Inviter (un siège s'est libéré)</button>
+      <button id="btn-again" class="ghost hidden">Changer les réglages</button>
       <button id="btn-leave-reveal" class="ghost danger-ghost">Quitter</button>
       <p id="reveal-error" class="error" role="alert"></p>
     </section>
@@ -129,6 +144,27 @@
         <button id="btn-add-loc" class="primary">Ajouter le lieu</button>
       </div>
       <p id="editor-error" class="error" role="alert"></p>
+    </section>
+
+    <!-- Casier d'identité du joueur -->
+    <section id="screen-casier" class="screen hidden">
+      <div class="editor-top">
+        <button id="btn-casier-back" class="ghost">← Retour</button>
+        <h1 tabindex="-1">Mon Casier</h1>
+      </div>
+      <div id="casier-wrap" class="casier-wrap"></div>
+      <p id="casier-empty" class="hint hidden">Joue une partie pour remplir ton Casier 🎖️</p>
+      <button id="btn-casier-share" class="primary hidden">📲 Partager mon Casier</button>
+    </section>
+
+    <!-- Tutoriel express -->
+    <section id="screen-tutorial" class="screen hidden">
+      <div id="tuto-card" class="tuto-card"></div>
+      <div id="tuto-dots" class="tuto-dots"></div>
+      <div class="tuto-nav">
+        <button id="btn-tuto-skip" class="ghost">Passer</button>
+        <button id="btn-tuto-next" class="primary">Suivant</button>
+      </div>
     </section>
 
   </main>
