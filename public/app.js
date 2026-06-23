@@ -20,6 +20,7 @@ let lastRevealShown = null;     // pour ne déclencher l'animation de victoire q
 let confettiRAF = null;
 let lobbyKnownNames = null;     // détection des arrivées dans le salon (#4)
 let iWasSpyThisRound = false;   // pour les stats du Casier (#6)
+let playedThisRound = false;    // n'enregistre une manche que si on l'a vraiment jouée (anti-fantôme)
 let seatsAtRoundStart = 0;      // pour proposer 'inviter' si un siège se libère (#1)
 let tutoStep = 0;
 
@@ -157,8 +158,9 @@ async function shareInvite() {
   if (!session) return;
   const url = location.origin + "/?code=" + session.code;
   const text = `Rejoins ma partie d'Hexa 🕵️ — salle ${session.code}\n${url}`;
-  if (navigator.share) { try { await navigator.share({ title: "Hexa — partie en cours", text, url }); } catch {} }
-  else { try { await navigator.clipboard.writeText(url); toast("Lien copié — colle-le dans ton groupe !"); } catch {} }
+  if (navigator.share) { try { await navigator.share({ title: "Hexa — partie en cours", text, url }); return; } catch {} }
+  try { await navigator.clipboard.writeText(url); toast("Lien copié — colle-le dans ton groupe !"); return; } catch {}
+  toast(url); // contexte non sécurisé (LAN http) : on affiche le lien à recopier
 }
 
 // --- Salon -------------------------------------------------------------------
@@ -181,7 +183,10 @@ function renderLobby(state) {
   // Détection des arrivées (lobby vivant #4).
   const names = state.players.map((p) => p.name);
   const isNew = (n) => lobbyKnownNames && !lobbyKnownNames.has(n);
-  if (lobbyKnownNames) for (const n of names) if (!lobbyKnownNames.has(n) && n !== state.you.name) toast(`${n} a rejoint 👋`);
+  if (lobbyKnownNames) {
+    const arrivals = names.filter((n) => !lobbyKnownNames.has(n) && n !== state.you.name);
+    if (arrivals.length) toast(arrivals.length === 1 ? `${arrivals[0]} a rejoint 👋` : `${arrivals.join(", ")} ont rejoint 👋`);
+  }
   $("lobby-players").innerHTML = state.players
     .map((p) => `<li class="${isNew(p.name) ? "just-joined" : ""}"><span class="pdot pdot-${p.presence || "actif"}" title="${p.presence || ""}"></span>${escapeHtml(p.name)}${p.isHost ? " 👑" : ""}${p.name === state.you.name ? " <span class=\"you-tag\">(vous)</span>" : ""}</li>`)
     .join("");
@@ -251,6 +256,7 @@ function renderGame(state) {
     lastCardKey = cardKey;
     vibratedTimeUp = false;
     iWasSpyThisRound = !!state.youAreSpy;
+    playedThisRound = true;
     seatsAtRoundStart = state.players.length;
     $("btn-flip").classList.remove("hidden");
     $("card-content").classList.add("hidden");
@@ -271,6 +277,7 @@ function renderGame(state) {
 
 function renderCard(state) {
   const card = state.card;
+  if (!card) return; // sécurité : jamais de crash si la carte manque
   if (card.spy) {
     const extra = state.spyCount > 1 ? `<p>Vous n'êtes pas seul : il y a <strong>${state.spyCount} espions</strong> (vous ne savez pas qui est l'autre). ⚠️ Si vous tentez le lieu et vous trompez, les deux espions perdent.</p>` : "";
     $("card-content").innerHTML =
@@ -414,7 +421,8 @@ function renderReveal(state) {
   const key = `${state.roundNo}|${r.outcome}`;
   if (key !== lastRevealShown) {
     lastRevealShown = key;
-    recordRound(r, iWasSpyThisRound); // met à jour les stats locales du Casier (#6)
+    if (playedThisRound) recordRound(r, iWasSpyThisRound); // stats Casier seulement si la manche a été jouée
+    playedThisRound = false;
     const sec = $("screen-reveal");
     sec.classList.remove("reveal-anim");
     void sec.offsetWidth; // relance les animations CSS
@@ -778,14 +786,16 @@ function openCasier() {
 async function shareCasier() {
   const cv = $("casier-wrap")._canvas;
   if (!cv) return;
-  try {
-    const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
+  let blob = null;
+  try { blob = await new Promise((r) => cv.toBlob(r, "image/png")); } catch {}
+  if (blob && navigator.canShare) {
     const file = new File([blob], "casier-hexa.png", { type: "image/png" });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], text: "Mon Casier Hexa 🕵️ — spy.skyyarttools.fr" });
+    if (navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], text: "Mon Casier Hexa 🕵️ — spy.skyyarttools.fr" }); } catch {} // annulé/échec : NE PAS télécharger
       return;
     }
-  } catch {}
+  }
+  // Partage de fichier non supporté : téléchargement de l'image.
   const a = document.createElement("a"); a.href = cv.toDataURL("image/png"); a.download = "casier-hexa.png"; a.click();
 }
 $("btn-casier").onclick = openCasier;
@@ -799,7 +809,7 @@ const TUTO_STEPS = [
   `<h2>❓ On enquête</h2><p>Chacun son tour, on se pose des questions pour démasquer l'espion — sans être trop précis, sinon il devine le lieu.</p><div class="tuto-chat"><p><b>Léa :</b> « Tu mets de la crème solaire ? »</p><p><b>Max :</b> « …euh, parfois. »</p><p class="tuto-tip">👀 Max hésite : suspect !</p></div>`,
   `<h2>🙋 On accuse</h2><p>N'importe qui peut accuser un joueur. Si <b>tout le monde est d'accord</b>, on révèle son rôle.</p><div class="tuto-demo"><span class="vote-q">« Max est l'espion ? »</span><span class="card-role">3 / 3 votes ✔️</span></div>`,
   `<h2>🎯 L'espion peut tenter</h2><p>À tout moment, l'espion peut <b>deviner le lieu</b> pour gagner d'un coup. Risqué : s'il se trompe, il perd.</p>`,
-  `<h2>🏆 La révélation</h2><div class="reveal-verdict win-innocents" style="margin:12px 0">🕵️ Max était l'espion — démasqué ! Les innocents gagnent.</div><p>Score cumulé, classement, Revanche en 1 tap… <b>c'est 100× mieux entre amis 👇</b></p>`,
+  `<h2>🏆 La révélation</h2><div class="reveal-verdict win-innocents tuto-verdict">🕵️ Max était l'espion — démasqué ! Les innocents gagnent.</div><p>Score cumulé, classement, Revanche en 1 tap… <b>c'est 100× mieux entre amis 👇</b></p>`,
 ];
 function renderTuto() {
   $("tuto-card").innerHTML = TUTO_STEPS[tutoStep];

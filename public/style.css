@@ -369,6 +369,7 @@ body.defeat-flash::after {
 .tuto-chat { background: var(--laque-2); border: 1px solid var(--bord); border-radius: 12px; padding: 14px; margin-top: 10px; }
 .tuto-chat p { margin-bottom: 6px; }
 .tuto-tip { color: var(--or) !important; font-style: italic; }
+.tuto-verdict { margin: 12px 0; }
 .tuto-dots { display: flex; gap: 8px; justify-content: center; }
 .tuto-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bord); }
 .tuto-dot.on { background: var(--or); box-shadow: 0 0 8px rgba(230, 200, 122, 0.5); }

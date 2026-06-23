@@ -263,7 +263,9 @@ function reassignHostIfNeeded(room) {
 }
 
 function maybeExpireRound(room) {
-  if (room.status === "playing" && room.round && nowMs() > room.round.startedAt + room.round.durationMs) {
+  // Ne pas convertir en timeout (victoire espion) si un vote est en cours :
+  // on laisse l'unanimité éventuelle se résoudre (l'hôte peut toujours terminer).
+  if (room.status === "playing" && room.round && !room.round.accusation && nowMs() > room.round.startedAt + room.round.durationMs) {
     resolveRound(room, "timeout");
   }
 }
@@ -290,6 +292,7 @@ function createRoom(name, deck, spyMode) {
 }
 
 function addPlayer(room, name, isHost) {
+  if (room.status === "playing") throw httpError(409, "Manche en cours — rejoins à la fin de la manche.");
   name = String(name || "").trim().slice(0, 20);
   if (!name) throw httpError(400, "Il faut un prénom.");
   if (room.players.length >= MAX_PLAYERS) throw httpError(400, "La salle est pleine.");
@@ -347,6 +350,7 @@ function leaveRoom(room, playerId) {
 
 function startRound(room, player, opts) {
   if (!player.isHost) throw httpError(403, "Seul l'hôte peut lancer la manche.");
+  if (room.status === "playing") throw httpError(400, "Une manche est déjà en cours."); // évite le re-roll mid-manche
   if (room.players.length < 3) throw httpError(400, "Il faut au moins 3 joueurs.");
   if (opts) {
     if (opts.durationMin != null) room.durationMin = Math.min(20, Math.max(1, Number(opts.durationMin) || room.durationMin));
@@ -423,6 +427,7 @@ function castVote(room, player, agree) {
   const acc = room.round.accusation;
   if (!acc) throw httpError(400, "Aucun vote en cours.");
   if (player.id === acc.suspectId) throw httpError(403, "Le suspect ne vote pas.");
+  if (player.id in acc.votes) throw httpError(400, "Vous avez déjà voté."); // vote définitif
   acc.votes[player.id] = !!agree;
   touch(room);
   maybeResolveVote(room);
@@ -435,7 +440,7 @@ function maybeResolveVote(room) {
   const unanimousYes = voters.every((p) => acc.votes[p.id] === true);
   if (unanimousYes) {
     const caught = room.round.spyIds.includes(acc.suspectId);
-    resolveRound(room, caught ? "spy_caught" : "wrong_accusation", { accuser: acc.accuserName, suspect: acc.suspectName });
+    resolveRound(room, caught ? "spy_caught" : "wrong_accusation", { accuser: acc.accuserName, accuserId: acc.accuserId, suspect: acc.suspectName });
   } else {
     room.round.spentAccusers.push(acc.accuserId); // l'accusateur a épuisé sa tentative
     room.round.clearedSuspects.push(acc.suspectId); // ce suspect ne peut plus être ré-accusé ce tour
@@ -459,8 +464,8 @@ function resolveRound(room, outcome, info) {
   else if (outcome === "spy_caught") {
     winners = "innocents";
     innocents.forEach((p) => add(p, 1));
-    const acc = room.players.find((p) => p.name === (info && info.accuser));
-    if (acc && !r.spyIds.includes(acc.id)) add(acc, 1); // bonus à l'accusateur juste
+    const acc = room.players.find((p) => p.id === (info && info.accuserId));
+    if (acc && !r.spyIds.includes(acc.id)) add(acc, 1); // bonus à l'accusateur juste (par id, pas par nom)
   } else if (outcome === "wrong_accusation") { winners = "spy"; spies.forEach((p) => add(p, 2)); }
   else { outcome = "timeout"; winners = "spy"; spies.forEach((p) => add(p, 2)); }
 
