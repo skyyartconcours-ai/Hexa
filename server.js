@@ -141,7 +141,7 @@ function applyEdit(body) {
     if (list.some((l) => l.name.toLowerCase() === name.toLowerCase()))
       throw httpError(400, "Ce lieu existe déjà dans ce paquet.");
     const theme = cleanStr(body.theme, 40) || allThemes()[0] || "Autres";
-    let roles = [...new Set((Array.isArray(body.roles) ? body.roles : []).map((r) => cleanStr(r, 40)).filter(Boolean))];
+    let roles = [...new Set((Array.isArray(body.roles) ? body.roles : []).map((r) => cleanStr(r, 80)).filter(Boolean))];
     if (roles.length > 30) throw httpError(400, "Trop de rôles (30 max).");
     if (!roles.length) roles = ["Habitué"];
     list.push({ name, theme, roles });
@@ -156,7 +156,7 @@ function applyEdit(body) {
   }
   if (!loc) throw httpError(404, "Lieu introuvable.");
   if (body.op === "addRole") {
-    const role = cleanStr(body.role, 40);
+    const role = cleanStr(body.role, 80);
     if (!role) throw httpError(400, "Donnez un nom au rôle.");
     if (loc.roles.some((r) => r.toLowerCase() === role.toLowerCase()))
       throw httpError(400, "Ce rôle existe déjà dans ce lieu.");
@@ -189,6 +189,12 @@ for (const [p, [file, type]] of Object.entries(STATIC_FILES)) {
   try { STATIC_CACHE[p] = { buf: fs.readFileSync(path.join(__dirname, file)), type }; }
   catch (e) { console.error("Statique introuvable :", file, e.message); }
 }
+
+// Suggestions de rôles (par lieu corsé) proposées par les agents : à retirer
+// (rouge) / à ajouter (vert). Lues au démarrage, servies via /api/suggestions.
+let SUGGESTIONS = {};
+try { SUGGESTIONS = JSON.parse(fs.readFileSync(path.join(__dirname, "public/suggestions.json"), "utf8")); }
+catch (e) { console.error("suggestions.json :", e.message); }
 
 // ---------------------------------------------------------------------------
 // Salles & joueurs.
@@ -640,6 +646,9 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && url.pathname === "/api/decks") {
       return sendJSON(res, 200, { decks: deckMeta() });
+    }
+    if (req.method === "GET" && url.pathname === "/api/suggestions") {
+      return sendJSON(res, 200, { suggestions: SUGGESTIONS });
     }
 
     // Éditeur de lieux & rôles.

@@ -13,6 +13,7 @@ let lastCardKey = null;
 let editorData = null;
 let editorPack = null;
 let editorBusy = false;
+let editorSuggestions = {};     // suggestions de rôles par lieu (rouge à retirer / vert à ajouter)
 let settingsInitForCode = null; // pour ne pas écraser les réglages de l'hôte au polling
 let lastVoteKey = null;         // évite de reconstruire le panneau de vote inutilement
 let lastRevealShown = null;     // pour ne déclencher l'animation de victoire qu'une fois
@@ -565,6 +566,7 @@ async function openEditor() {
   setError("home-error", "");
   try {
     editorData = await api("/api/locations");
+    try { editorSuggestions = (await api("/api/suggestions")).suggestions || {}; } catch { editorSuggestions = {}; }
     editorPack = editorData.packs[0].key;
     renderEditor();
     show("screen-editor");
@@ -600,7 +602,23 @@ function renderEditor() {
 
   const pack = editorData.packs.find((p) => p.key === editorPack);
   $("editor-list").innerHTML = pack.locations
-    .map((l) => `
+    .map((l) => {
+      // Bloc de suggestions des agents (seulement pour le pack corsé Délire 2).
+      let sugHtml = "";
+      const sug = editorPack === "delire2" ? editorSuggestions[l.name] : null;
+      if (sug) {
+        const has = (x) => l.roles.some((r) => r.toLowerCase() === String(x).toLowerCase());
+        const removable = (sug.remove || []).filter((r) => has(r));
+        const addable = (sug.add || []).filter((a) => !has(a));
+        if (removable.length || addable.length) {
+          sugHtml =
+            `<div class="ed-sugg"><p class="ed-sugg-title">💡 Suggestions des agents</p>` +
+            removable.map((r) => `<div class="sugg-row sugg-remove"><span>🔴 ${escapeHtml(r)}</span><button class="sugg-del" data-loc="${escapeHtml(l.name)}" data-role="${escapeHtml(r)}">Retirer</button></div>`).join("") +
+            addable.map((a) => `<div class="sugg-row sugg-add"><span>🟢 ${escapeHtml(a)}</span><button class="sugg-add-btn" data-loc="${escapeHtml(l.name)}" data-role="${escapeHtml(a)}">Ajouter</button></div>`).join("") +
+            `</div>`;
+        }
+      }
+      return `
       <div class="ed-loc">
         <div class="ed-loc-head">
           <div class="ed-loc-id">
@@ -616,7 +634,9 @@ function renderEditor() {
           <input class="ed-role-input" data-loc="${escapeHtml(l.name)}" maxlength="120" placeholder="Rôle(s), séparés par des virgules…" />
           <button class="ed-add-role" data-loc="${escapeHtml(l.name)}">+ Rôle</button>
         </div>
-      </div>`)
+        ${sugHtml}
+      </div>`;
+    })
     .join("");
 
   // Restaure les saisies + le focus.
@@ -636,6 +656,10 @@ $("editor-list").onclick = (e) => {
   if (delLoc) { if (confirm(`Supprimer le lieu « ${delLoc.dataset.name} » ?`)) editOp({ op: "deleteLocation", pack: editorPack, name: delLoc.dataset.name }); return; }
   const delRole = e.target.closest(".ed-del-role");
   if (delRole) { editOp({ op: "deleteRole", pack: editorPack, name: delRole.dataset.loc, role: delRole.dataset.role }); return; }
+  const sugDel = e.target.closest(".sugg-del"); // suggestion rouge : retirer
+  if (sugDel) { editOp({ op: "deleteRole", pack: editorPack, name: sugDel.dataset.loc, role: sugDel.dataset.role }); return; }
+  const sugAdd = e.target.closest(".sugg-add-btn"); // suggestion verte : ajouter
+  if (sugAdd) { editOp({ op: "addRole", pack: editorPack, name: sugAdd.dataset.loc, role: sugAdd.dataset.role }); return; }
   const addRole = e.target.closest(".ed-add-role");
   if (addRole) {
     const input = addRole.closest(".ed-loc").querySelector(".ed-role-input");

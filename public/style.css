@@ -376,6 +376,16 @@ body.defeat-flash::after {
 .tuto-nav .ghost { flex: 0 0 auto; }
 .tuto-nav .primary { flex: 1; }
 
+/* Suggestions de rôles des agents (rouge = retirer / vert = ajouter). */
+.ed-sugg { margin-top: 10px; border-top: 1px dashed var(--bord); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.ed-sugg-title { font-size: 0.82rem; color: var(--doux); }
+.sugg-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border-radius: 9px; font-size: 0.9rem; }
+.sugg-row span { flex: 1; min-width: 0; word-break: break-word; }
+.sugg-remove { background: rgba(110, 20, 20, 0.18); border: 1px solid #5a2e2e; color: #f0b8b0; }
+.sugg-add { background: rgba(46, 122, 74, 0.16); border: 1px solid #2e6e44; color: #aef0c4; }
+.sugg-del { flex: 0 0 auto; background: linear-gradient(180deg, #8a2020, var(--sang)); color: #ffe9e4; border: 1px solid #4d1010; padding: 7px 13px; font-size: 0.85rem; box-shadow: none; }
+.sugg-add-btn { flex: 0 0 auto; background: linear-gradient(180deg, #2e7a4a, #1c5030); color: #eafff0; border: 1px solid #1c5030; padding: 7px 13px; font-size: 0.85rem; box-shadow: none; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
