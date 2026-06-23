@@ -49,12 +49,19 @@ async function api(path, options) {
   return data;
 }
 
+let currentScreen = null;
 function show(screenId) {
+  const changed = screenId !== currentScreen;
   for (const s of document.querySelectorAll(".screen")) s.classList.add("hidden");
   const el = $(screenId);
   el.classList.remove("hidden");
-  const focusable = el.querySelector("h1, [tabindex], button:not(.hidden), input");
-  if (focusable) try { focusable.focus({ preventScroll: false }); } catch {}
+  currentScreen = screenId;
+  // Ne déplace le focus QU'au changement d'écran (sinon le sondage toutes les
+  // 2 s volerait le focus de la saisie de l'hôte et de la nav clavier).
+  if (changed) {
+    const focusable = el.querySelector("h1, [tabindex], button:not(.hidden), input");
+    if (focusable) try { focusable.focus({ preventScroll: false }); } catch {}
+  }
 }
 
 function setError(id, msg) { $(id).textContent = msg || ""; }
@@ -133,6 +140,8 @@ async function poll() {
     }
     // Erreur réseau transitoire : on garde la session et on réessaiera.
     netBanner(true);
+    // Si aucun écran n'est visible (reprise dont le 1er sondage a échoué), éviter l'écran blanc.
+    if (!document.querySelector(".screen:not(.hidden)")) show("screen-home");
   }
 }
 
@@ -218,10 +227,12 @@ function renderLobby(state) {
     // ensuite le polling ne les écrase plus (sinon presets/sélections seraient annulés).
     const deckSel = $("deck-select");
     const init = settingsInitForCode !== state.code;
-    const keepDeck = init ? state.deck : (deckSel.value || state.deck);
-    deckSel.innerHTML = Object.entries(state.decks)
-      .map(([k, d]) => `<option value="${k}">${escapeHtml(d.label)} (${d.count} lieux)</option>`).join("");
-    deckSel.value = keepDeck;
+    if (document.activeElement !== deckSel) { // ne pas reconstruire si l'hôte a le menu ouvert
+      const keepDeck = init ? state.deck : (deckSel.value || state.deck);
+      deckSel.innerHTML = Object.entries(state.decks)
+        .map(([k, d]) => `<option value="${k}">${escapeHtml(d.label)} (${d.count} lieux)</option>`).join("");
+      deckSel.value = keepDeck;
+    }
     if (init) {
       $("spy-select").value = state.spyMode;
       $("duration-input").value = state.durationMin;
@@ -264,10 +275,10 @@ function renderGame(state) {
     renderLocations(state.locations);
     renderSpyPanel(state);
     renderAccuseList(state);
+    $("first-player").textContent = state.firstPlayer ? `🎙️ ${state.firstPlayer} commence et choisit qui interroger.` : "";
     if (!countdownTimer) startCountdown();
   }
 
-  $("first-player").textContent = state.firstPlayer ? `🎙️ ${state.firstPlayer} commence et choisit qui interroger.` : "";
   timerBase = { remaining: state.remainingMs, at: Date.now() };
 
   $("btn-end").classList.toggle("hidden", !state.you.isHost);
@@ -304,7 +315,7 @@ function renderLocations(locations) {
     .map(([theme, names]) => `
       <div class="loc-group">
         <button class="loc-theme">${escapeHtml(theme)} <span>(${names.length})</span></button>
-        <ul>${names.map((n) => `<li class="loc-item" role="button" aria-pressed="false">${escapeHtml(n)}</li>`).join("")}</ul>
+        <ul>${names.map((n) => `<li class="loc-item" role="button" tabindex="0" aria-pressed="false">${escapeHtml(n)}</li>`).join("")}</ul>
       </div>`)
     .join("");
   for (const btn of document.querySelectorAll(".loc-theme")) {
@@ -314,7 +325,9 @@ function renderLocations(locations) {
     };
   }
   for (const li of document.querySelectorAll(".loc-item")) {
-    li.onclick = () => { const off = li.classList.toggle("eliminated"); li.setAttribute("aria-pressed", String(off)); };
+    const toggle = () => { const off = li.classList.toggle("eliminated"); li.setAttribute("aria-pressed", String(off)); };
+    li.onclick = toggle;
+    li.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
   }
 }
 
@@ -356,7 +369,7 @@ function renderVotePanel(state) {
   vp.classList.remove("hidden");
   // Ne reconstruit le panneau que si son état a changé (évite le flicker et de
   // recréer un bouton « actif » pendant qu'une requête de vote est en vol).
-  const key = `${acc.accuser}|${acc.suspect}|${acc.youAreSuspect}|${acc.canVote}|${acc.votedCount}/${acc.votersCount}`;
+  const key = `${acc.id}|${acc.youAreSuspect}|${acc.canVote}|${acc.votedCount}/${acc.votersCount}`;
   if (key === lastVoteKey) return;
   lastVoteKey = key;
   if (acc.youAreSuspect) {
@@ -561,7 +574,7 @@ async function requestWake() {
 function releaseWake() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch {} }
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") return;
-  if (session) { if (!pollTimer) startPolling(); else poll(); } // reconnexion immédiate au retour
+  if (session && currentScreen !== "screen-gate") { if (!pollTimer) startPolling(); else poll(); } // reconnexion immédiate (pas depuis le portail)
   if (lastStatus === "playing") requestWake();
 });
 
@@ -829,6 +842,7 @@ function lockGate(msg) {
   localStorage.removeItem("spyfall-pass");
   show("screen-gate");
   setError("gate-error", msg || "");
+  try { $("gate-pass").focus(); } catch {}
 }
 function enterApp() {
   loadDecks();
@@ -864,4 +878,5 @@ $("gate-pass").addEventListener("keydown", (e) => { if (e.key === "Enter") $("bt
   if (stored && (await tryPassword(stored).catch(() => false))) return enterApp();
   localStorage.removeItem("spyfall-pass");
   show("screen-gate");
+  try { $("gate-pass").focus(); } catch {}
 })();

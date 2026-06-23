@@ -93,7 +93,7 @@
         <button id="btn-flip" class="card-cover" aria-label="Révéler votre carte secrète">👆 Touchez pour voir votre carte<br /><small>(ne la montrez à personne)</small></button>
         <div id="card-content" class="hidden"></div>
       </div>
-      <div id="vote-panel" class="vote-panel hidden"></div>
+      <div id="vote-panel" class="vote-panel hidden" aria-live="assertive" aria-atomic="true"></div>
       <details id="spy-panel" class="actions hidden">
         <summary>🎯 Je suis l'espion — deviner le lieu</summary>
         <div id="spy-guess-list" class="picker"></div>
@@ -114,7 +114,7 @@
     <!-- Révélation -->
     <section id="screen-reveal" class="screen hidden">
       <h1 tabindex="-1">Fin de manche</h1>
-      <p id="reveal-verdict" class="reveal-verdict"></p>
+      <p id="reveal-verdict" class="reveal-verdict" aria-live="assertive" aria-atomic="true"></p>
       <p class="reveal-line">Lieu : <strong id="reveal-location"></strong></p>
       <p class="reveal-line">Espion(s) : <strong id="reveal-spy"></strong></p>
       <div id="reveal-scoreboard" class="scoreboard"></div>

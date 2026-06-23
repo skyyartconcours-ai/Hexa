@@ -107,13 +107,18 @@ function saveEditable() {
   }
 }
 function poolFor(deckKey) {
+  let arr;
   switch (deckKey) {
-    case "both": return [...editable.spyfall1, ...editable.spyfall2];
-    case "delire": return editable.delire;
-    case "delire2": return editable.delire2;
-    case "delireBoth": return [...editable.delire, ...editable.delire2];
-    default: return [...editable.spyfall1, ...editable.spyfall2];
+    case "both": arr = [...editable.spyfall1, ...editable.spyfall2]; break;
+    case "delire": arr = editable.delire; break;
+    case "delire2": arr = editable.delire2; break;
+    case "delireBoth": arr = [...editable.delire, ...editable.delire2]; break;
+    default: arr = [...editable.spyfall1, ...editable.spyfall2];
   }
+  // Déduplique par nom (un éditeur pourrait ajouter un homonyme dans un autre
+  // paquet du même mode combiné -> sinon boutons identiques et devinette ambiguë).
+  const seen = new Set();
+  return arr.filter((l) => { const k = l.name.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 function deckMeta() {
   return Object.fromEntries(ALLOWED_DECKS.map((k) => [k, { label: LABELS[k], count: poolFor(k).length }]));
@@ -412,6 +417,7 @@ function accuse(room, player, suspectName) {
   if (suspect.id === player.id) throw httpError(400, "Vous ne pouvez pas vous accuser vous-même.");
   if (room.round.clearedSuspects.includes(suspect.id)) throw httpError(400, "Ce joueur a déjà été innocenté ce tour.");
   room.round.accusation = {
+    id: crypto.randomUUID(), // identifiant unique : fiabilise la reconstruction du panneau de vote
     accuserId: player.id,
     accuserName: player.name,
     suspectId: suspect.id,
@@ -536,6 +542,7 @@ function stateFor(room, playerId) {
       const acc = r.accusation;
       const voters = room.players.filter((p) => p.id !== acc.suspectId);
       state.accusation = {
+        id: acc.id,
         accuser: acc.accuserName,
         suspect: acc.suspectName,
         youAreSuspect: player.id === acc.suspectId,
@@ -617,9 +624,26 @@ function recordAuthFail(req) {
   }
   e.count += 1;
 }
+function resetAuthFails(req) { accessAttempts.delete(clientIp(req)); } // après une auth réussie
+
+// Limitation des actions coûteuses (création de salle, écriture éditeur) par IP.
+const actionAttempts = new Map();
+function actionLimited(req, kind, max, windowMs) {
+  const key = clientIp(req) + "|" + kind;
+  const t = nowMs();
+  let e = actionAttempts.get(key);
+  if (!e || t > e.resetAt) {
+    if (actionAttempts.size > 5000) actionAttempts.clear();
+    e = { count: 0, resetAt: t + windowMs };
+    actionAttempts.set(key, e);
+  }
+  e.count += 1;
+  return e.count > max;
+}
 setInterval(() => {
   const t = nowMs();
   for (const [ip, e] of accessAttempts) if (t > e.resetAt) accessAttempts.delete(ip);
+  for (const [k, e] of actionAttempts) if (t > e.resetAt) actionAttempts.delete(k);
 }, 60 * 1000).unref();
 
 const server = http.createServer(async (req, res) => {
@@ -638,7 +662,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/api/access") {
       const body = await readBody(req);
-      if (passOk(body.password)) return sendJSON(res, 200, { ok: true });
+      if (passOk(body.password)) { resetAuthFails(req); return sendJSON(res, 200, { ok: true }); }
       recordAuthFail(req);
       throw httpError(authBlocked(req) ? 429 : 401, authBlocked(req) ? "Trop de tentatives. Réessayez dans quelques minutes." : "Mot de passe incorrect.");
     }
@@ -660,6 +684,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/locations") {
       if (req.method === "GET") return sendJSON(res, 200, locationsPayload());
       if (req.method === "POST") {
+        if (actionLimited(req, "edit", 60, 60 * 1000)) throw httpError(429, "Trop de modifications d'un coup, ralentis un peu.");
         applyEdit(await readBody(req));
         saveEditable();
         return sendJSON(res, 200, locationsPayload());
@@ -673,6 +698,7 @@ const server = http.createServer(async (req, res) => {
     const [, code, action] = match;
 
     if (req.method === "POST" && !code) {
+      if (actionLimited(req, "create", 20, 5 * 60 * 1000)) throw httpError(429, "Trop de salles créées récemment, réessayez dans quelques minutes.");
       const body = await readBody(req);
       const { room, player } = createRoom(body.name, body.deck, body.spyMode);
       return sendJSON(res, 201, { code: room.code, playerId: player.id });

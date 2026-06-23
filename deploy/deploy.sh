@@ -11,6 +11,8 @@ REPO="https://github.com/skyyartconcours-ai/Hexa.git"
 BRANCH="${SPYFALL_BRANCH:-claude/korean-speyfold-localization-14sse8}"
 DIR="/opt/spyfall"
 PORT="${SPYFALL_PORT:-3210}"
+PASS="${SPYFALL_PASSWORD:-}"
+[ -z "$PASS" ] && echo "⚠️  SPYFALL_PASSWORD non défini : l'accès au jeu sera LIBRE. Pour protéger : SPYFALL_PASSWORD=monmotdepasse sudo bash deploy.sh"
 
 command -v git >/dev/null || { apt-get update -qq && apt-get install -y -qq git; }
 command -v node >/dev/null || { apt-get update -qq && apt-get install -y -qq nodejs; }
@@ -32,6 +34,7 @@ After=network.target
 WorkingDirectory=$DIR
 ExecStart=$(command -v node) server.js
 Environment=PORT=$PORT
+Environment=SPYFALL_PASSWORD=$PASS
 Restart=always
 RestartSec=2
 DynamicUser=yes
