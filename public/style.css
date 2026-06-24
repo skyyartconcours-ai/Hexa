@@ -298,10 +298,12 @@ button.danger-ghost { background: transparent; border: 1px solid #4d2020; color:
 .ed-loc-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ed-loc-name { font-family: var(--serif); font-size: 1.18rem; font-weight: 700; color: var(--creme); word-break: break-word; }
 .ed-loc-theme { font-size: 0.8rem; color: var(--doux); }
-.ed-del-loc { flex: 0 0 auto; background: linear-gradient(180deg, #2c1719, #1d1011); border: 1px solid #4d2020; font-size: 1.1rem; padding: 8px 11px; }
+.ed-del-loc { flex: 0 0 auto; background: linear-gradient(180deg, #2c1719, #1d1011); border: 1px solid #4d2020; font-size: 1.1rem; padding: 8px 11px; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .ed-roles { display: flex; flex-wrap: wrap; gap: 6px; }
 .ed-role { display: inline-flex; align-items: center; gap: 6px; background: var(--laque-2); border: 1px solid var(--bord); border-radius: 999px; padding: 6px 6px 6px 12px; font-size: 0.9rem; }
-.ed-del-role { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: none; background: #3a3322; color: var(--creme); font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center; box-shadow: none; }
+.ed-del-role { position: relative; width: 26px; height: 26px; padding: 0; border-radius: 50%; border: none; background: #3a3322; color: var(--creme); font-size: 1rem; line-height: 1; display: flex; align-items: center; justify-content: center; box-shadow: none; }
+/* Zone tactile ≥44px (recommandation accessibilité) sans agrandir le rond visuel de 26px */
+.ed-del-role::before { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 44px; height: 44px; }
 .ed-del-role:active { background: var(--sang); }
 .ed-addrole { display: flex; gap: 8px; }
 .ed-role-input { flex: 1; font-size: 0.95rem; padding: 11px 12px; }

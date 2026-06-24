@@ -403,6 +403,7 @@ function startRound(room, player, opts) {
 
 function spyGuess(room, player, locationName) {
   if (room.status !== "playing" || !room.round) throw httpError(400, "Aucune manche en cours.");
+  if (room.round.accusation) throw httpError(400, "Un vote est en cours, attendez le résultat."); // aligne le serveur sur l'UI : pas de devinette tant qu'une accusation est ouverte
   if (!room.round.spyIds.includes(player.id)) throw httpError(403, "Seul l'espion peut deviner le lieu.");
   const correct = String(locationName) === room.round.locationName;
   resolveRound(room, correct ? "spy_guessed_right" : "spy_guessed_wrong", { by: player.name, guess: String(locationName) });
@@ -613,12 +614,20 @@ function authBlocked(req) {
   const e = accessAttempts.get(clientIp(req));
   return !!(e && nowMs() <= e.resetAt && e.count > 10);
 }
+// Borne mémoire : on évince d'abord les entrées EXPIRÉES (préserve les blocages
+// actifs) ; on ne vide tout qu'en dernier recours si la map déborde encore.
+function pruneExpired(map, t) {
+  for (const [k, e] of map) if (t > e.resetAt) map.delete(k);
+}
+function capMap(map, t) {
+  if (map.size > 5000) { pruneExpired(map, t); if (map.size > 5000) map.clear(); }
+}
 function recordAuthFail(req) {
   const ip = clientIp(req);
   const t = nowMs();
   let e = accessAttempts.get(ip);
   if (!e || t > e.resetAt) {
-    if (accessAttempts.size > 5000) accessAttempts.clear(); // borne mémoire (anti-flood)
+    capMap(accessAttempts, t);
     e = { count: 0, resetAt: t + 5 * 60 * 1000 };
     accessAttempts.set(ip, e);
   }
@@ -627,23 +636,29 @@ function recordAuthFail(req) {
 function resetAuthFails(req) { accessAttempts.delete(clientIp(req)); } // après une auth réussie
 
 // Limitation des actions coûteuses (création de salle, écriture éditeur) par IP.
+// Le test (actionOverLimit) est séparé de la comptabilisation (recordAction) :
+// on ne consomme un jeton qu'après une action RÉUSSIE, jamais sur un échec de
+// validation (sinon un hôte qui tâtonne son prénom se prend un faux 429).
 const actionAttempts = new Map();
-function actionLimited(req, kind, max, windowMs) {
+function actionOverLimit(req, kind, max) {
+  const e = actionAttempts.get(clientIp(req) + "|" + kind);
+  return !!(e && nowMs() <= e.resetAt && e.count >= max);
+}
+function recordAction(req, kind, windowMs) {
   const key = clientIp(req) + "|" + kind;
   const t = nowMs();
   let e = actionAttempts.get(key);
   if (!e || t > e.resetAt) {
-    if (actionAttempts.size > 5000) actionAttempts.clear();
+    capMap(actionAttempts, t);
     e = { count: 0, resetAt: t + windowMs };
     actionAttempts.set(key, e);
   }
   e.count += 1;
-  return e.count > max;
 }
 setInterval(() => {
   const t = nowMs();
-  for (const [ip, e] of accessAttempts) if (t > e.resetAt) accessAttempts.delete(ip);
-  for (const [k, e] of actionAttempts) if (t > e.resetAt) actionAttempts.delete(k);
+  pruneExpired(accessAttempts, t);
+  pruneExpired(actionAttempts, t);
 }, 60 * 1000).unref();
 
 const server = http.createServer(async (req, res) => {
@@ -684,9 +699,10 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/locations") {
       if (req.method === "GET") return sendJSON(res, 200, locationsPayload());
       if (req.method === "POST") {
-        if (actionLimited(req, "edit", 60, 60 * 1000)) throw httpError(429, "Trop de modifications d'un coup, ralentis un peu.");
+        if (actionOverLimit(req, "edit", 60)) throw httpError(429, "Trop de modifications d'un coup, ralentis un peu.");
         applyEdit(await readBody(req));
         saveEditable();
+        recordAction(req, "edit", 60 * 1000); // seulement après une édition valide
         return sendJSON(res, 200, locationsPayload());
       }
       throw httpError(405, "Méthode non autorisée.");
@@ -698,9 +714,10 @@ const server = http.createServer(async (req, res) => {
     const [, code, action] = match;
 
     if (req.method === "POST" && !code) {
-      if (actionLimited(req, "create", 20, 5 * 60 * 1000)) throw httpError(429, "Trop de salles créées récemment, réessayez dans quelques minutes.");
+      if (actionOverLimit(req, "create", 20)) throw httpError(429, "Trop de salles créées récemment, réessayez dans quelques minutes.");
       const body = await readBody(req);
       const { room, player } = createRoom(body.name, body.deck, body.spyMode);
+      recordAction(req, "create", 5 * 60 * 1000); // seulement après une création réussie
       return sendJSON(res, 201, { code: room.code, playerId: player.id });
     }
     if (req.method === "POST" && action === "join") {

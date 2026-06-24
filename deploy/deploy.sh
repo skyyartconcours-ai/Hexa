@@ -25,6 +25,17 @@ else
   git clone -b "$BRANCH" "$REPO" "$DIR"
 fi
 
+# Secret hors de l'unité : fichier d'environnement lisible par root seul. Évite
+# le mot de passe en clair dans l'unité ET tout problème de quoting (espaces, #,
+# $, " dans le mot de passe casseraient une ligne Environment= inline).
+ENVFILE="/etc/spyfall.env"
+( umask 077; printf 'SPYFALL_PASSWORD=%s\n' "$PASS" > "$ENVFILE" )
+chmod 600 "$ENVFILE"
+# Ce déploiement expose Node directement sur $PORT (pas de proxy) : le rate-limit
+# utilise la vraie IP (remoteAddress). Si vous ajoutez un reverse-proxy devant,
+# décommentez TRUST_PROXY=1 + HOST=127.0.0.1 ci-dessous pour garder l'IP client
+# (X-Forwarded-For) fiable — sinon toutes les requêtes paraîtraient venir du proxy.
+
 cat > /etc/systemd/system/spyfall.service <<EOF
 [Unit]
 Description=Spyfall FR
@@ -34,7 +45,9 @@ After=network.target
 WorkingDirectory=$DIR
 ExecStart=$(command -v node) server.js
 Environment=PORT=$PORT
-Environment=SPYFALL_PASSWORD=$PASS
+#Environment=TRUST_PROXY=1
+#Environment=HOST=127.0.0.1
+EnvironmentFile=$ENVFILE
 Restart=always
 RestartSec=2
 DynamicUser=yes

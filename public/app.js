@@ -1,4 +1,4 @@
-// Client Spyfall FR — vanilla JS, synchronisation par sondage toutes les 2 s.
+// Client Hexa (Spyfall FR) — vanilla JS, synchronisation par sondage toutes les 2 s.
 const $ = (id) => document.getElementById(id);
 
 let session = JSON.parse(localStorage.getItem("spyfall-session") || "null");
@@ -275,11 +275,17 @@ function renderGame(state) {
     renderLocations(state.locations);
     renderSpyPanel(state);
     renderAccuseList(state);
-    $("first-player").textContent = state.firstPlayer ? `🎙️ ${state.firstPlayer} commence et choisit qui interroger.` : "";
     if (!countdownTimer) startCountdown();
   }
 
   timerBase = { remaining: state.remainingMs, at: Date.now() };
+  // Nom du premier joueur : rafraîchi à CHAQUE sondage (reflète un re-tirage
+  // serveur si le 1er joueur quitte en cours de manche), mais seulement tant
+  // qu'il reste du temps — sinon tickTimer affiche « Temps écoulé » et on ne
+  // l'écrase pas (évite tout flicker et l'info premier-joueur périmée).
+  if (state.remainingMs > 0) {
+    $("first-player").textContent = state.firstPlayer ? `🎙️ ${state.firstPlayer} commence et choisit qui interroger.` : "";
+  }
 
   $("btn-end").classList.toggle("hidden", !state.you.isHost);
 
@@ -525,7 +531,7 @@ $("btn-copy").onclick = async () => {
   setTimeout(() => { $("btn-copy").textContent = old; }, 1200);
 };
 $("btn-share").onclick = async () => {
-  try { await navigator.share({ title: "Spyfall", text: `Rejoins ma partie (code ${session.code})`, url: location.origin + "/?code=" + session.code }); }
+  try { await navigator.share({ title: "Hexa", text: `Rejoins ma partie d'Hexa 🕵️ (code ${session.code})`, url: location.origin + "/?code=" + session.code }); }
   catch {}
 };
 

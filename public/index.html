@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Spyfall — édition française</title>
+  <title>Hexa — le jeu de l'espion, en français</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -14,7 +14,7 @@
 
     <!-- Portail : un seul champ mot de passe -->
     <section id="screen-gate" class="screen hidden">
-      <h1 tabindex="-1">🕵️ Spyfall</h1>
+      <h1 tabindex="-1">🕵️ Hexa</h1>
       <p class="subtitle">Entrez le mot de passe pour accéder au jeu.</p>
       <input id="gate-pass" type="password" placeholder="Mot de passe" autocomplete="current-password" />
       <button id="btn-gate" class="primary">Entrer</button>
@@ -23,7 +23,7 @@
 
     <!-- Accueil -->
     <section id="screen-home" class="screen hidden">
-      <h1 tabindex="-1">🕵️ Spyfall</h1>
+      <h1 tabindex="-1">🕵️ Hexa</h1>
       <p class="subtitle">Les cartes du jeu, en français, sur vos téléphones.</p>
       <label for="name-input">Votre prénom</label>
       <input id="name-input" maxlength="20" autocomplete="given-name" placeholder="ex. Léa" />
@@ -89,6 +89,7 @@
     <section id="screen-game" class="screen hidden">
       <p id="timer" class="timer">8:00</p>
       <p id="first-player" class="first-player"></p>
+      <p id="timeup-msg" class="first-player hidden" aria-live="polite"></p>
       <div id="card" class="card">
         <button id="btn-flip" class="card-cover" aria-label="Révéler votre carte secrète">👆 Touchez pour voir votre carte<br /><small>(ne la montrez à personne)</small></button>
         <div id="card-content" class="hidden"></div>
