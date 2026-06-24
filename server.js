@@ -42,10 +42,13 @@ function presenceOf(p) {
 // ---------------------------------------------------------------------------
 const DATA_FILE = path.join(__dirname, "data.json");
 const BASE_PACKS = ["spyfall1", "spyfall2", "delire", "delire2"];
+// NB : les CLÉS (spyfall1/spyfall2/both…) sont techniques et ne doivent pas
+// changer ; seuls les libellés affichés sont renommés en « Classique » pour
+// rester cohérent avec le branding Hexa (plus aucun « Spyfall » à l'écran).
 const LABELS = {
-  spyfall1: "Spyfall 1",
-  spyfall2: "Spyfall 2",
-  both: "Spyfall 1 + 2",
+  spyfall1: "Classique 1",
+  spyfall2: "Classique 2",
+  both: "Classique 1 + 2",
   delire: "Délire (RP)",
   delire2: "Délire 2 (corsé) 🔞",
   delireBoth: "Délire + Délire 2 🔞",
@@ -760,5 +763,5 @@ const server = http.createServer(async (req, res) => {
 // (jeu en LAN). Surchargeable via HOST.
 const HOST = process.env.HOST || (TRUST_PROXY ? "127.0.0.1" : "0.0.0.0");
 server.listen(PORT, HOST, () => {
-  console.log(`Spyfall FR prêt sur http://localhost:${PORT} (hôte ${HOST})`);
+  console.log(`Hexa (Spyfall FR) prêt sur http://localhost:${PORT} (hôte ${HOST})`);
 });
