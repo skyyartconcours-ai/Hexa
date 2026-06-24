@@ -232,6 +232,10 @@ button.danger-ghost { background: transparent; border: 1px solid #4d2020; color:
 .actions summary { cursor: pointer; padding: 12px 0; font-weight: 600; color: var(--creme); }
 .picker { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 12px; }
 .pick-btn { flex: 1 1 calc(50% - 8px); min-height: 46px; }
+.spy-hint { flex: 1 1 100%; margin: 0 0 2px; font-size: 0.85rem; color: var(--doux); }
+/* Lieux rayés dans le panneau espion : barrés et atténués, mais assez visibles
+   pour rester cliquables si l'espion se ravise (l'opacité 0.32 globale serait trop faible). */
+.pick-btn.eliminated { opacity: 0.5; }
 
 .vote-panel {
   background: radial-gradient(120% 120% at 50% 0%, #2c2415, var(--laque-2));

@@ -17,6 +17,8 @@ let editorSuggestions = {};     // suggestions de rôles par lieu (rouge à reti
 let settingsInitForCode = null; // pour ne pas écraser les réglages de l'hôte au polling
 let lastVoteKey = null;         // évite de reconstruire le panneau de vote inutilement
 let lastRevealShown = null;     // pour ne déclencher l'animation de victoire qu'une fois
+let eliminatedLocs = new Set(); // lieux rayés par le joueur — PARTAGÉS entre la liste d'élimination et le panneau espion
+let lastGameState = null;       // dernier state de manche (pour re-rendre le panneau espion quand les éliminations changent)
 let confettiRAF = null;
 let lobbyKnownNames = null;     // détection des arrivées dans le salon (#4)
 let iWasSpyThisRound = false;   // pour les stats du Casier (#6)
@@ -260,6 +262,7 @@ function renderScoreboard(id, scores, history) {
 function renderGame(state) {
   show("screen-game");
   requestWake();
+  lastGameState = state; // mémorisé pour re-rendre le panneau espion quand les éliminations changent
 
   const cardKey = state.card ? JSON.stringify(state.card) : "";
   if (lastStatus !== "playing" || cardKey !== lastCardKey) {
@@ -269,6 +272,7 @@ function renderGame(state) {
     iWasSpyThisRound = !!state.youAreSpy;
     playedThisRound = true;
     seatsAtRoundStart = state.players.length;
+    eliminatedLocs = new Set(); // les lieux rayés sont propres à chaque manche
     $("btn-flip").classList.remove("hidden");
     $("card-content").classList.add("hidden");
     renderCard(state);
@@ -311,6 +315,18 @@ function renderCard(state) {
   }
 }
 
+// Quand les lieux rayés changent, on re-rend le panneau espion pour qu'il reflète
+// la MÊME liste filtrée (candidats en haut, rayés barrés en bas).
+function syncSpyPanel() {
+  if (lastGameState && lastGameState.youAreSpy) renderSpyPanel(lastGameState);
+}
+// Raye / dé-raye un lieu dans l'état PARTAGÉ + met à jour son item visuel.
+function setLocEliminated(name, li, off) {
+  if (off) eliminatedLocs.add(name); else eliminatedLocs.delete(name);
+  li.classList.toggle("eliminated", off);
+  li.setAttribute("aria-pressed", String(off));
+}
+
 function renderLocations(locations) {
   const byTheme = new Map();
   for (const l of locations) {
@@ -321,17 +337,20 @@ function renderLocations(locations) {
     .map(([theme, names]) => `
       <div class="loc-group">
         <button class="loc-theme">${escapeHtml(theme)} <span>(${names.length})</span></button>
-        <ul>${names.map((n) => `<li class="loc-item" role="button" tabindex="0" aria-pressed="false">${escapeHtml(n)}</li>`).join("")}</ul>
+        <ul>${names.map((n) => `<li class="loc-item${eliminatedLocs.has(n) ? " eliminated" : ""}" role="button" tabindex="0" aria-pressed="${eliminatedLocs.has(n)}" data-loc="${escapeHtml(n)}">${escapeHtml(n)}</li>`).join("")}</ul>
       </div>`)
     .join("");
   for (const btn of document.querySelectorAll(".loc-theme")) {
     btn.onclick = () => {
-      const off = btn.classList.toggle("eliminated");
-      for (const li of btn.parentElement.querySelectorAll(".loc-item")) { li.classList.toggle("eliminated", off); li.setAttribute("aria-pressed", String(off)); }
+      const items = [...btn.parentElement.querySelectorAll(".loc-item")];
+      const off = items.some((li) => !eliminatedLocs.has(li.dataset.loc)); // au moins un encore possible -> tout rayer ; sinon tout rétablir
+      btn.classList.toggle("eliminated", off);
+      for (const li of items) setLocEliminated(li.dataset.loc, li, off);
+      syncSpyPanel(); // une seule synchro après le lot
     };
   }
   for (const li of document.querySelectorAll(".loc-item")) {
-    const toggle = () => { const off = li.classList.toggle("eliminated"); li.setAttribute("aria-pressed", String(off)); };
+    const toggle = () => { setLocEliminated(li.dataset.loc, li, !eliminatedLocs.has(li.dataset.loc)); syncSpyPanel(); };
     li.onclick = toggle;
     li.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
   }
@@ -341,8 +360,16 @@ function renderSpyPanel(state) {
   const panel = $("spy-panel");
   panel.classList.toggle("hidden", !state.youAreSpy);
   if (!state.youAreSpy) return;
-  $("spy-guess-list").innerHTML = state.locations
-    .map((l) => `<button class="pick-btn" data-loc="${escapeHtml(l.name)}">${escapeHtml(l.name)}</button>`).join("");
+  const names = state.locations.map((l) => l.name);
+  const candidats = names.filter((n) => !eliminatedLocs.has(n));
+  const rayes = names.filter((n) => eliminatedLocs.has(n));
+  // Astuce : l'espion raye les lieux impossibles dans la liste ci-dessous ; ici
+  // ils passent en bas (barrés) et il devine parmi ceux qui restent.
+  const hint = rayes.length
+    ? `<p class="spy-hint">🎯 ${candidats.length} lieu${candidats.length > 1 ? "x" : ""} encore possible${candidats.length > 1 ? "s" : ""} — les lieux rayés sont en bas.</p>`
+    : `<p class="spy-hint">🎯 Rayez les lieux impossibles dans « Éliminer les lieux » : ils passeront en bas ici.</p>`;
+  const mk = (n) => `<button class="pick-btn${eliminatedLocs.has(n) ? " eliminated" : ""}" data-loc="${escapeHtml(n)}">${escapeHtml(n)}</button>`;
+  $("spy-guess-list").innerHTML = hint + candidats.concat(rayes).map(mk).join("");
   for (const b of $("spy-guess-list").querySelectorAll(".pick-btn")) {
     b.onclick = () => withBusy(b, async () => {
       setError("game-error", "");
