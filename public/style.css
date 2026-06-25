@@ -319,6 +319,11 @@ button.danger-ghost { background: transparent; border: 1px solid #4d2020; color:
 
 .net-banner { position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(180deg, #5a3a12, #3a2509); color: var(--or-clair); text-align: center; padding: 9px; font-size: 0.9rem; z-index: 70; }
 
+/* Drapeau de langue (par téléphone) : français par défaut, bascule en anglais au clic. */
+.lang-flag { position: fixed; top: 8px; right: 10px; z-index: 75; width: 42px; height: 42px; min-height: 42px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; line-height: 1; background: var(--laque-2); border: 1px solid var(--bord); border-radius: 50%; box-shadow: var(--ombre); cursor: pointer; }
+.lang-flag:active { transform: scale(0.94); }
+.lang-flag:focus-visible { outline: 2px solid var(--or); outline-offset: 2px; }
+
 #confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 60; opacity: 0; transition: opacity 0.4s ease; }
 
 body.defeat-flash::after {

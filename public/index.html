@@ -7,7 +7,8 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <div id="net-banner" class="net-banner hidden">⚠️ Reconnexion…</div>
+  <button id="lang-flag" class="lang-flag" type="button" aria-label="Langue">🇫🇷</button>
+  <div id="net-banner" class="net-banner hidden" data-i18n>⚠️ Reconnexion…</div>
   <div id="toast" class="toast hidden"></div>
   <canvas id="confetti" aria-hidden="true"></canvas>
   <main id="app">
@@ -15,73 +16,73 @@
     <!-- Portail : un seul champ mot de passe -->
     <section id="screen-gate" class="screen hidden">
       <h1 tabindex="-1">🕵️ Hexa</h1>
-      <p class="subtitle">Entrez le mot de passe pour accéder au jeu.</p>
-      <input id="gate-pass" type="password" placeholder="Mot de passe" autocomplete="current-password" />
-      <button id="btn-gate" class="primary">Entrer</button>
+      <p class="subtitle" data-i18n>Entrez le mot de passe pour accéder au jeu.</p>
+      <input id="gate-pass" type="password" placeholder="Mot de passe" data-i18n-ph autocomplete="current-password" />
+      <button id="btn-gate" class="primary" data-i18n>Entrer</button>
       <p id="gate-error" class="error" role="alert"></p>
     </section>
 
     <!-- Accueil -->
     <section id="screen-home" class="screen hidden">
       <h1 tabindex="-1">🕵️ Hexa</h1>
-      <p class="subtitle">Les cartes du jeu, en français, sur vos téléphones.</p>
-      <label for="name-input">Votre prénom</label>
-      <input id="name-input" maxlength="20" autocomplete="given-name" placeholder="ex. Léa" />
-      <label for="mode-select">Mode de jeu (choisi par l'hôte à la création)</label>
+      <p class="subtitle" data-i18n>Les cartes du jeu, en français, sur vos téléphones.</p>
+      <label for="name-input" data-i18n>Votre prénom</label>
+      <input id="name-input" maxlength="20" autocomplete="given-name" placeholder="ex. Léa" data-i18n-ph />
+      <label for="mode-select" data-i18n>Mode de jeu (choisi par l'hôte à la création)</label>
       <select id="mode-select"></select>
-      <button id="btn-create" class="primary">Créer une partie (vous êtes hôte + joueur)</button>
+      <button id="btn-create" class="primary" data-i18n>Créer une partie (vous êtes hôte + joueur)</button>
       <div class="join-row">
-        <input id="code-input" maxlength="8" placeholder="OURS" autocapitalize="characters" inputmode="text" />
-        <button id="btn-join">Rejoindre</button>
+        <input id="code-input" maxlength="8" placeholder="OURS" data-i18n-ph autocapitalize="characters" inputmode="text" />
+        <button id="btn-join" data-i18n>Rejoindre</button>
       </div>
       <div class="home-links">
-        <button id="btn-tuto" class="ghost">▶️ Découvrir en 1 min</button>
-        <button id="btn-casier" class="ghost">🎖️ Mon Casier</button>
+        <button id="btn-tuto" class="ghost" data-i18n>▶️ Découvrir en 1 min</button>
+        <button id="btn-casier" class="ghost" data-i18n>🎖️ Mon Casier</button>
       </div>
-      <button id="btn-open-editor" class="ghost">✏️ Modifier les lieux &amp; rôles</button>
+      <button id="btn-open-editor" class="ghost" data-i18n>✏️ Modifier les lieux &amp; rôles</button>
       <p id="home-error" class="error" role="alert"></p>
     </section>
 
     <!-- Salon d'attente -->
     <section id="screen-lobby" class="screen hidden">
-      <h1 tabindex="-1">Salon</h1>
-      <p class="subtitle">Code de la salle — partagez-le autour de la table :</p>
+      <h1 tabindex="-1" data-i18n>Salon</h1>
+      <p class="subtitle" data-i18n>Code de la salle — partagez-le autour de la table :</p>
       <div class="code-row">
         <span id="lobby-code" class="room-code"></span>
-        <button id="btn-copy" class="ghost icon-btn" title="Copier le code" aria-label="Copier le code">📋</button>
-        <button id="btn-share" class="ghost icon-btn hidden" title="Partager le lien" aria-label="Partager le lien">🔗</button>
+        <button id="btn-copy" class="ghost icon-btn" title="Copier le code" aria-label="Copier le code" data-i18n-aria>📋</button>
+        <button id="btn-share" class="ghost icon-btn hidden" title="Partager le lien" aria-label="Partager le lien" data-i18n-aria>🔗</button>
       </div>
-      <p class="dictate-hint">🔊 Dis le code à voix haute pour faire venir tout le monde</p>
-      <div id="qr-box" class="qr-box" aria-label="QR code pour rejoindre"></div>
+      <p class="dictate-hint" data-i18n>🔊 Dis le code à voix haute pour faire venir tout le monde</p>
+      <div id="qr-box" class="qr-box" aria-label="QR code pour rejoindre" data-i18n-aria></div>
       <div id="invite-wall" class="invite-wall hidden">
         <p id="invite-count"></p>
-        <button id="btn-invite" class="primary">📲 Inviter des amis</button>
+        <button id="btn-invite" class="primary" data-i18n>📲 Inviter des amis</button>
       </div>
       <div class="fill-bar"><div id="fill-bar-inner"></div></div>
       <p id="active-games" class="active-games hidden"></p>
       <ul id="lobby-players" class="players"></ul>
       <div id="host-controls" class="hidden">
-        <label for="deck-select">Mode de jeu</label>
+        <label for="deck-select" data-i18n>Mode de jeu</label>
         <select id="deck-select"></select>
-        <label for="spy-select">Nombre d'espions</label>
+        <label for="spy-select" data-i18n>Nombre d'espions</label>
         <select id="spy-select">
-          <option value="auto">Auto (2 dès 7 joueurs)</option>
-          <option value="1">1 espion</option>
-          <option value="2">2 espions</option>
+          <option value="auto" data-i18n>Auto (2 dès 7 joueurs)</option>
+          <option value="1" data-i18n>1 espion</option>
+          <option value="2" data-i18n>2 espions</option>
         </select>
-        <label for="duration-input">Durée de la manche (minutes)</label>
+        <label for="duration-input" data-i18n>Durée de la manche (minutes)</label>
         <div id="duration-presets" class="duration-presets">
           <button type="button" data-min="5">5</button>
           <button type="button" data-min="8">8</button>
           <button type="button" data-min="10">10</button>
           <input id="duration-input" type="number" inputmode="numeric" min="1" max="20" value="8" />
         </div>
-        <button id="btn-start" class="primary">Lancer la manche</button>
-        <button id="btn-reset-scores" class="ghost">Réinitialiser les scores</button>
+        <button id="btn-start" class="primary" data-i18n>Lancer la manche</button>
+        <button id="btn-reset-scores" class="ghost" data-i18n>Réinitialiser les scores</button>
       </div>
-      <p id="lobby-hint" class="hint">En attente que l'hôte lance la manche…</p>
+      <p id="lobby-hint" class="hint" data-i18n>En attente que l'hôte lance la manche…</p>
       <div id="lobby-scoreboard" class="scoreboard"></div>
-      <button id="btn-leave-lobby" class="ghost danger-ghost">Quitter la partie</button>
+      <button id="btn-leave-lobby" class="ghost danger-ghost" data-i18n>Quitter la partie</button>
       <p id="lobby-error" class="error" role="alert"></p>
     </section>
 
@@ -91,58 +92,58 @@
       <p id="first-player" class="first-player"></p>
       <p id="timeup-msg" class="first-player hidden" aria-live="polite"></p>
       <div id="card" class="card">
-        <button id="btn-flip" class="card-cover" aria-label="Révéler votre carte secrète">👆 Touchez pour voir votre carte<br /><small>(ne la montrez à personne)</small></button>
+        <button id="btn-flip" class="card-cover" aria-label="Révéler votre carte secrète" data-i18n-aria><span data-i18n>👆 Touchez pour voir votre carte</span><br /><small data-i18n>(ne la montrez à personne)</small></button>
         <div id="card-content" class="hidden"></div>
       </div>
       <div id="vote-panel" class="vote-panel hidden" aria-live="assertive" aria-atomic="true"></div>
       <details id="spy-panel" class="actions hidden">
-        <summary>🎯 Je suis l'espion — deviner le lieu</summary>
+        <summary data-i18n>🎯 Je suis l'espion — deviner le lieu</summary>
         <div id="spy-guess-list" class="picker"></div>
       </details>
       <details id="accuse-panel" class="actions">
-        <summary>🙋 Accuser un joueur d'être l'espion</summary>
+        <summary data-i18n>🙋 Accuser un joueur d'être l'espion</summary>
         <div id="accuse-list" class="picker"></div>
       </details>
       <details class="locations" open>
-        <summary>❌ Éliminer les lieux impossibles — touchez un lieu (ou un thème entier) pour le rayer</summary>
+        <summary data-i18n>❌ Éliminer les lieux impossibles — touchez un lieu (ou un thème entier) pour le rayer</summary>
         <div id="locations-list"></div>
       </details>
-      <button id="btn-end" class="danger hidden">Terminer la manche (révéler)</button>
-      <button id="btn-leave-game" class="ghost danger-ghost">Quitter</button>
+      <button id="btn-end" class="danger hidden" data-i18n>Terminer la manche (révéler)</button>
+      <button id="btn-leave-game" class="ghost danger-ghost" data-i18n>Quitter</button>
       <p id="game-error" class="error" role="alert"></p>
     </section>
 
     <!-- Révélation -->
     <section id="screen-reveal" class="screen hidden">
-      <h1 tabindex="-1">Fin de manche</h1>
+      <h1 tabindex="-1" data-i18n>Fin de manche</h1>
       <p id="reveal-verdict" class="reveal-verdict" aria-live="assertive" aria-atomic="true"></p>
-      <p class="reveal-line">Lieu : <strong id="reveal-location"></strong></p>
-      <p class="reveal-line">Espion(s) : <strong id="reveal-spy"></strong></p>
+      <p class="reveal-line"><span data-i18n>Lieu :</span> <strong id="reveal-location"></strong></p>
+      <p class="reveal-line"><span data-i18n>Espion(s) :</span> <strong id="reveal-spy"></strong></p>
       <div id="reveal-scoreboard" class="scoreboard"></div>
       <p id="reveal-series" class="reveal-series"></p>
-      <button id="btn-revanche" class="primary hidden">🔄 Revanche</button>
-      <button id="btn-invite-reveal" class="ghost hidden">📲 Inviter (un siège s'est libéré)</button>
-      <button id="btn-again" class="ghost hidden">Changer les réglages</button>
-      <button id="btn-leave-reveal" class="ghost danger-ghost">Quitter</button>
+      <button id="btn-revanche" class="primary hidden" data-i18n>🔄 Revanche</button>
+      <button id="btn-invite-reveal" class="ghost hidden" data-i18n>📲 Inviter (un siège s'est libéré)</button>
+      <button id="btn-again" class="ghost hidden" data-i18n>Changer les réglages</button>
+      <button id="btn-leave-reveal" class="ghost danger-ghost" data-i18n>Quitter</button>
       <p id="reveal-error" class="error" role="alert"></p>
     </section>
 
     <!-- Éditeur de lieux & rôles -->
     <section id="screen-editor" class="screen hidden">
       <div class="editor-top">
-        <button id="btn-editor-back" class="ghost">← Retour</button>
-        <h1 tabindex="-1">Lieux &amp; rôles</h1>
+        <button id="btn-editor-back" class="ghost" data-i18n>← Retour</button>
+        <h1 tabindex="-1" data-i18n>Lieux &amp; rôles</h1>
       </div>
-      <p class="hint">Modifiez les lieux et les personnages. Les changements s'appliquent à toutes les futures parties.</p>
+      <p class="hint" data-i18n>Modifiez les lieux et les personnages. Les changements s'appliquent à toutes les futures parties.</p>
       <div id="pack-tabs" class="pack-tabs"></div>
       <div id="editor-list"></div>
       <div class="add-loc">
-        <h2 class="add-title">➕ Ajouter un lieu</h2>
-        <input id="new-loc-name" maxlength="40" placeholder="Nom du lieu (ex. Sous-marin)" />
-        <input id="new-loc-theme" list="theme-list" maxlength="40" placeholder="Thème" />
+        <h2 class="add-title" data-i18n>➕ Ajouter un lieu</h2>
+        <input id="new-loc-name" maxlength="40" placeholder="Nom du lieu (ex. Sous-marin)" data-i18n-ph />
+        <input id="new-loc-theme" list="theme-list" maxlength="40" placeholder="Thème" data-i18n-ph />
         <datalist id="theme-list"></datalist>
-        <input id="new-loc-role" maxlength="120" placeholder="Rôles, séparés par des virgules (optionnel)" />
-        <button id="btn-add-loc" class="primary">Ajouter le lieu</button>
+        <input id="new-loc-role" maxlength="120" placeholder="Rôles, séparés par des virgules (optionnel)" data-i18n-ph />
+        <button id="btn-add-loc" class="primary" data-i18n>Ajouter le lieu</button>
       </div>
       <p id="editor-error" class="error" role="alert"></p>
     </section>
@@ -150,12 +151,12 @@
     <!-- Casier d'identité du joueur -->
     <section id="screen-casier" class="screen hidden">
       <div class="editor-top">
-        <button id="btn-casier-back" class="ghost">← Retour</button>
-        <h1 tabindex="-1">Mon Casier</h1>
+        <button id="btn-casier-back" class="ghost" data-i18n>← Retour</button>
+        <h1 tabindex="-1" data-i18n>Mon Casier</h1>
       </div>
       <div id="casier-wrap" class="casier-wrap"></div>
-      <p id="casier-empty" class="hint hidden">Joue une partie pour remplir ton Casier 🎖️</p>
-      <button id="btn-casier-share" class="primary hidden">📲 Partager mon Casier</button>
+      <p id="casier-empty" class="hint hidden" data-i18n>Joue une partie pour remplir ton Casier 🎖️</p>
+      <button id="btn-casier-share" class="primary hidden" data-i18n>📲 Partager mon Casier</button>
     </section>
 
     <!-- Tutoriel express -->
@@ -163,13 +164,15 @@
       <div id="tuto-card" class="tuto-card"></div>
       <div id="tuto-dots" class="tuto-dots"></div>
       <div class="tuto-nav">
-        <button id="btn-tuto-skip" class="ghost">Passer</button>
-        <button id="btn-tuto-next" class="primary">Suivant</button>
+        <button id="btn-tuto-skip" class="ghost" data-i18n>Passer</button>
+        <button id="btn-tuto-next" class="primary" data-i18n>Suivant</button>
       </div>
     </section>
 
   </main>
   <script src="/qr.js"></script>
+  <script src="/i18n-content.js"></script>
+  <script src="/i18n.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

@@ -190,6 +190,8 @@ const STATIC_FILES = {
   "/": ["public/index.html", "text/html; charset=utf-8"],
   "/app.js": ["public/app.js", "text/javascript; charset=utf-8"],
   "/qr.js": ["public/qr.js", "text/javascript; charset=utf-8"],
+  "/i18n.js": ["public/i18n.js", "text/javascript; charset=utf-8"],
+  "/i18n-content.js": ["public/i18n-content.js", "text/javascript; charset=utf-8"],
   "/style.css": ["public/style.css", "text/css; charset=utf-8"],
 };
 const STATIC_CACHE = {};

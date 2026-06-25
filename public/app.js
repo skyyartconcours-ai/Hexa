@@ -19,6 +19,7 @@ let lastVoteKey = null;         // évite de reconstruire le panneau de vote inu
 let lastRevealShown = null;     // pour ne déclencher l'animation de victoire qu'une fois
 let eliminatedLocs = new Set(); // lieux rayés par le joueur — PARTAGÉS entre la liste d'élimination et le panneau espion
 let lastGameState = null;       // dernier state de manche (pour re-rendre le panneau espion quand les éliminations changent)
+let lastRenderedState = null;   // dernier state rendu (pour re-rendre l'écran courant au changement de langue)
 let confettiRAF = null;
 let lobbyKnownNames = null;     // détection des arrivées dans le salon (#4)
 let iWasSpyThisRound = false;   // pour les stats du Casier (#6)
@@ -44,7 +45,7 @@ async function api(path, options) {
   const res = await fetch(path, init);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const e = new Error(data.error || "Erreur réseau");
+    const e = new Error(data.error || t("Erreur réseau"));
     e.status = res.status;
     throw e;
   }
@@ -109,7 +110,7 @@ async function loadDecks() {
   try {
     const { decks } = await api("/api/decks");
     $("mode-select").innerHTML = Object.entries(decks)
-      .map(([k, d]) => `<option value="${k}">${escapeHtml(d.label)} (${d.count} lieux)</option>`)
+      .map(([k, d]) => `<option value="${k}">${escapeHtml(t(d.label))} (${d.count} ${t("lieux")})</option>`)
       .join("");
   } catch {}
 }
@@ -128,7 +129,7 @@ async function poll() {
   } catch (e) {
     if (e.status === 401 || e.status === 429) {
       stopPolling();
-      lockGate(e.status === 429 ? "Trop de tentatives — patientez quelques minutes puis ré-entrez le mot de passe." : "Ré-entrez le mot de passe.");
+      lockGate(e.status === 429 ? t("Trop de tentatives — patientez quelques minutes puis ré-entrez le mot de passe.") : t("Ré-entrez le mot de passe."));
       return;
     }
     if (e.status) {
@@ -148,6 +149,7 @@ async function poll() {
 }
 
 function render(state) {
+  lastRenderedState = state; // pour re-rendre l'écran courant si la langue change
   if (state.status !== "lobby") lobbyKnownNames = null; // réinitialise la détection d'arrivées
   if (state.status === "lobby") renderLobby(state);
   else if (state.status === "playing") renderGame(state);
@@ -168,9 +170,9 @@ function toast(msg) {
 async function shareInvite() {
   if (!session) return;
   const url = location.origin + "/?code=" + session.code;
-  const text = `Rejoins ma partie d'Hexa 🕵️ — salle ${session.code}\n${url}`;
-  if (navigator.share) { try { await navigator.share({ title: "Hexa — partie en cours", text, url }); return; } catch {} }
-  try { await navigator.clipboard.writeText(url); toast("Lien copié — colle-le dans ton groupe !"); return; } catch {}
+  const text = t("Rejoins ma partie d'Hexa 🕵️ — salle {code}\n{url}", { code: session.code, url });
+  if (navigator.share) { try { await navigator.share({ title: t("Hexa — partie en cours"), text, url }); return; } catch {} }
+  try { await navigator.clipboard.writeText(url); toast(t("Lien copié — colle-le dans ton groupe !")); return; } catch {}
   toast(url); // contexte non sécurisé (LAN http) : on affiche le lien à recopier
 }
 
@@ -196,10 +198,10 @@ function renderLobby(state) {
   const isNew = (n) => lobbyKnownNames && !lobbyKnownNames.has(n);
   if (lobbyKnownNames) {
     const arrivals = names.filter((n) => !lobbyKnownNames.has(n) && n !== state.you.name);
-    if (arrivals.length) toast(arrivals.length === 1 ? `${arrivals[0]} a rejoint 👋` : `${arrivals.join(", ")} ont rejoint 👋`);
+    if (arrivals.length) toast(arrivals.length === 1 ? t("{name} a rejoint 👋", { name: arrivals[0] }) : t("{names} ont rejoint 👋", { names: arrivals.join(", ") }));
   }
   $("lobby-players").innerHTML = state.players
-    .map((p) => `<li class="${isNew(p.name) ? "just-joined" : ""}"><span class="pdot pdot-${p.presence || "actif"}" title="${p.presence || ""}"></span>${escapeHtml(p.name)}${p.isHost ? " 👑" : ""}${p.name === state.you.name ? " <span class=\"you-tag\">(vous)</span>" : ""}</li>`)
+    .map((p) => `<li class="${isNew(p.name) ? "just-joined" : ""}"><span class="pdot pdot-${p.presence || "actif"}" title="${p.presence || ""}"></span>${escapeHtml(p.name)}${p.isHost ? " 👑" : ""}${p.name === state.you.name ? ` <span class="you-tag">${t("(vous)")}</span>` : ""}</li>`)
     .join("");
   lobbyKnownNames = new Set(names);
 
@@ -208,20 +210,20 @@ function renderLobby(state) {
   const wall = $("invite-wall");
   if (n < 3) {
     wall.classList.remove("hidden");
-    $("invite-count").textContent = `Il manque ${3 - n} joueur${3 - n > 1 ? "s" : ""} pour lancer — invite tes potes !`;
+    $("invite-count").textContent = t(3 - n > 1 ? "Il manque {n} joueurs pour lancer — invite tes potes !" : "Il manque {n} joueur pour lancer — invite tes potes !", { n: 3 - n });
   } else wall.classList.add("hidden");
   const fb = $("fill-bar-inner");
   fb.style.width = Math.min(100, (n / 3) * 100) + "%";
   fb.classList.toggle("ready", n >= 3);
   const ag = $("active-games");
-  if (state.activeGames >= 3) { ag.classList.remove("hidden"); ag.textContent = `🎲 ${state.activeGames} parties en cours`; }
+  if (state.activeGames >= 3) { ag.classList.remove("hidden"); ag.textContent = t("🎲 {n} parties en cours", { n: state.activeGames }); }
   else ag.classList.add("hidden");
 
   const isHost = state.you.isHost;
   $("host-controls").classList.toggle("hidden", !isHost);
   $("lobby-hint").textContent = isHost
-    ? (state.players.length < 3 ? `Il manque ${3 - state.players.length} joueur(s) pour lancer (minimum 3).` : "Prêt à lancer !")
-    : "En attente que l'hôte lance la manche… (3 joueurs minimum)";
+    ? (state.players.length < 3 ? t(3 - state.players.length > 1 ? "Il manque {n} joueurs pour lancer (minimum 3)." : "Il manque {n} joueur pour lancer (minimum 3).", { n: 3 - state.players.length }) : t("Prêt à lancer !"))
+    : t("En attente que l'hôte lance la manche… (3 joueurs minimum)");
 
   if (isHost) {
     // Reconstruit la liste des modes (counts à jour) en PRÉSERVANT le choix de l'hôte.
@@ -232,7 +234,7 @@ function renderLobby(state) {
     if (document.activeElement !== deckSel) { // ne pas reconstruire si l'hôte a le menu ouvert
       const keepDeck = init ? state.deck : (deckSel.value || state.deck);
       deckSel.innerHTML = Object.entries(state.decks)
-        .map(([k, d]) => `<option value="${k}">${escapeHtml(d.label)} (${d.count} lieux)</option>`).join("");
+        .map(([k, d]) => `<option value="${k}">${escapeHtml(t(d.label))} (${d.count} ${t("lieux")})</option>`).join("");
       deckSel.value = keepDeck;
     }
     if (init) {
@@ -242,7 +244,7 @@ function renderLobby(state) {
     }
     const btn = $("btn-start");
     btn.disabled = state.players.length < 3;
-    btn.textContent = state.players.length < 3 ? `Lancer (${state.players.length}/3 joueurs)` : "Lancer la manche";
+    btn.textContent = state.players.length < 3 ? t("Lancer ({n}/3 joueurs)", { n: state.players.length }) : t("Lancer la manche");
   }
 
   renderScoreboard("lobby-scoreboard", state.scores, state.history);
@@ -251,8 +253,8 @@ function renderLobby(state) {
 function renderScoreboard(id, scores, history) {
   const box = $(id);
   if (!scores || !scores.length || scores.every((s) => s.score === 0)) { box.innerHTML = ""; return; }
-  let html = `<h2 class="sb-title">🏆 Classement</h2><ol class="sb-list">` +
-    scores.map((s) => `<li><span><span class="pdot pdot-${s.presence || "actif"}"></span>${escapeHtml(s.name)}${s.isHost ? " 👑" : ""}${s.you ? " (vous)" : ""}</span><strong>${s.score}</strong></li>`).join("") +
+  let html = `<h2 class="sb-title">${t("🏆 Classement")}</h2><ol class="sb-list">` +
+    scores.map((s) => `<li><span><span class="pdot pdot-${s.presence || "actif"}"></span>${escapeHtml(s.name)}${s.isHost ? " 👑" : ""}${s.you ? " " + t("(vous)") : ""}</span><strong>${s.score}</strong></li>`).join("") +
     `</ol>`;
   box.innerHTML = html;
 }
@@ -288,7 +290,7 @@ function renderGame(state) {
   // qu'il reste du temps — sinon tickTimer affiche « Temps écoulé » et on ne
   // l'écrase pas (évite tout flicker et l'info premier-joueur périmée).
   if (state.remainingMs > 0) {
-    $("first-player").textContent = state.firstPlayer ? `🎙️ ${state.firstPlayer} commence et choisit qui interroger.` : "";
+    $("first-player").textContent = state.firstPlayer ? t("🎙️ {name} commence et choisit qui interroger.", { name: state.firstPlayer }) : "";
   }
 
   $("btn-end").classList.toggle("hidden", !state.you.isHost);
@@ -300,18 +302,18 @@ function renderCard(state) {
   const card = state.card;
   if (!card) return; // sécurité : jamais de crash si la carte manque
   if (card.spy) {
-    const extra = state.spyCount > 1 ? `<p>Vous n'êtes pas seul : il y a <strong>${state.spyCount} espions</strong> (vous ne savez pas qui est l'autre). ⚠️ Si vous tentez le lieu et vous trompez, les deux espions perdent.</p>` : "";
+    const extra = state.spyCount > 1 ? `<p>${t("Vous n'êtes pas seul : il y a {n} espions (vous ne savez pas qui est l'autre). ⚠️ Si vous tentez le lieu et vous trompez, les deux espions perdent.", { n: state.spyCount })}</p>` : "";
     $("card-content").innerHTML =
-      `<p class="card-title spy">🤫 Vous êtes l'ESPION</p>
-       <p>Vous ne connaissez pas le lieu. Écoutez, bluffez, et essayez de le deviner !</p>${extra}`;
+      `<p class="card-title spy">${t("🤫 Vous êtes l'ESPION")}</p>
+       <p>${t("Vous ne connaissez pas le lieu. Écoutez, bluffez, et essayez de le deviner !")}</p>${extra}`;
   } else {
-    const roles = (state.locationRoles || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
+    const roles = (state.locationRoles || []).map((r) => `<li>${escapeHtml(tRole(r))}</li>`).join("");
     $("card-content").innerHTML =
-      `<p class="card-label">Lieu</p>
-       <p class="card-title">${escapeHtml(card.location)}</p>
-       <p class="card-label">Votre rôle</p>
-       <p class="card-role">${escapeHtml(card.role)}</p>
-       ${roles ? `<details class="role-help"><summary>Rôles possibles ici</summary><ul>${roles}</ul></details>` : ""}`;
+      `<p class="card-label">${t("Lieu")}</p>
+       <p class="card-title">${escapeHtml(tLoc(card.location))}</p>
+       <p class="card-label">${t("Votre rôle")}</p>
+       <p class="card-role">${escapeHtml(tRole(card.role))}</p>
+       ${roles ? `<details class="role-help"><summary>${t("Rôles possibles ici")}</summary><ul>${roles}</ul></details>` : ""}`;
   }
 }
 
@@ -336,8 +338,8 @@ function renderLocations(locations) {
   $("locations-list").innerHTML = [...byTheme.entries()]
     .map(([theme, names]) => `
       <div class="loc-group">
-        <button class="loc-theme">${escapeHtml(theme)} <span>(${names.length})</span></button>
-        <ul>${names.map((n) => `<li class="loc-item${eliminatedLocs.has(n) ? " eliminated" : ""}" role="button" tabindex="0" aria-pressed="${eliminatedLocs.has(n)}" data-loc="${escapeHtml(n)}">${escapeHtml(n)}</li>`).join("")}</ul>
+        <button class="loc-theme">${escapeHtml(tTheme(theme))} <span>(${names.length})</span></button>
+        <ul>${names.map((n) => `<li class="loc-item${eliminatedLocs.has(n) ? " eliminated" : ""}" role="button" tabindex="0" aria-pressed="${eliminatedLocs.has(n)}" data-loc="${escapeHtml(n)}">${escapeHtml(tLoc(n))}</li>`).join("")}</ul>
       </div>`)
     .join("");
   for (const btn of document.querySelectorAll(".loc-theme")) {
@@ -366,9 +368,9 @@ function renderSpyPanel(state) {
   // Astuce : l'espion raye les lieux impossibles dans la liste ci-dessous ; ici
   // ils passent en bas (barrés) et il devine parmi ceux qui restent.
   const hint = rayes.length
-    ? `<p class="spy-hint">🎯 ${candidats.length} lieu${candidats.length > 1 ? "x" : ""} encore possible${candidats.length > 1 ? "s" : ""} — les lieux rayés sont en bas.</p>`
-    : `<p class="spy-hint">🎯 Rayez les lieux impossibles dans « Éliminer les lieux » : ils passeront en bas ici.</p>`;
-  const mk = (n) => `<button class="pick-btn${eliminatedLocs.has(n) ? " eliminated" : ""}" data-loc="${escapeHtml(n)}">${escapeHtml(n)}</button>`;
+    ? `<p class="spy-hint">${t(candidats.length > 1 ? "🎯 {n} lieux encore possibles — les lieux rayés sont en bas." : "🎯 {n} lieu encore possible — les lieux rayés sont en bas.", { n: candidats.length })}</p>`
+    : `<p class="spy-hint">${t("🎯 Rayez les lieux impossibles dans « Éliminer les lieux » : ils passeront en bas ici.")}</p>`;
+  const mk = (n) => `<button class="pick-btn${eliminatedLocs.has(n) ? " eliminated" : ""}" data-loc="${escapeHtml(n)}">${escapeHtml(tLoc(n))}</button>`;
   $("spy-guess-list").innerHTML = hint + candidats.concat(rayes).map(mk).join("");
   for (const b of $("spy-guess-list").querySelectorAll(".pick-btn")) {
     b.onclick = () => withBusy(b, async () => {
@@ -405,17 +407,20 @@ function renderVotePanel(state) {
   const key = `${acc.id}|${acc.youAreSuspect}|${acc.canVote}|${acc.votedCount}/${acc.votersCount}`;
   if (key === lastVoteKey) return;
   lastVoteKey = key;
+  const accuserB = `<strong>${escapeHtml(acc.accuser)}</strong>`;
+  const suspectB = `<strong>${escapeHtml(acc.suspect)}</strong>`;
+  const progress = t("Vote en cours… ({a}/{b})", { a: acc.votedCount, b: acc.votersCount });
   if (acc.youAreSuspect) {
-    vp.innerHTML = `<p class="vote-q">😱 <strong>${escapeHtml(acc.accuser)}</strong> vous accuse d'être l'espion !</p>
-      <p class="hint">Vote en cours… (${acc.votedCount}/${acc.votersCount})</p>`;
+    vp.innerHTML = `<p class="vote-q">${t("😱 {accuser} vous accuse d'être l'espion !", { accuser: accuserB })}</p>
+      <p class="hint">${progress}</p>`;
   } else if (acc.canVote) {
-    vp.innerHTML = `<p class="vote-q"><strong>${escapeHtml(acc.accuser)}</strong> accuse <strong>${escapeHtml(acc.suspect)}</strong>. Coupable ?</p>
-      <div class="vote-btns"><button id="vote-yes" class="primary">Oui, c'est l'espion</button><button id="vote-no" class="danger">Non</button></div>`;
+    vp.innerHTML = `<p class="vote-q">${t("{accuser} accuse {suspect}. Coupable ?", { accuser: accuserB, suspect: suspectB })}</p>
+      <div class="vote-btns"><button id="vote-yes" class="primary">${t("Oui, c'est l'espion")}</button><button id="vote-no" class="danger">${t("Non")}</button></div>`;
     $("vote-yes").onclick = () => sendVote(true);
     $("vote-no").onclick = () => sendVote(false);
   } else {
-    vp.innerHTML = `<p class="vote-q"><strong>${escapeHtml(acc.accuser)}</strong> accuse <strong>${escapeHtml(acc.suspect)}</strong>.</p>
-      <p class="hint">Vote en cours… (${acc.votedCount}/${acc.votersCount})</p>`;
+    vp.innerHTML = `<p class="vote-q">${t("{accuser} accuse {suspect}.", { accuser: accuserB, suspect: suspectB })}</p>
+      <p class="hint">${progress}</p>`;
   }
 }
 
@@ -444,20 +449,23 @@ function renderReveal(state) {
   show("screen-reveal");
   const r = state.reveal;
   const info = r.info || {};
+  const by = escapeHtml(info.by || "");
+  const guess = escapeHtml(tLoc(info.guess || ""));
+  const suspect = escapeHtml(info.suspect || "");
   const verdicts = {
-    spy_guessed_right: `🎯 L'espion ${escapeHtml(info.by || "")} a deviné le lieu (${escapeHtml(info.guess || "")}) — les espions gagnent !`,
-    spy_guessed_wrong: `❌ L'espion ${escapeHtml(info.by || "")} a tenté « ${escapeHtml(info.guess || "")} » — raté ! Les innocents gagnent.`,
-    spy_caught: `🕵️ ${escapeHtml(info.suspect || "")} était bien un espion — démasqué ! Les innocents gagnent.`,
-    wrong_accusation: `🙅 ${escapeHtml(info.suspect || "")} était innocent — accusation ratée ! Les espions gagnent.`,
-    timeout: `⏰ Temps écoulé — l'espion a survécu ! Les espions gagnent.`,
+    spy_guessed_right: t("🎯 L'espion {name} a deviné le lieu ({guess}) — les espions gagnent !", { name: by, guess }),
+    spy_guessed_wrong: t("❌ L'espion {name} a tenté « {guess} » — raté ! Les innocents gagnent.", { name: by, guess }),
+    spy_caught: t("🕵️ {name} était bien un espion — démasqué ! Les innocents gagnent.", { name: suspect }),
+    wrong_accusation: t("🙅 {name} était innocent — accusation ratée ! Les espions gagnent.", { name: suspect }),
+    timeout: t("⏰ Temps écoulé — l'espion a survécu ! Les espions gagnent."),
   };
   const vp = $("reveal-verdict");
   vp.innerHTML = verdicts[r.outcome] || "";
   vp.className = "reveal-verdict " + (r.winners === "spy" ? "win-spy" : "win-innocents");
-  $("reveal-location").textContent = r.location;
-  $("reveal-spy").textContent = r.spies.join(", ") || "(parti)";
+  $("reveal-location").textContent = tLoc(r.location);
+  $("reveal-spy").textContent = r.spies.join(", ") || t("(parti)");
   renderScoreboard("reveal-scoreboard", state.scores, state.history);
-  $("reveal-series").textContent = state.roundNo > 0 ? `🔥 ${state.roundNo} manche${state.roundNo > 1 ? "s" : ""} jouée${state.roundNo > 1 ? "s" : ""} ce soir !` : "";
+  $("reveal-series").textContent = state.roundNo > 0 ? t(state.roundNo > 1 ? "🔥 {n} manches jouées ce soir !" : "🔥 {n} manche jouée ce soir !", { n: state.roundNo }) : "";
   $("btn-revanche").classList.toggle("hidden", !state.you.isHost);
   $("btn-again").classList.toggle("hidden", !state.you.isHost);
   const seatFreed = seatsAtRoundStart && state.players.length < seatsAtRoundStart;
@@ -558,7 +566,7 @@ $("btn-copy").onclick = async () => {
   setTimeout(() => { $("btn-copy").textContent = old; }, 1200);
 };
 $("btn-share").onclick = async () => {
-  try { await navigator.share({ title: "Hexa", text: `Rejoins ma partie d'Hexa 🕵️ (code ${session.code})`, url: location.origin + "/?code=" + session.code }); }
+  try { await navigator.share({ title: "Hexa", text: t("Rejoins ma partie d'Hexa 🕵️ (code {code})", { code: session.code }), url: location.origin + "/?code=" + session.code }); }
   catch {}
 };
 
@@ -571,7 +579,7 @@ function doLeave() {
   loadDecks();
 }
 for (const id of ["btn-leave-lobby", "btn-leave-game", "btn-leave-reveal"]) {
-  $(id).onclick = () => { if (confirm("Quitter la partie ?")) doLeave(); };
+  $(id).onclick = () => { if (confirm(t("Quitter la partie ?"))) doLeave(); };
 }
 // Grâce de reconnexion : verrouiller/masquer l'onglet ne fait PAS quitter la
 // partie. Le serveur garde le joueur (avec sa carte/rôle) pendant 90 s ; on
@@ -587,15 +595,15 @@ function tickTimer() {
   const remaining = Math.max(0, timerBase.remaining - (Date.now() - timerBase.at));
   const m = Math.floor(remaining / 60000);
   const s = Math.floor((remaining % 60000) / 1000);
-  const t = $("timer");
+  const timerEl = $("timer");
   if (remaining <= 0) {
-    t.textContent = "0:00";
-    t.classList.add("urgent");
-    $("first-player").textContent = "⏰ Temps écoulé — en attente de l'hôte…";
+    timerEl.textContent = "0:00";
+    timerEl.classList.add("urgent");
+    $("first-player").textContent = t("⏰ Temps écoulé — en attente de l'hôte…");
     if (!vibratedTimeUp) { vibratedTimeUp = true; try { navigator.vibrate && navigator.vibrate(200); } catch {} }
   } else {
-    t.textContent = `${m}:${String(s).padStart(2, "0")}`;
-    t.classList.toggle("urgent", remaining < 60000);
+    timerEl.textContent = `${m}:${String(s).padStart(2, "0")}`;
+    timerEl.classList.toggle("urgent", remaining < 60000);
   }
 }
 
@@ -650,9 +658,9 @@ function renderEditor() {
     ? document.activeElement.dataset.loc : null;
 
   $("pack-tabs").innerHTML = editorData.packs
-    .map((p) => `<button class="pack-tab${p.key === editorPack ? " active" : ""}" data-pack="${escapeHtml(p.key)}">${escapeHtml(p.label)} <span>(${p.locations.length})</span></button>`)
+    .map((p) => `<button class="pack-tab${p.key === editorPack ? " active" : ""}" data-pack="${escapeHtml(p.key)}">${escapeHtml(t(p.label))} <span>(${p.locations.length})</span></button>`)
     .join("");
-  $("theme-list").innerHTML = editorData.themes.map((t) => `<option value="${escapeHtml(t)}"></option>`).join("");
+  $("theme-list").innerHTML = editorData.themes.map((th) => `<option value="${escapeHtml(th)}"></option>`).join("");
 
   const pack = editorData.packs.find((p) => p.key === editorPack);
   $("editor-list").innerHTML = pack.locations
@@ -666,9 +674,9 @@ function renderEditor() {
         const addable = (sug.add || []).filter((a) => !has(a));
         if (removable.length || addable.length) {
           sugHtml =
-            `<div class="ed-sugg"><p class="ed-sugg-title">💡 Suggestions des agents</p>` +
-            removable.map((r) => `<div class="sugg-row sugg-remove"><span>🔴 ${escapeHtml(r)}</span><button class="sugg-del" data-loc="${escapeHtml(l.name)}" data-role="${escapeHtml(r)}">Retirer</button></div>`).join("") +
-            addable.map((a) => `<div class="sugg-row sugg-add"><span>🟢 ${escapeHtml(a)}</span><button class="sugg-add-btn" data-loc="${escapeHtml(l.name)}" data-role="${escapeHtml(a)}">Ajouter</button></div>`).join("") +
+            `<div class="ed-sugg"><p class="ed-sugg-title">${t("💡 Suggestions des agents")}</p>` +
+            removable.map((r) => `<div class="sugg-row sugg-remove"><span>🔴 ${escapeHtml(tRole(r))}</span><button class="sugg-del" data-loc="${escapeHtml(l.name)}" data-role="${escapeHtml(r)}">${t("Retirer")}</button></div>`).join("") +
+            addable.map((a) => `<div class="sugg-row sugg-add"><span>🟢 ${escapeHtml(tRole(a))}</span><button class="sugg-add-btn" data-loc="${escapeHtml(l.name)}" data-role="${escapeHtml(a)}">${t("Ajouter")}</button></div>`).join("") +
             `</div>`;
         }
       }
@@ -676,17 +684,17 @@ function renderEditor() {
       <div class="ed-loc">
         <div class="ed-loc-head">
           <div class="ed-loc-id">
-            <span class="ed-loc-name">${escapeHtml(l.name)}</span>
-            <span class="ed-loc-theme">${escapeHtml(l.theme)}</span>
+            <span class="ed-loc-name">${escapeHtml(tLoc(l.name))}</span>
+            <span class="ed-loc-theme">${escapeHtml(tTheme(l.theme))}</span>
           </div>
-          <button class="ed-del-loc" data-name="${escapeHtml(l.name)}" title="Supprimer ce lieu" aria-label="Supprimer le lieu ${escapeHtml(l.name)}">🗑️</button>
+          <button class="ed-del-loc" data-name="${escapeHtml(l.name)}" title="${t("Supprimer ce lieu")}" aria-label="${t("Supprimer le lieu {name}", { name: escapeHtml(tLoc(l.name)) })}">🗑️</button>
         </div>
         <div class="ed-roles">
-          ${l.roles.map((r) => `<span class="ed-role">${escapeHtml(r)}<button class="ed-del-role" data-loc="${escapeHtml(l.name)}" data-role="${escapeHtml(r)}" title="Retirer ce rôle" aria-label="Retirer le rôle ${escapeHtml(r)}">×</button></span>`).join("")}
+          ${l.roles.map((r) => `<span class="ed-role">${escapeHtml(tRole(r))}<button class="ed-del-role" data-loc="${escapeHtml(l.name)}" data-role="${escapeHtml(r)}" title="${t("Retirer ce rôle")}" aria-label="${t("Retirer le rôle {role}", { role: escapeHtml(tRole(r)) })}">×</button></span>`).join("")}
         </div>
         <div class="ed-addrole">
-          <input class="ed-role-input" data-loc="${escapeHtml(l.name)}" maxlength="120" placeholder="Rôle(s), séparés par des virgules…" />
-          <button class="ed-add-role" data-loc="${escapeHtml(l.name)}">+ Rôle</button>
+          <input class="ed-role-input" data-loc="${escapeHtml(l.name)}" maxlength="120" placeholder="${t("Rôle(s), séparés par des virgules…")}" />
+          <button class="ed-add-role" data-loc="${escapeHtml(l.name)}">${t("+ Rôle")}</button>
         </div>
         ${sugHtml}
       </div>`;
@@ -707,7 +715,7 @@ $("pack-tabs").onclick = (e) => {
 
 $("editor-list").onclick = (e) => {
   const delLoc = e.target.closest(".ed-del-loc");
-  if (delLoc) { if (confirm(`Supprimer le lieu « ${delLoc.dataset.name} » ?`)) editOp({ op: "deleteLocation", pack: editorPack, name: delLoc.dataset.name }); return; }
+  if (delLoc) { if (confirm(t("Supprimer le lieu « {name} » ?", { name: tLoc(delLoc.dataset.name) }))) editOp({ op: "deleteLocation", pack: editorPack, name: delLoc.dataset.name }); return; }
   const delRole = e.target.closest(".ed-del-role");
   if (delRole) { editOp({ op: "deleteRole", pack: editorPack, name: delRole.dataset.loc, role: delRole.dataset.role }); return; }
   const sugDel = e.target.closest(".sugg-del"); // suggestion rouge : retirer
@@ -730,7 +738,7 @@ $("editor-list").addEventListener("keydown", (e) => {
 
 $("btn-add-loc").onclick = () => withBusy($("btn-add-loc"), async () => {
   const name = $("new-loc-name").value;
-  if (!name.trim()) { setError("editor-error", "Donnez un nom au lieu."); return; }
+  if (!name.trim()) { setError("editor-error", t("Donnez un nom au lieu.")); return; }
   const roles = $("new-loc-role").value.split(",").map((r) => r.trim()).filter(Boolean);
   const ok = await editOp({ op: "addLocation", pack: editorPack, name, theme: $("new-loc-theme").value, roles });
   if (ok) { $("new-loc-name").value = ""; $("new-loc-role").value = ""; $("new-loc-theme").value = ""; }
@@ -761,24 +769,24 @@ function recordRound(reveal, wasSpy) {
 }
 function casierTitle(s) {
   const p = s.parties || 0;
-  if (!p) return "Recrue";
+  if (!p) return t("Recrue");
   const spyRate = s.asSpy ? (s.spyWins || 0) / s.asSpy : 0;
   const winRate = (s.wins || 0) / p;
-  if (s.asSpy >= 5 && spyRate >= 0.6) return "Espion fantôme 👻";
-  if (s.asSpy >= 5 && spyRate <= 0.2) return "Espion grillé 🔥";
-  if (p >= 5 && winRate >= 0.6) return "Fin limier 🕵️";
-  if (p >= 5 && winRate <= 0.3) return "Pigeon attitré 🐦";
-  if (p >= 20) return "Vétéran d'Hexa";
-  return "Apprenti espion";
+  if (s.asSpy >= 5 && spyRate >= 0.6) return t("Espion fantôme 👻");
+  if (s.asSpy >= 5 && spyRate <= 0.2) return t("Espion grillé 🔥");
+  if (p >= 5 && winRate >= 0.6) return t("Fin limier 🕵️");
+  if (p >= 5 && winRate <= 0.3) return t("Pigeon attitré 🐦");
+  if (p >= 20) return t("Vétéran d'Hexa");
+  return t("Apprenti espion");
 }
 function casierBadges(s) {
   const b = [];
-  if ((s.parties || 0) >= 5) b.push("🎯 5 parties");
-  if ((s.parties || 0) >= 20) b.push("🏅 20 parties");
-  if ((s.spyWins || 0) >= 5) b.push("🕶️ 5 wins espion");
-  if ((s.spyWins || 0) >= 10) b.push("👑 10 wins espion");
-  if ((s.wins || 0) >= 10) b.push("🏆 10 victoires");
-  return b.length ? b : ["— pas encore de badge —"];
+  if ((s.parties || 0) >= 5) b.push(t("🎯 5 parties"));
+  if ((s.parties || 0) >= 20) b.push(t("🏅 20 parties"));
+  if ((s.spyWins || 0) >= 5) b.push(t("🕶️ 5 wins espion"));
+  if ((s.spyWins || 0) >= 10) b.push(t("👑 10 wins espion"));
+  if ((s.wins || 0) >= 10) b.push(t("🏆 10 victoires"));
+  return b.length ? b : [t("— pas encore de badge —")];
 }
 function buildCasierCanvas() {
   const s = loadStats();
@@ -790,15 +798,15 @@ function buildCasierCanvas() {
   x.fillStyle = g; x.fillRect(0, 0, W, H);
   x.strokeStyle = "#9a7a2e"; x.lineWidth = 8; x.strokeRect(30, 30, W - 60, H - 60);
   x.textAlign = "center";
-  x.fillStyle = "#e6c87a"; x.font = "bold 60px Georgia, serif"; x.fillText("🕵️ CASIER HEXA", W / 2, 150);
-  const name = (localStorage.getItem("spyfall-name") || "Joueur").slice(0, 18);
+  x.fillStyle = "#e6c87a"; x.font = "bold 60px Georgia, serif"; x.fillText(t("🕵️ CASIER HEXA"), W / 2, 150);
+  const name = (localStorage.getItem("spyfall-name") || t("Joueur")).slice(0, 18);
   x.fillStyle = "#f3ead6"; x.font = "bold 86px Georgia, serif"; x.fillText(name, W / 2, 280);
   x.fillStyle = "#f1d99a"; x.font = "italic 54px Georgia, serif"; x.fillText(casierTitle(s), W / 2, 372);
   const lines = [
-    ["Parties jouées", String(s.parties || 0)],
-    ["Victoires", `${s.wins || 0} (${Math.round(((s.wins || 0) / (s.parties || 1)) * 100)}%)`],
-    ["Manches en espion", String(s.asSpy || 0)],
-    ["Bluffs réussis", s.asSpy ? `${s.spyWins || 0} (${Math.round(((s.spyWins || 0) / s.asSpy) * 100)}%)` : "—"],
+    [t("Parties jouées"), String(s.parties || 0)],
+    [t("Victoires"), `${s.wins || 0} (${Math.round(((s.wins || 0) / (s.parties || 1)) * 100)}%)`],
+    [t("Manches en espion"), String(s.asSpy || 0)],
+    [t("Bluffs réussis"), s.asSpy ? `${s.spyWins || 0} (${Math.round(((s.spyWins || 0) / s.asSpy) * 100)}%)` : "—"],
   ];
   x.font = "44px Arial, sans-serif"; let yy = 530;
   for (const [k, v] of lines) {
@@ -837,7 +845,7 @@ async function shareCasier() {
   if (blob && navigator.canShare) {
     const file = new File([blob], "casier-hexa.png", { type: "image/png" });
     if (navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], text: "Mon Casier Hexa 🕵️ — spy.skyyarttools.fr" }); } catch {} // annulé/échec : NE PAS télécharger
+      try { await navigator.share({ files: [file], text: t("Mon Casier Hexa 🕵️ — spy.skyyarttools.fr") }); } catch {} // annulé/échec : NE PAS télécharger
       return;
     }
   }
@@ -857,16 +865,25 @@ const TUTO_STEPS = [
   `<h2>🎯 L'espion peut tenter</h2><p>À tout moment, l'espion peut <b>deviner le lieu</b> pour gagner d'un coup. Risqué : s'il se trompe, il perd.</p>`,
   `<h2>🏆 La révélation</h2><div class="reveal-verdict win-innocents tuto-verdict">🕵️ Max était l'espion — démasqué ! Les innocents gagnent.</div><p>Score cumulé, classement, Revanche en 1 tap… <b>c'est 100× mieux entre amis 👇</b></p>`,
 ];
+const TUTO_STEPS_EN = [
+  `<h2>🕵️ The goal</h2><p>Everyone gets the <b>same location</b> and a role… except the <b>spy</b>, who doesn't know the location.</p><div class="tuto-demo"><span class="card-label">Location</span><span class="card-title">Beach</span><span class="card-label">Your role</span><span class="card-role">Lifeguard</span></div>`,
+  `<h2>❓ Investigate</h2><p>Taking turns, you ask each other questions to unmask the spy — without being too specific, or they'll guess the location.</p><div class="tuto-chat"><p><b>Lea:</b> “Do you wear sunscreen?”</p><p><b>Max:</b> “…uh, sometimes.”</p><p class="tuto-tip">👀 Max hesitates: suspicious!</p></div>`,
+  `<h2>🙋 Accuse</h2><p>Anyone can accuse a player. If <b>everyone agrees</b>, their role is revealed.</p><div class="tuto-demo"><span class="vote-q">“Is Max the spy?”</span><span class="card-role">3 / 3 votes ✔️</span></div>`,
+  `<h2>🎯 The spy can gamble</h2><p>At any time, the spy can <b>guess the location</b> to win in one move. Risky: if they're wrong, they lose.</p>`,
+  `<h2>🏆 The reveal</h2><div class="reveal-verdict win-innocents tuto-verdict">🕵️ Max was the spy — exposed! The innocents win.</div><p>Running score, standings, one-tap Rematch… <b>it's 100× better with friends 👇</b></p>`,
+];
+function tutoSteps() { return (window.i18n && i18n.isEn()) ? TUTO_STEPS_EN : TUTO_STEPS; }
 function renderTuto() {
-  $("tuto-card").innerHTML = TUTO_STEPS[tutoStep];
-  $("tuto-dots").innerHTML = TUTO_STEPS.map((_, i) => `<span class="tuto-dot${i === tutoStep ? " on" : ""}"></span>`).join("");
-  $("btn-tuto-next").textContent = tutoStep === TUTO_STEPS.length - 1 ? "🎮 Créer une partie" : "Suivant";
+  const steps = tutoSteps();
+  $("tuto-card").innerHTML = steps[tutoStep];
+  $("tuto-dots").innerHTML = steps.map((_, i) => `<span class="tuto-dot${i === tutoStep ? " on" : ""}"></span>`).join("");
+  $("btn-tuto-next").textContent = tutoStep === steps.length - 1 ? t("🎮 Créer une partie") : t("Suivant");
 }
 function openTuto() { tutoStep = 0; renderTuto(); show("screen-tutorial"); }
 function endTuto() { try { localStorage.setItem("spyfall-seen-tuto", "1"); } catch {} show("screen-home"); try { $("name-input").focus(); } catch {} }
 $("btn-tuto").onclick = openTuto;
 $("btn-tuto-skip").onclick = endTuto;
-$("btn-tuto-next").onclick = () => { if (tutoStep < TUTO_STEPS.length - 1) { tutoStep++; renderTuto(); } else endTuto(); };
+$("btn-tuto-next").onclick = () => { if (tutoStep < tutoSteps().length - 1) { tutoStep++; renderTuto(); } else endTuto(); };
 
 // --- Portail (un seul champ mot de passe) ------------------------------------
 
@@ -897,10 +914,33 @@ async function tryPassword(pass) {
 $("btn-gate").onclick = () => withBusy($("btn-gate"), async () => {
   setError("gate-error", "");
   const pass = $("gate-pass").value;
-  try { if (!(await tryPassword(pass))) throw new Error("Mot de passe incorrect."); localStorage.setItem("spyfall-pass", pass); enterApp(); }
+  try { if (!(await tryPassword(pass))) throw new Error(t("Mot de passe incorrect.")); localStorage.setItem("spyfall-pass", pass); enterApp(); }
   catch (e) { setError("gate-error", e.message); }
 });
 $("gate-pass").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-gate").click(); });
+
+// Changement de langue (drapeau) : i18n.js traduit le STATIQUE ; ici on re-rend le
+// contenu DYNAMIQUE de l'écran courant, sans perdre l'état (carte retournée, lieux
+// rayés, vote en cours…).
+window.onLangChange = () => {
+  try { loadDecks(); } catch {} // menu de mode de l'accueil (libellés + « lieux »)
+  const st = lastRenderedState;
+  if (currentScreen === "screen-editor" && editorData) renderEditor();
+  else if (currentScreen === "screen-casier") openCasier();
+  else if (currentScreen === "screen-tutorial") renderTuto();
+  else if (currentScreen === "screen-lobby" && st) renderLobby(st);
+  else if (currentScreen === "screen-reveal" && st) renderReveal(st);
+  else if (currentScreen === "screen-game" && st) {
+    // Re-rend les panneaux SANS toucher au flip ni aux lieux rayés (préservés par eliminatedLocs).
+    renderCard(st);
+    renderLocations(st.locations);
+    renderSpyPanel(st);
+    renderAccuseList(st);
+    lastVoteKey = null; // force la reconstruction traduite du panneau de vote
+    renderVotePanel(st);
+    if (st.remainingMs > 0) $("first-player").textContent = st.firstPlayer ? t("🎙️ {name} commence et choisit qui interroger.", { name: st.firstPlayer }) : "";
+  }
+};
 
 // Démarrage : portail si nécessaire (fail-closed si /api/config échoue), sinon reprise.
 (async function boot() {
