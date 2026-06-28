@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARCANA — Loup-Garou de tarot premium · Dossier de conception</title>
+<style>
+  :root{
+    --noir:#0b0a10; --noir2:#13111c; --noir3:#1b1825;
+    --or:#d9b46a; --or2:#f2d999; --or-soft:#b9974d;
+    --bordeaux:#5e1f2d; --bleu:#1c2440;
+    --txt:#e9e4d8; --txt-soft:#b7b0a2; --txt-mut:#857e72;
+    --vert:#7bb86a; --rouge:#d2706a; --ambre:#e0b15c;
+    --bord:#2c2738;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:radial-gradient(1200px 700px at 50% -200px,#241e33 0%,var(--noir) 60%);
+    color:var(--txt); font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    line-height:1.65; font-size:17px;
+  }
+  a{color:var(--or2);text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  header.hero{
+    text-align:center;padding:70px 22px 40px;border-bottom:1px solid var(--bord);
+    background:linear-gradient(180deg,rgba(217,180,106,.06),transparent);
+  }
+  .kicker{letter-spacing:.4em;text-transform:uppercase;color:var(--or);font-size:13px;font-family:Georgia,serif}
+  h1{font-size:62px;margin:.15em 0 .1em;letter-spacing:.12em;
+     background:linear-gradient(180deg,var(--or2),var(--or-soft));
+     -webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700}
+  .sub{color:var(--txt-soft);font-style:italic;font-size:20px;margin-top:4px}
+  .hero-meta{margin-top:22px;color:var(--txt-mut);font-size:13px;font-family:Georgia,serif;letter-spacing:.05em}
+  .badges{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:24px}
+  .pill{border:1px solid var(--or-soft);color:var(--or2);border-radius:30px;padding:6px 16px;font-size:13px;
+        font-family:Georgia,serif;letter-spacing:.04em;background:rgba(217,180,106,.05)}
+
+  nav.toc{margin:36px auto;max-width:1080px;padding:22px;border:1px solid var(--bord);border-radius:14px;
+          background:var(--noir2)}
+  nav.toc h2{margin:0 0 12px;font-size:15px;letter-spacing:.25em;text-transform:uppercase;color:var(--or);font-family:Georgia,serif}
+  nav.toc ol{margin:0;padding-left:0;list-style:none;columns:2;column-gap:36px}
+  nav.toc li{margin:6px 0;break-inside:avoid}
+  nav.toc a{color:var(--txt);display:block;padding:3px 0;border-bottom:1px dotted #322c40}
+  nav.toc a:hover{color:var(--or2)}
+  nav.toc .n{color:var(--or-soft);font-family:Georgia,serif;margin-right:10px;font-size:14px}
+
+  section{padding:46px 0 12px;border-top:1px solid var(--bord);margin-top:24px}
+  h2.sec{font-size:34px;letter-spacing:.04em;margin:0 0 6px;color:var(--or2)}
+  h2.sec .num{font-family:Georgia,serif;color:var(--or-soft);font-size:20px;margin-right:14px;vertical-align:middle}
+  .lead{color:var(--txt-soft);font-size:18px;max-width:820px}
+  h3{color:var(--or2);font-size:22px;margin:30px 0 8px;letter-spacing:.02em}
+  h4{color:var(--or);font-size:17px;margin:18px 0 4px;letter-spacing:.05em;font-family:Georgia,serif;text-transform:uppercase}
+
+  .card{background:var(--noir2);border:1px solid var(--bord);border-radius:14px;padding:22px 24px;margin:16px 0}
+  .card.gold{border-color:var(--or-soft);box-shadow:0 0 0 1px rgba(217,180,106,.12) inset}
+
+  /* TOP 15 */
+  .rank{display:flex;gap:18px;align-items:flex-start;padding:16px 0;border-bottom:1px solid #251f30}
+  .rank:last-child{border-bottom:none}
+  .rank .no{flex:0 0 54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+            font-family:Georgia,serif;font-size:24px;font-weight:700;color:var(--noir);
+            background:linear-gradient(160deg,var(--or2),var(--or-soft));box-shadow:0 4px 14px rgba(217,180,106,.25)}
+  .rank .body{flex:1}
+  .rank .t{font-size:19px;color:var(--txt);font-weight:600}
+  .rank .d{color:var(--txt-soft);font-size:15.5px;margin-top:3px}
+  .rank .meta{margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .tag{font-size:12.5px;font-family:Georgia,serif;border-radius:6px;padding:3px 10px;letter-spacing:.03em}
+  .tag.prem{background:rgba(123,184,106,.12);color:var(--vert);border:1px solid rgba(123,184,106,.3)}
+  .cost{font-family:Georgia,serif;letter-spacing:.08em}
+  .cost b{color:var(--or2)} .cost s{color:#4a4456}
+
+  /* roles grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:14px;margin-top:18px}
+  .tcard{position:relative;background:linear-gradient(180deg,var(--noir3),var(--noir2));
+         border:1px solid var(--bord);border-radius:12px;padding:16px 16px 18px;overflow:hidden}
+  .tcard::before{content:"";position:absolute;inset:6px;border:1px solid rgba(217,180,106,.22);border-radius:8px;pointer-events:none}
+  .tcard .rn{font-family:Georgia,serif;color:var(--or);font-size:13px;letter-spacing:.12em}
+  .tcard .nm{font-size:17px;color:var(--txt);margin:3px 0 8px;font-weight:600;min-height:44px}
+  .tcard .pw{font-size:14px;color:var(--txt-soft);line-height:1.5}
+  .camp{display:inline-block;font-size:11px;font-family:Georgia,serif;letter-spacing:.08em;text-transform:uppercase;
+        padding:2px 9px;border-radius:20px;margin-top:10px}
+  .camp.loups{background:rgba(210,112,106,.14);color:var(--rouge);border:1px solid rgba(210,112,106,.35)}
+  .camp.village{background:rgba(123,184,106,.12);color:var(--vert);border:1px solid rgba(123,184,106,.3)}
+  .camp.solo{background:rgba(224,177,92,.12);color:var(--ambre);border:1px solid rgba(224,177,92,.32)}
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:15px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #261f31;vertical-align:top}
+  th{color:var(--or);font-family:Georgia,serif;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase}
+  td.num{text-align:right;font-family:Georgia,serif;color:var(--or2);white-space:nowrap}
+  tr:hover td{background:rgba(217,180,106,.03)}
+  tfoot td{border-top:2px solid var(--or-soft);font-weight:700;color:var(--txt)}
+
+  /* reco compare */
+  .recos{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:18px}
+  .reco{border:1px solid var(--bord);border-radius:14px;padding:20px;background:var(--noir2);display:flex;flex-direction:column}
+  .reco.win{border-color:var(--or);background:linear-gradient(180deg,rgba(217,180,106,.08),var(--noir2))}
+  .reco .lab{font-family:Georgia,serif;letter-spacing:.12em;text-transform:uppercase;font-size:12px;color:var(--or)}
+  .reco .price{font-size:30px;color:var(--or2);margin:6px 0 2px;font-weight:700}
+  .reco .cogs{color:var(--txt-mut);font-size:14px;font-family:Georgia,serif}
+  .reco .txt{color:var(--txt-soft);font-size:14.5px;margin-top:12px}
+  .reco .crown{font-size:12px;color:var(--noir);background:linear-gradient(160deg,var(--or2),var(--or-soft));
+               display:inline-block;padding:3px 12px;border-radius:20px;font-family:Georgia,serif;
+               letter-spacing:.1em;margin-bottom:8px;align-self:flex-start}
+
+  .crit{border-left:3px solid var(--rouge);padding:6px 0 6px 16px;margin:14px 0}
+  .crit .who{color:var(--txt);font-weight:600;font-size:15.5px}
+  .crit .pb{color:var(--txt-soft);font-size:14.5px;margin-top:2px}
+  .crit .fx{color:var(--vert);font-size:14.5px;margin-top:6px}
+  .crit .fx::before{content:"→ ";color:var(--vert)}
+  .grav{font-size:11px;font-family:Georgia,serif;padding:1px 8px;border-radius:5px;margin-left:8px;letter-spacing:.05em}
+  .grav.forte{background:rgba(210,112,106,.16);color:var(--rouge)}
+  .grav.moyenne{background:rgba(224,177,92,.14);color:var(--ambre)}
+  .grav.faible{background:rgba(133,126,114,.16);color:var(--txt-mut)}
+
+  ul.clean{list-style:none;padding-left:0}
+  ul.clean li{padding:7px 0 7px 26px;position:relative;border-bottom:1px solid #221c2c;color:var(--txt-soft);font-size:15.5px}
+  ul.clean li::before{content:"❖";position:absolute;left:0;color:var(--or-soft);font-size:13px;top:9px}
+  ul.kill li::before{content:"✕";color:var(--rouge)}
+  ul.step{counter-reset:s}
+  ul.step li{padding-left:42px}
+  ul.step li::before{counter-increment:s;content:counter(s);background:rgba(217,180,106,.12);color:var(--or2);
+    width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-family:Georgia,serif;font-size:14px;left:0;top:7px;border:1px solid var(--or-soft)}
+
+  details{border:1px solid var(--bord);border-radius:12px;margin:12px 0;background:var(--noir2);overflow:hidden}
+  details summary{cursor:pointer;padding:16px 20px;font-size:18px;color:var(--or2);list-style:none;font-weight:600}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"▸ ";color:var(--or-soft)}
+  details[open] summary::before{content:"▾ "}
+  details .inner{padding:4px 22px 18px;border-top:1px solid var(--bord)}
+  .angle{font-style:italic;color:var(--txt-mut);font-size:14.5px;margin:6px 0 14px}
+
+  .spec{display:grid;grid-template-columns:170px 1fr;gap:2px 16px;margin:10px 0}
+  .spec dt{color:var(--or);font-family:Georgia,serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;padding-top:8px;border-top:1px solid #221c2c}
+  .spec dd{margin:0;color:var(--txt-soft);font-size:15px;padding-top:8px;border-top:1px solid #221c2c}
+
+  .callout{background:linear-gradient(180deg,rgba(94,31,45,.18),transparent);border:1px solid var(--bord);
+    border-left:3px solid var(--or);border-radius:10px;padding:16px 20px;margin:18px 0;color:var(--txt-soft)}
+  .callout b{color:var(--or2)}
+
+  footer{text-align:center;padding:50px 22px 60px;color:var(--txt-mut);font-size:13px;border-top:1px solid var(--bord);margin-top:40px}
+  .method{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+  .method span{border:1px solid var(--bord);border-radius:8px;padding:8px 14px;font-size:12.5px;font-family:Georgia,serif;color:var(--txt-soft)}
+  @media(max-width:680px){h1{font-size:42px}nav.toc ol{columns:1}.spec{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="kicker">Dossier de conception produit</div>
+  <h1>ARCANA</h1>
+  <div class="sub">Le Loup-Garou réinventé en jeu de tarot ultra-premium · 16 arcanes, 16 rôles</div>
+  <div class="badges">
+    <span class="pill">16 cartes / 16 rôles</span>
+    <span class="pill">Coffret rigide magnétique</span>
+    <span class="pill">Format collection</span>
+    <span class="pill">Jouable 6–13 joueurs</span>
+  </div>
+  <div class="hero-meta">Synthèse de 11 agents · 3 générateurs + 3 évaluateurs adversariaux (idées) · 2 chiffrages + 2 évaluateurs adversariaux (coût) · 1 synthèse</div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>Sommaire</h2>
+  <ol>
+    <li><a href="#pitch"><span class="n">I</span>Le concept en bref</a></li>
+    <li><a href="#top15"><span class="n">II</span>Les 15 meilleures idées premium</a></li>
+    <li><a href="#format"><span class="n">III</span>Format de boîte & de cartes</a></li>
+    <li><a href="#roles"><span class="n">IV</span>Les 16 rôles (arcanes)</a></li>
+    <li><a href="#jouer"><span class="n">V</span>Comment on joue</a></li>
+    <li><a href="#recos"><span class="n">VI</span>Recommandations qualité / prix</a></li>
+    <li><a href="#couts"><span class="n">VII</span>Détail des coûts de fabrication</a></li>
+    <li><a href="#adv"><span class="n">VIII</span>Audit adversarial des coûts</a></li>
+    <li><a href="#idees"><span class="n">IX</span>Idées brutes des 3 générateurs</a></li>
+    <li><a href="#eval"><span class="n">X</span>Évaluations adversariales (idées)</a></li>
+    <li><a href="#plan"><span class="n">XI</span>Plan d'action & calendrier</a></li>
+  </ol>
+</nav>
+
+<!-- ========== I PITCH ========== -->
+<section id="pitch">
+  <h2 class="sec"><span class="num">I</span>Le concept en bref</h2>
+  <div class="card gold">
+    <p style="font-size:18.5px;margin-top:0">ARCANA — Loup-Garou de bluff en jeu de tarot premium. Un <b style="color:var(--or2)">coffret-écrin compact</b> (book-box rigide à fermeture magnétique) qui renferme <b style="color:var(--or2)">16 cartes de tarot illustrées</b>, chaque rôle étant réinterprété en arcane majeur (le Loup-Garou = La Lune, la Voyante = La Papesse, Cupidon = Les Amoureux…).</p>
+    <p>Objet de collection autant que jeu de soirée : carton 350 g/m² à cœur noir, finition lin soft-touch, dorure à chaud et gaufrage sur la face avant. Le pilotage du meneur est résolu <b style="color:var(--or2)">sans appli ni feuilletage</b> grâce à une carte-narrateur premium (ordre de réveil au recto, tableau des compositions au verso) doublée par une aide imprimée dans le couvercle.</p>
+    <p style="margin-bottom:0">Format dense et honnête (la boîte épouse le contenu, <b style="color:var(--or2)">zéro vide</b>), debout en rayon comme un beau livre, accroche immédiate au regard et au toucher. Mise en place en moins de 90 secondes, lisible, jouable de 6 à 13 joueurs en piochant la donne adaptée dans le pool de 16 arcanes.</p>
+  </div>
+  <div class="callout">
+    <b>La grande leçon des évaluateurs :</b> le luxe perçu se joue sur 4 leviers — <b>la dorure-gaufrage en relief</b>, <b>le « clac » magnétique</b>, <b>le toucher soft-touch</b> et <b>le carton cœur noir</b> — pas sur l'accumulation de dorures. Tout le reste (tranche dorée fragile, carte métal gravée, similicuir, slipcase, fenêtre PVC) a été identifié comme du <i>faux premium</i> et écarté de la version recommandée.
+  </div>
+</section>
+
+<!-- ========== II TOP 15 ========== -->
+<section id="top15">
+  <h2 class="sec"><span class="num">II</span>Les 15 meilleures idées pour une boîte ultra-premium</h2>
+  <p class="lead">Classées par les évaluateurs selon le rapport <b>impact de luxe perçu / coût</b>. Légende coût : <span class="cost"><b>€</b></span> faible · <span class="cost"><b>€€</b></span> modéré.</p>
+  <div class="card">
+    <div class="rank"><div class="no">1</div><div class="body"><div class="t">Dorure à chaud + gaufrage d'UN seul foyer (titre + 1 arcane) sur fond mat profond</div><div class="d">Le titre et un arcane iconique (Le Loup / La Lune) estampés à la dorure or, combinés à un gaufrage/débossage en relief, sur fond noir bleuté ou bordeaux mat. Un seul foyer doré = le contraste qui signe le luxe. Accroche la lumière du linéaire à 3 m et déclenche la prise en main.</div><div class="meta"><span class="tag prem">5/5 · levier n°1 d'achat d'impulsion</span><span class="cost"><b>€</b></span></div></div></div>
+    <div class="rank"><div class="no">2</div><div class="body"><div class="t">Fermeture magnétique à rabat type écrin (2–4 aimants néodyme N35 noyés)</div><div class="d">Rabat latéral façon couverture de livre, aimants N35 (~10×3×1 mm) noyés, fermeture franche et silencieuse — le « clac » signature. Aucun plastique apparent. Le client teste ouvre/ferme 3 fois en rayon = il est accroché.</div><div class="meta"><span class="tag prem">5/5 · argument sensoriel exigé</span><span class="cost"><b>€</b></span></div></div></div>
+    <div class="rank"><div class="no">3</div><div class="body"><div class="t">Carton 350 g/m² à cœur noir (black core) + pelliculage lin soft-touch sur les cartes</div><div class="d">Cœur noir = opacité totale (anti-triche par transparence, condition même du bluff), tranche noire élégante et snap haut de gamme au battage. Finition lin soft-touch = toucher velours mat. Le premium honnête et structurel, là où le luxe se joue vraiment : au toucher.</div><div class="meta"><span class="tag prem">5/5 · socle vérifié par tout collectionneur</span><span class="cost"><b>€€</b></span></div></div></div>
+    <div class="rank"><div class="no">4</div><div class="body"><div class="t">Coffret rigide book-box compact carton 2,5 mm habillé soft-touch mat</div><div class="d">Carton gris 2,5 mm contrecollé d'un papier couché 157 g/m² pelliculé soft-touch mat. Format compact dense (la boîte épouse le contenu). Le passage 2 → 2,5 mm coûte ~0,10–0,15 € et ajoute le poids/rigidité que le client soupèse. Cœur du premium perçu : ne jamais économiser ici.</div><div class="meta"><span class="tag prem">5/5 · pièce centrale de l'écrin</span><span class="cost"><b>€€</b></span></div></div></div>
+    <div class="rank"><div class="no">5</div><div class="body"><div class="t">Pelliculage soft-touch mat anti-traces sur le coffret (contraste avec la dorure)</div><div class="d">Toucher velours = signal premium au contact ET résistance aux empreintes en linéaire (un coffret couvert de traces ne se vend pas). Le contraste mat profond / or brillant est une signature haut de gamme éprouvée.</div><div class="meta"><span class="tag prem">4/5 · double bénéfice toucher + tenue rayon</span><span class="cost"><b>€</b></span></div></div></div>
+    <div class="rank"><div class="no">6</div><div class="body"><div class="t">Carte-narrateur cartonnée premium dorée (ordre de réveil / compositions)</div><div class="d">Une 17ᵉ carte de même facture (350 g black core, dorure à chaud) : recto = ordre de réveil de la nuit, verso = tableau des compositions par nombre de joueurs. Résout LE point dur du Loup-Garou (gestion du meneur) sans appli. Remplace la carte métal gravée (rejetée : 3–8 €, bords coupants EN71, interaction aimants, gravure illisible).</div><div class="meta"><span class="tag prem">4/5 · différenciateur + praticité, coût quasi nul</span><span class="cost"><b>€</b></span></div></div></div>
+    <div class="rank"><div class="no">7</div><div class="body"><div class="t">Insert thermoformé PET noir mat anti-rayures (cartes dressées + ruban gros-grain)</div><div class="d">Berceau PET noir mat (et non velours floqué, fragile/salissant) : logement deck dressé pour l'effet « lingot/grimoire » à l'ouverture, logement carte-narrateur, encoche pouce et ruban satin d'extraction. Zéro jeu au transport, look écrin de bijouterie.</div><div class="meta"><span class="tag prem">4/5 · effet unboxing + maintien</span><span class="cost"><b>€€</b></span></div></div></div>
+    <div class="rank"><div class="no">8</div><div class="body"><div class="t">Dos / tranche de boîte imprimé façon dos de beau livre (titre + arcane)</div><div class="d">La tranche verticale traitée comme un dos de livre (titre + arcane + liseré doré) pour garder la visibilité en rangement vertical serré (cas fréquent en rayon) et installer une logique de collection/extensions alignées. Coût quasi nul, impact merchandising fort.</div><div class="meta"><span class="tag prem">4/5 · intelligence rayon à coût ~0</span><span class="cost"><b>€</b></span></div></div></div>
+    <div class="rank"><div class="no">9</div><div class="body"><div class="t">Numérotation des 16 rôles en arcanes majeurs I à XVI + correspondance tarot</div><div class="d">Chaque rôle devient un arcane numéroté (le Loup = La Lune, la Voyante = La Papesse…). Coût NUL, transforme 16 cartes utilitaires en série à collectionner, justifie le format tarot et le prix premium, ouvre la porte aux extensions.</div><div class="meta"><span class="tag prem">4/5 · désirabilité collection à coût nul</span><span class="cost"><b>€</b></span></div></div></div>
+    <div class="rank"><div class="no">10</div><div class="body"><div class="t">Iconographie de faction discrète en coin de carte (lune/œil/bouclier/cœur/étoile)</div><div class="d">Une icône de camp/type intégrée à l'ornement permet l'identification instantanée sans texte envahissant ni rupture de l'esthétique tarot. La manière la plus élégante de rendre 16 arcanes jouables à vue. À privilégier au lourd bandeau de texte.</div><div class="meta"><span class="tag prem">3/5 · réconcilie art et jouabilité</span><span class="cost"><b>€</b></span></div></div></div>
+    <div class="rank"><div class="no">11</div><div class="body"><div class="t">Dorure à chaud du dos commun des cartes + liseré doré imprimé</div><div class="d">Dorure à chaud du motif arcane sur le dos commun (identique pour les 16 = secret du bluff garanti) + liseré doré imprimé sur le cadre. Donne l'effet « or à l'ouverture » quand les dos sont empilés, <b style="color:var(--or2)">sans</b> le procédé fragile de la tranche dorée qui s'écaille au battage.</div><div class="meta"><span class="tag prem">4/5 · or durable, ne s'écaille pas</span><span class="cost"><b>€€</b></span></div></div></div>
+    <div class="rank"><div class="no">12</div><div class="body"><div class="t">Belly-band cartonné avec pastille inviolable (au lieu de blister/fenêtre PVC)</div><div class="d">Bande de garantie cartonnée à pastille à chaud, sécurité anti-ouverture en rayon sans casser le premium. Le blister ou la fenêtre PVC = code grande distribution qui jaunit, raye, contredit l'écrin. Le belly-band protège la surface dorée et porte l'accroche commerciale.</div><div class="meta"><span class="tag prem">3/5 · sécurité rayon sans dégrader le luxe</span><span class="cost"><b>€</b></span></div></div></div>
+    <div class="rank"><div class="no">13</div><div class="body"><div class="t">Aide de jeu imprimée dans la face interne du couvercle</div><div class="d">Ordre d'appel nocturne + résumé des 16 rôles imprimés à l'intérieur du couvercle. Surprise à l'ouverture + mémo toujours visible pendant la partie, sans manipuler la boîte. Zéro composant additionnel.</div><div class="meta"><span class="tag prem">3/5 · praticité + effet « tout est dans la boîte »</span><span class="cost"><b>€</b></span></div></div></div>
+    <div class="rank"><div class="no">14</div><div class="body"><div class="t">1 SEUL jeton Capitaine/Maire en métal émaillé (hard enamel) signature</div><div class="d">Un unique jeton métal qui apporte le POIDS/premium tangible au soupesage (argument vente concret) et comble le volume (anti-vide). Fonction utile native du Loup-Garou. À limiter strictement à 1 modèle = 1 moule ; au-delà, code « goodies geek » qui tire la DA vers le gadget et alourdit la certif.</div><div class="meta"><span class="tag prem">3/5 · poids/anti-vide, avec parcimonie</span><span class="cost"><b>€€</b></span></div></div></div>
+    <div class="rank"><div class="no">15</div><div class="body"><div class="t">Marqueurs en carton 2 mm black core vernis assortis aux cartes (Mort, Amoureux ×2, Vote)</div><div class="d">Set réduit de marqueurs carton épais coordonnés au deck plutôt que des jetons émaillés multiples. Couvre les besoins réels (suivre morts/amoureux) sans coût ni surpoids ni mise en place rallongée. Coupe invisible pour le client.</div><div class="meta"><span class="tag prem">2/5 · praticité épurée, premium discret</span><span class="cost"><b>€</b></span></div></div></div>
+  </div>
+</section>
+
+<!-- ========== III FORMAT ========== -->
+<section id="format">
+  <h2 class="sec"><span class="num">III</span>Le format idéal : boîte & cartes</h2>
+  <p class="lead">Format retenu après confrontation des 3 angles et arbitrage des évaluateurs : compact, dense, debout, sans vide.</p>
+  <div class="card gold">
+    <dl class="spec">
+      <dt>Dimensions boîte</dt><dd>Coffret book-box rigide compact <b>80 × 132 × 32 mm</b>, carton gris 2,5 mm. Format dense où la boîte épouse le contenu (16 cartes ~7 mm + carte-narrateur + insert + marqueurs), ZÉRO vide. Verticalité à 132 mm pour la présence rayon, mais sous les 160 mm = compatible présentoirs de caisse / achat d'impulsion. Bannir tout coffret-livre 200 mm aux ¾ vide.</dd>
+      <dt>Type d'ouverture</dt><dd>Rabat latéral façon écrin/livre : le couvercle bascule comme une couverture et révèle les cartes dressées verticalement dans l'insert (effet grimoire). Préférable au tiroir (moins premium) et à la boîte cloche (encombrante, pas de magnétique). Réouverture infinie sans usure.</dd>
+      <dt>Côté magnétique</dt><dd>Fermeture par 2 à 4 aimants néodyme N35 plats (~10 × 3 × 1 mm) noyés dans le rabat et le corps, en regard de plaques métal. « Clac » net et silencieux. Force calibrée : tenue ferme à l'empilage palette, ouverture fluide côté client. Aucun composant ferreux interne mobile (raison d'exclure la carte métal) pour ne pas perturber la tenue.</dd>
+      <dt>Dimensions cartes</dt><dd>16 cartes + 1 carte-narrateur au format tarot <b>70 × 120 mm</b>, coins arrondis rayon ~3,5 mm. Épaisseur ~0,35 mm/carte (350 g/m²), deck ~6–7 mm. Plus grandes que des cartes classiques (63,5 × 88 mm) = effet collection et lisibilité.</dd>
+      <dt>Finitions cartes</dt><dd>Carton 350 g/m² cœur noir (opacité anti-triche, tranche noire). Pelliculage lin soft-touch recto-verso. Dorure à chaud du dos commun + liseré doré imprimé sur le cadre recto. Éviter le spot UV (effet collant au battage, registre incertain en petite série) et la tranche dorée sur l'édition de jeu (s'écaille) : la réserver à une édition collector.</dd>
+      <dt>Pourquoi ça marche en rayon</dt><dd>Format vertical = tenue debout stable, face avant entièrement visible comme une couverture de livre, dos/tranche illustrés pour le rangement serré. Compact et dense = soupesage premium (le client sent le poids, pas le vide), tient dans un sac, cadeau facile, prix 29,90–39,90 € crédible. La dorure-gaufrage accroche la lumière à 3 m ; la face avant raconte le jeu en 1 seconde (titre + UN arcane plein cadre).</dd>
+    </dl>
+  </div>
+</section>
+
+<!-- ========== IV ROLES ========== -->
+<section id="roles">
+  <h2 class="sec"><span class="num">IV</span>Les 16 rôles — un jeu jouable et équilibré</h2>
+  <p class="lead">4 Loups · 9 Village · 3 Solo/Ambigu. Chaque rôle = un arcane majeur unique (I à XVI). On compose une donne de 8 à 13 joueurs en piochant dans ce pool.</p>
+  <div class="grid">
+    <div class="tcard"><div class="rn">ARCANE I</div><div class="nm">Le Loup-Garou <span style="color:var(--txt-mut);font-size:13px">(La Lune)</span></div><div class="pw">Dévore une victime chaque nuit avec les autres loups. Cœur de la faction maudite.</div><span class="camp loups">Loups</span></div>
+    <div class="tcard"><div class="rn">ARCANE II</div><div class="nm">Le Loup Alpha / Grand Loup</div><div class="pw">Sa voix tranche en cas d'égalité chez les loups. Une fois, peut transformer la victime en loup au lieu de la tuer.</div><span class="camp loups">Loups</span></div>
+    <div class="tcard"><div class="rn">ARCANE III</div><div class="nm">L'Infect Père des Loups</div><div class="pw">Une seule fois, infecte sa victime nocturne : elle rejoint les loups au lieu de mourir.</div><span class="camp loups">Loups</span></div>
+    <div class="tcard"><div class="rn">ARCANE IV</div><div class="nm">Le Loup-Garou Blanc</div><div class="pw">Joue avec les loups mais gagne SEUL. Une nuit sur deux, peut dévorer un autre loup. Doit être le dernier survivant.</div><span class="camp solo">Solo / Ambigu</span></div>
+    <div class="tcard"><div class="rn">ARCANE V</div><div class="nm">La Voyante <span style="color:var(--txt-mut);font-size:13px">(La Papesse)</span></div><div class="pw">Chaque nuit, sonde secrètement l'identité d'un joueur de son choix.</div><span class="camp village">Village</span></div>
+    <div class="tcard"><div class="rn">ARCANE VI</div><div class="nm">La Sorcière <span style="color:var(--txt-mut);font-size:13px">(L'Impératrice)</span></div><div class="pw">1 potion de vie (ressuscite la victime) + 1 potion de mort (élimine un joueur), chacune à usage unique.</div><span class="camp village">Village</span></div>
+    <div class="tcard"><div class="rn">ARCANE VII</div><div class="nm">Le Chasseur <span style="color:var(--txt-mut);font-size:13px">(Le Chariot)</span></div><div class="pw">Quand il meurt (loups ou vote), il abat immédiatement un joueur de son choix.</div><span class="camp village">Village</span></div>
+    <div class="tcard"><div class="rn">ARCANE VIII</div><div class="nm">Cupidon <span style="color:var(--txt-mut);font-size:13px">(Les Amoureux)</span></div><div class="pw">La 1ʳᵉ nuit, désigne 2 amoureux. Si l'un meurt, l'autre meurt de chagrin. Le couple a sa propre victoire.</div><span class="camp village">Village</span></div>
+    <div class="tcard"><div class="rn">ARCANE IX</div><div class="nm">Le Garde / Salvateur <span style="color:var(--txt-mut);font-size:13px">(Le Soleil)</span></div><div class="pw">Chaque nuit, protège un joueur de l'attaque des loups. Jamais le même deux nuits de suite.</div><span class="camp village">Village</span></div>
+    <div class="tcard"><div class="rn">ARCANE X</div><div class="nm">La Petite Fille <span style="color:var(--txt-mut);font-size:13px">(L'Étoile)</span></div><div class="pw">Peut espionner les loups pendant leur réveil, à ses risques (si repérée, le narrateur peut la désigner).</div><span class="camp village">Village</span></div>
+    <div class="tcard"><div class="rn">ARCANE XI</div><div class="nm">L'Ancien <span style="color:var(--txt-mut);font-size:13px">(L'Hermite)</span></div><div class="pw">Survit à la 1ʳᵉ attaque des loups. Mais s'il est lynché, tous les villageois perdent leurs pouvoirs.</div><span class="camp village">Village</span></div>
+    <div class="tcard"><div class="rn">ARCANE XII</div><div class="nm">L'Idiot du Village <span style="color:var(--txt-mut);font-size:13px">(Le Mat)</span></div><div class="pw">S'il est désigné par le vote, il est démasqué mais survit ; il perd seulement son droit de vote.</div><span class="camp village">Village</span></div>
+    <div class="tcard"><div class="rn">ARCANE XIII</div><div class="nm">Le Villageois <span style="color:var(--txt-mut);font-size:13px">(La Force)</span></div><div class="pw">Aucun pouvoir. Vote simple. Rôle de bluff pur, indispensable pour que loups et rôles à pouvoir mentent crédiblement.</div><span class="camp village">Village</span></div>
+    <div class="tcard"><div class="rn">ARCANE XIV</div><div class="nm">Le Maire / Capitaine <span style="color:var(--txt-mut);font-size:13px">(L'Empereur)</span></div><div class="pw">Sa voix compte double lors des votes. À sa mort, il désigne son successeur (jeton Capitaine métal).</div><span class="camp village">Village</span></div>
+    <div class="tcard"><div class="rn">ARCANE XV</div><div class="nm">Le Joueur de Flûte <span style="color:var(--txt-mut);font-size:13px">(Le Bateleur)</span></div><div class="pw">Charme 2 joueurs par nuit. Gagne SEUL si tous les survivants sont charmés.</div><span class="camp solo">Solo / Ambigu</span></div>
+    <div class="tcard"><div class="rn">ARCANE XVI</div><div class="nm">L'Ange <span style="color:var(--txt-mut);font-size:13px">(Le Jugement)</span></div><div class="pw">Gagne immédiatement s'il se fait lyncher ou dévorer dès le 1ᵉʳ tour. Sinon, devient un simple villageois.</div><span class="camp solo">Solo / Ambigu</span></div>
+  </div>
+</section>
+
+<!-- ========== V JOUER ========== -->
+<section id="jouer">
+  <h2 class="sec"><span class="num">V</span>Comment on joue (et pourquoi ça reste pratique)</h2>
+  <div class="card">
+    <h4>Déroulement d'une partie</h4>
+    <ul class="step">
+      <li>Le narrateur prend la carte-narrateur et choisit la donne selon le tableau des compositions imprimé au verso (ex. 8 joueurs : 2 Loups + Voyante + Sorcière + Chasseur + Cupidon + 2 Villageois). On ne joue JAMAIS les 16 à la fois : le pool de 16 arcanes uniques sert à composer une donne de 8 à 13 joueurs.</li>
+      <li>Distribution main à main, face cachée (pas de sac qui abîme les tranches).</li>
+      <li><b>Phase de nuit</b>, pilotée par l'ordre de réveil gravé au recto de la carte-narrateur : Cupidon (1ʳᵉ nuit) › Amoureux se reconnaissent › Voyante › Garde › Loups-Garous › Sorcière › Petite Fille (en parallèle des loups) › Joueur de Flûte. « Le village s'endort », chaque rôle est appelé dans l'ordre, agit, se rendort.</li>
+      <li><b>Phase de jour</b> : annonce des morts (carte retournée face visible + marqueur Mort posé dessus), débat, accusations, vote à main levée, lynchage, déclenchement des pouvoirs de mort (Chasseur, Idiot, Ancien).</li>
+      <li><b>Conditions de victoire</b> multiples : Village (tous les loups éliminés), Loups (parité atteinte), Amoureux (les 2 derniers), Loup Blanc / Flûtiste / Ange (conditions solo).</li>
+    </ul>
+    <h4>Praticité malgré le format collection</h4>
+    <p style="color:var(--txt-soft)">Mise en place en <b style="color:var(--or2)">moins de 90 secondes</b> (16 cartes seulement, tri rapide). Lisibilité à deux niveaux : icône de faction discrète en coin (lune/œil/bouclier/cœur/étoile) + numérotation arcane I-XVI ; le rappel détaillé des pouvoirs est sur l'aide centralisée (couvercle + carte-narrateur), JAMAIS au dos (qui reste strictement identique pour le bluff) ni gravé dans l'illustration (qui figerait les règles). <b style="color:var(--or2)">Aucune appli nécessaire.</b> Gestion des morts par carte retournée + marqueur. Jeton Capitaine métal pour le vote double et la succession.</p>
+  </div>
+</section>
+
+<!-- ========== VI RECOS ========== -->
+<section id="recos">
+  <h2 class="sec"><span class="num">VI</span>Recommandations finales : qualité / prix</h2>
+  <p class="lead">Trois scénarios chiffrés. Coûts = fabrication rendue Europe (DDP) — hors amortissement illustration (~2,5–4 €/u) et go-to-market (~1–2 €/u) à intégrer au business plan.</p>
+  <div class="recos">
+    <div class="reco win">
+      <span class="crown">★ Recommandé · meilleur Q/P</span>
+      <div class="lab">Premium Malin</div>
+      <div class="price">34,90 €</div>
+      <div class="cogs">prix public · coût ≈ 7,0 €/u (3000 ex)</div>
+      <div class="txt">Coffret rigide magnétique soft-touch + dorure/gaufrage d'UN foyer ; 16 cartes 350 g black core lin avec dorure du dos + liseré doré imprimé (<b style="color:var(--or2)">pas</b> de tranche dorée fragile, <b style="color:var(--or2)">pas</b> de spot UV) ; carte-narrateur cartonnée ; 1 jeton Capitaine émaillé ; marqueurs carton ; insert PET noir + ruban ; belly-band. <b style="color:var(--or2)">Conserve 90 % de la qualité perçue</b> en supprimant les 2 postes au pire ROI. Seul scénario où le triangle coût / prix-rayon / marge est cohérent (39,90 € pour une marge éditeur confortable).</div>
+    </div>
+    <div class="reco">
+      <div class="lab">Qualité Max · Collector</div>
+      <div class="price">54,90–64,90 €</div>
+      <div class="cogs">coût complet ≈ 14,5 €/u (2000–3000 ex)</div>
+      <div class="txt">Édition collector ultime en circuit premium/direct (boutique, web propre) pour limiter les intermédiaires. Carton 2,5 mm soft-touch profond, gaufrage sculpté multi-niveaux, dos de beau livre, 4 aimants. Cartes black core lin + dorure du dos <b>ET</b> tranche dorée (assumée malgré la fragilité). Illustrations premium (DA 15–25 k€). Insert PET avec doublure anti-frottement. Numérotation <b>réellement</b> limitée et tracée. Idéalement un 2ᵉ SKU à côté de l'édition de jeu.</div>
+    </div>
+    <div class="reco">
+      <div class="lab">Prix Min · viable rayon</div>
+      <div class="price">29,90 €</div>
+      <div class="cogs">coût ≈ 5,2 €/u (5000 ex)</div>
+      <div class="txt">Coupes <b style="color:var(--or2)">invisibles</b> pour le client : carton 2 mm, dorure seule du titre (pas de gaufrage multi-niveaux ni spot UV), 2 aimants, liseré doré imprimé à la place de la tranche dorée (−0,9 à 1,3 € et l'or ne s'écaille plus), aucun composant métal (allège la certif EN71), insert PET sans ruban, livret minimal. Les 4 leviers de premium perçu (dorure-gaufrage, magnétique, soft-touch, black core) sont <b>intégralement conservés</b>. Volume 5000 = meilleur amortissement outillage + fret FCL.</div>
+    </div>
+  </div>
+  <div class="callout">
+    <b>La faille n°1 corrigée par l'audit :</b> ne jamais confondre coût usine et prix public. En vente <b>en rayon</b>, le prix public TTC ≈ <b>4 à 5×</b> le coût de revient usine (marge éditeur + distributeur ~25–40 % + détaillant ~40–50 %). Un coût de 8–9 € pousse mécaniquement le prix « naturel » vers 39–49 €. Pour tenir 34,90 € en rayon, il faut rabattre le coût vers 6–7 € — d'où le scénario « Premium Malin ».
+  </div>
+</section>
+
+<!-- ========== VII COUTS ========== -->
+<section id="couts">
+  <h2 class="sec"><span class="num">VII</span>Détail des coûts de fabrication</h2>
+  <p class="lead">Deux chiffrages indépendants (base 3000 ex, fabrication Asie, rendu Europe DDP). Postes en euros par unité.</p>
+
+  <h3>Chiffrage A — Premium Haute (toutes finitions, avec tranche dorée)</h3>
+  <table>
+    <thead><tr><th>Poste</th><th style="text-align:right">€/u</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>16 cartes tarot 350 g black core + lin</td><td class="num">0,95</td><td>Grand format, 16 cartes = mauvais rendement vs deck de 54-80.</td></tr>
+      <tr><td>Dorure à chaud du dos commun</td><td class="num">0,45</td><td>Motif arcane, une teinte d'or, registre soigné.</td></tr>
+      <tr><td>Tranche dorée (gilt edge, 4 côtés)</td><td class="num">0,90</td><td>Coût quasi fixe par bloc fin de 16 cartes ; risque d'écaillage.</td></tr>
+      <tr><td>Carte-narrateur premium dorée</td><td class="num">0,30</td><td>Remplace la carte métal gravée (rejetée).</td></tr>
+      <tr><td>Coffret rigide magnétique 80×132×32</td><td class="num">2,20</td><td>Carton 2 mm + papier 157 g + soft-touch, montage manuel.</td></tr>
+      <tr><td>Aimants néodyme N35 (2–4)</td><td class="num">0,18</td><td>Le « clac » premium.</td></tr>
+      <tr><td>Finitions coffret (dorure + gaufrage + dos livre + spot UV)</td><td class="num">0,55</td><td>Foyer doré unique = contraste premium.</td></tr>
+      <tr><td>Insert thermoformé PET noir mat + ruban</td><td class="num">0,55</td><td>Pas de velours floqué fragile.</td></tr>
+      <tr><td>Jeton Capitaine métal émaillé (1 pièce)</td><td class="num">0,45</td><td>Poids/premium tangible.</td></tr>
+      <tr><td>Marqueurs carton black core vernis</td><td class="num">0,20</td><td>Mort + 2 Amoureux + Vote.</td></tr>
+      <tr><td>Mini-livret 8 pages</td><td class="num">0,18</td><td>Réduit (info aussi sur carte-narrateur + couvercle).</td></tr>
+      <tr><td>Emballage (cello + belly-band + master)</td><td class="num">0,22</td><td>Pas de blister.</td></tr>
+      <tr><td>Outillage amorti (matrices, moules, découpes)</td><td class="num">0,55</td><td>~1500–1800 € one-time / 3000.</td></tr>
+      <tr><td>Certification CE / EN71 + tests labo</td><td class="num">0,20</td><td>Plus simple sans pièce métal coupante.</td></tr>
+      <tr><td>Transport maritime + douane (DDP)</td><td class="num">0,65</td><td>Boîtes compactes ~250-300 g.</td></tr>
+      <tr><td>Aléas / pertes / QC / marge (5–7 %)</td><td class="num">0,47</td><td>Casse, rebuts (tranche dorée), change USD/EUR.</td></tr>
+    </tbody>
+    <tfoot><tr><td>Coût total unitaire (DDP)</td><td class="num">≈ 9,00 €</td><td>Prix de vente conseillé : 34,90 € (recalculé à 44,90–49,90 € par l'audit)</td></tr></tfoot>
+  </table>
+
+  <h3>Chiffrage B — Premium Optimisé (90 % de l'effet, ratio impact/coût)</h3>
+  <table>
+    <thead><tr><th>Poste</th><th style="text-align:right">€/u</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>16 cartes 350 g cœur noir + soft-touch lin</td><td class="num">0,95</td><td>—</td></tr>
+      <tr><td>Tranche dorée (or unique)</td><td class="num">0,85</td><td>Poste le moins rentable, conservé pour l'effet collection.</td></tr>
+      <tr><td>Carte-narrateur cartonnée premium</td><td class="num">0,30</td><td>Lisible, zéro risque sécurité.</td></tr>
+      <tr><td>Boîte rigide magnétique carton 2,5 mm soft-touch lin</td><td class="num">2,40</td><td>Cœur du premium perçu.</td></tr>
+      <tr><td>Finitions boîte (dorure + gaufrage, un seul or, spot UV localisé)</td><td class="num">0,55</td><td>Meilleur ratio impact/coût.</td></tr>
+      <tr><td>Insert PET noir mat + ruban gros-grain</td><td class="num">0,45</td><td>Anti-rayures, robuste.</td></tr>
+      <tr><td>Marqueur Capitaine métal émaillé (1 pièce)</td><td class="num">0,55</td><td>Seul accessoire métal conservé.</td></tr>
+      <tr><td>Livret minimaliste A6</td><td class="num">0,25</td><td>Réduit.</td></tr>
+      <tr><td>Emballage (belly-band + cello + master)</td><td class="num">0,30</td><td>Pas de slipcase.</td></tr>
+      <tr><td>Transport FOB → UE + douane</td><td class="num">0,65</td><td>Objet compact dense.</td></tr>
+      <tr><td>Certification CE / EN71 + REACH</td><td class="num">0,20</td><td>Tests amortis.</td></tr>
+      <tr><td>Outillage amorti</td><td class="num">0,45</td><td>~1300–1400 € / 3000.</td></tr>
+    </tbody>
+    <tfoot><tr><td>Coût total unitaire</td><td class="num">≈ 7,90 €</td><td>Prix de vente conseillé : 34,90 €</td></tr></tfoot>
+  </table>
+
+  <h3>Fournisseurs types identifiés</h3>
+  <ul class="clean">
+    <li><b>Jeux de cartes premium Asie</b> (black core + lin + gilt edge + coffret en une chaîne) : WJPC (Dongguan), QPC / Qiao Pai Cards, LongPack Games, Panda Game Manufacturing (PGM), Ningbo Reliable, Whatz Games.</li>
+    <li><b>Coffrets rigides magnétiques</b> (book-box, hot foil, gaufrage, soft-touch) : usines rigid box Dongguan/Shenzhen, Hongte Printing, Shenzhen JinXiang Packaging.</li>
+    <li><b>Alternative Europe</b> (+35 à +50 %, « fabriqué en UE » revendicable) : Cartamundi (BE), Ludofact (DE), Carta Mundi / France Cartes (FR).</li>
+    <li><b>Jeton métal émaillé</b> (hard enamel, 1 seul moule) : fournisseurs pins/médailles (Yiwu/Zhongshan), GS-JJ, The Studio.</li>
+    <li><b>Contrôle qualité / sourcing</b> : agent QC type QIMA (tenue aimants, registre dorure, coupe cartes), bureau d'achat DDP.</li>
+  </ul>
+</section>
+
+<!-- ========== VIII AUDIT ADVERSARIAL COUTS ========== -->
+<section id="adv">
+  <h2 class="sec"><span class="num">VIII</span>Audit adversarial des coûts</h2>
+  <p class="lead">Deux évaluateurs ont contesté les chiffrages : un « chasseur de marge » (contrôle de gestion) et un expert « valeur perçue ». Leurs corrections majeures.</p>
+
+  <h3>Contestations du contrôleur de gestion</h3>
+  <div class="card">
+    <div class="crit"><div class="who">Marge distributeur + détaillant ABSENTE <span class="grav forte">forte</span></div><div class="pb">Les chiffrages sautent d'un coût DDP de 7,9–9 € à un prix public de 34,90 €, comme si l'on vendait en direct. En rayon, le prix public TTC ≈ 4–5× le coût usine.</div><div class="fx">Soit assumer 44,90–49,90 € pour un coût de 8–9 €, soit rabattre le coût à 6–6,5 € pour tenir 34,90 €. On ne peut pas avoir le coût premium maximal ET 34,90 € en circuit multi-intermédiaire.</div></div>
+    <div class="crit"><div class="who">Tranche dorée sous-estimée <span class="grav forte">forte</span></div><div class="pb">Coût quasi fixe par bloc, normalement amorti sur 54-80 cartes. Sur 16 cartes, rendement médiocre, rebut élevé (écaillage). Réaliste : 1,00–1,50 €, pas 0,85.</div><div class="fx">Supprimer le gilt edge sur l'édition de jeu, le remplacer par dorure du dos + liseré imprimé. Économie 0,85–1,40 €/u sans perte de qualité perçue réelle à l'usage.</div></div>
+    <div class="crit"><div class="who">Coûts éditeur amont ABSENTS (illustration, structure, marketing) <span class="grav forte">forte</span></div><div class="pb">Illustrer 16 cartes « magnifiques » coûte 8000–25000 € (500–1500 €/illustration). Sur 3000 u = 2,5 à 8 €/u d'amortissement créatif, totalement absent. + référencement enseigne, PLV, échantillons.</div><div class="fx">Intégrer 2,5–4 €/u de DA + 1–2 €/u de go-to-market. Le coût COMPLET sur 3000 u est plutôt 13–16 €/u, pas 8–9.</div></div>
+    <div class="crit"><div class="who">Amortissement outillage trop optimiste <span class="grav moyenne">moyenne</span></div><div class="pb">Amortir sur 3000 suppose qu'elles se vendent. Sell-through 50-60 % an 1 plus prudent. Outillage réel 2200–3000 € (moule thermo 600-900, BAT 600-1000).</div><div class="fx">Provisionner 0,70–0,80 €/u, raisonner le seuil sur unités VENDUES, + provision invendus 0,30–0,50 €/u.</div></div>
+    <div class="crit"><div class="who">Fret DDP 0,65 € optimiste <span class="grav moyenne">moyenne</span></div><div class="pb">3000 boîtes = LCL (groupage), pas FCL. Frais fixes transitaire mal amortis.</div><div class="fx">Budgéter 1,00–1,30 €/u. Le 0,65 n'est atteignable qu'au-delà de 6000–8000 u (FCL).</div></div>
+    <div class="crit"><div class="who">Certif + jeton métal sous-évalués <span class="grav moyenne">moyenne</span></div><div class="pb">Le métal émaillé impose des tests supplémentaires (migration métaux lourds EN71-3, nickel REACH). Tests initiaux 700–1200 €.</div><div class="fx">Budgéter 0,30–0,35 €/u. Question coût/bénéfice : le jeton métal est le composant qui tire le plus la conformité vers le haut.</div></div>
+  </div>
+
+  <h3>Verdict valeur perçue : où mettre / couper 1 €</h3>
+  <table>
+    <thead><tr><th>Levier conservé</th><th>Pourquoi</th><th style="text-align:right">€/u</th><th style="text-align:right">Q/P</th></tr></thead>
+    <tbody>
+      <tr><td>Dorure à chaud + gaufrage d'un foyer</td><td>Déclencheur n°1 de la prise en main en rayon.</td><td class="num">0,55</td><td class="num">10/10</td></tr>
+      <tr><td>Fermeture magnétique (le « clac »)</td><td>Argument sensoriel testé par le client lui-même.</td><td class="num">0,18</td><td class="num">10/10</td></tr>
+      <tr><td>Carton 350 g black core + soft-touch/lin</td><td>Premium honnête au toucher + anti-triche.</td><td class="num">0,95</td><td class="num">9/10</td></tr>
+      <tr><td>Soft-touch mat sur le coffret</td><td>Toucher velours + résistance aux empreintes.</td><td class="num">0,20</td><td class="num">9/10</td></tr>
+      <tr><td>Dos/tranche de boîte façon beau livre</td><td>Visibilité en rangement serré, coût ~0.</td><td class="num">0,05</td><td class="num">9/10</td></tr>
+      <tr><td>Carte-narrateur cartonnée + aide dans couvercle</td><td>Résout la gestion du meneur à coût quasi nul.</td><td class="num">0,15</td><td class="num">9/10</td></tr>
+      <tr><td>Insert PET noir mat + ruban</td><td>Effet lingot/grimoire, robuste vs velours floqué.</td><td class="num">0,50</td><td class="num">8/10</td></tr>
+      <tr><td>Format compact 80×132×32 + numérotation arcanes</td><td>Volumétrie honnête (pas de vide), désirabilité.</td><td class="num">0,15</td><td class="num">8/10</td></tr>
+      <tr><td>1 SEUL jeton Capitaine métal émaillé</td><td>Poids/anti-vide ; au-delà = code gadget.</td><td class="num">0,50</td><td class="num">7/10</td></tr>
+      <tr><td>Belly-band inviolable (vs blister/PVC)</td><td>Sécurité rayon sans dégrader le luxe.</td><td class="num">0,20</td><td class="num">8/10</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <b>Synthèse valeur perçue :</b> coût rendu Europe réaliste = <b>8,5–9,5 € AVEC</b> tranche dorée, ou <b>7,6–8,4 € SANS</b> (remplacée par dorure du dos + liseré). À 34,90 €, la version sans tranche dorée offre la meilleure marge <i>sans perte de premium perçu</i> — l'or de tranche ne se voit pas boîte fermée et s'écaille au jeu. Le vrai levier de marge n'est pas la coupe de finition mais le <b>volume</b> : passer à 5000 u fait tomber l'outillage à ~0,40 €/u et améliore le rendement carte/coffret.
+  </div>
+</section>
+
+<!-- ========== IX IDEES BRUTES ========== -->
+<section id="idees">
+  <h2 class="sec"><span class="num">IX</span>Idées brutes des 3 générateurs</h2>
+  <p class="lead">Avant tri. Chaque agent a exploré un angle distinct. Déplie pour lire le détail.</p>
+
+  <details>
+    <summary>Générateur 1 — Édition de luxe / objet de collection</summary>
+    <div class="inner">
+      <p class="angle">Angle : un coffret « tarot de bluff » pensé comme un bel objet qu'on pose sur une étagère et qu'on offre.</p>
+      <ul class="clean">
+        <li><b>Coffret rigide gainé similicuir + dos toile de lin.</b> Contraste cuir/lin haut de gamme. <span style="color:var(--rouge)">(similicuir rejeté ensuite)</span></li>
+        <li><b>Titre en dorure à chaud or + gaufrage.</b> L'élément qui fait prendre la boîte en main.</li>
+        <li><b>Fermeture magnétique à rabat type écrin.</b> Le « clac » silencieux, aucun plastique.</li>
+        <li><b>Insert velours moulé (thermoformé floqué).</b> Look bijouterie. <span style="color:var(--rouge)">(velours rejeté : fragile/salissant)</span></li>
+        <li><b>Ruban de retrait des cartes.</b> Détail couture d'écrin horloger.</li>
+        <li><b>Tranche dorée des cartes (gilded edges).</b> Effet « lingot » à l'ouverture.</li>
+        <li><b>Vernis sélectif spot UV + soft-touch.</b> Toucher mat, ornements qui brillent.</li>
+        <li><b>Livret de meneur papier texturé.</b> Guide de collection des 16 arcanes.</li>
+        <li><b>Carte certificat / numérotation d'édition.</b> <span style="color:var(--rouge)">(à éviter si tirage non réellement limité)</span></li>
+        <li><b>Étui fourreau (slipcase) ajouré.</b> <span style="color:var(--rouge)">(rejeté : double emballage redondant)</span></li>
+        <li><b>Jetons de statut en métal ou bois gravé.</b></li>
+        <li><b>Doublure intérieure de couvercle imprimée.</b> Aide de jeu toujours visible.</li>
+      </ul>
+      <p style="color:var(--txt-mut);font-size:14px"><i>Format proposé : 135 × 200 × 45 mm — recalibré ensuite à un format compact par tous les évaluateurs.</i></p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Générateur 2 — Game design & praticité</summary>
+    <div class="inner">
+      <p class="angle">Angle : faire tourner une vraie partie de Loup-Garou avec 16 cartes, en réglant lisibilité des pouvoirs, gestion du meneur et mise en place.</p>
+      <ul class="clean">
+        <li><b>Carte-narrateur en métal gravé.</b> Ordre de réveil + règles au laser. <span style="color:var(--rouge)">(concept retenu mais en carte cartonnée, pas métal)</span></li>
+        <li><b>Jetons émaillés (cloisonné) faction & états.</b> 6–8 pièces façon pin's. <span style="color:var(--rouge)">(réduit à 1 seul)</span></li>
+        <li><b>Boîte rigide magnétique book-binding + tranche imprimée.</b></li>
+        <li><b>Finitions cartes : dorure + spot UV + tranche dorée.</b></li>
+        <li><b>Tableau des compositions sérigraphié sur la cale interne.</b> Zéro composant additionnel.</li>
+        <li><b>Sachet velours + ruban pour le tirage des rôles.</b> <span style="color:var(--rouge)">(rejeté : abîme les cartes)</span></li>
+      </ul>
+      <p style="color:var(--txt-soft)">Cet angle a fixé la <b>structure de jeu</b> finalement retenue : pool de 16 rôles uniques, donne de 8 à ~13 joueurs, carte-narrateur hors paquet, lisibilité à deux niveaux (icône de faction + cartouche bas), ordre de réveil fixe. Format proposé : 78 × 128 × 32 mm — le seul jugé volumétriquement honnête.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Générateur 3 — Format, packaging & mise en rayon</summary>
+    <div class="inner">
+      <p class="angle">Angle : le format idéal pour la vente en rayon (dimensions, ouverture, accroche, robustesse, tenue debout).</p>
+      <ul class="clean">
+        <li><b>Book-box magnétique rigide carton 2,5 mm habillé papier 157 g.</b> Sensation de poids et « clac ».</li>
+        <li><b>Dorure à chaud or/cuivre + gaufrage du titre et d'un arcane.</b> Le levier premium le plus rentable.</li>
+        <li><b>Soft-touch mat + vernis sélectif spot UV sur les illustrations.</b></li>
+        <li><b>Calage thermoformé noir ou berceau carton sur-mesure.</b> Effet écrin à l'ouverture.</li>
+        <li><b>Tranche illustrée façon dos de livre.</b> Visibilité en rangement vertical.</li>
+        <li><b>Belly-band premium plutôt que blister.</b> <span style="color:var(--rouge)">(fenêtre vitrée rejetée)</span></li>
+        <li><b>Tranche de cartes dorée visible à l'ouverture.</b></li>
+        <li><b>Aimant renforcé + onglet d'ouverture pour la tenue au transport.</b></li>
+      </ul>
+      <p style="color:var(--txt-mut);font-size:14px"><i>A comparé tuck-box (écartée), boîte cloche (écartée) et book-box magnétique (retenue).</i></p>
+    </div>
+  </details>
+</section>
+
+<!-- ========== X EVAL ADVERSARIAL IDEES ========== -->
+<section id="eval">
+  <h2 class="sec"><span class="num">X</span>Évaluations adversariales des idées</h2>
+  <p class="lead">Trois évaluateurs (DA luxe, chef de production/sourcing, acheteur magasin + collectionneur) ont traqué le faux premium, l'infaisable et l'invendable. Synthèse des verdicts.</p>
+
+  <h3>Faux premium & pièges écartés</h3>
+  <div class="card">
+    <ul class="clean kill">
+      <li><b>Similicuir (faux cuir PU/PVC) :</b> succédané identifiable au toucher, faux premium par définition. Préférer toile/papier texturé honnête ou soft-touch profond.</li>
+      <li><b>Format coffret-livre 135 × 200 × 45 mm :</b> aux ¾ vide pour 16 cartes — « esbroufe volumétrique » que le vrai luxe sanctionne ; sort aussi des présentoirs d'impulsion (&lt;160 mm).</li>
+      <li><b>Empilement de dorures</b> (boîte + tranche + jetons + certificat, or + or rose) : bascule clinquant, aucun point focal, mélange de températures de métal.</li>
+      <li><b>Tranche dorée (gilt edge) sur l'édition de jeu :</b> non industrialisable proprement sur un bloc de 16 cartes, s'écaille en quelques parties (on bat/distribue à chaque partie). À réserver à une édition collector qu'on ne joue pas.</li>
+      <li><b>Carte-narrateur en métal massif gravé :</b> 3–8 €/pièce, bords coupants (EN71), interaction avec les aimants de fermeture, gravure illisible en lumière tamisée.</li>
+      <li><b>Velours floqué sur l'insert :</b> fibres qui se décollent, prend la poussière, ne tient pas les cartes dressées. Remplacer par PET noir mat.</li>
+      <li><b>Slipcase/étui fourreau ajouré :</b> double emballage, frottement qui use la dorure, fenêtre = point de déchirure.</li>
+      <li><b>Fenêtre vitrée / blister PVC :</b> code grande distribution, jaunit, raye, contredit l'écrin.</li>
+      <li><b>Set de 6–8 jetons émaillés :</b> multiplication des moules, coût/poids, code « goodies geek ». Réduire à 1 seul.</li>
+      <li><b>Texte de pouvoir au dos des cartes :</b> détruit l'anonymat du dos commun = faille anti-bluff.</li>
+      <li><b>QR code gravé vers une appli :</b> anachronisme qui date l'objet et meurt avec l'URL.</li>
+      <li><b>Sachet de tirage à l'aveugle :</b> raye la tranche et corne les angles. Distribution main à main.</li>
+    </ul>
+  </div>
+
+  <h3>Correction de game design imposée</h3>
+  <div class="callout">
+    <b>La promesse « jusqu'à 16 joueurs » n'est pas tenable</b> avec 16 cartes uniques (il faudrait plusieurs Villageois et plusieurs Loups identiques). Verdict retenu : assumer publiquement un <b>pool de 16 arcanes uniques pour des donnes de 8 à ~13 joueurs</b>, en piochant le sous-ensemble adapté. Cohérence collection (1 arcane = 1 rôle) et cohérence jeu enfin alignées. C'est la position finale du dossier.
+  </div>
+
+  <h3>Idées plébiscitées par les 3 évaluateurs (consensus)</h3>
+  <ul class="clean">
+    <li><b>Dorure à chaud + gaufrage d'un seul foyer</b> — meilleur ratio premium/coût du brief (score 9/10 partout).</li>
+    <li><b>Fermeture magnétique « clac »</b> — argument sensoriel décisif, exigé par le brief.</li>
+    <li><b>Carton 350 g cœur noir + soft-touch/lin</b> — premium honnête au toucher + anti-triche réelle.</li>
+    <li><b>Format compact dense ~80 × 132 × 32 mm</b> — seul format volumétriquement honnête.</li>
+    <li><b>Carte-narrateur cartonnée</b> — résout la gestion du meneur sans appli (version carte, pas métal).</li>
+    <li><b>Numérotation des arcanes I–XVI + iconographie de faction discrète</b> — réconcilie art et jouabilité à coût nul.</li>
+    <li><b>Dos/tranche de boîte façon beau livre</b> — intelligence merchandising à coût ~0.</li>
+  </ul>
+</section>
+
+<!-- ========== XI PLAN ========== -->
+<section id="plan">
+  <h2 class="sec"><span class="num">XI</span>Plan d'action & calendrier</h2>
+  <div class="card">
+    <ul class="step">
+      <li><b>Cadrage & game design (semaines 1–3).</b> Figer les 16 rôles et l'équilibrage, rédiger les règles, le tableau des compositions 6/8/10/12/13 joueurs et l'ordre de réveil. Playtester sur prototypes papier « print-and-play » AVANT toute dépense d'illustration.</li>
+      <li><b>Direction artistique & illustration (semaines 3–12).</b> Recruter un illustrateur/DA (budget 8000–25000 € pour 16 arcanes + dos commun + face de boîte). Palette noir bleuté / bordeaux / or, cadre ornemental, correspondance tarot, iconographie de faction, numérotation I–XVI. Livrables HD CMJN + zones de dorure séparées.</li>
+      <li><b>Sourcing & devis (en parallèle, semaines 4–8).</b> Consulter 3–4 fabricants premium Asie (WJPC, QPC, LongPack, PGM) + 1 européen (Cartamundi, Ludofact). Devis sur les 3 scénarios en 3000 et 5000 ex, détail outillage.</li>
+      <li><b>Prototype physique / pré-série (semaines 10–14).</b> Commander un EVT/DVT : valider en main le carton black core, le lin soft-touch, le « clac » des N35, la dorure-gaufrage, l'insert PET. Soupeser, ouvrir/fermer, tester la lisibilité en lumière tamisée. 2–3 rounds de BAT.</li>
+      <li><b>Conformité (semaines 12–16).</b> Tests EN71-1/2/3 + REACH (surtout si jeton métal), dossier technique, marquage CE, responsible person UE, étiquetage. Budget labo 500–1200 €.</li>
+      <li><b>Arbitrage final & commande (semaine 16).</b> Trancher le scénario (recommandation : Premium Malin ~7 € pour 34,90/39,90 €), valider le BAT, commande ferme (MOQ 3000–5000), acompte 30 %.</li>
+      <li><b>Production & logistique (semaines 16–26).</b> Suivi qualité via agent QC (QIMA) sur place, fret maritime DDP, dédouanement, réception UE. Provision invendus + seuil de rentabilité sur unités VENDUES (sell-through 50–60 % an 1).</li>
+      <li><b>Go-to-market (semaines 20–30).</b> Kit commercial + PLV/présentoir de comptoir, référencement enseignes (boutiques jeux, librairies, concept stores, grande distribution culturelle), budget marketing 1–2 €/u. Édition collector limitée en 2ᵉ SKU si la demande premium se confirme. Extensions futures alignées en rayon comme une collection.</li>
+    </ul>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <div>Dossier généré par orchestration multi-agents — 11 agents · 303 350 tokens · ~11 min</div>
+  <div class="method">
+    <span>3 générateurs (luxe · game design · retail)</span>
+    <span>3 évaluateurs adversariaux (premium réel · faisabilité · marché)</span>
+    <span>2 chiffrages (premium haute · optimisé)</span>
+    <span>2 évaluateurs adversariaux coût (chasseur de marge · valeur perçue)</span>
+    <span>1 synthèse</span>
+  </div>
+  <div style="margin-top:18px;color:var(--or-soft);letter-spacing:.2em">✦ ARCANA ✦</div>
+</footer>
+
+</body>
+</html>
