@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a10">
+<title>ARCANA · Campagne Kickstarter / Ulule</title>
+<style>
+  :root{--noir:#0b0a10;--noir2:#15131f;--noir3:#1d1a28;--or:#d9b46a;--or2:#f2d999;--or-soft:#b9974d;
+    --txt:#ece7db;--txt-soft:#b9b2a4;--txt-mut:#8a8376;--vert:#7bb86a;--vert2:#9ad389;--rouge:#e08079;--bord:#2c2738}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:radial-gradient(120% 55% at 50% -5%,#241e33 0%,var(--noir) 55%) no-repeat var(--noir);
+    color:var(--txt);font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;line-height:1.6;font-size:17px;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px 70px}
+
+  .visual{margin:18px 0 6px;border:1px solid var(--or-soft);border-radius:18px;height:200px;position:relative;overflow:hidden;
+    background:radial-gradient(80% 120% at 50% 0%,#2a2238,#0d0b14);display:flex;align-items:center;justify-content:center}
+  .visual::before{content:"";position:absolute;inset:12px;border:1px solid rgba(217,180,106,.3);border-radius:12px}
+  .visual .moon{position:absolute;top:30px;width:74px;height:74px;border-radius:50%;
+    background:radial-gradient(circle at 38% 35%,#f4e6bd,#caa758 60%,#7a6230);box-shadow:0 0 40px rgba(217,180,106,.4)}
+  .visual .name{position:relative;z-index:2;font-size:44px;letter-spacing:.22em;font-weight:700;margin-top:60px;
+    background:linear-gradient(180deg,var(--or2),var(--or-soft));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tagline{text-align:center;color:var(--txt-soft);font-style:italic;font-size:17px;margin:4px 0 0}
+  .kick{text-align:center;letter-spacing:.3em;text-transform:uppercase;color:var(--or);font-size:11px;font-family:Georgia,serif;margin-top:20px}
+
+  .funding{background:var(--noir2);border:1px solid var(--or-soft);border-radius:16px;padding:18px;margin:16px 0;
+    box-shadow:0 0 0 1px rgba(217,180,106,.1) inset}
+  .raised{font-size:30px;color:var(--or2);font-weight:700}
+  .goalline{color:var(--txt-mut);font-size:14px;margin-top:2px}
+  .bar{height:12px;border-radius:8px;background:#241f30;margin:12px 0 6px;overflow:hidden;border:1px solid var(--bord)}
+  .bar i{display:block;height:100%;width:64%;background:linear-gradient(90deg,var(--or-soft),var(--or2))}
+  .stats{display:flex;justify-content:space-between;margin-top:8px}
+  .stats div{text-align:center;flex:1}
+  .stats .b{font-family:Georgia,serif;color:var(--or2);font-size:20px}
+  .stats .s{color:var(--txt-mut);font-size:12px}
+  .cta{display:block;text-align:center;background:linear-gradient(160deg,var(--or2),var(--or-soft));color:#1a1409;
+    font-weight:700;padding:14px;border-radius:12px;margin-top:14px;letter-spacing:.04em;font-size:17px;text-decoration:none}
+
+  h2{font-size:24px;color:var(--or2);margin:36px 0 6px}
+  p{color:var(--txt-soft);font-size:16px}
+  p.big{color:var(--txt);font-size:18px}
+  .lead{color:var(--txt);font-size:18px}
+  .card{background:var(--noir2);border:1px solid var(--bord);border-radius:14px;padding:16px 18px;margin:14px 0}
+  ul.clean{list-style:none;padding:0;margin:8px 0}
+  ul.clean li{padding:8px 0 8px 26px;position:relative;border-bottom:1px solid #221c2c;color:var(--txt-soft);font-size:15.5px}
+  ul.clean li:last-child{border-bottom:none}
+  ul.clean li::before{content:"✦";position:absolute;left:0;color:var(--or-soft);font-size:12px;top:10px}
+  ul.clean li b{color:var(--txt)}
+
+  .tier{border:1px solid var(--bord);border-radius:14px;padding:16px;margin:12px 0;background:var(--noir2);position:relative}
+  .tier.hot{border-color:var(--or);box-shadow:0 0 0 1px rgba(217,180,106,.12) inset}
+  .tier .flag{position:absolute;top:-11px;right:14px;background:linear-gradient(160deg,var(--or2),var(--or-soft));
+    color:#1a1409;font-size:11px;font-family:Georgia,serif;letter-spacing:.08em;padding:3px 11px;border-radius:20px}
+  .tier .price{font-size:26px;color:var(--or2);font-weight:700}
+  .tier .price s{color:#4a4456;font-size:16px;font-weight:400;margin-left:8px}
+  .tier .nm{font-family:Georgia,serif;letter-spacing:.1em;text-transform:uppercase;font-size:12px;color:var(--or);margin-bottom:2px}
+  .tier .desc{color:var(--txt-soft);font-size:14.5px;margin-top:8px}
+  .tier .left{color:var(--txt-mut);font-size:12.5px;margin-top:8px}
+
+  .sg{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #251f30}
+  .sg:last-child{border-bottom:none}
+  .sg .amt{font-family:Georgia,serif;color:var(--or2);font-size:15px;flex:0 0 78px;white-space:nowrap}
+  .sg .txt{font-size:14.5px;color:var(--txt-soft)}
+  .sg.done .amt{color:var(--vert2)} .sg.done .txt{color:var(--txt)}
+  .sg .chk{margin-left:auto;color:var(--vert2);font-size:13px;white-space:nowrap}
+
+  .faq{border:1px solid var(--bord);border-radius:12px;margin:10px 0;background:var(--noir2);overflow:hidden}
+  .faq summary{cursor:pointer;padding:13px 16px;color:var(--or2);font-size:16px;list-style:none;font-weight:600}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::before{content:"＋ ";color:var(--or-soft)}
+  .faq[open] summary::before{content:"− "}
+  .faq .in{padding:2px 16px 14px;color:var(--txt-soft);font-size:15px;border-top:1px solid var(--bord)}
+  footer{text-align:center;color:var(--txt-mut);font-size:12px;margin-top:36px;line-height:1.7}
+  .seal{color:var(--or-soft);letter-spacing:.3em;margin-top:8px}
+  .note{font-size:12.5px;color:var(--txt-mut);font-style:italic;text-align:center;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kick">Kickstarter · Ulule — maquette de campagne</div>
+  <div class="visual">
+    <div class="moon"></div>
+    <div class="name">ARCANA</div>
+  </div>
+  <p class="tagline">Le Loup-Garou réinventé en tarot de collection</p>
+
+  <!-- funding widget -->
+  <div class="funding">
+    <div class="raised">22 400 €<span style="font-size:15px;color:var(--txt-mut);font-weight:400"> collectés</span></div>
+    <div class="goalline">sur un objectif de 35 000 €</div>
+    <div class="bar"><i></i></div>
+    <div class="stats">
+      <div><div class="b">896</div><div class="s">contributeurs</div></div>
+      <div><div class="b">64 %</div><div class="s">financé</div></div>
+      <div><div class="b">21</div><div class="s">jours restants</div></div>
+    </div>
+    <a class="cta" href="#paliers">Soutenir le projet →</a>
+    <p class="note">Chiffres d'exemple — maquette de présentation</p>
+  </div>
+
+  <!-- pitch -->
+  <h2>L'idée</h2>
+  <p class="lead">Et si votre soirée Loup-Garou se jouait avec un véritable <b style="color:var(--txt)">jeu de tarot</b> ? 16 rôles, 16 arcanes majeurs illustrés à la main, dans un <b style="color:var(--txt)">coffret-écrin magnétique</b> qu'on a autant envie de collectionner que de jouer.</p>
+  <p>Le Loup-Garou = La Lune. La Voyante = La Papesse. Cupidon = Les Amoureux. Chaque rôle devient une carte d'art numérotée de I à XVI. Un objet qu'on pose sur l'étagère, qu'on offre, et qu'on ressort à chaque soirée.</p>
+
+  <!-- pourquoi -->
+  <h2>Pourquoi il est différent</h2>
+  <div class="card">
+    <ul class="clean">
+      <li><b>Coffret rigide à fermeture magnétique</b> — le « clac » d'un écrin de luxe, soft-touch mat + dorure à chaud en relief.</li>
+      <li><b>16 cartes 350 g à cœur noir</b>, finition lin, dorure sur les dos — impossibles à lire par transparence (le bluff est garanti).</li>
+      <li><b>Mise en place en 90 secondes</b> grâce à la carte-narrateur : l'ordre de la nuit et les compositions sont sous vos yeux, sans appli.</li>
+      <li><b>Jouable de 6 à 13 joueurs</b> en piochant la donne adaptée dans le pool de 16 arcanes.</li>
+      <li><b>Compact</b> — il tient dans une poche de manteau et part en week-end.</li>
+    </ul>
+  </div>
+
+  <!-- paliers / pledges -->
+  <h2 id="paliers">Choisissez votre contrepartie</h2>
+
+  <div class="tier hot">
+    <div class="flag">Early bird · −12 %</div>
+    <div class="nm">L'Initié</div>
+    <div class="price">21,90 € <s>24,90 €</s></div>
+    <div class="desc">1 coffret ARCANA complet (16 arcanes + carte-narrateur + jeton Capitaine + accessoires), livré chez vous. Tarif lancement, quantité limitée.</div>
+    <div class="left">◾ 312 / 500 disponibles</div>
+  </div>
+
+  <div class="tier">
+    <div class="nm">Le Joueur</div>
+    <div class="price">24,90 €</div>
+    <div class="desc">1 coffret ARCANA complet au tarif de campagne. La même boîte premium, sans limite de quantité.</div>
+  </div>
+
+  <div class="tier">
+    <div class="nm">Le Cercle (×2)</div>
+    <div class="price">45,00 € <s>49,80 €</s></div>
+    <div class="desc">2 coffrets ARCANA — un pour vous, un à offrir. Frais de port mutualisés.</div>
+  </div>
+
+  <div class="tier hot">
+    <div class="flag">Édition limitée</div>
+    <div class="nm">Le Collectionneur</div>
+    <div class="price">39,00 €</div>
+    <div class="desc">Coffret <b style="color:var(--txt)">Collector numéroté</b> : tranche dorée sur les cartes, gaufrage sculpté, certificat d'édition limitée + 1 carte arcane bonus exclusive à la campagne. Ne sera jamais réimprimé.</div>
+    <div class="left">◾ 148 / 750 disponibles</div>
+  </div>
+
+  <div class="tier">
+    <div class="nm">La Tablée (×5)</div>
+    <div class="price">105,00 € <s>124,50 €</s></div>
+    <div class="desc">5 coffrets pour le club, la famille ou le café de jeux. Meilleur prix unitaire de la campagne.</div>
+  </div>
+
+  <!-- stretch goals -->
+  <h2>Paliers débloqués (stretch goals)</h2>
+  <div class="card">
+    <div class="sg done"><div class="amt">15 000 €</div><div class="txt">Vernis & dorure du dos améliorés pour tous</div><div class="chk">✓ atteint</div></div>
+    <div class="sg done"><div class="amt">20 000 €</div><div class="txt">Carte-narrateur dorée offerte à tous les paliers</div><div class="chk">✓ atteint</div></div>
+    <div class="sg"><div class="amt">35 000 €</div><div class="txt"><b style="color:var(--txt)">Objectif</b> — lancement de la production</div><div class="chk">en cours</div></div>
+    <div class="sg"><div class="amt">50 000 €</div><div class="txt">Insert velours premium + ruban satin pour tous</div></div>
+    <div class="sg"><div class="amt">75 000 €</div><div class="txt">+2 arcanes alternatifs (variantes d'illustration)</div></div>
+    <div class="sg"><div class="amt">100 000 €</div><div class="txt">Mini-extension « Les Arcanes Sombres » offerte</div></div>
+  </div>
+
+  <!-- pourquoi ce prix -->
+  <h2>Pourquoi 24,99 € est juste</h2>
+  <p>Un coffret de cette qualité (rigide magnétique, dorure à chaud, cartes cœur noir) se vend habituellement <b style="color:var(--txt)">35 à 45 €</b> en boutique, une fois les marges des intermédiaires ajoutées. En passant par la campagne, vous achetez <b style="color:var(--txt)">en direct</b> : vous payez le juste prix, et vous financez la première fabrication.</p>
+
+  <!-- faq -->
+  <h2>Questions fréquentes</h2>
+  <details class="faq"><summary>Quand serai-je livré ?</summary><div class="in">Production lancée dès l'objectif atteint. Livraison estimée ~6 mois après la fin de campagne (fabrication, contrôle qualité, transport). Vous suivez chaque étape par mises à jour.</div></details>
+  <details class="faq"><summary>Où est-il fabriqué ?</summary><div class="in">Chez un fabricant spécialisé en jeux premium, avec contrôle qualité sur place (cartes cœur noir, tenue des aimants, registre de la dorure). Une option « fabriqué en Europe » est à l'étude si un palier supérieur est atteint.</div></details>
+  <details class="faq"><summary>Faut-il une application pour jouer ?</summary><div class="in">Non. Tout le pilotage du meneur tient sur la carte-narrateur et dans le couvercle. 100 % physique, zéro écran.</div></details>
+  <details class="faq"><summary>Combien de joueurs ?</summary><div class="in">De 6 à 13 joueurs. On compose la donne selon le tableau imprimé au dos de la carte-narrateur.</div></details>
+  <details class="faq"><summary>Et si l'objectif n'est pas atteint ?</summary><div class="in">Vous n'êtes débité que si la campagne réussit. Sinon, aucun prélèvement.</div></details>
+
+  <a class="cta" href="#paliers" style="margin-top:24px">Rejoindre l'aventure →</a>
+
+  <footer>
+    Maquette de page de campagne · ARCANA<br>
+    Objectif 35 000 € = couvre les 20 000 € de frais fixes + la première série.<br>
+    Rentable dès ~2 100 boîtes en vente directe.
+    <div class="seal">✦ ARCANA ✦</div>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a10">
+<title>ARCANA · Business plan</title>
+<style>
+  :root{--noir:#0b0a10;--noir2:#15131f;--noir3:#1d1a28;--or:#d9b46a;--or2:#f2d999;--or-soft:#b9974d;
+    --txt:#ece7db;--txt-soft:#b9b2a4;--txt-mut:#8a8376;--vert:#7bb86a;--vert2:#9ad389;--rouge:#e08079;--ambre:#e6b85c;--bord:#2c2738}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:radial-gradient(120% 60% at 50% -5%,#241e33 0%,var(--noir) 55%) no-repeat var(--noir);
+    color:var(--txt);font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;line-height:1.55;font-size:17px;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px 60px}
+  header{text-align:center;padding:42px 8px 18px}
+  .kicker{letter-spacing:.32em;text-transform:uppercase;color:var(--or);font-size:11px;font-family:Georgia,serif}
+  h1{font-size:40px;line-height:1.05;margin:8px 0 6px;letter-spacing:.08em;font-weight:700;
+     background:linear-gradient(180deg,var(--or2),var(--or-soft));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--txt-soft);font-style:italic;font-size:16px;margin:0 auto;max-width:34ch}
+  h2{font-size:23px;color:var(--or2);margin:36px 0 4px}
+  h2 .n{font-family:Georgia,serif;color:var(--or-soft);font-size:15px;margin-right:8px}
+  .intro{color:var(--txt-soft);font-size:15px;margin:6px 0 12px}
+  .card{background:var(--noir2);border:1px solid var(--bord);border-radius:14px;padding:16px;margin:14px 0}
+  .card.gold{border-color:var(--or-soft);box-shadow:0 0 0 1px rgba(217,180,106,.1) inset}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:4px 0}
+  th,td{text-align:left;padding:8px 5px;border-bottom:1px solid #261f31;vertical-align:top}
+  th{color:var(--or);font-family:Georgia,serif;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+  td.n,th.n{text-align:right;font-family:Georgia,serif;white-space:nowrap}
+  td.n{color:var(--or2)}
+  caption{caption-side:top;text-align:left;color:var(--txt-mut);font-size:12.5px;font-style:italic;padding-bottom:6px}
+  .row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #251f30;font-size:15px}
+  .row:last-child{border-bottom:none}
+  .row .v{font-family:Georgia,serif;color:var(--or2);white-space:nowrap;padding-left:12px}
+  .row small{display:block;color:var(--txt-mut);font-size:12.5px}
+  .pos{color:var(--vert2);font-family:Georgia,serif;text-align:right;white-space:nowrap}
+  .neg{color:var(--rouge);font-family:Georgia,serif;text-align:right;white-space:nowrap}
+  .neu{color:var(--ambre);font-family:Georgia,serif;text-align:right;white-space:nowrap}
+  .be{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid #251f30}
+  .be:last-child{border-bottom:none}
+  .be .lab{font-size:14.5px;color:var(--txt-soft)}
+  .be .u{font-family:Georgia,serif;font-size:17px;color:var(--or2);white-space:nowrap;padding-left:10px}
+  .be .u.good{color:var(--vert2)}.be .u.bad{color:var(--rouge)}
+  .callout{background:linear-gradient(180deg,rgba(94,31,45,.18),transparent);border:1px solid var(--bord);
+    border-left:3px solid var(--or);border-radius:10px;padding:14px 16px;margin:16px 0;color:var(--txt-soft);font-size:15px}
+  .callout b{color:var(--or2)}
+  .key{font-size:13px;color:var(--txt-mut);margin-top:8px}
+  .key b.g{color:var(--vert2)}.key b.r{color:var(--rouge)}.key b.a{color:var(--ambre)}
+  .star{color:var(--or2)}
+  footer{text-align:center;color:var(--txt-mut);font-size:12px;margin-top:34px;line-height:1.7}
+  .seal{color:var(--or-soft);letter-spacing:.3em;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Plan financier · ARCANA</div>
+    <h1>Business plan</h1>
+    <p class="sub">Point mort & bénéfice total selon le volume, le prix et le canal</p>
+  </header>
+
+  <!-- hypotheses -->
+  <h2><span class="n">1</span>Hypothèses de départ</h2>
+  <div class="card gold">
+    <h3 style="margin:0 0 8px;color:var(--or);font-size:14px;letter-spacing:.06em;text-transform:uppercase;font-family:Georgia,serif">Coûts fixes (une seule fois)</h3>
+    <div class="row"><div>Illustration des 16 arcanes + DA<small>cœur du « extrêmement belles »</small></div><div class="v">12 000 €</div></div>
+    <div class="row"><div>Outillage (moules, matrices dorure)</div><div class="v">2 500 €</div></div>
+    <div class="row"><div>Certification CE / EN71 + dossier</div><div class="v">1 000 €</div></div>
+    <div class="row"><div>Pré-série, BAT, échantillons</div><div class="v">1 500 €</div></div>
+    <div class="row"><div>Setup marketing (site, photos, kit)</div><div class="v">3 000 €</div></div>
+    <div class="row" style="border-top:2px solid var(--or-soft);margin-top:4px"><div><b>Total à investir avant la 1ʳᵉ vente</b></div><div class="v"><b>≈ 20 000 €</b></div></div>
+  </div>
+  <div class="card">
+    <h3 style="margin:0 0 8px;color:var(--or);font-size:14px;letter-spacing:.06em;text-transform:uppercase;font-family:Georgia,serif">Coût variable / boîte (spec Premium Malin)</h3>
+    <div class="row"><div>Fabrication + transport (Asie)</div><div class="v">6,40 €</div></div>
+    <div class="row"><div>Marketing courant / boîte</div><div class="v">0,80 €</div></div>
+    <div class="row" style="border-top:2px solid var(--or-soft)"><div><b>Coût variable Asie</b></div><div class="v"><b>≈ 7,20 €</b></div></div>
+    <div class="row"><div>Variante <b>éco</b> (sans jeton métal, 2 mm)</div><div class="v">≈ 6,00 €</div></div>
+    <div class="row"><div>Fabrication <b>Europe</b></div><div class="v">≈ 10,00 €</div></div>
+  </div>
+
+  <!-- ce que tu touches -->
+  <h2><span class="n">2</span>Marge par boîte selon le canal</h2>
+  <p class="intro">Marge = ce que tu encaisses − 7,20 € (Asie). Plus elle est haute, plus vite tu rembourses les 20 000 €.</p>
+  <div class="card">
+    <table>
+      <thead><tr><th>Prix & canal</th><th class="n">Tu encaisses</th><th class="n">Marge/u</th></tr></thead>
+      <tbody>
+        <tr><td>19,99 · rayon</td><td class="n">7,00</td><td class="n" style="color:var(--rouge)">−0,20</td></tr>
+        <tr><td>24,99 · rayon</td><td class="n">8,75</td><td class="n" style="color:var(--ambre)">+1,55</td></tr>
+        <tr><td>29,90 · rayon</td><td class="n">10,46</td><td class="n" style="color:var(--vert2)">+3,26</td></tr>
+        <tr><td>34,90 · rayon</td><td class="n">12,21</td><td class="n" style="color:var(--vert2)">+5,01</td></tr>
+        <tr><td>24,99 · direct boutique</td><td class="n">12,50</td><td class="n" style="color:var(--vert2)">+5,30</td></tr>
+        <tr><td>19,99 · direct client</td><td class="n">13,30</td><td class="n" style="color:var(--vert2)">+6,10</td></tr>
+        <tr><td>24,99 · direct client</td><td class="n">16,60</td><td class="n" style="color:var(--vert2)">+9,40</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- point mort -->
+  <h2><span class="n">3</span>Point mort (combien de boîtes pour rentrer dans tes frais)</h2>
+  <p class="intro">= 20 000 € ÷ marge par boîte. En-dessous tu perds, au-dessus tu gagnes.</p>
+  <div class="card">
+    <div class="be"><div class="lab">19,99 · rayon</div><div class="u bad">jamais ✕</div></div>
+    <div class="be"><div class="lab">24,99 · rayon</div><div class="u bad">12 900 boîtes</div></div>
+    <div class="be"><div class="lab">29,90 · rayon</div><div class="u">6 100 boîtes</div></div>
+    <div class="be"><div class="lab">34,90 · rayon</div><div class="u">4 000 boîtes</div></div>
+    <div class="be"><div class="lab">24,99 · direct boutique</div><div class="u good">3 800 boîtes</div></div>
+    <div class="be"><div class="lab">19,99 · direct client</div><div class="u good">3 300 boîtes</div></div>
+    <div class="be"><div class="lab">24,99 · direct client</div><div class="u good">2 130 boîtes</div></div>
+  </div>
+  <div class="callout">
+    <b>Lecture :</b> à 24,99 € <b>en rayon</b>, il faut écouler ~13 000 boîtes juste pour rembourser — irréaliste pour un 1ᵉʳ produit. En <b>vente directe à 24,99 €</b>, tu es rentable dès <b>~2 100 boîtes</b>. C'est 6× plus facile.
+  </div>
+
+  <!-- benefice total -->
+  <h2><span class="n">4</span>Bénéfice total selon le volume</h2>
+  <p class="intro">Bénéfice net après remboursement des 20 000 € de frais fixes. Production Asie.</p>
+  <div class="card">
+    <table>
+      <caption>Scénario par ligne · volume par colonne</caption>
+      <thead><tr><th>Scénario</th><th class="n">3 000</th><th class="n">5 000</th><th class="n">10 000</th></tr></thead>
+      <tbody>
+        <tr><td>24,99 rayon</td><td class="neg">−15,4k</td><td class="neg">−12,3k</td><td class="neg">−4,5k</td></tr>
+        <tr><td>29,90 rayon</td><td class="neg">−10,2k</td><td class="neg">−3,7k</td><td class="pos">+12,6k</td></tr>
+        <tr><td>34,90 rayon</td><td class="neg">−5,0k</td><td class="pos">+5,1k</td><td class="pos">+30,1k</td></tr>
+        <tr><td>24,99 dir. boutique</td><td class="neg">−4,1k</td><td class="pos">+6,5k</td><td class="pos">+33,0k</td></tr>
+        <tr><td>19,99 dir. client</td><td class="neg">−1,7k</td><td class="pos">+10,5k</td><td class="pos">+41,0k</td></tr>
+        <tr><td>24,99 dir. client</td><td class="pos">+8,2k</td><td class="pos">+27,0k</td><td class="pos">+74,0k</td></tr>
+      </tbody>
+    </table>
+    <p class="key"><b class="g">vert</b> = bénéfice · <b class="r">rouge</b> = perte. À 20 000 boîtes, le scénario « 24,99 direct client » dépasse <b>+168 k€</b>.</p>
+  </div>
+
+  <!-- strategie -->
+  <h2><span class="n">5</span>La stratégie qui marche</h2>
+  <div class="card gold">
+    <div class="row"><div><span class="star">Phase 1 —</span> Crowdfunding / vente directe à <b>24,99 €</b><small>rentable dès ~2 100 boîtes, finance les 20 000 € sans emprunt</small></div></div>
+    <div class="row"><div><span class="star">Phase 2 —</span> Réassort direct (site, salons, boutiques)<small>marge +5 à +9 €/boîte, tu construis la trésorerie</small></div></div>
+    <div class="row"><div><span class="star">Phase 3 —</span> Rayon à <b>29,90–34,90 €</b> quand le volume suit<small>le rayon ne marche qu'à prix « juste » et gros volume</small></div></div>
+    <div class="row" style="border-bottom:none"><div><span class="star">Phase 4 —</span> Édition collector + extensions<small>nouveaux arcanes, marge la plus haute</small></div></div>
+  </div>
+
+  <div class="callout">
+    <b>Conclusion.</b> Oui, le projet peut être très rentable — mais <b>pas en démarrant par le rayon à bas prix</b>. Le chemin gagnant : lancer en <b>direct/crowdfunding à 24,99 €</b> (bénéfice dès 2 100 boîtes, &gt;+27 k€ à 5 000), puis n'aborder le rayon qu'à 29,90–34,90 € avec du volume. 19,99 € ne se justifie qu'en vente directe, et jamais en rayon.
+  </div>
+
+  <footer>
+    Modèle indicatif · TVA 20 % · marges boutique 40 % / distributeur 30 % · à valider par devis réels.<br>
+    Frais fixes 20 000 € · variable 7,20 €/u (Asie, Premium Malin).
+    <div class="seal">✦ ARCANA ✦</div>
+  </footer>
+
+</div>
+</body>
+</html>
