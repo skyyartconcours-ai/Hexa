@@ -5,7 +5,7 @@
 > ✅ **Toutes les notes ci-dessous ont été vérifiées en direct** (IMDb / Wikipedia / JustWatch) par un agent évaluateur *adversarial* et ses 4 sous-agents.
 > ❌ **Éliminé après vérification : _A Hard Day_ (2014)** — note réelle **7,2**, sous le seuil de 7,5.
 >
-> ⚠️ Honnêteté sur le « français » : **très peu de thrillers en langue française des 15 dernières années atteignent 7,5** (la plupart des bons titres français sont à 7,0–7,4). À ce niveau d'exigence, la liste est donc dominée par des films étrangers **en VOSTFR**. Seuls 2 films FR passent la barre : *Anatomie d'une chute* et *Les Misérables*.
+> ⚠️ Honnêteté sur le « français » : **très peu de thrillers en langue française des 15 dernières années atteignent 7,5** (la plupart des bons titres français sont à 7,0–7,4). À ce niveau d'exigence, la liste est donc dominée par des films étrangers **en VOSTFR**. Seuls **3 films FR** passent la barre : *Anatomie d'une chute*, *Les Misérables* et *Jusqu'à la garde*.
 >
 > ★ = **veine _Contratiempo_** (twist / procès / accusé — exactement votre référence).
 > 🎭 = excellent mais tient plus du **drame** que du thriller pur (signalé en toute transparence).
@@ -51,6 +51,29 @@
 ## ➕ Pistes supplémentaires dans la veine *Contratiempo* (à vérifier avant location)
 - **Mirage (_Durante la tormenta_)** (2018, 🇪🇸) — **du même réalisateur** qu'*L'Accusé*, thriller à twist (~7,5, à reconfirmer). Sur Netflix.
 - **El Cuerpo (_The Body_)** (2012, 🇪🇸, Oriol Paulo aussi, ~7,5) — twist d'enquête, **mais** une intrigue de corps disparu : à éviter si vous tenez strictement au critère « pas de disparition ».
+
+---
+
+---
+
+## ⚖️ Bonus « veine L'Accusé » — spécial procès / accusé / wrongful conviction (vérifié ≥ 7,5)
+
+Cluster thématique exactement dans l'esprit de *Contratiempo* : un(e) accusé(e), un procès, une vérité qui se retourne.
+
+| Film | Année | Langue | IMDb | Note |
+|---|---|---|---|---|
+| 🇫🇷 **Jusqu'à la garde (_Custody_)** | 2017 | 🇫🇷 Français | **7.5** | **3ᵉ film français** qui passe la barre. Thriller domestique sous tension (4 Césars). VF native. |
+| **Jai Bhim** | 2021 | 🇮🇳 Tamoul | **8.6** | Habeas corpus contre une bavure policière. ⚠️ La police prétend l'accusé « en fuite » → frôle le critère disparition (cœur = procès/cover-up). |
+| **Drishyam** | 2015 | 🇮🇳 Hindi | **8.2** | Un père bâtit un alibi parfait face à la police. ⚠️ Une personne manquante figure dans l'intrigue (cœur = le jeu du chat et de la souris, pas la disparition). |
+| **Section 375** | 2019 | 🇮🇳 Hindi | **8.1** | Thriller de procès moralement trouble (appel d'une condamnation). |
+| **Talvar (_Guilty_)** | 2015 | 🇮🇳 Hindi | **8.1** | Double meurtre à la *Rashômon* : des parents accusés du crime. |
+| **Pink** | 2016 | 🇮🇳 Hindi | **8.0** | Thriller judiciaire sur le consentement (Amitabh Bachchan). |
+| **The Attorney (_변호인_)** | 2013 | 🇰🇷 Coréen | **7.7** | Un avocat se radicalise pour défendre un étudiant torturé. Song Kang-ho, fait réel. |
+| **Le Procès des 7 de Chicago** | 2020 | 🇺🇸 Anglais | **7.7** | Procès politique nerveux signé Aaron Sorkin. Sur **Netflix** (VOSTFR). |
+| **La Voie de la justice (_Just Mercy_)** | 2019 | 🇺🇸 Anglais | **7.6** | Avocat luttant pour innocenter un condamné à mort noir. |
+| **Dark Waters** | 2019 | 🇺🇸 Anglais | **7.6** | Avocat retourné contre un géant chimique. Thriller juridique. |
+
+> ❌ **Écartés malgré une bonne note** (cœur = disparition) : *Prisoners* (8.2), *El Cuerpo / The Body* (7.6, même réalisateur que *L'Accusé* — mais un corps disparaît à la morgue), *La isla mínima* (7.2).
 
 ---
 
