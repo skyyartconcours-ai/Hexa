@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a10">
+<title>ARCANA · Appli vs Physique</title>
+<style>
+  :root{--noir:#0b0a10;--noir2:#15131f;--noir3:#1d1a28;--or:#d9b46a;--or2:#f2d999;--or-soft:#b9974d;
+    --txt:#ece7db;--txt-soft:#b9b2a4;--txt-mut:#8a8376;--vert:#7bb86a;--vert2:#9ad389;--rouge:#e08079;--ambre:#e6b85c;--bleu:#8fb8d8;--bord:#2c2738}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:radial-gradient(120% 55% at 50% -5%,#241e33 0%,var(--noir) 55%) no-repeat var(--noir);
+    color:var(--txt);font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;line-height:1.55;font-size:17px;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px 60px}
+  header{text-align:center;padding:42px 8px 14px}
+  .kicker{letter-spacing:.3em;text-transform:uppercase;color:var(--or);font-size:11px;font-family:Georgia,serif}
+  h1{font-size:34px;line-height:1.08;margin:8px 0 6px;letter-spacing:.05em;font-weight:700;
+     background:linear-gradient(180deg,var(--or2),var(--or-soft));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--txt-soft);font-style:italic;font-size:15.5px;margin:0 auto;max-width:34ch}
+  .meta{margin-top:12px;color:var(--txt-mut);font-size:12px;font-family:Georgia,serif}
+  h2{font-size:22px;color:var(--or2);margin:34px 0 4px}
+  h2 .n{font-family:Georgia,serif;color:var(--or-soft);font-size:15px;margin-right:8px}
+  p{font-size:15.5px;color:var(--txt-soft)}
+  .card{background:var(--noir2);border:1px solid var(--bord);border-radius:14px;padding:16px;margin:14px 0}
+  .card.gold{border-color:var(--or-soft);box-shadow:0 0 0 1px rgba(217,180,106,.1) inset}
+  .big{font-size:17px;color:var(--txt)} .big b{color:var(--or2)}
+  .no{color:var(--rouge);font-weight:700}.yes{color:var(--vert2);font-weight:700}
+  .waterfall{margin:10px 0}
+  .wf{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #251f30;font-size:15px}
+  .wf:last-child{border-bottom:none}
+  .wf .v{font-family:Georgia,serif;white-space:nowrap;padding-left:10px}
+  .wf .v.g{color:var(--vert2)}.wf .v.r{color:var(--rouge)}.wf .v.o{color:var(--or2)}
+  .wf small{color:var(--txt-mut);font-size:12px;display:block}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:4px 0}
+  th,td{text-align:left;padding:9px 6px;border-bottom:1px solid #261f31;vertical-align:top}
+  th{color:var(--or);font-family:Georgia,serif;font-size:11px;letter-spacing:.03em;text-transform:uppercase}
+  .crit{color:var(--txt);font-weight:600;font-size:13px}
+  .dig{color:var(--bleu)}.phy{color:var(--vert2)}
+  .callout{background:linear-gradient(180deg,rgba(94,31,45,.18),transparent);border:1px solid var(--bord);
+    border-left:3px solid var(--or);border-radius:10px;padding:14px 16px;margin:16px 0;color:var(--txt-soft);font-size:15px}
+  .callout b{color:var(--or2)}
+  .callout.warn{border-left-color:var(--rouge)}
+  ul.clean{list-style:none;padding:0;margin:8px 0}
+  ul.clean li{padding:8px 0 8px 24px;position:relative;border-bottom:1px solid #221c2c;color:var(--txt-soft);font-size:15px}
+  ul.clean li:last-child{border-bottom:none}
+  ul.clean li::before{content:"✦";position:absolute;left:0;color:var(--or-soft);font-size:11px;top:10px}
+  ul.clean li b{color:var(--txt)}
+  ul.step{counter-reset:s;list-style:none;padding:0}
+  ul.step li{padding:9px 0 9px 38px;position:relative;border-bottom:1px solid #221c2c;color:var(--txt-soft);font-size:15px}
+  ul.step li:last-child{border-bottom:none}
+  ul.step li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:8px;width:24px;height:24px;border-radius:50%;
+    background:rgba(217,180,106,.12);color:var(--or2);display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:13px;border:1px solid var(--or-soft)}
+  ul.step li b{color:var(--txt)}
+  .qa{border:1px solid var(--bord);border-radius:12px;margin:10px 0;background:var(--noir2);padding:14px 16px}
+  .qa .q{color:var(--or2);font-weight:600;font-size:15.5px}
+  .qa .a{color:var(--txt-soft);font-size:14.5px;margin-top:5px}
+  .verdict-pill{display:inline-block;font-size:12px;font-family:Georgia,serif;padding:3px 11px;border-radius:20px;letter-spacing:.04em;margin-right:6px}
+  .vp-no{background:rgba(224,128,121,.14);color:var(--rouge);border:1px solid rgba(224,128,121,.3)}
+  .vp-yes{background:rgba(123,184,106,.14);color:var(--vert2);border:1px solid rgba(123,184,106,.3)}
+  footer{text-align:center;color:var(--txt-mut);font-size:12px;margin-top:34px;line-height:1.7}
+  .seal{color:var(--or-soft);letter-spacing:.3em;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Décision · Appli vs Physique</div>
+    <h1>Vendre l'appli, ou pas ?</h1>
+    <p class="sub">Réponse honnête : App Store, marge, acquisition, digital vs physique</p>
+    <div class="meta">14 agents · 4 analyses → 4 adversariaux → 4 critiques réalisme marché → synthèse</div>
+  </header>
+
+  <!-- 1 app store 20 -->
+  <h2><span class="n">1</span>Vendre l'appli 20 € sur l'App Store ?</h2>
+  <div class="card gold">
+    <p class="big"><span class="no">NON</span> — mais <b>pas à cause de la marge</b>. À cause de la <b>vente</b>.</p>
+    <p>La marge serait correcte (~12-14 € net sur 20 €). Le vrai tueur : sur mobile, <b>~98 % du revenu vient d'apps gratuites</b>. Les apps payantes à l'achat ne sont que 3-5 % des apps et quasi invisibles (l'ASO écrase le payant, installs ÷5 à ÷20). En face : des <b>dizaines d'apps narrateur Loup-Garou déjà gratuites</b>. Et un paywall à 20 € avant le 1ᵉʳ essai <b>tue exactement la viralité que tu cherches</b>.</p>
+  </div>
+
+  <!-- 2 marge appstore -->
+  <h2><span class="n">2</span>La commission, en détail</h2>
+  <div class="card">
+    <div class="waterfall">
+      <div class="wf"><div>Prix affiché<small>App Store / Google Play</small></div><div class="v o">20,00 €</div></div>
+      <div class="wf"><div>− TVA 20 %<small>prélevée AVANT la commission</small></div><div class="v">→ 16,66 € HT</div></div>
+      <div class="wf"><div>− Commission store 15 %<small>Apple sur inscription / Google auto, &lt; 1 M$/an</small></div><div class="v g">≈ 14,2 € net</div></div>
+      <div class="wf"><div>− Commission store 30 %<small>au-delà de 1 M$/an</small></div><div class="v r">≈ 11,7 € net</div></div>
+    </div>
+    <p style="font-size:13px;color:var(--txt-mut);margin-bottom:0">Apple = 15 % <b>sur inscription</b> (Small Business Program). Google = 15 % <b>automatique</b> sur la 1ʳᵉ tranche. Steam prend <b>aussi 30 %</b>. Frais : Apple 99 $/an, Google 25 $ une fois. ⚠️ C'est de la marge <b>one-shot</b>, avant remboursements (Google rembourse en 1 clic &lt; 2 h) et serveurs.</p>
+  </div>
+
+  <!-- 3 acquisition -->
+  <h2><span class="n">3</span>L'appli pour convertir les spectateurs ?</h2>
+  <div class="card">
+    <p class="big">Ton intuition friction-zéro est <span class="yes">JUSTE</span> — c'est l'atout n°1 du projet. Mais justement, ça impose qu'elle soit <b>GRATUITE</b>.</p>
+    <p>Une appli qui lance une partie en 30 s (mécanique <b>Jackbox</b> : 1 hôte ouvre une « room », les 6-13 invités rejoignent par lien+code, zéro installation) supprime le frein n°1 du Loup-Garou : réunir les gens et trouver un narrateur fiable. Plus de parties = plus d'exposition.</p>
+    <div class="callout warn">
+      <b>La correction importante des critiques :</b> son meilleur usage n'est PAS de « vendre », mais de <b>capter des emails AVANT ta campagne crowdfunding</b>. Dans le jeu de société, la règle d'or est « crowd before funding » : une campagne sans audience pré-construite <b>échoue presque toujours</b>. L'outil gratuit sert à bâtir cette liste.
+    </div>
+    <p style="margin-bottom:0"><b style="color:var(--ambre)">Taux de conversion honnêtes</b> (à mesurer, pas des benchmarks) : vue froide → achat direct ~0,001-0,012 % (≈ 0 à 12 coffrets / 100 000 vues). MAIS inscrit email → backer le jour J ~<b>5-15 %</b>. C'est ce 2ᵉ funnel qui rend le modèle rentable.</p>
+  </div>
+
+  <!-- 4 digital vs physique -->
+  <h2><span class="n">4</span>Digital vs Physique</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Critère</th><th class="dig">Digital</th><th class="phy">Physique</th></tr></thead>
+      <tbody>
+        <tr><td class="crit">Marge/unité (HT)</td><td class="dig">~12-14 € one-shot (≈0 si gratuit, &lt;5 € après pub)</td><td class="phy">~16 € Classique · ~25 € Premium</td></tr>
+        <tr><td class="crit">Scalabilité</td><td class="dig">Coût marginal ~0 (mais serveurs aux pics)</td><td class="phy">Coût fab + stock + logistique à chaque unité</td></tr>
+        <tr><td class="crit">Découvrabilité</td><td class="dig">Brutale (2M+ apps, ASO)</td><td class="phy">Aussi dure (KS favorise les déjà-financés)</td></tr>
+        <tr><td class="crit">Premium / collection / cadeau</td><td class="dig">Inexistant (une app ne se met pas sous le sapin)</td><td class="phy">✓ tout l'avantage est là</td></tr>
+        <tr><td class="crit">Coût de possession</td><td class="dig">MVP ~15-40k € + maintenance 10-25 %/an</td><td class="phy">Industriel + fulfillment 3-6 €/colis (oublié)</td></tr>
+        <tr><td class="crit">Rôle</td><td class="dig">Aimant + capture d'email + viralité</td><td class="phy">Seul centre de profit crédible</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 5 faut il physique -->
+  <h2><span class="n">5</span>Faut-il forcément du physique ?</h2>
+  <div class="card gold">
+    <p class="big"><span class="no">Non</span> par principe, <span class="yes">OUI</span> dans CE projet.</p>
+    <p>Tes deux seuls avantages structurels ne vivent QUE dans l'objet : <b>(1)</b> le positionnement premium/collection/cadeau ; <b>(2)</b> la vente directe à marge élevée (qui échappe aux 30 % du store). En digital pur tu perds les deux, tu bascules dans <b>un autre métier</b> (studio de jeu vidéo, live-ops, acquisition mondiale) à très fort taux d'échec, et tu détruis la marge. Les 200-300 k€ net/an reposent <b>entièrement sur les boîtes</b>.</p>
+  </div>
+  <div class="callout warn">
+    <b>2 vérités correctrices (importantes) :</b><br>
+    ① Le crowdfunding n'est <b>PAS « facile »</b> — sans audience pré-construite, c'est l'échec (« cold launch »). D'où l'ordre : outil gratuit AVANT la campagne.<br>
+    ② Tes marges réelles sont <b>~16 € / ~25 €</b> en base HT (pas 20/45 € comme calculé au début) — et encore moins net après fulfillment, frais plateforme (~9 %), SAV et trésorerie. Boucle un vrai P&L avant de promettre 200-300 k€.
+  </div>
+
+  <!-- 6 strategie -->
+  <h2><span class="n">6</span>La meilleure stratégie</h2>
+  <div class="card">
+    <p class="big" style="margin-top:0"><b>Hybride séquencé — modèle Blood on the Clocktower</b> : outil web gratuit d'abord (pour bâtir l'audience), PUIS crowdfunding du coffret premium = le seul profit.</p>
+    <ul class="step">
+      <li><b>Outil WEB / PWA gratuit</b> (pas une app native, pas de paywall) : « 1 hôte, les autres rejoignent par lien ». 0 % de commission, une seule base de code, partage viral. Budget réaliste <b>15-40 k€</b> (la vraie charge = le moteur de règles des 16 rôles). EN + FR.</li>
+      <li><b>Objectif n°1 de l'outil : capter une liste email</b> de plusieurs milliers d'inscrits + une communauté Discord, via streamers et contenu.</li>
+      <li><b>Narration gratuite mais qui ASSISTE la table</b> (sans dévoiler tout le contenu collectionnable) → moins de cannibalisation. Protéger le coffret par sa <b>désirabilité</b>, jamais par un verrou anti-copie.</li>
+      <li><b>Crowdfunding sur Gamefound</b> (devenu dominant pour les jeux, frais plus bas qu'avant) adossé à l'audience de l'étape 2. C'est LÀ que se jouent les 200-300 k€.</li>
+      <li><b>Instrumenter le funnel</b> (code promo unique = attribution). Go/No-go à 3 mois : si le coût par coffret attribué dépasse la marge nette, on gèle l'outil.</li>
+      <li><b>Steam = pari distinct et ULTÉRIEUR</b> (jamais un pilier) : seulement après succès du crowdfunding, ~80-150 k€ (2ᵉ projet de studio), 9,99-14,99 €, hors P&L coffret.</li>
+    </ul>
+  </div>
+
+  <!-- réponse honnête condensée -->
+  <h2><span class="n">7</span>Réponses franches à tes 5 questions</h2>
+  <div class="qa"><div class="q"><span class="verdict-pill vp-no">NON</span>Vendre l'appli 20 € sur l'App Store ?</div><div class="a">Ça ne se vendrait pas (marché du gratuit, ASO, concurrence gratuite) et ça tue ta viralité. Le problème n'est pas la marge.</div></div>
+  <div class="qa"><div class="q">Combien coûte la commission ?</div><div class="a">15 % (&lt; 1 M$/an) ou 30 %, + TVA 20 % retirée avant. Il reste ~11,7-14,2 € sur 20 €. Correct, mais one-shot.</div></div>
+  <div class="qa"><div class="q"><span class="verdict-pill vp-yes">OUI</span>Bon moyen pour que les spectateurs essaient ?</div><div class="a">Oui, mais GRATUITE. Et son vrai pouvoir = capter des emails pour financer ta campagne, pas convertir à froid.</div></div>
+  <div class="qa"><div class="q"><span class="verdict-pill vp-yes">OUI</span>Motive à jouer rapidement ?</div><div class="a">C'est l'atout n°1 (friction-zéro). Ce qui renforce encore l'argument « gratuite ».</div></div>
+  <div class="qa"><div class="q">Faut-il forcément du physique ?</div><div class="a">Dans ce projet : oui. Le profit et le premium n'existent que dans l'objet. Le digital gratuit est l'entonnoir.</div></div>
+
+  <div class="callout">
+    <b>En une phrase :</b> garde l'appli <b>gratuite</b> (outil web, pas vendue), sers-t'en pour <b>bâtir ton audience email avant le crowdfunding</b>, et fais ton argent sur le <b>coffret physique premium en vente directe</b>. Ta décision précédente était la bonne — ces questions ne la remettent pas en cause, elles la confirment et corrigent les chiffres trop optimistes.
+  </div>
+
+  <footer>
+    Synthèse de 14 agents · chiffres après double passe adversariale (commission, marge HT, coût de dev, funnel).<br>
+    Taux de conversion = hypothèses à instrumenter, pas des benchmarks marché.
+    <div class="seal">✦ ARCANA ✦</div>
+  </footer>
+
+</div>
+</body>
+</html>
