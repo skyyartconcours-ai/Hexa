@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a10">
+<title>ARCANA · P&L détaillé jusqu'au net</title>
+<style>
+  :root{--noir:#0b0a10;--noir2:#15131f;--noir3:#1d1a28;--or:#d9b46a;--or2:#f2d999;--or-soft:#b9974d;
+    --txt:#ece7db;--txt-soft:#b9b2a4;--txt-mut:#8a8376;--vert:#7bb86a;--vert2:#9ad389;--rouge:#e08079;--ambre:#e6b85c;--bord:#2c2738}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:radial-gradient(120% 55% at 50% -5%,#241e33 0%,var(--noir) 55%) no-repeat var(--noir);
+    color:var(--txt);font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;line-height:1.5;font-size:17px;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px 60px}
+  header{text-align:center;padding:42px 8px 14px}
+  .kicker{letter-spacing:.3em;text-transform:uppercase;color:var(--or);font-size:11px;font-family:Georgia,serif}
+  h1{font-size:34px;line-height:1.08;margin:8px 0 6px;letter-spacing:.05em;font-weight:700;
+     background:linear-gradient(180deg,var(--or2),var(--or-soft));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--txt-soft);font-style:italic;font-size:15.5px;margin:0 auto;max-width:34ch}
+  h2{font-size:22px;color:var(--or2);margin:34px 0 4px}
+  h2 .n{font-family:Georgia,serif;color:var(--or-soft);font-size:15px;margin-right:8px}
+  .intro{color:var(--txt-soft);font-size:15px;margin:6px 0 12px}
+  .card{background:var(--noir2);border:1px solid var(--bord);border-radius:14px;padding:16px;margin:14px 0}
+  .card.gold{border-color:var(--or-soft);box-shadow:0 0 0 1px rgba(217,180,106,.1) inset}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:4px 0}
+  td,th{text-align:left;padding:7px 5px;border-bottom:1px solid #251f30;vertical-align:top}
+  th{color:var(--or);font-family:Georgia,serif;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+  td.n,th.n{text-align:right;font-family:Georgia,serif;white-space:nowrap}
+  td.n{color:var(--or2)}
+  td.neg{color:var(--rouge)}
+  tr.sub td{border-top:1px solid var(--bord);color:var(--txt);font-weight:600}
+  tr.tot td{border-top:2px solid var(--or-soft);font-weight:700;color:var(--txt);font-size:15.5px}
+  tr.tot td.n{color:var(--vert2)}
+  caption{caption-side:top;text-align:left;color:var(--txt-mut);font-size:12.5px;font-style:italic;padding-bottom:6px}
+  .pos{color:var(--vert2)} .rg{color:var(--rouge)} .am{color:var(--ambre)}
+  .scn{border:1px solid var(--bord);border-radius:12px;padding:14px;margin:10px 0;background:var(--noir2)}
+  .scn.win{border-color:var(--or-soft)}
+  .scn .nm{color:var(--or2);font-weight:600;font-size:16px}
+  .scn .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #221c2c;font-size:14px}
+  .scn .row:last-child{border-bottom:none}
+  .scn .row .v{font-family:Georgia,serif;white-space:nowrap;padding-left:10px}
+  .scn .net{font-family:Georgia,serif;font-size:19px;margin-top:8px}
+  .scn .net.hi{color:var(--vert2)}.scn .net.lo{color:var(--ambre)}
+  .callout{background:linear-gradient(180deg,rgba(94,31,45,.18),transparent);border:1px solid var(--bord);
+    border-left:3px solid var(--or);border-radius:10px;padding:14px 16px;margin:16px 0;color:var(--txt-soft);font-size:15px}
+  .callout.warn{border-left-color:var(--rouge)}
+  .callout b{color:var(--or2)}
+  .key{font-size:13px;color:var(--txt-mut);margin-top:8px}
+  footer{text-align:center;color:var(--txt-mut);font-size:12px;margin-top:34px;line-height:1.7}
+  .seal{color:var(--or-soft);letter-spacing:.3em;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Compte de résultat · ARCANA</div>
+    <h1>P&L jusqu'au net</h1>
+    <p class="sub">Toutes les couches de coût, BFR compris — le calcul qui manquait</p>
+  </header>
+
+  <!-- 1 marge unitaire -->
+  <h2><span class="n">1</span>Marge nette par boîte (vente directe)</h2>
+  <p class="intro">On part du prix TTC, on retire la TVA, puis TOUS les coûts variables. Base : production 8 000+ ex.</p>
+
+  <div class="card">
+    <table>
+      <caption>CLASSIQUE — 24,99 € TTC</caption>
+      <tbody>
+        <tr><td>Prix de vente TTC</td><td class="n">24,99</td></tr>
+        <tr><td>− TVA 20 %</td><td class="n neg">−4,17</td></tr>
+        <tr class="sub"><td>= Chiffre d'affaires HT</td><td class="n">20,82</td></tr>
+        <tr><td>− Fabrication rendue</td><td class="n neg">−4,40</td></tr>
+        <tr><td>− Fulfillment/expédition (net)</td><td class="n neg">−2,50</td></tr>
+        <tr><td>− Frais plateforme + paiement (~6 %)</td><td class="n neg">−1,25</td></tr>
+        <tr><td>− Pledge manager (~4 %)</td><td class="n neg">−0,83</td></tr>
+        <tr><td>− SAV / casse (~3 %)</td><td class="n neg">−0,62</td></tr>
+        <tr><td>− Illustration amortie (/15k ex)</td><td class="n neg">−0,55</td></tr>
+        <tr><td>− Marketing / CAC (organique)</td><td class="n neg">−1,00</td></tr>
+        <tr class="tot"><td>= MARGE NETTE / boîte</td><td class="n">≈ 9,70 €</td></tr>
+      </tbody>
+    </table>
+    <p class="key">Prudent (CAC payant ~4 €, port non répercuté) : descend à <b class="am">~6,5 €</b>.</p>
+  </div>
+
+  <div class="card">
+    <table>
+      <caption>PREMIUM — 49,99 € TTC</caption>
+      <tbody>
+        <tr><td>Prix de vente TTC</td><td class="n">49,99</td></tr>
+        <tr><td>− TVA 20 %</td><td class="n neg">−8,33</td></tr>
+        <tr class="sub"><td>= Chiffre d'affaires HT</td><td class="n">41,66</td></tr>
+        <tr><td>− Fabrication rendue</td><td class="n neg">−8,40</td></tr>
+        <tr><td>− Fulfillment/expédition (net)</td><td class="n neg">−3,00</td></tr>
+        <tr><td>− Frais plateforme + paiement (~6 %)</td><td class="n neg">−2,50</td></tr>
+        <tr><td>− Pledge manager (~4 %)</td><td class="n neg">−1,67</td></tr>
+        <tr><td>− SAV / casse (~3 %)</td><td class="n neg">−1,25</td></tr>
+        <tr><td>− Illustration amortie</td><td class="n neg">−0,55</td></tr>
+        <tr><td>− Marketing / CAC</td><td class="n neg">−1,50</td></tr>
+        <tr class="tot"><td>= MARGE NETTE / boîte</td><td class="n">≈ 22,80 €</td></tr>
+      </tbody>
+    </table>
+    <p class="key">Prudent (CAC plus élevé, intl) : <b class="am">~16-18 €</b>. C'est le vrai moteur de profit.</p>
+  </div>
+
+  <div class="callout">
+    <b>Marge nette retenue (prudente) pour les scénarios :</b> Classique <b>~7,5 €</b> · Premium <b>~17 €</b>. Tout repose sur le <b>mix Premium</b> : plus il est haut, plus la moyenne monte.
+  </div>
+
+  <!-- 2 cout fixes -->
+  <h2><span class="n">2</span>Les coûts fixes (à couvrir)</h2>
+  <div class="card">
+    <table>
+      <tbody>
+        <tr><td>Illustration 16 arcanes (IA-assistée)</td><td class="n">8 000</td></tr>
+        <tr><td>Outillage (moules, matrices)</td><td class="n">2 500</td></tr>
+        <tr><td>Certification (14+, GPSR)</td><td class="n">1 000</td></tr>
+        <tr><td>Setup marketing (photos, vidéos)</td><td class="n">3 000</td></tr>
+        <tr><td>Outil web gratuit (MVP, une fois)</td><td class="n">25 000</td></tr>
+        <tr class="tot"><td>= Investissement initial</td><td class="n" style="color:var(--or2)">≈ 39 500 €</td></tr>
+        <tr><td>Maintenance appli / serveurs (par an)</td><td class="n">~4 000/an</td></tr>
+      </tbody>
+    </table>
+    <p class="key">L'illustration et l'outillage sont financés par le crowdfunding. L'outil web est la plus grosse ligne — voir le brief dédié.</p>
+  </div>
+
+  <!-- 3 scenarios -->
+  <h2><span class="n">3</span>Bénéfice net annuel — 3 scénarios</h2>
+
+  <div class="scn">
+    <div class="nm">🅐 Pessimiste — An 1-2</div>
+    <div class="row"><div>Volume / mix</div><div class="v">5 000 boîtes · 65/35</div></div>
+    <div class="row"><div>Marge nette moyenne</div><div class="v">~10,8 €/u</div></div>
+    <div class="row"><div>Contribution totale</div><div class="v">54 000 €</div></div>
+    <div class="row"><div>− Coûts fixes (an 1)</div><div class="v rg">−43 500 €</div></div>
+    <div class="net lo">≈ +10 000 € (avant ta rémunération)</div>
+  </div>
+
+  <div class="scn">
+    <div class="nm">🅑 Central — An 2-3</div>
+    <div class="row"><div>Volume / mix</div><div class="v">15 000 boîtes · 60/40</div></div>
+    <div class="row"><div>Marge nette moyenne</div><div class="v">~11,3 €/u</div></div>
+    <div class="row"><div>Contribution totale</div><div class="v">169 500 €</div></div>
+    <div class="row"><div>− Récurrents (appli, etc.)</div><div class="v rg">−12 000 €</div></div>
+    <div class="net hi">≈ +155 000 €</div>
+  </div>
+
+  <div class="scn win">
+    <div class="nm">🅒 Cible — An 3-4 🎯</div>
+    <div class="row"><div>Volume / mix</div><div class="v">27 000 boîtes · 55/45</div></div>
+    <div class="row"><div>Marge nette moyenne</div><div class="v">~11,8 €/u</div></div>
+    <div class="row"><div>Contribution totale</div><div class="v">318 600 €</div></div>
+    <div class="row"><div>− Récurrents + structure légère</div><div class="v rg">−40 000 €</div></div>
+    <div class="net hi">≈ +280 000 €</div>
+  </div>
+
+  <div class="callout warn">
+    <b>Le piège : la structure.</b> Les 200-300 k€ sont « avant salaires ». Si tu dois embaucher 1-2 personnes (~80-100 k€/an), le net réel baisse d'autant. À 27 000 boîtes en solo/quasi-solo, les 200-300 k€ tiennent ; avec une équipe, il faut viser ~35 000+ boîtes.
+  </div>
+
+  <!-- 4 sensibilité mix -->
+  <h2><span class="n">4</span>Sensibilité au mix Premium</h2>
+  <p class="intro">Le KPI n°1. Voici le bénéfice à 27 000 boîtes/an selon la part de Premium réelle.</p>
+  <div class="card">
+    <table>
+      <thead><tr><th>Part Premium</th><th class="n">Marge moy.</th><th class="n">Net annuel*</th></tr></thead>
+      <tbody>
+        <tr><td>20 % (pessimiste)</td><td class="n">~9,4 €</td><td class="n am">~214 k€</td></tr>
+        <tr><td>35 %</td><td class="n">~10,8 €</td><td class="n pos">~252 k€</td></tr>
+        <tr><td>45 % (cible)</td><td class="n">~11,8 €</td><td class="n pos">~279 k€</td></tr>
+        <tr><td>60 %</td><td class="n">~13,2 €</td><td class="n pos">~316 k€</td></tr>
+      </tbody>
+    </table>
+    <p class="key">*avant structure. Même à 20 % de Premium tu restes au-dessus de 200 k€ à ce volume — mais le volume (27k) est l'hypothèse la plus exigeante, pas le mix.</p>
+  </div>
+
+  <!-- 5 BFR -->
+  <h2><span class="n">5</span>Trésorerie / BFR — le point qui tue</h2>
+  <div class="card gold">
+    <p>Le danger n°1 après une campagne réussie n'est pas la rentabilité, c'est le <b style="color:var(--or2)">décalage de trésorerie</b> :</p>
+    <table>
+      <tbody>
+        <tr><td>Acompte usine (30 % à la commande)</td><td class="n">tu paies</td></tr>
+        <tr><td>Solde usine (70 % avant expédition)</td><td class="n">tu paies</td></tr>
+        <tr><td>Fret + fulfillment</td><td class="n">tu paies</td></tr>
+        <tr><td>… puis seulement tu encaisses</td><td class="n pos">+ ventes</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-bottom:0"><b>An 1 :</b> le crowdfunding résout tout (les backers paient AVANT la production). <b>An 2+ :</b> pour réassortir 10 000 boîtes il faut avancer <b>~50 000 €</b> de production avant de les vendre. Il faut donc <b style="color:var(--or2)">garder un matelas de trésorerie</b> (réinvestir les bénéfices) et ne jamais tout sortir en dividendes.</p>
+  </div>
+
+  <div class="callout">
+    <b>Verdict du P&L :</b> 200-300 k€ net/an est <b>réaliste en An 3-4</b>, à condition de tenir <b>~25-30 000 boîtes/an</b> en vente directe, un <b>mix Premium &gt; 35 %</b>, un <b>CAC quasi nul</b> (organique), et de <b>réinvestir pour financer le BFR</b>. Le volume est l'hypothèse la plus exigeante — d'où l'importance de l'outil web gratuit pour bâtir l'audience.
+  </div>
+
+  <footer>
+    Modèle indicatif · TVA 20 % · à confirmer par devis fab, fulfillment et frais plateforme réels.<br>
+    Marges nettes prudentes : Classique ~7,5 € · Premium ~17 €.
+    <div class="seal">✦ ARCANA ✦</div>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a10">
+<title>ARCANA · Brief de l'outil web</title>
+<style>
+  :root{--noir:#0b0a10;--noir2:#15131f;--noir3:#1d1a28;--or:#d9b46a;--or2:#f2d999;--or-soft:#b9974d;
+    --txt:#ece7db;--txt-soft:#b9b2a4;--txt-mut:#8a8376;--vert:#7bb86a;--vert2:#9ad389;--rouge:#e08079;--ambre:#e6b85c;--bord:#2c2738}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:radial-gradient(120% 55% at 50% -5%,#241e33 0%,var(--noir) 55%) no-repeat var(--noir);
+    color:var(--txt);font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;line-height:1.55;font-size:17px;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px 60px}
+  header{text-align:center;padding:42px 8px 14px}
+  .kicker{letter-spacing:.3em;text-transform:uppercase;color:var(--or);font-size:11px;font-family:Georgia,serif}
+  h1{font-size:34px;line-height:1.08;margin:8px 0 6px;letter-spacing:.05em;font-weight:700;
+     background:linear-gradient(180deg,var(--or2),var(--or-soft));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--txt-soft);font-style:italic;font-size:15.5px;margin:0 auto;max-width:34ch}
+  h2{font-size:22px;color:var(--or2);margin:34px 0 4px}
+  h2 .n{font-family:Georgia,serif;color:var(--or-soft);font-size:15px;margin-right:8px}
+  h3{color:var(--or);font-size:14px;font-family:Georgia,serif;letter-spacing:.05em;text-transform:uppercase;margin:16px 0 4px}
+  p{font-size:15.5px;color:var(--txt-soft)}
+  .card{background:var(--noir2);border:1px solid var(--bord);border-radius:14px;padding:16px;margin:14px 0}
+  .card.gold{border-color:var(--or-soft);box-shadow:0 0 0 1px rgba(217,180,106,.1) inset}
+  ul.clean{list-style:none;padding:0;margin:8px 0}
+  ul.clean li{padding:8px 0 8px 26px;position:relative;border-bottom:1px solid #221c2c;color:var(--txt-soft);font-size:15px}
+  ul.clean li:last-child{border-bottom:none}
+  ul.clean li::before{content:"✦";position:absolute;left:0;color:var(--or-soft);font-size:11px;top:10px}
+  ul.clean li b{color:var(--txt)}
+  ul.must li::before{content:"✓";color:var(--vert2)}
+  ul.later li::before{content:"+";color:var(--ambre)}
+  ul.ask li::before{content:"?";color:var(--bleu,#8fb8d8)}
+  .flow{display:flex;flex-direction:column;gap:0}
+  .fstep{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #221c2c}
+  .fstep:last-child{border-bottom:none}
+  .fstep .ico{flex:0 0 34px;height:34px;border-radius:9px;background:rgba(217,180,106,.1);border:1px solid var(--or-soft);
+    display:flex;align-items:center;justify-content:center;color:var(--or2);font-size:17px}
+  .fstep .tx{font-size:14.5px;color:var(--txt-soft)}.fstep .tx b{color:var(--txt)}
+  .callout{background:linear-gradient(180deg,rgba(94,31,45,.18),transparent);border:1px solid var(--bord);
+    border-left:3px solid var(--or);border-radius:10px;padding:14px 16px;margin:16px 0;color:var(--txt-soft);font-size:15px}
+  .callout.warn{border-left-color:var(--rouge)}.callout b{color:var(--or2)}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:4px 0}
+  td,th{text-align:left;padding:8px 5px;border-bottom:1px solid #251f30;vertical-align:top}
+  th{color:var(--or);font-family:Georgia,serif;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+  td.n{text-align:right;font-family:Georgia,serif;color:var(--or2);white-space:nowrap}
+  .tier{border:1px solid var(--bord);border-radius:12px;padding:14px;margin:10px 0;background:var(--noir2)}
+  .tier .nm{color:var(--or2);font-weight:600;font-size:15.5px}
+  .tier .pr{font-family:Georgia,serif;color:var(--or2)}
+  .tier .d{font-size:14px;color:var(--txt-soft);margin-top:4px}
+  .tier.reco{border-color:var(--or-soft)}
+  footer{text-align:center;color:var(--txt-mut);font-size:12px;margin-top:34px;line-height:1.7}
+  .seal{color:var(--or-soft);letter-spacing:.3em;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Cahier des charges · Outil web</div>
+    <h1>Brief de l'appli</h1>
+    <p class="sub">Outil web gratuit « 1 hôte, les autres rejoignent » — narrateur automatique</p>
+  </header>
+
+  <!-- objectif -->
+  <h2><span class="n">1</span>Objectif & principe</h2>
+  <div class="card gold">
+    <p style="margin-top:0"><b style="color:var(--or2)">Ce n'est PAS un produit à vendre.</b> C'est un <b>outil d'acquisition gratuit</b> qui : ① fait jouer en 30 secondes (supprime le frein « trouver un narrateur »), ② expose la marque à ~6-13 personnes par partie, ③ et surtout <b>capte des emails</b> pour rendre ta campagne crowdfunding finançable.</p>
+    <p style="margin-bottom:0">Format = <b>web / PWA</b> (pas une app native) : 0 % de commission, une seule base de code, partage par lien viral, zéro installation pour les invités, pas de validation Apple.</p>
+  </div>
+
+  <!-- parcours -->
+  <h2><span class="n">2</span>Le parcours d'une partie</h2>
+  <div class="card">
+    <div class="flow">
+      <div class="fstep"><div class="ico">1</div><div class="tx"><b>L'hôte ouvre une room</b> sur arcana.app → reçoit un code à 4 lettres + un lien.</div></div>
+      <div class="fstep"><div class="ico">2</div><div class="tx"><b>Les 6-13 invités rejoignent</b> dans leur navigateur (code ou lien), choisissent un pseudo. Aucune installation.</div></div>
+      <div class="fstep"><div class="ico">3</div><div class="tx"><b>L'appli compose la donne</b> selon le nombre de joueurs et distribue les rôles secrètement sur chaque téléphone.</div></div>
+      <div class="fstep"><div class="ico">4</div><div class="tx"><b>Narration audio de la nuit</b> : voix off + ambiance. L'appli appelle chaque rôle dans le bon ordre, gère les pouvoirs.</div></div>
+      <div class="fstep"><div class="ico">5</div><div class="tx"><b>Phase de jour</b> : débats (à voix réelle), vote dans l'appli, annonce des morts, conditions de victoire.</div></div>
+      <div class="fstep"><div class="ico">6</div><div class="tx"><b>Récap partageable</b> : « qui a menti », MVP du bluff → bouton partager (carburant pour les réseaux).</div></div>
+    </div>
+  </div>
+
+  <!-- périmètre MVP -->
+  <h2><span class="n">3</span>Périmètre — ce qu'il faut (MVP)</h2>
+  <div class="card">
+    <h3>Indispensable (V1)</h3>
+    <ul class="clean must">
+      <li><b>Room host-and-join</b> (lien + code, façon jackbox.tv), 6-13 joueurs, reconnexion si coupure réseau</li>
+      <li><b>Moteur de règles des 16 rôles</b> : ordre de réveil, actions de nuit, dépendances entre pouvoirs, cas limites (LE gros morceau — voir §4)</li>
+      <li><b>Narration audio</b> (voix off + ambiance sonore) = différenciateur premium et atout vidéo</li>
+      <li><b>Gestion jour/nuit</b>, votes, éliminations, conditions de victoire (Village / Loups / Amoureux / solos)</li>
+      <li><b>Récap de fin de partie partageable</b> (UGC)</li>
+      <li><b>Capture email</b> : « préviens-moi de la sortie du coffret » + code promo −10 %</li>
+      <li><b>FR + EN</b> (audience streamers internationale)</li>
+    </ul>
+    <h3>Plus tard (V2+)</h3>
+    <ul class="clean later">
+      <li>Comptes joueurs, statistiques, historique des parties</li>
+      <li>Nouveaux rôles / modes (live-ops, comme les packs Jackbox)</li>
+      <li>Mode 100 % à distance optimisé pour les streamers</li>
+      <li>Lien avec le coffret (le QR du coffret débloque un thème visuel / des voix premium)</li>
+    </ul>
+  </div>
+
+  <!-- moteur de regles -->
+  <h2><span class="n">4</span>Le moteur de règles = le vrai défi</h2>
+  <div class="card">
+    <p>C'est ici que se cache 60-70 % du coût (pas l'interface). Comme pour <b>Blood on the Clocktower</b>, la difficulté n'est pas l'écran mais la <b>machine à états</b> qui gère les 16 rôles et leurs interactions :</p>
+    <ul class="clean">
+      <li>Ordre de réveil fixe : Cupidon → Voyante → Garde → Loups → Sorcière → Petite Fille → Flûtiste…</li>
+      <li>Dépendances : la Sorcière voit la victime des Loups et peut la sauver ; le Garde protège ; l'Ancien survit 1 fois ; le Chasseur tire en mourant…</li>
+      <li>Cas limites : que se passe-t-il si l'amoureux meurt ? si le Garde protège la cible des Loups ? si la Sorcière tue le Loup-Garou Blanc ?</li>
+    </ul>
+    <p style="margin-bottom:0"><b style="color:var(--or2)">À faire avant de chiffrer :</b> écrire une <b>table de décision exhaustive</b> des 16 rôles (entrées/sorties de chaque pouvoir, priorités, exceptions). C'est ce document qui permet à un dev de devis ferme — sans lui, les devis explosent.</p>
+  </div>
+
+  <!-- anti-cannibalisation -->
+  <h2><span class="n">5</span>Design anti-cannibalisation</h2>
+  <div class="callout warn">
+    <b>Le risque :</b> si l'appli fait TOUT gratuitement, pourquoi acheter les belles cartes ?<br><br>
+    <b>La parade (pas de DRM) :</b> l'appli <b>assiste la table</b> mais ne livre pas le contenu collectionnable. Les <b>illustrations d'arcanes en haute qualité, le lore complet et l'objet</b> restent dans le coffret. L'appli gère l'arbitrage (narration, votes) ; la <b>désirabilité de l'objet</b> protège la vente, pas un verrou technique (un code se contourne en 48 h et frustre les vrais acheteurs).
+  </div>
+
+  <!-- KPI -->
+  <h2><span class="n">6</span>KPI à instrumenter dès le jour 1</h2>
+  <div class="card">
+    <ul class="clean">
+      <li><b>Lien ouvert</b> · <b>room créée</b> · <b>1ʳᵉ partie terminée</b></li>
+      <li><b>Parties 2..N par groupe</b> (la vraie rétention des party-games = « rafales sociales », pas le D1/D7)</li>
+      <li><b>Inscriptions email</b> (l'objectif business n°1)</li>
+      <li><b>Clics « acheter le coffret »</b> + <b>codes promo utilisés</b> (= attribution causale réelle)</li>
+    </ul>
+    <p class="key" style="font-size:13px;color:var(--txt-mut)">Go/No-go à 3 mois : si le coût par coffret réellement attribué &gt; marge nette (~7,5 € Classique / ~17 € Premium), on gèle l'outil.</p>
+  </div>
+
+  <!-- budget & approche -->
+  <h2><span class="n">7</span>Budget & approche (3 niveaux)</h2>
+
+  <div class="tier reco">
+    <div class="nm">🅐 MVP malin — narrateur « 1 écran »</div>
+    <div class="pr">~5 000 – 10 000 €</div>
+    <div class="d">On commence SANS le multi-joueurs temps réel : juste l'écran de l'hôte qui narre (audio + ordre des rôles + minuteur), les cartes physiques distribuées à la main. Valide le concept et l'audio à coût réduit. <b style="color:var(--vert2)">Recommandé pour démarrer.</b></div>
+  </div>
+  <div class="tier">
+    <div class="nm">🅑 MVP complet — host-and-join temps réel</div>
+    <div class="pr">~15 000 – 40 000 €</div>
+    <div class="d">Le vrai « 1 hôte, les autres rejoignent par lien », synchro temps réel 6-13 joueurs, moteur des 16 rôles. + 10-25 %/an de maintenance/serveurs. La version virale.</div>
+  </div>
+  <div class="tier">
+    <div class="nm">🅒 App native iOS + Android</div>
+    <div class="pr">~40 000 – 70 000 €</div>
+    <div class="d">À éviter au début : 2 bases de code, validation Apple, 0 avantage vs le web pour ce besoin. Seulement si succès confirmé.</div>
+  </div>
+
+  <div class="callout">
+    <b>Recommandation :</b> commence par le <b>🅐 MVP « 1 écran » à ~5-10 k€</b> (narrateur audio, cartes distribuées à la main) pour valider l'attrait et l'audio sans risque, puis passe au <b>🅑 host-and-join</b> une fois la traction prouvée. Ça réduit ton investissement initial de 25 k€ à ~8 k€ et améliore directement le P&L de l'An 1.
+  </div>
+
+  <!-- devis -->
+  <h2><span class="n">8</span>Ce qu'il faut demander aux devs</h2>
+  <div class="card">
+    <ul class="clean ask">
+      <li>Techno temps réel proposée (WebSocket : Colyseus / PartyKit / Ably / Supabase Realtime) et <b>coût serveur récurrent estimé</b></li>
+      <li>Comment ils gèrent le <b>moteur des 16 rôles</b> (à partir de ta table de décision) et les <b>reconnexions</b></li>
+      <li><b>Multilingue</b> FR/EN dès le départ</li>
+      <li><b>Propriété du code</b> (tu dois être propriétaire à 100 %)</li>
+      <li>Coût de <b>maintenance annuelle</b> et d'ajout de rôles/modes</li>
+      <li>Délai de livraison du MVP (cible : 3-5 mois)</li>
+      <li>Option no-code/low-code pour le 🅐 (Bubble, etc.) vs dev custom</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <b>Ordre de marche :</b> ① écris la table de décision des 16 rôles → ② fais chiffrer le <b>MVP « 1 écran »</b> → ③ lance-le gratuit pour bâtir ta liste email → ④ crowdfunding du coffret → ⑤ passe au host-and-join si la traction est là.
+  </div>
+
+  <footer>
+    Brief indicatif · budgets à confirmer par devis dev réels.<br>
+    Outil = dépense marketing (revenu logiciel = 0 au P&L).
+    <div class="seal">✦ ARCANA ✦</div>
+  </footer>
+
+</div>
+</body>
+</html>
