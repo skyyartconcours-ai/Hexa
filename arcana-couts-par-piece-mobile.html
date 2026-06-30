@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a10">
+<title>ARCANA · Coût par pièce — Classique vs Premium</title>
+<style>
+  :root{--noir:#0b0a10;--noir2:#15131f;--noir3:#1d1a28;--or:#d9b46a;--or2:#f2d999;--or-soft:#b9974d;
+    --txt:#ece7db;--txt-soft:#b9b2a4;--txt-mut:#8a8376;--vert:#7bb86a;--vert2:#9ad389;--rouge:#e08079;--ambre:#e6b85c;--bord:#2c2738}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:radial-gradient(120% 55% at 50% -5%,#241e33 0%,var(--noir) 55%) no-repeat var(--noir);
+    color:var(--txt);font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;line-height:1.55;font-size:17px;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px 60px}
+  header{text-align:center;padding:42px 8px 14px}
+  .kicker{letter-spacing:.3em;text-transform:uppercase;color:var(--or);font-size:11px;font-family:Georgia,serif}
+  h1{font-size:36px;line-height:1.06;margin:8px 0 6px;letter-spacing:.06em;font-weight:700;
+     background:linear-gradient(180deg,var(--or2),var(--or-soft));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--txt-soft);font-style:italic;font-size:15.5px;margin:0 auto;max-width:32ch}
+  .vol{display:inline-block;margin-top:12px;border:1px solid var(--or-soft);color:var(--or2);border-radius:20px;
+       padding:5px 15px;font-size:13px;font-family:Georgia,serif;background:rgba(217,180,106,.05)}
+
+  .prod{border-radius:16px;padding:18px 16px;margin:18px 0;border:1px solid var(--bord);background:var(--noir2)}
+  .prod.classic{border-color:#4a6b8a}
+  .prod.prem{border-color:var(--or-soft);box-shadow:0 0 0 1px rgba(217,180,106,.12) inset}
+  .ptitle{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .ptitle .nm{font-size:23px;font-weight:700}
+  .prod.classic .nm{color:#bcd3ea}.prod.prem .nm{color:var(--or2)}
+  .ptitle .pr{font-family:Georgia,serif;font-size:20px;color:var(--txt);white-space:nowrap}
+  .ptag{font-size:13.5px;color:var(--txt-mut);font-style:italic;margin:4px 0 12px}
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  td{padding:7px 4px;border-bottom:1px solid #251f30;vertical-align:top}
+  td.n{text-align:right;font-family:Georgia,serif;color:var(--or2);white-space:nowrap}
+  td .x{color:var(--txt-mut);font-size:12.5px;display:block}
+  tr.sum td{border-top:1px solid var(--bord);border-bottom:none;color:var(--txt-soft);padding-top:9px}
+  tr.tot td{border-top:2px solid var(--or-soft);border-bottom:none;font-weight:700;font-size:16.5px;color:var(--txt);padding-top:9px}
+  tr.tot td.n{color:var(--or2)}
+  .cut{margin-top:12px;padding:11px 13px;border-radius:9px;background:var(--noir3);border:1px solid var(--bord);font-size:13.5px;color:var(--txt-mut)}
+  .cut b{color:var(--rouge)}.keep b{color:var(--vert2)}
+
+  h2{font-size:23px;color:var(--or2);margin:34px 0 6px}
+  h2 .n{font-family:Georgia,serif;color:var(--or-soft);font-size:15px;margin-right:8px}
+  .intro{color:var(--txt-soft);font-size:15px;margin:6px 0 12px}
+  .card{background:var(--noir2);border:1px solid var(--bord);border-radius:14px;padding:14px 16px;margin:14px 0}
+  .mtable td{font-size:14.5px}
+  .pos{color:var(--vert2);font-family:Georgia,serif;text-align:right;white-space:nowrap;font-weight:600}
+  .mtable td:first-child{color:var(--txt-soft)}
+  .big{font-size:18px}
+  .callout{background:linear-gradient(180deg,rgba(94,31,45,.18),transparent);border:1px solid var(--bord);
+    border-left:3px solid var(--or);border-radius:10px;padding:14px 16px;margin:16px 0;color:var(--txt-soft);font-size:15px}
+  .callout b{color:var(--or2)}
+  .key{font-size:13px;color:var(--txt-mut);margin-top:8px}
+  footer{text-align:center;color:var(--txt-mut);font-size:12px;margin-top:34px;line-height:1.7}
+  .seal{color:var(--or-soft);letter-spacing:.3em;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Coût par pièce · ARCANA</div>
+    <h1>Classique vs Premium</h1>
+    <p class="sub">Le prix de chaque composant, pensé pour une marge maximale</p>
+    <div class="vol">◆ Calculé pour 8 000 exemplaires · usine Asie</div>
+  </header>
+
+  <!-- philosophie -->
+  <div class="callout">
+    <b>Principe.</b> En ligne, le client ne touche pas le produit — il le juge en <b>photo et vidéo</b>. La Classique garde donc seulement les <b>4 choses qui se voient</b> (boîte rigide, fermeture magnétique, dorure, illustrations) et supprime tout le tactile coûteux. Le tactile (soft-touch, tranche dorée, métal, velours) est réservé à la <b>Premium</b>, vendue comme objet d'art.
+  </div>
+
+  <!-- CLASSIQUE -->
+  <div class="prod classic">
+    <div class="ptitle"><div class="nm">CLASSIQUE</div><div class="pr">19,99 – 24,99 €</div></div>
+    <p class="ptag">« Premium à l'œil » — coût minimal, marge maximale</p>
+    <table>
+      <tbody>
+        <tr><td>16 cartes tarot illustrées 300 g, finition lin<span class="x">le cœur du produit, ce qui se voit</span></td><td class="n">0,55</td></tr>
+        <tr><td>Coffret rigide magnétique compact (2 mm)<span class="x">l'allure d'écrin en photo</span></td><td class="n">1,70</td></tr>
+        <tr><td>Aimants néodyme (×2)<span class="x">le « clac » de l'unboxing</span></td><td class="n">0,12</td></tr>
+        <tr><td>Dorure à chaud du titre (1 foyer)<span class="x">accroche la lumière en photo</span></td><td class="n">0,30</td></tr>
+        <tr><td>Insert carton noir formé<span class="x">cale les cartes, pas de PET</span></td><td class="n">0,15</td></tr>
+        <tr><td>Aide de jeu imprimée + mini-livret</td><td class="n">0,12</td></tr>
+        <tr><td>Marqueurs carton (Mort, Vote)</td><td class="n">0,10</td></tr>
+        <tr><td>Emballage (belly-band + cello + master)</td><td class="n">0,16</td></tr>
+        <tr class="sum"><td>Sous-total fabrication</td><td class="n">3,20</td></tr>
+        <tr><td>Outillage amorti (8 000)</td><td class="n">0,22</td></tr>
+        <tr><td>Certification CE / EN71</td><td class="n">0,12</td></tr>
+        <tr><td>Transport + douane (conteneur plein)</td><td class="n">0,52</td></tr>
+        <tr><td>Aléas / QC / casse (~8 %)</td><td class="n">0,33</td></tr>
+        <tr class="tot"><td>COÛT TOTAL / BOÎTE</td><td class="n">≈ 4,40 €</td></tr>
+      </tbody>
+    </table>
+    <div class="cut keep"><b>On garde (4) :</b> boîte rigide magnétique · dorure du titre · 16 cartes illustrées · format coffret.</div>
+    <div class="cut"><b>On coupe :</b> soft-touch, tranche dorée, jeton métal, insert PET + ruban, gaufrage sculpté, vernis spot UV, carton 2,5 mm. <span style="color:var(--vert2)">Invisible en photo, ~3 €/boîte économisés.</span></div>
+  </div>
+
+  <!-- PREMIUM -->
+  <div class="prod prem">
+    <div class="ptitle"><div class="nm">PREMIUM</div><div class="pr">49,99 €</div></div>
+    <p class="ptag">Objet d'art de collection — on remet tout le tactile</p>
+    <table>
+      <tbody>
+        <tr><td>16 cartes 350 g cœur noir + lin + dorure du dos + tranche dorée</td><td class="n">1,55</td></tr>
+        <tr><td>Coffret rigide 2,5 mm soft-touch + gaufrage sculpté</td><td class="n">2,75</td></tr>
+        <tr><td>Aimants néodyme (×4)</td><td class="n">0,18</td></tr>
+        <tr><td>Dorure à chaud + gaufrage multi-niveaux</td><td class="n">0,55</td></tr>
+        <tr><td>Insert PET noir mat + ruban satin</td><td class="n">0,45</td></tr>
+        <tr><td>Jeton Capitaine métal émaillé</td><td class="n">0,45</td></tr>
+        <tr><td>Marqueurs carton cœur noir</td><td class="n">0,15</td></tr>
+        <tr><td>Livret premium + certificat numéroté</td><td class="n">0,30</td></tr>
+        <tr><td>Emballage premium</td><td class="n">0,25</td></tr>
+        <tr class="sum"><td>Sous-total fabrication</td><td class="n">6,63</td></tr>
+        <tr><td>Outillage amorti (8 000)</td><td class="n">0,30</td></tr>
+        <tr><td>Certification EN71 + REACH (métal)</td><td class="n">0,18</td></tr>
+        <tr><td>Transport + douane</td><td class="n">0,55</td></tr>
+        <tr><td>Aléas / QC / casse (~9 %)</td><td class="n">0,54</td></tr>
+        <tr class="tot"><td>COÛT TOTAL / BOÎTE</td><td class="n">≈ 8,40 €</td></tr>
+      </tbody>
+    </table>
+    <div class="cut keep"><b>En plus de la Classique :</b> cartes cœur noir + tranche dorée, soft-touch, gaufrage sculpté, insert velours/PET + ruban, jeton métal, certificat numéroté.</div>
+  </div>
+
+  <!-- MARGES -->
+  <h2><span class="n">1</span>Ta marge par boîte</h2>
+  <p class="intro">C'est là que ta stratégie est gagnante : un coût très bas te laisse une <b style="color:var(--or2)">grosse marge même quand tu revendras ailleurs</b> (en rayon, où les intermédiaires prennent presque tout).</p>
+
+  <div class="card">
+    <table class="mtable">
+      <tbody>
+        <tr><td colspan="2" style="color:var(--or);font-family:Georgia,serif;font-size:12px;letter-spacing:.06em;text-transform:uppercase;border:none">Classique · coût 4,40 €</td></tr>
+        <tr><td>Vente directe à 24,99 €<span class="x" style="color:var(--txt-mut);font-size:12.5px">tu encaisses ~16,6 €</span></td><td class="pos big">+12,2 €</td></tr>
+        <tr><td>Vente directe à 19,99 €</td><td class="pos">+8,9 €</td></tr>
+        <tr><td>Revente en rayon à 24,99 €<span class="x" style="color:var(--txt-mut);font-size:12.5px">tu encaisses 8,75 €</span></td><td class="pos">+4,35 €</td></tr>
+        <tr><td>Revente en rayon à 19,99 €</td><td class="pos">+2,60 €</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <table class="mtable">
+      <tbody>
+        <tr><td colspan="2" style="color:var(--or);font-family:Georgia,serif;font-size:12px;letter-spacing:.06em;text-transform:uppercase;border:none">Premium · coût 8,40 €</td></tr>
+        <tr><td>Vente directe à 49,99 €<span class="x" style="color:var(--txt-mut);font-size:12.5px">tu encaisses ~33 €</span></td><td class="pos big">+24,6 €</td></tr>
+        <tr><td>Revente en rayon à 49,99 €<span class="x" style="color:var(--txt-mut);font-size:12.5px">tu encaisses ~17,5 €</span></td><td class="pos">+9,1 €</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <b>Le point clé que tu cherchais.</b> Avec un coût de <b>4,40 €</b>, la Classique reste rentable <b>partout</b> — même revendue en rayon à 19,99 € tu gardes +2,60 €/boîte, et en direct tu fais <b>×3,8 ta mise</b>. C'est exactement « énorme marge maintenant, et il en reste quand on vend ailleurs ».
+  </div>
+
+  <!-- VOLUME -->
+  <h2><span class="n">2</span>Et le volume ?</h2>
+  <p class="intro">Ces prix sont calculés à 8 000 ex. Voici comment le coût de la Classique bouge selon la quantité.</p>
+  <div class="card">
+    <table>
+      <tbody>
+        <tr><td>500 boîtes (minimum usine)</td><td class="n">~7,8 €</td></tr>
+        <tr><td>1 000</td><td class="n">~6,3 €</td></tr>
+        <tr><td>3 000</td><td class="n">~5,1 €</td></tr>
+        <tr><td>5 000</td><td class="n">~4,8 €</td></tr>
+        <tr><td><b style="color:var(--txt)">8 000</b> (ta cible)</td><td class="n" style="color:var(--vert2)">≈ 4,40 €</td></tr>
+        <tr><td>15 000</td><td class="n">~3,9 €</td></tr>
+      </tbody>
+    </table>
+    <p class="key">À 8 000 ex tu es à <b style="color:var(--vert2)">4,40 €</b> — dans ta cible 3–5 €. Pour descendre vers 3,80 €, il faut négocier la boîte sous 1,50 € ou monter à 15 000 ex. Le poste qui pèse, c'est toujours <b>le coffret rigide</b> (~40 % du coût).</p>
+  </div>
+
+  <div class="callout">
+    <b>Ne pas oublier :</b> ces 4,40 € sont le coût de <b>fabrication</b>. À part, il y a les frais fixes (illustration ~8 000–12 000 €, moules, certif) — sur 8 000 boîtes ça ajoute ~1,2 à 1,5 €/boîte. Même chargée, la Classique reste sous <b>~6 €</b> tout compris : la marge directe à 24,99 € reste énorme (~+10 €).
+  </div>
+
+  <footer>
+    Chiffres indicatifs à 8 000 ex · usine Asie · à confirmer par devis réels.<br>
+    TVA 20 % · marge boutique 40 % / distributeur 30 % pour le calcul « rayon ».
+    <div class="seal">✦ ARCANA ✦</div>
+  </footer>
+
+</div>
+</body>
+</html>
