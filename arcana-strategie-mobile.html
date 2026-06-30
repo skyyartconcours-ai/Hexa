@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a10">
+<title>ARCANA · Stratégie prix, revenu & appli</title>
+<style>
+  :root{--noir:#0b0a10;--noir2:#15131f;--noir3:#1d1a28;--or:#d9b46a;--or2:#f2d999;--or-soft:#b9974d;
+    --txt:#ece7db;--txt-soft:#b9b2a4;--txt-mut:#8a8376;--vert:#7bb86a;--vert2:#9ad389;--rouge:#e08079;--ambre:#e6b85c;--bord:#2c2738}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:radial-gradient(120% 55% at 50% -5%,#241e33 0%,var(--noir) 55%) no-repeat var(--noir);
+    color:var(--txt);font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;line-height:1.55;font-size:17px;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px 60px}
+  header{text-align:center;padding:42px 8px 14px}
+  .kicker{letter-spacing:.3em;text-transform:uppercase;color:var(--or);font-size:11px;font-family:Georgia,serif}
+  h1{font-size:34px;line-height:1.08;margin:8px 0 6px;letter-spacing:.05em;font-weight:700;
+     background:linear-gradient(180deg,var(--or2),var(--or-soft));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--txt-soft);font-style:italic;font-size:15.5px;margin:0 auto;max-width:34ch}
+  .meta{margin-top:12px;color:var(--txt-mut);font-size:12px;font-family:Georgia,serif}
+  h2{font-size:23px;color:var(--or2);margin:34px 0 4px}
+  h2 .n{font-family:Georgia,serif;color:var(--or-soft);font-size:15px;margin-right:8px}
+  .intro{color:var(--txt-soft);font-size:15px;margin:6px 0 12px}
+  .card{background:var(--noir2);border:1px solid var(--bord);border-radius:14px;padding:16px;margin:14px 0}
+  .card.gold{border-color:var(--or-soft);box-shadow:0 0 0 1px rgba(217,180,106,.1) inset}
+  p{font-size:15.5px;color:var(--txt-soft)}
+  .verdict{font-size:17px;color:var(--txt)}
+  .verdict b{color:var(--or2)}
+  .price-row{display:flex;gap:12px;margin:10px 0}
+  .pbox{flex:1;border:1px solid var(--bord);border-radius:12px;padding:14px;text-align:center;background:var(--noir3)}
+  .pbox.hot{border-color:var(--or-soft)}
+  .pbox .t{font-family:Georgia,serif;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--or)}
+  .pbox .p{font-size:24px;color:var(--or2);font-weight:700;margin-top:3px}
+  .pbox .s{font-size:12px;color:var(--txt-mut);margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:4px 0}
+  th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #261f31;vertical-align:top}
+  th{color:var(--or);font-family:Georgia,serif;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+  td.n{text-align:right;font-family:Georgia,serif;color:var(--or2);white-space:nowrap}
+  .keep{color:var(--vert2);font-family:Georgia,serif;font-size:12.5px;white-space:nowrap}
+  .cut{color:var(--rouge);font-family:Georgia,serif;font-size:12.5px;white-space:nowrap}
+  .opt{color:var(--ambre);font-family:Georgia,serif;font-size:12.5px;white-space:nowrap}
+  .callout{background:linear-gradient(180deg,rgba(94,31,45,.18),transparent);border:1px solid var(--bord);
+    border-left:3px solid var(--or);border-radius:10px;padding:14px 16px;margin:16px 0;color:var(--txt-soft);font-size:15px}
+  .callout b{color:var(--or2)}
+  .scn{border:1px solid var(--bord);border-radius:12px;padding:14px;margin:10px 0;background:var(--noir2)}
+  .scn .nm{color:var(--or2);font-weight:600;font-size:15.5px}
+  .scn .grid{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;font-size:13.5px;color:var(--txt-soft)}
+  .scn .grid b{color:var(--txt)}
+  .scn .ben{margin-top:8px;font-family:Georgia,serif;font-size:16px}
+  .scn .ben.lo{color:var(--ambre)}.scn .ben.hi{color:var(--vert2)}
+  ul.clean{list-style:none;padding:0;margin:8px 0}
+  ul.clean li{padding:8px 0 8px 24px;position:relative;border-bottom:1px solid #221c2c;color:var(--txt-soft);font-size:15px}
+  ul.clean li:last-child{border-bottom:none}
+  ul.clean li::before{content:"✦";position:absolute;left:0;color:var(--or-soft);font-size:11px;top:10px}
+  ul.clean li b{color:var(--txt)}
+  ul.step{counter-reset:s;list-style:none;padding:0}
+  ul.step li{padding:9px 0 9px 38px;position:relative;border-bottom:1px solid #221c2c;color:var(--txt-soft);font-size:15px}
+  ul.step li:last-child{border-bottom:none}
+  ul.step li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:8px;width:24px;height:24px;border-radius:50%;
+    background:rgba(217,180,106,.12);color:var(--or2);display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:13px;border:1px solid var(--or-soft)}
+  .app{border-radius:14px;border:1px solid var(--bord);padding:16px;margin:14px 0;background:var(--noir2)}
+  .app .tag{display:inline-block;font-size:12px;font-family:Georgia,serif;padding:3px 11px;border-radius:20px;letter-spacing:.04em;margin-bottom:8px}
+  .app .tag.y{background:rgba(123,184,106,.14);color:var(--vert2);border:1px solid rgba(123,184,106,.3)}
+  .app .tag.n{background:rgba(224,128,121,.12);color:var(--rouge);border:1px solid rgba(224,128,121,.3)}
+  .app h4{margin:10px 0 2px;color:var(--or);font-size:13px;font-family:Georgia,serif;letter-spacing:.05em;text-transform:uppercase}
+  .app p{margin:0;font-size:14.5px}
+  footer{text-align:center;color:var(--txt-mut);font-size:12px;margin-top:34px;line-height:1.7}
+  .seal{color:var(--or-soft);letter-spacing:.3em;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Stratégie · ARCANA</div>
+    <h1>Prix, revenu, contenu, marketing & appli</h1>
+    <p class="sub">3 analyses confrontées à 3 évaluateurs adversariaux</p>
+    <div class="meta">7 agents IA · les chiffres ci-dessous sont après recadrage adversarial</div>
+  </header>
+
+  <!-- 1 positionnement -->
+  <h2><span class="n">1</span>Premium ou bon marché ?</h2>
+  <div class="card gold">
+    <p class="verdict"><b>PREMIUM, sans hésiter</b> — mais assumé comme une <b>niche à forte marge en vente directe</b>, pas comme un best-seller de volume.</p>
+    <p>Tu ne peux pas battre un Loup-Garou sur son terrain (coût 1,20 €, vente 11 €, volumes massifs, distribution verrouillée). Le premium inverse la logique : tu ne vends plus « un jeu de déduction » mais « un objet tarot de collection » — catégorie où 11 € n'est plus la référence.</p>
+    <p style="margin-bottom:0"><b style="color:var(--ambre)">La nuance honnête :</b> le premium ne garantit pas le volume, il <b>rétrécit la cible</b> et te rend dépendant du marketing pour créer la désirabilité. C'est un pari sur la <b>marge unitaire</b>, pas sur le tonnage.</p>
+  </div>
+
+  <!-- 2 prix -->
+  <h2><span class="n">2</span>Le sweet spot de prix</h2>
+  <div class="price-row">
+    <div class="pbox hot"><div class="t">Classique</div><div class="p">24,99 €</div><div class="s">cœur de cible</div></div>
+    <div class="pbox"><div class="t">Premium</div><div class="p">49,99 €</div><div class="s">numéroté</div></div>
+    <div class="pbox"><div class="t">Collector</div><div class="p">69–79 €</div><div class="s">édition limitée</div></div>
+  </div>
+  <div class="card">
+    <p><b style="color:var(--or2)">Ta peur du seuil 25 € est en grande partie un faux problème</b> — mais pas pour la raison « ça change tout seul de catégorie ». C'est <b>l'acheteur</b> qui catégorise. La parade n'est pas d'affirmer le premium, c'est de le <b>PROUVER en vidéo</b> (unboxing du coffret magnétique, tranche dorée, arcanes) pour déplacer l'ancre mentale vers le beau tarot / coffret cadeau (25–40 €).</p>
+    <p>Passer de 19,99 à 24,99 = <b style="color:var(--vert2)">+33 % de marge</b> pour une perte d'acheteurs improbable. Et 19,99 crie « entrée de gamme » et cannibalise le Premium.</p>
+    <p style="margin-bottom:0"><b style="color:var(--ambre)">Recadrage adversarial :</b> 24,99 € est une <b>hypothèse de départ, pas un dogme</b> — la courbe de profit est quasi plate entre 24,99 et 29,99. À <b>tester en A/B</b> dès le crowdfunding.</p>
+  </div>
+  <div class="callout">
+    <b>Stratégie de gamme :</b> 2 SKU au lancement seulement (24,99 + 49,99). Le Premium sert d'<b>ancre haute</b> qui rend le 24,99 raisonnable. On <b>rejette</b> le palier leurre à 39,99 au lancement (paralysie du choix + triple les coûts de stock). Le Collector 69–79 € n'arrive qu'en <b>édition limitée crowdfunding</b>, où la rareté le justifie.
+  </div>
+
+  <!-- 3 revenu -->
+  <h2><span class="n">3</span>200–300 k€ net/an : réaliste ?</h2>
+  <div class="card">
+    <p class="verdict"><b>Oui — mais en An 3–4, pas dès l'An 1.</b></p>
+    <p style="margin-bottom:4px"><b style="color:var(--rouge)">L'erreur des générateurs :</b> ils calculaient sur la marge <b>brute</b> (13–30 €) en oubliant le coût d'acquisition client, les commissions, le port, les retours. Marge <b>nette</b> réelle : <b>~6–8 €</b>/Classique, <b>~13–16 €</b>/Premium. Il faut donc ~20 000–30 000 boîtes/an, pas 12–15k.</p>
+  </div>
+  <div class="scn">
+    <div class="nm">An 1 — Amorçage crowdfunding</div>
+    <div class="grid"><span><b>~3 500</b> boîtes</span><span>mix 65/35</span><span>100 % direct</span><span>~9,5 € net/u</span></div>
+    <div class="ben lo">≈ 18–30 k€ net</div>
+  </div>
+  <div class="scn">
+    <div class="nm">An 2–3 — Montée en puissance</div>
+    <div class="grid"><span><b>12 000–15 000</b> boîtes</span><span>mix 60/40</span><span>80 % direct</span><span>~10–11 € net/u</span></div>
+    <div class="ben hi">≈ 130–180 k€ net</div>
+  </div>
+  <div class="scn">
+    <div class="nm">An 3–4 — Régime de croisière 🎯</div>
+    <div class="grid"><span><b>22 000–30 000</b> boîtes</span><span>mix 55/45 + Collector</span><span>70 % direct</span><span>~10–12 € net/u</span></div>
+    <div class="ben hi">≈ 220–300 k€ net</div>
+  </div>
+  <div class="callout">
+    <b>Les 2 leviers décisifs :</b> ① <b>le canal</b> — le direct rapporte 3–5× la marge du rayon (le rayon ne fait jamais de bénéfice net, juste de la notoriété). ② <b>le mix Premium</b> — c'est le KPI n°1 : viser <b>35–45 % de Premium</b>. Plafonner le coût d'acquisition à 8 €/boîte.
+  </div>
+
+  <!-- 4 contenu -->
+  <h2><span class="n">4</span>Quoi mettre dans la boîte</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Élément</th><th style="text-align:right">Décision</th></tr></thead>
+      <tbody>
+        <tr><td>Coffret magnétique + dorure</td><td><span class="keep">GARDER</span></td></tr>
+        <tr><td>16 cartes arcanes illustrées</td><td><span class="keep">GARDER</span></td></tr>
+        <tr><td>Tranche dorée des cartes</td><td><span class="keep">GARDER</span></td></tr>
+        <tr><td>Livret de lore (16 histoires)</td><td><span class="keep">GARDER</span></td></tr>
+        <tr><td>QR code (pont vers l'appli)</td><td><span class="keep">GARDER</span></td></tr>
+        <tr><td>Jeton métal maître du jeu</td><td><span class="opt">PREMIUM</span></td></tr>
+        <tr><td>Certificat numéroté</td><td><span class="opt">PREMIUM</span></td></tr>
+        <tr><td>Soft-touch du coffret</td><td><span class="opt">PREMIUM</span></td></tr>
+        <tr><td>NFC sur cartes</td><td><span class="cut">COUPER</span></td></tr>
+        <tr><td>Figurines / miniatures</td><td><span class="cut">COUPER</span></td></tr>
+        <tr><td>Plateau de jeu</td><td><span class="cut">COUPER</span></td></tr>
+        <tr><td>Multiples sets de jetons</td><td><span class="cut">COUPER</span></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13px;color:var(--txt-mut);margin-bottom:0">Règle : on garde ce qui est <b style="color:var(--vert2)">filmable</b> (se voit en vidéo = vend), on coupe ce qui coûte sans se voir. Le contenu désirable maximal coûte ~2 €.</p>
+  </div>
+
+  <!-- 5 marketing -->
+  <h2><span class="n">5</span>Marketing vidéo & réseaux</h2>
+  <ul class="clean">
+    <li><b>Unboxing ASMR (TikTok/Reels)</b> — clic du fermoir magnétique, lumière sur la dorure. C'est CE format qui justifie 25–50 € : l'objet EST le contenu marketing. Visuel principal de la campagne.</li>
+    <li><b>Partie filmée (YouTube + créateurs)</b> — la trahison face caméra = viral. ⚠️ Crée de la <b>notoriété</b>, pas forcément de la conversion (profite à la catégorie). Tester sur 3–5 micro-créateurs (~1 500 €) avant tout gros sponsoring.</li>
+    <li><b>Crowdfunding</b> — pré-chauffer une liste 4–8 sem. avant (30–40 % tombe les 48 premières heures). Le seul endroit propre pour <b>mesurer le prix</b> (A/B 24,99 vs 29,99).</li>
+    <li><b>Paid en retargeting uniquement</b> — pixels Meta/TikTok dès J1, pub vers audiences chaudes (ROAS 3–6× vs &lt;1,5× en froid).</li>
+    <li><b>UGC</b> — hashtag, concours « meilleur bluff » (lot = Premium), bouton « partager le récap » dans l'appli.</li>
+  </ul>
+
+  <!-- 6 appli -->
+  <h2><span class="n">6</span>L'appli payante maître du jeu</h2>
+  <div class="app">
+    <span class="tag y">✓ Bonne idée de PRODUIT</span>
+    <span class="tag n">✗ Mauvais centre de PROFIT</span>
+    <p>Elle résout le vrai frein du genre (trouver un narrateur qui ne se trompe pas, et le faire rejouer). MAIS le marché est <b>saturé d'apps narrateur GRATUITES</b>, et une appli multijoueur temps réel coûte cher à développer (10–40 k€).</p>
+    <h4>Modèle de prix</h4>
+    <p><b style="color:var(--vert2)">100 % gratuite, sans verrou par code.</b> Un code se partage (13 joueurs, 1 boîte) = DRM contournable qui frustre les acheteurs ET tue la viralité. Pas d'abonnement sur un jeu sorti 3–4×/an.</p>
+    <h4>Risque de cannibalisation (réel)</h4>
+    <p>Si l'appli attribue les rôles, les cartes deviennent décoratives. <b style="color:var(--or2)">La parade :</b> l'appli ne fait QUE l'arbitrage audio de nuit ; <b>l'attribution des rôles passe par la distribution physique des cartes</b> à chaque partie. Pas de DRM hostile.</p>
+    <h4>Synergie</h4>
+    <p>Chaque partie expose ~12 invités = prospects chauds (encart « joue avec le vrai coffret » + code promo −10 %, conversion cible 2–5 %). Le sound design se filme bien = atout premium.</p>
+    <h4>Recommandation</h4>
+    <p><b style="color:var(--or2)">Développer en MVP &lt; 15 k€</b>, compté comme dépense <b>marketing/acquisition</b> (revenu logiciel = zéro dans le P&L). Périmètre : narration audio de nuit + ambiance + récap partageable. Go/no-go à 3 mois selon la rétention.</p>
+  </div>
+
+  <!-- plan -->
+  <h2><span class="n">7</span>Plan d'action</h2>
+  <div class="card">
+    <ul class="step">
+      <li><b>Pré-lancement (mois 0–2)</b> : figer 2 SKU, finaliser illustrations (IA-assistée ~5 k€), produire 3–4 vidéos clés, installer pixels, constituer une liste email/Insta (1 000–3 000 inscrits).</li>
+      <li><b>Crowdfunding (mois 3)</b> AVANT toute prod. Paliers + A/B prix 24,99 vs 29,99. Objectif réaliste : 800–2 000 backers.</li>
+      <li><b>Production prudente (mois 4–6)</b> : petit tirage 3 000–4 000 ex financé par la campagne. Passer à 8 000 seulement après sell-through &gt; 70 %.</li>
+      <li><b>Appli MVP</b> (&lt; 15 k€, en marketing) : narration audio, cartes requises, gratuite. Go/no-go à 3 mois.</li>
+      <li><b>Site direct + marketing continu (mois 6+)</b> : boutique propre, organique + retargeting. CAC plafonné à 8 €. Cible 150–250 boîtes/mois.</li>
+      <li><b>2ᵉ crowdfunding (An 2)</b> adossé aux ambassadeurs — bien plus gros, marge pleine. Mix Premium &gt; 35–40 %.</li>
+      <li><b>Rayon en option (An 2–3)</b> sur le Classique seul, traité comme notoriété, jamais comme source de bénéfice.</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <b>En une phrase :</b> va en premium, tiens 24,99 € / 49,99 € (à confirmer en A/B), construis <b>tout autour de la vente directe</b> (crowdfunding → site), vise un <b>mix Premium &gt; 35–40 %</b>, fais l'appli <b>gratuite comme outil d'acquisition</b>, et compte 200–300 k€ net pour l'<b>An 3–4</b> à ~20–30k boîtes/an — pas dès le départ.
+  </div>
+
+  <footer>
+    Synthèse de 7 agents · chiffres après recadrage adversarial (CAC, marge nette, réalisme volume).<br>
+    Hypothèses à valider par A/B test crowdfunding et devis réels.
+    <div class="seal">✦ ARCANA ✦</div>
+  </footer>
+
+</div>
+</body>
+</html>
