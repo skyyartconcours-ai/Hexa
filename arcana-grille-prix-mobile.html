@@ -127,28 +127,53 @@
   </div>
 
   <!-- deluxe detail -->
-  <h2><span class="n">2</span>Le Deluxe en détail (jamais 25 €)</h2>
-  <p class="intro">Le point à ne pas rater : le Deluxe <b>s'ajoute</b> à la base, il ne se paie pas en double. Le total pour tout avoir plafonne à <b>~15 €</b>.</p>
+  <h2><span class="n">2</span>Le Deluxe en détail (vérifié 3+3 agents)</h2>
+  <p class="intro"><b style="color:var(--ambre)">Verdict : principe validé, mais 2 corrections bloquantes.</b> Le Deluxe s'ajoute (+4,99 €), total plafonné à ~15 €.</p>
   <div class="card gold">
     <table>
       <thead><tr><th>Profil d'acheteur</th><th class="n">Il paie</th><th class="n">Total</th></tr></thead>
       <tbody>
         <tr><td><b style="color:var(--txt)">Casual</b> — veut juste jouer</td><td class="n">Base 9,99</td><td class="n">9,99 €</td></tr>
         <tr><td><b style="color:var(--txt)">Fan</b> — a déjà la base</td><td class="n">+ Deluxe 4,99</td><td class="n">14,98 €</td></tr>
-        <tr><td><b style="color:var(--txt)">Fan direct</b> — prend tout d'un coup</td><td class="n">Édition Deluxe 14,99</td><td class="n">14,99 €</td></tr>
+        <tr><td><b style="color:var(--txt)">Fan direct</b> (store)</td><td class="n">Base puis Deluxe (2 taps)</td><td class="n">14,98 €</td></tr>
         <tr><td><b style="color:var(--vert2)">Acheteur de coffret</b></td><td class="n" style="color:var(--vert2)">QR = offert</td><td class="n" style="color:var(--vert2)">0 €</td></tr>
       </tbody>
     </table>
-    <p class="intro" style="margin:10px 0 0;font-size:13.5px"><b style="color:var(--rouge)">❌ Le piège à éviter :</b> vendre base (9,99) + Deluxe plein (14,99) qui s'empilent = <b>~25 €</b>. Le joueur a l'impression de payer deux fois → il déteste. <b style="color:var(--or2)">Le Deluxe n'ajoute que ~5 €.</b></p>
+    <p class="intro" style="margin:10px 0 0;font-size:13.5px"><b style="color:var(--rouge)">❌ Le piège :</b> base 9,99 + Deluxe plein 14,99 empilés = <b>~25 €</b>. Le Deluxe n'ajoute que <b style="color:var(--or2)">+4,99 €</b>. Prix 4,99 confirmé (33 % de la base, standard DLC).</p>
   </div>
+
   <div class="card">
-    <h2 style="font-size:15px;margin:0 0 8px;color:var(--or);letter-spacing:.05em;text-transform:uppercase;font-family:Georgia,serif">Comment le faire sur les stores</h2>
+    <h2 style="font-size:15px;margin:0 0 10px;color:var(--rouge);letter-spacing:.05em;text-transform:uppercase;font-family:Georgia,serif">⚠️ Les 2 corrections obligatoires</h2>
     <ul class="clean">
-      <li><b>Deux achats intégrés séparés</b> (non-consommables) : « Déblocage de base » 9,99 € + « Pack Deluxe » 4,99 €.</li>
-      <li>Tout est <b>additif</b> : chacun prend ce qu'il veut, avoir tout = 9,99 + 4,99 = <b>14,98 €</b>.</li>
-      <li>Apple/Google ne gèrent pas nativement le « prix de mise à niveau » → ce système additif est la <b>méthode standard, simple et sans bug</b>.</li>
-      <li>Le QR du coffret active le Deluxe <b>hors achat in-app</b> (sur le web/PWA) → conforme aux règles des stores.</li>
+      <li><b>1. Pas d'« édition Deluxe 14,99 » sur les stores.</b> Un possesseur de la base pourrait la racheter → 9,99 + 14,99 = <b style="color:var(--rouge)">24,98 €</b> (le piège revient !). Sur les stores : uniquement <b>Base 9,99 + Pack Deluxe 4,99</b>. Le « tout inclus 14,99 » n'existe que sur ton <b>site/web</b> (où tu contrôles la déduplication).</li>
+      <li><b>2. Le QR ne débloque JAMAIS en local dans l'app.</b> Apple (règle 3.1.1) interdit les QR pour débloquer du contenu dans l'app. Le QR doit donner un <b>droit rattaché à un compte serveur</b> (login obligatoire), lu par l'app. Et le <b>Pack Deluxe 4,99 doit RESTER vendu en achat in-app</b> — c'est ce qui rend le QR conforme (exceptions 3.1.3(b)/3.1.4).</li>
     </ul>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:15px;margin:0 0 8px;color:var(--or);letter-spacing:.05em;text-transform:uppercase;font-family:Georgia,serif">La structure exacte à créer</h2>
+    <ul class="clean">
+      <li><b>arcana.base — 9,99 €</b> · achat in-app non-consommable (jeu complet)</li>
+      <li><b>arcana.deluxe — 4,99 €</b> · achat in-app non-consommable additif (obligatoire dans l'app)</li>
+      <li><b>QR coffret — 0 €</b> · redemption serveur liée au compte (pas un SKU store), mono-usage</li>
+      <li><b>arcana.full.web — 14,99 €</b> · bundle « tout inclus » <b>web/PWA uniquement</b>, jamais sur les stores</li>
+    </ul>
+    <p class="intro" style="margin:8px 0 0;font-size:13px;color:var(--txt-mut)">C'est la <b>seule méthode fiable</b> : ni Apple ni Google n'offrent d'« upgrade payer-la-différence » entre deux achats non-consommables.</p>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:15px;margin:0 0 8px;color:var(--or);letter-spacing:.05em;text-transform:uppercase;font-family:Georgia,serif">Anti double-paiement (garde-fous)</h2>
+    <ul class="clean">
+      <li><b>Compte + login obligatoires</b> : une « source de vérité » serveur unique agrège les droits (store + QR). L'app lit cet état AVANT d'afficher un bouton d'achat → si le Deluxe est déjà là, on masque le 4,99.</li>
+      <li><b>Jamais de droit en local</b> (cookie/cache) : le QR se perd sinon au changement d'appareil. Toujours rattaché au compte.</li>
+      <li><b>« Synchronisation en cours »</b> après un achat/QR pour bloquer un re-achat par impatience.</li>
+      <li><b>Notifications de remboursement</b> (Apple/Google) pour re-verrouiller proprement, sans toucher un Deluxe obtenu par QR.</li>
+      <li><b>Bouton « Restaurer les achats »</b> obligatoire (iOS) + restauration des droits QR par login.</li>
+    </ul>
+  </div>
+
+  <div class="callout warn">
+    <b>À faire vérifier avant le lancement (an 2) :</b> l'admissibilité des exceptions Apple 3.1.3(b)/3.1.4 pour du contenu <b>cosmétique</b> (l'App Review est discrétionnaire) → <b>fais relire le flux QR par un spécialiste App Review</b>. Et attention : le canal web <b>n'est pas « 0 % de frais »</b> (frais DMA-UE + PSP ~2-3 %) — l'écart net avec l'in-app (~15 %) est réel mais modéré.
   </div>
 
   <!-- bundles -->
