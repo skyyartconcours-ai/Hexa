@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a10">
+<title>ARCANA · Grille de prix finale</title>
+<style>
+  :root{--noir:#0b0a10;--noir2:#15131f;--noir3:#1d1a28;--or:#d9b46a;--or2:#f2d999;--or-soft:#b9974d;
+    --txt:#ece7db;--txt-soft:#b9b2a4;--txt-mut:#8a8376;--vert:#7bb86a;--vert2:#9ad389;--rouge:#e08079;--ambre:#e6b85c;--bleu:#8fb8d8;--bord:#2c2738}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:radial-gradient(120% 55% at 50% -5%,#241e33 0%,var(--noir) 55%) no-repeat var(--noir);
+    color:var(--txt);font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;line-height:1.5;font-size:17px;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px 60px}
+  header{text-align:center;padding:42px 8px 14px}
+  .kicker{letter-spacing:.3em;text-transform:uppercase;color:var(--or);font-size:11px;font-family:Georgia,serif}
+  h1{font-size:36px;line-height:1.08;margin:8px 0 6px;letter-spacing:.05em;font-weight:700;
+     background:linear-gradient(180deg,var(--or2),var(--or-soft));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--txt-soft);font-style:italic;font-size:15.5px;margin:0 auto;max-width:34ch}
+  .meta{margin-top:12px;color:var(--txt-mut);font-size:12px;font-family:Georgia,serif}
+  h2{font-size:22px;color:var(--or2);margin:34px 0 4px}
+  h2 .n{font-family:Georgia,serif;color:var(--or-soft);font-size:15px;margin-right:8px}
+  .intro{color:var(--txt-soft);font-size:15px;margin:6px 0 12px}
+  /* ladder */
+  .lad{position:relative;margin:14px 0}
+  .rung{background:var(--noir2);border:1px solid var(--bord);border-radius:14px;padding:15px 16px;margin:9px 0}
+  .rung.app{border-left:3px solid var(--bleu)}
+  .rung.box{border-left:3px solid var(--or-soft)}
+  .rung.free{border-left:3px solid var(--txt-mut)}
+  .rung .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .rung .nm{font-weight:600;font-size:16.5px;color:var(--txt)}
+  .rung.app .nm{color:var(--bleu)}.rung.box .nm{color:var(--or2)}
+  .rung .pr{font-family:Georgia,serif;font-size:20px;color:var(--or2);white-space:nowrap}
+  .rung .pr.z{color:var(--txt-mut)}
+  .rung .ch{font-size:11px;font-family:Georgia,serif;letter-spacing:.05em;text-transform:uppercase;color:var(--txt-mut);margin-top:2px}
+  .rung .inc{font-size:13.5px;color:var(--txt-soft);margin-top:8px}
+  .rung .mg{font-size:12.5px;color:var(--vert2);font-family:Georgia,serif;margin-top:6px}
+  .rung .mg.z{color:var(--txt-mut)}
+  .tag{display:inline-block;font-size:10.5px;font-family:Georgia,serif;letter-spacing:.05em;text-transform:uppercase;
+    padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle}
+  .tag.now{background:rgba(123,184,106,.14);color:var(--vert2);border:1px solid rgba(123,184,106,.3)}
+  .tag.later{background:rgba(224,177,92,.12);color:var(--ambre);border:1px solid rgba(224,177,92,.3)}
+  .tag.cf{background:rgba(143,184,216,.12);color:var(--bleu);border:1px solid rgba(143,184,216,.3)}
+  .card{background:var(--noir2);border:1px solid var(--bord);border-radius:14px;padding:16px;margin:14px 0}
+  .card.gold{border-color:var(--or-soft);box-shadow:0 0 0 1px rgba(217,180,106,.1) inset}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:4px 0}
+  td,th{text-align:left;padding:8px 5px;border-bottom:1px solid #251f30;vertical-align:top}
+  th{color:var(--or);font-family:Georgia,serif;font-size:11px;letter-spacing:.03em;text-transform:uppercase}
+  td.n{text-align:right;font-family:Georgia,serif;color:var(--or2);white-space:nowrap}
+  ul.clean{list-style:none;padding:0;margin:8px 0}
+  ul.clean li{padding:8px 0 8px 24px;position:relative;border-bottom:1px solid #221c2c;color:var(--txt-soft);font-size:14.5px}
+  ul.clean li:last-child{border-bottom:none}
+  ul.clean li::before{content:"✦";position:absolute;left:0;color:var(--or-soft);font-size:11px;top:10px}
+  ul.clean li b{color:var(--txt)}
+  .callout{background:linear-gradient(180deg,rgba(94,31,45,.18),transparent);border:1px solid var(--bord);
+    border-left:3px solid var(--or);border-radius:10px;padding:14px 16px;margin:16px 0;color:var(--txt-soft);font-size:15px}
+  .callout.warn{border-left-color:var(--rouge)}.callout b{color:var(--or2)}
+  footer{text-align:center;color:var(--txt-mut);font-size:12px;margin-top:34px;line-height:1.7}
+  .seal{color:var(--or-soft);letter-spacing:.3em;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Grille de prix finale · ARCANA</div>
+    <h1>Tous tes prix</h1>
+    <p class="sub">App + Deluxe + Steam + 2 coffrets + Collector + bundles</p>
+    <div class="meta">7 agents · grille pressurisée par 3 évaluateurs adversariaux</div>
+  </header>
+
+  <!-- échelle -->
+  <h2><span class="n">1</span>L'échelle de valeur (catalogue permanent)</h2>
+  <p class="intro">De 0 € au collector, chaque cran rend le suivant « évidemment mieux ». <b>Max 5 lignes</b> au catalogue (pas d'empilement qui paralyse).</p>
+
+  <div class="lad">
+    <div class="rung free">
+      <div class="top"><div><span class="nm">Essai gratuit</span> <span class="tag now">jour 1</span></div><div class="pr z">0 €</div></div>
+      <div class="ch">App / web · l'aimant</div>
+      <div class="inc">Jeu complet (16 rôles, MJ auto, nuits synchro) mais <b>plafonné : 2-3 parties OU 8 joueurs max</b>, puis paywall. Capture email + code promo −10 % coffret.</div>
+      <div class="mg z">Marge 0 € — c'est l'entonnoir, pas un revenu</div>
+    </div>
+
+    <div class="rung app">
+      <div class="top"><div><span class="nm">App — déblocage de base</span> <span class="tag now">jour 1</span></div><div class="pr">9,99 €</div></div>
+      <div class="ch">Achat in-app (store 15 %)</div>
+      <div class="inc">Parties illimitées, tous les rôles, &gt; 8 joueurs, confort. Achat unique, pas d'abonnement. Jamais pay-to-win.</div>
+      <div class="mg">~7,08 € net · A/B 8,99 vs 9,99 après 3 mois</div>
+    </div>
+
+    <div class="rung app">
+      <div class="top"><div><span class="nm">App — Deluxe</span> <span class="tag later">an 2</span></div><div class="pr">14,99 €</div></div>
+      <div class="ch">Surtout OFFERT via QR coffret</div>
+      <div class="inc">Voix off premium, thèmes/skins de cartes, modes bonus. <b>Cosmétique uniquement.</b> Son vrai rôle : bonus offert qui valorise les coffrets à coût 0.</div>
+      <div class="mg">~10,62 € net (mais volume direct faible)</div>
+    </div>
+
+    <div class="rung app">
+      <div class="top"><div><span class="nm">App — version Steam / PC</span> <span class="tag later">an 2-3</span></div><div class="pr">16,99 €</div></div>
+      <div class="ch">Steam (30 %) · soldes récurrentes</div>
+      <div class="inc">Jeu complet PC/salon, streamer-friendly, mode à distance. Public habitué à payer (type Jackbox).</div>
+      <div class="mg">~9,9 € net · chiffrer sur 2-8k ventes/an (pas 50k)</div>
+    </div>
+
+    <div class="rung box">
+      <div class="top"><div><span class="nm">Coffret CLASSIQUE</span> <span class="tag now">jour 1</span></div><div class="pr">24,99 €</div></div>
+      <div class="ch">Site (Stripe 3 %) + crowdfunding</div>
+      <div class="inc">16 cartes lin, coffret magnétique, dorure du titre, carte-narrateur, QR (qui offre le Deluxe). Le 1ᵉʳ objet. A/B 24,99 vs 29,99 — jamais 19,99.</div>
+      <div class="mg">~7,5 € net (≈4-5 € si CAC payant)</div>
+    </div>
+
+    <div class="rung box">
+      <div class="top"><div><span class="nm">Coffret PREMIUM</span> <span class="tag now">jour 1 · ancre</span></div><div class="pr">49,99 €</div></div>
+      <div class="ch">Site + crowdfunding · à pousser en pub</div>
+      <div class="inc">Tout le Classique + cœur noir, tranche dorée, soft-touch, gaufrage, jeton métal, certificat + Deluxe app offert. C'est l'<b>ancre</b> et le <b>moteur de profit</b>.</div>
+      <div class="mg">~17 € net · ≈ 2,3× le Classique</div>
+    </div>
+
+    <div class="rung box">
+      <div class="top"><div><span class="nm">Coffret COLLECTOR</span> <span class="tag cf">crowdfunding only</span></div><div class="pr">79 €</div></div>
+      <div class="ch">Édition numérotée limitée (~750)</div>
+      <div class="inc">Tout le Premium + numérotation, cartes arcanes bonus exclusives, finitions distinctives + TOUT le digital offert. Jamais réimprimé.</div>
+      <div class="mg">~34-40 € net · abandonne 74 (zone morte)</div>
+    </div>
+  </div>
+
+  <!-- bundles -->
+  <h2><span class="n">2</span>Les bundles</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Bundle</th><th class="n">Prix</th></tr></thead>
+      <tbody>
+        <tr><td><b style="color:var(--txt)">Le Cercle</b> — 2 Classiques (cadeau)<br><span style="color:var(--txt-mut);font-size:12.5px">port mutualisé, vs 49,98 séparé</span></td><td class="n">45 €</td></tr>
+        <tr><td><b style="color:var(--txt)">La Tablée</b> — 5 Classiques (clubs/cafés)<br><span style="color:var(--txt-mut);font-size:12.5px">meilleur prix unitaire (21 €), canal B2B</span></td><td class="n">105 €</td></tr>
+        <tr><td><b style="color:var(--txt)">Digital offert par QR</b> (chaque coffret)<br><span style="color:var(--txt-mut);font-size:12.5px">Deluxe offert · Premium/Collector = + clé Steam</span></td><td class="n">+0 €</td></tr>
+      </tbody>
+    </table>
+    <p class="intro" style="margin-bottom:0;font-size:13.5px"><b style="color:var(--rouge)">Rejeté :</b> vendre le Deluxe dans un bundle facturé. On ne peut pas « offrir ET vendre » la même chose — ça casse la crédibilité de l'ancre.</p>
+  </div>
+
+  <!-- paliers crowdfunding -->
+  <h2><span class="n">3</span>Paliers du crowdfunding</h2>
+  <div class="card">
+    <table>
+      <tbody>
+        <tr><td>🐺 L'Initié — Classique early-bird <span style="color:var(--txt-mut);font-size:12px">(48 h, ~500 ex)</span></td><td class="n">21,90 €</td></tr>
+        <tr><td>🎴 Le Joueur — Classique plein</td><td class="n">24,90 €</td></tr>
+        <tr><td>✨ Le Connaisseur — Premium campagne</td><td class="n">44,90 €</td></tr>
+        <tr><td>👑 Le Collectionneur — Collector numéroté</td><td class="n">79 €</td></tr>
+        <tr><td>🎁 Le Cercle (×2) / La Tablée (×5)</td><td class="n">45 / 105 €</td></tr>
+      </tbody>
+    </table>
+    <p class="intro" style="margin-bottom:0;font-size:13.5px">Tous les paliers coffret = Deluxe app offert. Le Collector 79 € sert d'<b>ancre ultra-haute</b> qui tire tout le tableau vers le haut.</p>
+  </div>
+
+  <!-- strategie -->
+  <h2><span class="n">4</span>La logique de prix</h2>
+  <div class="card gold">
+    <ul class="clean">
+      <li><b>Seuils charme partout</b> : 9,99 (sous 10) · 24,99 (sous 25) · 49,99 (sous 50). Collector = seul prix rond assumé (79). Jamais 74 ni 12 (zones mortes).</li>
+      <li><b>Ancrage</b> : le Premium 49,99 (× 2 le Classique) rend le 24,99 « raisonnable ». En campagne, le Collector 79 tire tout vers le haut.</li>
+      <li><b>Freemium plafonné</b> : gratuit = 2-3 parties OU 8 joueurs, puis paywall. C'est le <b>correctif anti-cannibalisation n°1</b>.</li>
+      <li><b>Deluxe = an 2</b>, offert via QR (pas un SKU de revenu). Ne fragmente pas l'offre au lancement.</li>
+      <li><b>A/B à tester</b> : app 8,99 vs 9,99 (après data) · Classique 24,99 vs 29,99 · Collector 69 vs 79.</li>
+    </ul>
+  </div>
+
+  <!-- anti-cannibalisation -->
+  <h2><span class="n">5</span>Comment le coffret survit à l'app gratuite</h2>
+  <div class="card">
+    <ul class="clean">
+      <li><b>Free tier plafonné</b> — une app gratuite illimitée à 6-10 joueurs tuerait le coffret. On la limite.</li>
+      <li><b>Territoires séparés</b> — l'app vend la fonction de jeu ; le coffret vend le <b>tactile filmable</b> (clac magnétique, tranche dorée, jeton métal, numérotation) que l'écran ne réplique jamais. Validé par Blood on the Clocktower (app gratuite + jeu physique à 145 $ qui se revend au-dessus du prix).</li>
+      <li><b>Le digital comme aimant</b> — Deluxe/Steam OFFERTS via le QR du coffret → le coffret devient la meilleure façon d'avoir le digital premium. On inverse la cannibalisation.</li>
+      <li><b>Hiérarchie</b> — l'app = entonnoir + revenu d'appoint (conversion réelle 2-3 %) ; le coffret = seul centre de profit.</li>
+    </ul>
+  </div>
+
+  <!-- verite honnete -->
+  <div class="callout warn">
+    <b>La vérité qui compte (recadrage adversarial) :</b> les 200-300 k€ ne se jouent <b>pas sur les prix</b> (la grille est bonne), mais sur le <b>VOLUME</b> et le <b>MIX Premium</b> (vise 35-45 %). L'app rapporte ~5-8 k€ net / 100k installs — un <b>appoint</b>, pas un pilier. En régime réel (hors pic crowdfunding An 1), compte plutôt <b>5-8k boîtes/an</b> (~77-124 k€ net) et intègre un <b>coût d'acquisition de 3-8 €/commande</b>. Le vrai risque n'est pas la grille, c'est le <b>taux entonnoir app→coffret (1-5 %)</b> et le coût du trafic.
+  </div>
+
+  <div class="callout">
+    <b>En résumé :</b> catalogue permanent = <b>Gratuit · App 9,99 · Classique 24,99 · Premium 49,99</b> (+ Steam 16,99 en an 2). Collector 79 € réservé au crowdfunding. Digital toujours <b>offert</b> avec le coffret, jamais vendu en double. Vise le <b>mix Premium</b>, pas le prix.
+  </div>
+
+  <footer>
+    Grille indicative · prix charme UE (TVA 20 %) · marges nettes après commission/Stripe.<br>
+    A/B tester les prix marqués · à confirmer par la data réelle du lancement.
+    <div class="seal">✦ ARCANA ✦</div>
+  </footer>
+
+</div>
+</body>
+</html>
