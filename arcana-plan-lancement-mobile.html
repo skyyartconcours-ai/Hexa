@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0a10">
+<title>ARCANA · Plan de lancement</title>
+<style>
+  :root{--noir:#0b0a10;--noir2:#15131f;--noir3:#1d1a28;--or:#d9b46a;--or2:#f2d999;--or-soft:#b9974d;
+    --txt:#ece7db;--txt-soft:#b9b2a4;--txt-mut:#8a8376;--vert:#7bb86a;--vert2:#9ad389;--rouge:#e08079;--ambre:#e6b85c;--bleu:#8fb8d8;--bord:#2c2738}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:radial-gradient(120% 55% at 50% -5%,#241e33 0%,var(--noir) 55%) no-repeat var(--noir);
+    color:var(--txt);font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;line-height:1.55;font-size:17px;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px 60px}
+  header{text-align:center;padding:42px 8px 14px}
+  .kicker{letter-spacing:.3em;text-transform:uppercase;color:var(--or);font-size:11px;font-family:Georgia,serif}
+  h1{font-size:34px;line-height:1.08;margin:8px 0 6px;letter-spacing:.05em;font-weight:700;
+     background:linear-gradient(180deg,var(--or2),var(--or-soft));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--txt-soft);font-style:italic;font-size:15.5px;margin:0 auto;max-width:34ch}
+  .meta{margin-top:12px;color:var(--txt-mut);font-size:12px;font-family:Georgia,serif}
+  h2{font-size:22px;color:var(--or2);margin:34px 0 4px}
+  h2 .n{font-family:Georgia,serif;color:var(--or-soft);font-size:15px;margin-right:8px}
+  p{font-size:15.5px;color:var(--txt-soft)}
+  .card{background:var(--noir2);border:1px solid var(--bord);border-radius:14px;padding:16px;margin:14px 0}
+  .card.gold{border-color:var(--or-soft);box-shadow:0 0 0 1px rgba(217,180,106,.1) inset}
+  .big{font-size:17px;color:var(--txt)} .big b{color:var(--or2)}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:4px 0}
+  td,th{text-align:left;padding:8px 5px;border-bottom:1px solid #251f30;vertical-align:top}
+  th{color:var(--or);font-family:Georgia,serif;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+  td.n{text-align:right;font-family:Georgia,serif;color:var(--or2);white-space:nowrap}
+  ul.clean{list-style:none;padding:0;margin:8px 0}
+  ul.clean li{padding:8px 0 8px 24px;position:relative;border-bottom:1px solid #221c2c;color:var(--txt-soft);font-size:14.5px}
+  ul.clean li:last-child{border-bottom:none}
+  ul.clean li::before{content:"✦";position:absolute;left:0;color:var(--or-soft);font-size:11px;top:10px}
+  ul.clean li b{color:var(--txt)}
+  ul.kill li::before{content:"✕";color:var(--rouge)}
+  .callout{background:linear-gradient(180deg,rgba(94,31,45,.18),transparent);border:1px solid var(--bord);
+    border-left:3px solid var(--or);border-radius:10px;padding:14px 16px;margin:16px 0;color:var(--txt-soft);font-size:15px}
+  .callout.warn{border-left-color:var(--rouge)}.callout b{color:var(--or2)}
+  /* timeline */
+  .tl{position:relative;margin:14px 0;padding-left:22px}
+  .tl::before{content:"";position:absolute;left:7px;top:8px;bottom:8px;width:2px;background:linear-gradient(180deg,var(--or-soft),#3a3350)}
+  .step{position:relative;padding:10px 0 12px 14px}
+  .step::before{content:"";position:absolute;left:-21px;top:16px;width:12px;height:12px;border-radius:50%;
+    background:var(--noir);border:2px solid var(--or-soft)}
+  .step.key::before{background:var(--or2);box-shadow:0 0 10px rgba(242,217,153,.4)}
+  .step .when{font-family:Georgia,serif;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--or)}
+  .step .what{font-size:15px;color:var(--txt);margin-top:2px;font-weight:600}
+  .step .det{font-size:13.5px;color:var(--txt-soft);margin-top:3px}
+  .step .goal{font-size:12.5px;color:var(--vert2);margin-top:4px;font-family:Georgia,serif}
+  .verdict-pill{display:inline-block;font-size:12px;font-family:Georgia,serif;padding:3px 11px;border-radius:20px;letter-spacing:.04em;margin-right:6px;margin-bottom:6px}
+  .vp-yes{background:rgba(123,184,106,.14);color:var(--vert2);border:1px solid rgba(123,184,106,.3)}
+  .vp-no{background:rgba(224,128,121,.14);color:var(--rouge);border:1px solid rgba(224,128,121,.3)}
+  .vp-warn{background:rgba(230,184,92,.12);color:var(--ambre);border:1px solid rgba(230,184,92,.3)}
+  footer{text-align:center;color:var(--txt-mut);font-size:12px;margin-top:34px;line-height:1.7}
+  .seal{color:var(--or-soft);letter-spacing:.3em;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">Plan de lancement · ARCANA</div>
+    <h1>La feuille de route</h1>
+    <p class="sub">App → Kickstarter → Production → Site → Amazon</p>
+    <div class="meta">1 stratège + 1 évaluateur adversarial · plan corrigé (4 failles majeures réparées)</div>
+  </header>
+
+  <!-- 1 ordre de sortie -->
+  <h2><span class="n">1</span>L'ordre de sortie (tranché)</h2>
+  <div class="card gold">
+    <span class="verdict-pill vp-yes">✓ App d'abord, IAP actif dès le jour 1</span>
+    <span class="verdict-pill vp-no">✗ Tout simultané</span>
+    <span class="verdict-pill vp-no">✗ Physique seul</span>
+    <p class="big" style="margin-top:8px"><b>① App freemium début août 2026</b> (après une bêta fermée GO/NO-GO — tes nuits synchronisées ne sont pas finies) avec le déblocage <b>9,99 € actif immédiatement</b>. <b>② Kickstarter mi-octobre</b> (21 jours). <b>③ Livraison backers juin 2027</b>, puis site propre, puis Amazon.</p>
+    <p style="margin-bottom:0">Pourquoi pas simultané : une campagne sans liste d'emails échoue — l'app EST ta machine à emails, il lui faut ~10 semaines d'avance. Pourquoi pas physique seul : tu gaspillerais ton app déjà codée (coût ~0) et ton audience vidéo, et tu financerais les ~30-35 k€ de production sur tes fonds propres au lieu de l'argent des backers.</p>
+  </div>
+  <div class="callout warn">
+    <b>2 corrections majeures de l'évaluateur :</b><br>
+    ① <b>Ne gèle PAS l'achat in-app jusqu'au Kickstarter</b> (idée initiale du stratège) : un essai plafonné sans possibilité de payer = churn + avis 1 étoile + 3-6 k€ perdus sur ta plus grosse cohorte. L'événement du jour J devient : app à <b>7,99 € pendant la campagne</b> + incluse dans tous les pledges.<br>
+    ② <b>« Livraison mars 2027 » était impossible :</b> le Nouvel An chinois (6 fév. 2027) ferme les usines 3-4 semaines en pleine production. Promets <b>juin 2027</b> (sous-promettre, sur-livrer) — le retard de livraison est LA cause n°1 des crises de confiance sur Kickstarter.
+  </div>
+
+  <!-- 2 prix app -->
+  <h2><span class="n">2</span>App : 10 € ou 15 € ?</h2>
+  <div class="card">
+    <p class="big"><b>9,99 € — définitivement pas 14,99.</b></p>
+    <ul class="clean">
+      <li><b>Une seule personne par groupe de 6-12 achète</b> (le maître du jeu) : ton revenu par joueur réel est déjà divisé par ~8.</li>
+      <li><b>Tes concurrents sont gratuits</b> (Wolvesville, Werewolf Online) ou à 3-10 € — à 14,99 la conversion chute de 40-60 %.</li>
+      <li><b>Chaque euro de friction sur l'app coûte des acheteurs de coffrets</b> (7,5-17 € de marge) — c'est là qu'est ton profit.</li>
+      <li>La valeur « jeu complet » se prend en 2 paliers : <b>9,99 + Deluxe 4,99 en an 2</b> = même plafond, deux fois moins de friction.</li>
+      <li><b>Net réel : ~8,49 €</b> après les 15 % Apple/Google — <b>inscris-toi aux Small Business Programs AVANT le lancement</b> (sinon 30 %). + serveurs 50-200 €/mois.</li>
+      <li>Garde-fou : si la conversion dépasse 4 % à 9,99 → tester <b>12,99 en A/B régional</b>. Jamais 14,99 d'entrée.</li>
+    </ul>
+  </div>
+
+  <!-- 3 coffret -->
+  <h2><span class="n">3</span>Le coffret à 4-5 € de production</h2>
+  <div class="card">
+    <p class="big">Ta cible tient : <b>~4,40 €/u à 8 000 ex</b> (~4,90 max densifié).</p>
+    <table>
+      <thead><tr><th>On garde (le premium qui se voit)</th><th>On coupe (→ Premium 49,99)</th></tr></thead>
+      <tbody>
+        <tr><td>Boîte rigide magnétique 2 mm au <b style="color:var(--txt)">format JUSTE</b> (zéro vide)</td><td>Dorure sur les cartes (+1,20-2 €)</td></tr>
+        <tr><td>Dorure à chaud du titre (1 cliché)</td><td>Tranche dorée (+1,5-2,5 €)</td></tr>
+        <tr><td>Cartes tarot 350 g <b style="color:var(--txt)">finition lin</b> (~0,15 € = 80 % du premium perçu)</td><td>Thermoformage / mousse (+0,80-1,50 €)</td></tr>
+        <tr><td>Soft-touch (~0,10 €), insert carton noir ajusté</td><td>Jetons métal</td></tr>
+        <tr><td>Cartes d'aide + carte-script « 1ʳᵉ nuit » (+0,25-0,40 € anti-effet-vide)</td><td>Livret épais (l'app EST le livret)</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13.5px;margin-bottom:0"><b style="color:var(--ambre)">Règle de commande stricte :</b> run = boîtes Kickstarter + late pledge + <b>9 mois prudents</b>, jamais 8 000 par défaut. Campagne à 1 500-2 500 boîtes → run <b>5 000-6 000 à ~5,2 €</b> (perdre 0,7 €/u coûte moins que 20-25 k€ de stock dormant). 8 000 si &gt; 3 500 vendues. 15 000 seulement si &gt; 6 000. Devis à demander : LongPack, QinPrinting, Hero Time (3 000/5 000/8 000 ex) + fret porte-à-porte (provision 0,9-1,4 €/u).</p>
+  </div>
+
+  <!-- 4 post KS -->
+  <h2><span class="n">4</span>Après le Kickstarter : Amazon ou pas ?</h2>
+  <div class="card">
+    <p class="big"><span class="verdict-pill vp-warn">Amazon = OUI mais canal n°3</span></p>
+    <table>
+      <thead><tr><th>Canal</th><th class="n">Net/boîte</th><th>Rôle</th></tr></thead>
+      <tbody>
+        <tr><td><b style="color:var(--txt)">① Site propre</b> (Shopify)</td><td class="n">~7,5 / ~17 €</td><td>Canal principal (60-70 %). Le Premium 49,99 y reste <b style="color:var(--txt)">exclusif</b>.</td></tr>
+        <tr><td><b style="color:var(--txt)">② Late pledge</b> (3-4 mois)</td><td class="n">~15-16 €</td><td>+15-25 % du total campagne</td></tr>
+        <tr><td><b style="color:var(--txt)">③ Amazon FBA</b> (Classique seul)</td><td class="n">3,2-4,2 €</td><td>Recherche générique + Q4 cadeaux. Plafonné à 20-30 % du volume.</td></tr>
+        <tr><td><b style="color:var(--txt)">④ Boutiques spécialisées</b> (20-30 en direct)</td><td class="n">~4-6 €</td><td>Vitrine + soirées découverte</td></tr>
+        <tr><td><b style="color:var(--txt)">⑤ Retail classique</b></td><td class="n" style="color:var(--rouge)">~0-1 €</td><td style="color:var(--rouge)">REFUSER en an 1-2</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13.5px"><b>Le vrai calcul Amazon sur 24,99 € :</b> −TVA 4,17 −commission 15 % (3,75) −FBA ~5,00 −stockage/inbound ~0,55 −COGS+fret ~5,50-6,60 −pub PPC ~2,50 −retours 0,3-0,5 −éco-contribution REP = <b>3,2-4,2 € net</b>, soit la MOITIÉ de ton site.</p>
+    <ul class="clean" style="margin-bottom:0">
+      <li><b>Jamais Amazon avant que 100 % des backers soient livrés</b> (crise de confiance garantie sinon) → mise en vente ~sept-oct 2027.</li>
+      <li><b>Prix public unique partout</b> — si Amazon casse le prix, les boutiques se braquent.</li>
+      <li>Enregistrement <b>ADEME / éco-contribution REP</b> obligatoire pour vendre en ligne en France.</li>
+    </ul>
+  </div>
+
+  <!-- 5 timeline -->
+  <h2><span class="n">5</span>Le calendrier, semaine par semaine</h2>
+  <div class="card">
+    <div class="tl">
+      <div class="step key"><div class="when">Juillet 2026 · S1-S2</div><div class="what">Bêta fermée = GO/NO-GO technique</div><div class="det">Gel des features (bugfix only). Nuits synchro testées sur 50-100 joueurs, 2 semaines. Inscription Small Business Apple + Google. Spec coffret envoyée aux 3 fabricants. Landing page email + opt-in RGPD.</div><div class="goal">→ Bêta stable, sinon on décale TOUT d'un mois en bloc</div></div>
+      <div class="step"><div class="when">Fin juillet · S3-S4</div><div class="what">Soumission stores, IAP 9,99 actif</div><div class="det">Compte léger avec email pour TOUS les joueurs (pas que le créateur de partie) + case opt-in marketing distincte.</div><div class="goal">→ Funnel email complet et conforme RGPD</div></div>
+      <div class="step key"><div class="when">Début août · S5-S6</div><div class="what">Lancement public de l'app</div><div class="det">Vidéo événement « j'ai codé mon propre Loup-Garou » + 2-3 vidéos gameplay. Chiffrer ton audience réelle : installs ≈ 2-5 % des abonnés touchés.</div><div class="goal">→ Premiers 9,99 €, note stores &gt; 4,3</div></div>
+      <div class="step"><div class="when">Août · S7-S10</div><div class="what">Contenu + protos coffret</div><div class="det">1-2 vidéos/sem (soutenable solo). Échantillons filmés, fabricant choisi, BAT usine validé AVANT la campagne. Certif GPSR 14+ lancée.</div><div class="goal">→ 3-6k emails opt-in, proto en main, 1-2 k€ d'IAP</div></div>
+      <div class="step"><div class="when">Septembre · S11-S13</div><div class="what">Pré-campagne</div><div class="det">Page KS en préversion + « Me prévenir » dans l'app. 10-15 protos aux vidéastes JdS. Déclaration IA transparente + 3-5 k€ d'illustrations humaines pour les 5 cartes vitrines.</div><div class="goal">→ 4-6k opt-ins qualifiés</div></div>
+      <div class="step key"><div class="when">Fin sept - mi-oct · S14-S15</div><div class="what">JALON GO/NO-GO EMAIL</div><div class="det">&lt; 4-5k opt-ins à J-14 = report d'un mois (jamais de lancement froid). Paliers : Classique 29 pledge / Premium 49 / Collector 79 / app incluse partout. Livraison affichée : JUIN 2027.</div><div class="goal">→ 30 % de l'objectif sécurisé pour les 48 premières h</div></div>
+      <div class="step key"><div class="when">Mi-oct - début nov · CAMPAGNE 21 j</div><div class="what">Kickstarter + app à 7,99 €</div><div class="det">1 vidéo tous les 2 jours. Stretch goals qui enrichissent le PREMIUM (jamais le Classique) pour pousser le mix &gt; 35-40 %. Tu ne fais QUE la campagne (1,5-3 k€ de sous-traitance).</div><div class="goal">→ 1 500-2 500 boîtes · 50-90 k€ bruts</div></div>
+      <div class="step"><div class="when">Novembre · S19-S21</div><div class="what">Commande usine sous 7 jours</div><div class="det">BAT pré-validé = commande avant fin novembre (sinon +4-6 sem. à cause du Nouvel An chinois). Run dimensionné aux ventes réelles. Late pledge ouvert (+15-25 %).</div><div class="goal">→ Production lancée avant fin novembre</div></div>
+      <div class="step"><div class="when">Déc 2026 - mars 2027</div><div class="what">Production (traverse le NAC)</div><div class="det">Updates backers bimensuels. L'IAP tourne (contenu de Noël). Shopify monté, 3PL négocié.</div><div class="goal">→ 5-10 k€ d'IAP sur la période</div></div>
+      <div class="step"><div class="when">Mars - mai 2027</div><div class="what">Fret + livraison backers</div><div class="det">Fret mer 6-8 sem. Contrôle qualité 2-3 % des unités. Expédition via 3PL.</div><div class="goal">→ 100 % livrés avant fin juin (promesse battue)</div></div>
+      <div class="step"><div class="when">Juin - juillet 2027</div><div class="what">Vente publique — site propre</div><div class="det">Classique 24,99 / Premium 49,99 exclusif site. Annonce vidéo + toute la liste email.</div><div class="goal">→ 400-800 boîtes le 1ᵉʳ mois</div></div>
+      <div class="step"><div class="when">Sept - nov 2027</div><div class="what">Amazon FBA + boutiques + bilan</div><div class="det">Classique seul, 500-800 u, PPC 20-30 €/j, programme Vine. 20-30 boutiques en direct. Q4 cadeaux.</div><div class="goal">→ An 1 en route vers 18-30 k€ net</div></div>
+    </div>
+  </div>
+
+  <!-- 6 risques -->
+  <h2><span class="n">6</span>Les risques majeurs</h2>
+  <div class="card">
+    <ul class="clean kill">
+      <li><b>App pas finie</b> (nuits synchro) → bêta GO/NO-GO obligatoire ; jamais de campagne sur une app instable.</li>
+      <li><b>Liste email insuffisante</b> → &lt; 4-5k opt-ins = report. Attention : ~1 email/partie (pas 4-10), et seuls 30-60 % acceptent l'opt-in RGPD.</li>
+      <li><b>Nouvel An chinois</b> (6 fév. 2027) → commander avant fin novembre, promettre juin.</li>
+      <li><b>Surstock</b> → run = ventes réelles + 9 mois prudents, jamais 15 000 sur l'euphorie.</li>
+      <li><b>Illustrations IA</b> → déclaration obligatoire sur KS + communauté JdS hostile : transparence totale + 3-5 k€ d'illustrations humaines pour les cartes vitrines.</li>
+      <li><b>Unboxing « creux »</b> → format de boîte juste + cartes d'aide ; assumer « la boîte premium + le MJ automatique à vie » face au Thiercelieux à 10 €.</li>
+      <li><b>Charge solo</b> → 1-2 vidéos/sem max, sous-traitance pendant la campagne.</li>
+      <li><b>Cannibalisation app/coffret</b> → le coffret = l'objet rituel du présentiel ; l'app incluse dans tous les pledges = complément, pas concurrent.</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <b>La donnée qui conditionne TOUT :</b> la taille réelle de ton audience vidéo. Règle : <b>installs ≈ 2-5 % des abonnés touchés par vidéo</b>. Donne-moi ce chiffre et tout le plan (objectif d'emails, taille de campagne, run de production) se recalibre précisément.
+  </div>
+
+  <footer>
+    Plan corrigé après challenge adversarial · chiffres à confirmer par devis fabricants réels et tarifs FBA à jour.<br>
+    An 1 visé : 18-30 k€ net · trajectoire 200-300 k€ en an 3-4 préservée.
+    <div class="seal">✦ ARCANA ✦</div>
+  </footer>
+
+</div>
+</body>
+</html>
