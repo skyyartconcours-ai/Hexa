@@ -89,6 +89,7 @@
     <!-- Manche en cours -->
     <section id="screen-game" class="screen hidden">
       <p id="timer" class="timer">8:00</p>
+      <div class="time-bar"><div id="time-bar-inner"></div></div>
       <p id="first-player" class="first-player"></p>
       <p id="timeup-msg" class="first-player hidden" aria-live="polite"></p>
       <div id="card" class="card">
@@ -105,7 +106,7 @@
         <div id="accuse-list" class="picker"></div>
       </details>
       <details class="locations" open>
-        <summary data-i18n>❌ Éliminer les lieux impossibles — touchez un lieu (ou un thème entier) pour le rayer</summary>
+        <summary><span data-i18n>❌ Éliminer les lieux impossibles — touchez un lieu (ou un thème entier) pour le rayer</span> <span id="loc-counter" class="loc-counter"></span></summary>
         <div id="locations-list"></div>
       </details>
       <button id="btn-end" class="danger hidden" data-i18n>Terminer la manche (révéler)</button>

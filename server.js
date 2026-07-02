@@ -7,7 +7,7 @@ const path = require("path");
 const DECKS = require("./locations");
 
 // Modes proposés à la création (et au lancement).
-const ALLOWED_DECKS = ["both", "delire", "delire2", "delireBoth"];
+const ALLOWED_DECKS = ["both", "fable", "delire", "delire2", "delireBoth"];
 const DEFAULT_DECK = "both";
 const SPY_MODES = ["auto", "1", "2"];
 
@@ -41,14 +41,15 @@ function presenceOf(p) {
 // Lieux & rôles éditables, persistés sur disque (écriture ATOMIQUE).
 // ---------------------------------------------------------------------------
 const DATA_FILE = path.join(__dirname, "data.json");
-const BASE_PACKS = ["spyfall1", "spyfall2", "delire", "delire2"];
+const BASE_PACKS = ["spyfall1", "spyfall2", "fable", "delire", "delire2"];
 // NB : les CLÉS (spyfall1/spyfall2/both…) sont techniques et ne doivent pas
-// changer ; seuls les libellés affichés sont renommés en « Classique » pour
-// rester cohérent avec le branding Hexa (plus aucun « Spyfall » à l'écran).
+// changer ; seuls les libellés affichés changent. Les lieux/rôles historiques
+// s'appellent « Opus », le nouveau paquet démesuré s'appelle « Fable ».
 const LABELS = {
-  spyfall1: "Classique 1",
-  spyfall2: "Classique 2",
-  both: "Classique 1 + 2",
+  spyfall1: "Opus 1",
+  spyfall2: "Opus 2",
+  both: "Opus 1 + 2",
+  fable: "Fable 🤯 (abusé)",
   delire: "Délire (RP)",
   delire2: "Délire 2 (corsé) 🔞",
   delireBoth: "Délire + Délire 2 🔞",
@@ -113,6 +114,7 @@ function poolFor(deckKey) {
   let arr;
   switch (deckKey) {
     case "both": arr = [...editable.spyfall1, ...editable.spyfall2]; break;
+    case "fable": arr = editable.fable; break;
     case "delire": arr = editable.delire; break;
     case "delire2": arr = editable.delire2; break;
     case "delireBoth": arr = [...editable.delire, ...editable.delire2]; break;
@@ -390,7 +392,6 @@ function startRound(room, player, opts) {
   room.roundNo += 1;
   room.round = {
     locationName: location.name,
-    locationRoles: [...location.roles],
     poolNames: pool.map((l) => ({ name: l.name, theme: l.theme })),
     spyIds,
     cards,
@@ -542,8 +543,10 @@ function stateFor(room, playerId) {
     state.locations = r.poolNames;
     state.firstPlayer = r.firstPlayerName;
     state.youAreSpy = r.spyIds.includes(player.id);
-    state.spyCount = r.spyIds.length;
-    if (!state.youAreSpy) state.locationRoles = r.locationRoles; // aide aux questions
+    // ANTI-SPOIL : la liste des rôles du lieu n'est JAMAIS envoyée (un innocent
+    // pourrait vérifier le rôle annoncé par un autre — l'espion non → trop facile).
+    // Le nombre d'espions n'est révélé qu'aux espions eux-mêmes.
+    if (state.youAreSpy) state.spyCount = r.spyIds.length;
     if (r.accusation) {
       const acc = r.accusation;
       const voters = room.players.filter((p) => p.id !== acc.suspectId);

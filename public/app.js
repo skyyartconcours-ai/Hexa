@@ -284,7 +284,7 @@ function renderGame(state) {
     if (!countdownTimer) startCountdown();
   }
 
-  timerBase = { remaining: state.remainingMs, at: Date.now() };
+  timerBase = { remaining: state.remainingMs, at: Date.now(), total: (state.durationMin || 8) * 60 * 1000 };
   // Nom du premier joueur : rafraîchi à CHAQUE sondage (reflète un re-tirage
   // serveur si le 1er joueur quitte en cours de manche), mais seulement tant
   // qu'il reste du temps — sinon tickTimer affiche « Temps écoulé » et on ne
@@ -305,15 +305,18 @@ function renderCard(state) {
     const extra = state.spyCount > 1 ? `<p>${t("Vous n'êtes pas seul : il y a {n} espions (vous ne savez pas qui est l'autre). ⚠️ Si vous tentez le lieu et vous trompez, les deux espions perdent.", { n: state.spyCount })}</p>` : "";
     $("card-content").innerHTML =
       `<p class="card-title spy">${t("🤫 Vous êtes l'ESPION")}</p>
-       <p>${t("Vous ne connaissez pas le lieu. Écoutez, bluffez, et essayez de le deviner !")}</p>${extra}`;
+       <p>${t("Vous ne connaissez pas le lieu. Écoutez, bluffez, et essayez de le deviner !")}</p>${extra}
+       <p class="card-hide-hint">${t("👆 Touchez la carte pour la cacher")}</p>`;
   } else {
-    const roles = (state.locationRoles || []).map((r) => `<li>${escapeHtml(tRole(r))}</li>`).join("");
+    // ANTI-SPOIL : on n'affiche QUE le lieu et VOTRE rôle. La liste des rôles du
+    // lieu n'existe plus côté client (un innocent pouvait vérifier le rôle
+    // annoncé par un autre — l'espion non → partie trop facile).
     $("card-content").innerHTML =
       `<p class="card-label">${t("Lieu")}</p>
        <p class="card-title">${escapeHtml(tLoc(card.location))}</p>
        <p class="card-label">${t("Votre rôle")}</p>
        <p class="card-role">${escapeHtml(tRole(card.role))}</p>
-       ${roles ? `<details class="role-help"><summary>${t("Rôles possibles ici")}</summary><ul>${roles}</ul></details>` : ""}`;
+       <p class="card-hide-hint">${t("👆 Touchez la carte pour la cacher")}</p>`;
   }
 }
 
@@ -321,6 +324,13 @@ function renderCard(state) {
 // la MÊME liste filtrée (candidats en haut, rayés barrés en bas).
 function syncSpyPanel() {
   if (lastGameState && lastGameState.youAreSpy) renderSpyPanel(lastGameState);
+  updateLocCounter();
+}
+// Badge « N lieux restants » sur le panneau d'élimination.
+function updateLocCounter() {
+  if (!lastGameState || !lastGameState.locations) return;
+  const left = lastGameState.locations.length - eliminatedLocs.size;
+  $("loc-counter").textContent = eliminatedLocs.size ? t(left > 1 ? "{n} restants" : "{n} restant", { n: left }) : "";
 }
 // Raye / dé-raye un lieu dans l'état PARTAGÉ + met à jour son item visuel.
 function setLocEliminated(name, li, off) {
@@ -356,6 +366,7 @@ function renderLocations(locations) {
     li.onclick = toggle;
     li.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
   }
+  updateLocCounter();
 }
 
 function renderSpyPanel(state) {
@@ -433,7 +444,10 @@ function sendVote(agree) {
   });
 }
 
+// ANTI-SPOIL physique : la carte se RE-CACHE d'un tap (avant, elle restait
+// affichée définitivement — n'importe quel voisin de table pouvait la lire).
 $("btn-flip").onclick = () => { $("btn-flip").classList.add("hidden"); $("card-content").classList.remove("hidden"); };
+$("card-content").onclick = () => { $("card-content").classList.add("hidden"); $("btn-flip").classList.remove("hidden"); };
 
 $("btn-end").onclick = () => withBusy($("btn-end"), async () => {
   setError("game-error", "");
@@ -596,6 +610,12 @@ function tickTimer() {
   const m = Math.floor(remaining / 60000);
   const s = Math.floor((remaining % 60000) / 1000);
   const timerEl = $("timer");
+  // Barre de progression du temps : se vide au fil de la manche, rougit sur la fin.
+  const bar = $("time-bar-inner");
+  if (bar && timerBase.total) {
+    bar.style.width = Math.max(0, Math.min(100, (remaining / timerBase.total) * 100)) + "%";
+    bar.classList.toggle("urgent", remaining < 60000 && remaining > 0);
+  }
   if (remaining <= 0) {
     timerEl.textContent = "0:00";
     timerEl.classList.add("urgent");

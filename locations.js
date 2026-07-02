@@ -769,12 +769,60 @@ const delire2 = [
   { name: "Guillotine en panne pendant la Révolution française", theme: T2.histoire, roles: ["Bourreau gêné devant la foule", "Condamné qui reprend espoir", "Révolutionnaire impatient", "Charpentier appelé en urgence", "Tricoteuse du premier rang", "Officier qui s'impatiente", "Prêtre réfractaire, suivant sur la liste", "Crieur public", "Aristocrate qui ironise"] },
 ];
 
+// ─── Fable (démesuré) ────────────────────────────────────────────────────────
+// Paquet « le thème est tellement abusé que c'en est drôle » : lieux volontai-
+// rement over-the-top, subversifs, taillés pour le roleplay qui part en vrille.
+const TF = {
+  abuse: "🤯 Complètement abusé",
+  temps: "🌀 Espace-temps en vrac",
+  puissant: "👑 Beaucoup trop puissant",
+  moderne: "📵 Enfer moderne",
+  lore: "🧙 Lore interdit",
+};
+
+const fable = [
+  { name: "Réunion syndicale des méchants de dessins animés", theme: TF.abuse, roles: ["Sorcière au chômage technique", "Dragon en burn-out", "Vizir traître mais ponctuel", "Belle-mère toxique déléguée du personnel", "Sbire sous-payé", "Perroquet délateur", "Méchant reconverti coach de vie", "Stagiaire du côté obscur"] },
+  { name: "Concours officiel du meilleur menteur", theme: TF.abuse, roles: ["Menteur pathologique favori", "Politicien en campagne", "Vendeur de voitures d'occasion", "Ado qui a « déjà fini ses devoirs »", "Juge acheté (mais qui le nie)", "Détecteur de mensonges humain", "Champion en titre contesté", "Type honnête complètement perdu"] },
+  { name: "Cérémonie des Oscars du pire film", theme: TF.abuse, roles: ["Réalisateur très fier de lui", "Acteur qui y croyait vraiment", "Critique sadique au premier rang", "Attachée de presse en sueur", "Juré endormi", "Scénariste renié par sa famille", "Cascadeur traumatisé", "Spectateur payé pour applaudir"] },
+  { name: "Élevage industriel de licornes", theme: TF.abuse, roles: ["Éleveur sans scrupules", "Licorne dépressive", "Inspecteur vétérinaire soudoyé", "Militant infiltré déguisé en poney", "Comptable qui revend les cornes", "Poney jaloux du succès des licornes", "Vétérinaire qui ferme les yeux", "Client milliardaire excentrique"] },
+  { name: "Speed dating de vampires", theme: TF.abuse, roles: ["Vampire de 800 ans « jeune dans sa tête »", "Humaine qui n'a pas compris le concept", "Loup-garou incognito", "Organisatrice qui a banni l'ail", "Vampire végan très fatigué", "Chasseur de vampires sous couverture", "Dentiste opportuniste", "Vampire timide à son premier date"] },
+  { name: "Anniversaire surprise de Cthulhu", theme: TF.abuse, roles: ["Cultiste organisateur stressé", "Traiteur non-euclidien", "Invité devenu fou en arrivant", "Poulpe DJ", "Ancien dieu vexé de ne pas être invité", "Sacrifié d'honneur qui l'ignore", "Photographe aux photos impossibles", "Animateur de soirée tentaculaire"] },
+
+  { name: "Service après-vente des voyages temporels", theme: TF.temps, roles: ["Client coincé en 1347", "Conseiller niveau 1 dépassé", "Dinosaure qui exige un remboursement", "Grand-père effacé par erreur", "Manager qui « escalade le ticket »", "Touriste du futur méprisant", "Paradoxe ambulant", "Stagiaire de l'an 3000"] },
+  { name: "File d'attente du dernier bunker", theme: TF.temps, roles: ["Milliardaire qui resquille", "Prepper vindicatif premier arrivé", "Influenceur en live jusqu'au bout", "Vigile inflexible", "Parent avec douze enfants", "Vendeur de places au marché noir", "Sceptique qui « n'y croit pas »", "Politicien avec coupe-file officiel"] },
+  { name: "Réunion de tous tes « toi » du multivers", theme: TF.temps, roles: ["Toi en mieux", "Toi qui a tout raté", "Toi version méchant avec bouc", "Toi bébé (on ne sait pas comment)", "Toi retraité plein de regrets", "Toi resté avec ton ex", "Toi devenu une pieuvre", "Modérateur de la réunion, épuisé"] },
+  { name: "Salle d'attente du purgatoire", theme: TF.temps, roles: ["Âme parfaitement en règle", "Fraudeur du karma", "Avocat des causes perdues", "Réceptionniste blasée depuis 2000 ans", "Saint en surqualification", "Démon en reconversion", "Athée très surpris d'être là", "Contrôleur des bonnes actions"] },
+  { name: "Embouteillage de soucoupes volantes", theme: TF.temps, roles: ["Alien en retard à l'invasion", "Agent de la circulation galactique", "Autostoppeur interstellaire", "Livreur de crop circles", "Touriste qui prend la Terre en photo", "Conducteur qui klaxonne en ultrasons", "Vache enlevée par erreur", "Contrôleur technique des ovnis"] },
+  { name: "Dernier jour de la simulation", theme: TF.temps, roles: ["Admin qui éteint les serveurs", "PNJ qui vient de comprendre", "Complotiste enfin heureux d'avoir raison", "Développeur nostalgique", "Humain qui refuse d'y croire", "Bug ambulant jamais corrigé", "Joueur qui cherche la sauvegarde", "Philosophe insupportable de fierté"] },
+
+  { name: "Conseil d'administration de l'Olympe", theme: TF.puissant, roles: ["Zeus en assemblée générale", "Hadès actionnaire minoritaire aigri", "Aphrodite directrice des ressources humaines", "Hermès coursier en sous-effectif", "Poséidon toujours en visio", "Mortel invité par erreur", "Athéna directrice de la stratégie", "Dionysos responsable des afterworks"] },
+  { name: "École des super-héros recalés", theme: TF.puissant, roles: ["Héros qui vole à 30 centimètres", "Télépathe qui ne lit que les pensées gênantes", "Invisible seulement quand personne ne regarde", "Professeur totalement désabusé", "Super-costaud fragile du dos", "Élève qui invoque du fromage", "Conseiller d'orientation à bout", "Némésis inscrit incognito"] },
+  { name: "Concours de l'objet le plus cheaté du jeu vidéo", theme: TF.puissant, roles: ["Épée +999 favorite du public", "Testeur d'équilibrage licencié", "Speedrunner qui connaît la faille", "Boss final vexé", "Développeur qui nie le bug", "Joueur pay-to-win décomplexé", "Arbitre du tournoi dépassé", "PNJ syndiqué en grève"] },
+  { name: "Élection du Dieu de l'année", theme: TF.puissant, roles: ["Dieu sortant sûr de lui", "Challenger charismatique", "Directeur de campagne céleste", "Prophète chargé des sondages", "Fidèle indécis courtisé", "Lobbyiste des enfers", "Journaliste théologique", "Miracle de dernière minute"] },
+  { name: "Grève générale des PNJ", theme: TF.puissant, roles: ["PNJ de quête principale en tête de cortège", "Marchand qui répète la même phrase", "Garde qui a pris une flèche dans le genou", "Syndicaliste pixelisé", "Héros privé de quêtes", "Développeur envoyé en médiation", "Figurant sans dialogue", "Boss qui refuse de réapparaître"] },
+
+  { name: "Prison pour influenceurs", theme: TF.moderne, roles: ["Influenceur fitness en manque de likes", "Gardien qui confisque les ring lights", "Coach en détox numérique", "Youtubeur qui filme sa détention", "Détenue qui vit très mal l'absence de filtres", "Avocat spécialisé en bad buzz", "Nouveau qui n'était « que micro-influenceur »", "Directeur qui négocie des placements de produit"] },
+  { name: "Start-up qui vend de l'air", theme: TF.moderne, roles: ["CEO visionnaire", "Investisseur totalement conquis", "Ingénieur qui a des doutes", "Directrice marketing du vide", "Client mystérieusement satisfait", "Journaliste tech complaisant", "Stagiaire qui pose trop de questions", "Concurrent qui vend du vide premium"] },
+  { name: "Apocalypse des notifications", theme: TF.moderne, roles: ["Community manager au front", "Téléphone en surchauffe", "Humain qui n'a plus de pouces", "Réparateur de dopamine", "Zombie du scroll infini", "Coach en temps d'écran débordé", "Notification devenue consciente", "Survivant qui vit sans smartphone"] },
+  { name: "Mariage organisé par une intelligence artificielle", theme: TF.moderne, roles: ["Marié généré aléatoirement", "Mariée statistiquement optimale", "Témoin choisi par algorithme", "Belle-mère en version bêta", "Prêtre chatbot", "Invité suggéré par erreur", "Photographe accusé de retouches", "Ingénieur ému aux larmes"] },
+  { name: "Contrôle fiscal dans la grotte d'un dragon", theme: TF.moderne, roles: ["Inspecteur des impôts ignifugé", "Dragon qui pleure sur son or", "Comptable du trésor démissionnaire", "Avocat fiscaliste médiéval", "Chevalier huissier", "Princesse témoin de moralité", "Expert en évaluation de butin", "Nain consultant en offshore"] },
+
+  { name: "Bibliothèque des livres interdits", theme: TF.lore, roles: ["Bibliothécaire borgne à cheval sur le silence", "Livre qui mord les lecteurs", "Lecteur possédé au rayon poésie", "Stagiaire chargé du dépoussiérage maudit", "Démon relieur consciencieux", "Chercheur qui « sait ce qu'il fait »", "Rat de bibliothèque au sens propre", "Inquisiteur en visite surprise"] },
+  { name: "École de magie discount", theme: TF.lore, roles: ["Directeur en fuite fiscale", "Professeur de potions périmées", "Élève transformé en poule depuis mardi", "Fantôme qui squatte le dortoir", "Vendeur de baguettes contrefaites", "Parent qui exige un remboursement", "Concierge sans pouvoirs mais qui voit tout", "Inspecteur académique horrifié"] },
+  { name: "Taverne du donjon niveau 100", theme: TF.lore, roles: ["Tavernier immortel qui a tout vu", "Paladin à l'armure trop brillante", "Voleur qui détrousse les pourboires", "Barde insupportable", "Nécromancien en soirée détente", "Vieil homme mystérieux qui distribue des quêtes", "Marchand d'objets maudits", "Aventurier niveau 1 complètement perdu"] },
+  { name: "Sommet mondial des théories du complot", theme: TF.lore, roles: ["Platiste président de séance", "Reptilien mal déguisé", "Agent double du gouvernement", "Youtubeur « chercheur indépendant »", "Illuminati de service", "Sceptique infiltré à bout de nerfs", "Inventeur du faux alunissage", "Pigeon espion assumé"] },
+  { name: "Clinique vétérinaire pour créatures mythiques", theme: TF.lore, roles: ["Vétérinaire ignifugée", "Dragon enrhumé très dangereux", "Assistant légèrement carbonisé", "Princesse propriétaire inquiète", "Chevalier venu pour « une euthanasie »", "Assureur qui résilie tout", "Bébé griffon qui éternue des plumes", "Licorne hypocondriaque"] },
+  { name: "Restaurant où tout est beaucoup trop épicé", theme: TF.lore, roles: ["Chef sadique au piment", "Client qui « supporte très bien le piment »", "Pompier de garde à sa table", "Serveur en gants isolants", "Critique culinaire en larmes", "Livreur de lait d'urgence", "Habitué qui n'a plus de papilles", "Assureur incendie venu constater"] },
+  { name: "Réunion des ex de ton ex", theme: TF.lore, roles: ["Organisateur rancunier", "Ex numéro un, le préféré", "Ex toxique en rédemption", "Ex resté ami (personne n'y croit)", "Nouveau partenaire venu en reconnaissance", "Psychologue de groupe dépassé", "Détective privé engagé par quelqu'un", "Ex qui ne s'en est jamais remis"] },
+];
+
 module.exports = {
-  spyfall1: { label: "Spyfall 1", locations: spyfall1 },
-  spyfall2: { label: "Spyfall 2", locations: spyfall2 },
-  both: { label: "Spyfall 1 + 2", locations: [...spyfall1, ...spyfall2] },
+  spyfall1: { label: "Opus 1", locations: spyfall1 },
+  spyfall2: { label: "Opus 2", locations: spyfall2 },
+  both: { label: "Opus 1 + 2", locations: [...spyfall1, ...spyfall2] },
+  fable: { label: "Fable 🤯 (abusé)", locations: fable },
   delire: { label: "Délire (RP)", locations: delire },
   delire2: { label: "Délire 2 (corsé) 🔞", locations: delire2 },
   delireBoth: { label: "Délire + Délire 2 🔞", locations: [...delire, ...delire2] },
-  tout: { label: "Tout", locations: [...spyfall1, ...spyfall2, ...delire, ...delire2] },
+  tout: { label: "Tout", locations: [...spyfall1, ...spyfall2, ...fable, ...delire, ...delire2] },
 };

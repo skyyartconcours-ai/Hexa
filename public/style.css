@@ -200,6 +200,16 @@ button.danger-ghost { background: transparent; border: 1px solid #4d2020; color:
 @keyframes pulse { 50% { transform: scale(1.06); } }
 .first-player { text-align: center; color: var(--doux); font-size: 0.95rem; min-height: 1.2em; }
 
+/* Barre de temps : se vide au fil de la manche, rougit sur la dernière minute. */
+.time-bar { height: 4px; margin: 2px 22px 8px; border-radius: 999px; background: rgba(230, 200, 122, 0.12); overflow: hidden; }
+#time-bar-inner { height: 100%; width: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--bronze), var(--or)); transition: width 0.5s linear; }
+#time-bar-inner.urgent { background: linear-gradient(90deg, #7a2020, var(--sang-clair)); }
+
+/* Badge « N restants » du panneau d'élimination + indice pour re-cacher la carte. */
+.loc-counter { color: var(--or); font-weight: 600; font-size: 0.85rem; }
+.card-hide-hint { margin-top: 10px; color: var(--doux); font-size: 0.8rem; opacity: 0.8; }
+#card-content { cursor: pointer; }
+
 .card {
   background: radial-gradient(120% 100% at 50% 0%, var(--panneau-2), var(--laque-2));
   border: 1px solid var(--bord);
