@@ -4,3 +4,7 @@ node_modules/
 data.json
 data.json.bak
 data.json.tmp
+# État runtime des personnages proposés (accepté/refusé), semé depuis
+# public/pending-roles.json au 1er démarrage.
+pending.json
+pending.json.tmp

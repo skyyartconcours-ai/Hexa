@@ -168,6 +168,17 @@
     "Passer": "Skip",
     "Suivant": "Next",
     "🎮 Créer une partie": "🎮 Create a game",
+    // Personnages proposés (à valider)
+    "Personnages proposés": "Proposed Characters",
+    "Un nouveau personnage a été proposé pour chaque lieu. Accepte ceux qui te font rire, refuse les autres.": "A new character has been proposed for each location. Keep the ones that make you laugh, reject the rest.",
+    "✅ Tout accepter": "✅ Accept all",
+    "🗑️ Tout refuser": "🗑️ Reject all",
+    "Aucun personnage en attente — tout a été traité 🎉": "No characters pending — everything's been reviewed 🎉",
+    "✓ Accepter": "✓ Accept",
+    "✗ Refuser": "✗ Reject",
+    "🎭 Personnages proposés ({n})": "🎭 Proposed characters ({n})",
+    "Accepter les {n} personnages proposés ?": "Accept all {n} proposed characters?",
+    "Refuser (supprimer) les {n} personnages proposés ?": "Reject (delete) all {n} proposed characters?",
     // Divers
     "⚠️ Reconnexion…": "⚠️ Reconnecting…",
   };

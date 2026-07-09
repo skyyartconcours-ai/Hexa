@@ -208,6 +208,58 @@ let SUGGESTIONS = {};
 try { SUGGESTIONS = JSON.parse(fs.readFileSync(path.join(__dirname, "public/suggestions.json"), "utf8")); }
 catch (e) { console.error("suggestions.json :", e.message); }
 
+// Personnages PROPOSÉS (1 nouveau rôle par lieu, générés par un run d'agents) :
+// à VALIDER par l'hôte avant intégration. Semés depuis public/pending-roles.json
+// (committé) au 1er démarrage, puis l'état vivant est persisté dans pending.json
+// (runtime, gitignoré). Accepter = ajoute le rôle à editable + retire du pending.
+// Refuser = retire du pending. `acceptedEn` garde la trad EN des rôles acceptés.
+const PENDING_SEED = path.join(__dirname, "public/pending-roles.json");
+const PENDING_FILE = path.join(__dirname, "pending.json");
+let pending = {};      // { packKey: { locName: { fr, en } } }
+let acceptedEn = {};   // { roleFr: roleEn }
+function loadPending() {
+  let st = null;
+  try { st = JSON.parse(fs.readFileSync(PENDING_FILE, "utf8")); } catch { st = null; }
+  if (st && st.pending) { pending = st.pending; acceptedEn = st.acceptedEn || {}; return; }
+  try { pending = JSON.parse(fs.readFileSync(PENDING_SEED, "utf8")); } catch { pending = {}; }
+  acceptedEn = {};
+  savePending();
+}
+function savePending() {
+  try {
+    const tmp = PENDING_FILE + ".tmp";
+    const fd = fs.openSync(tmp, "w");
+    fs.writeSync(fd, JSON.stringify({ pending, acceptedEn }, null, 2));
+    fs.fsyncSync(fd); fs.closeSync(fd);
+    fs.renameSync(tmp, PENDING_FILE);
+  } catch (e) { console.error("Écriture pending.json impossible :", e.message); }
+}
+function pendingCount() { let n = 0; for (const k in pending) n += Object.keys(pending[k] || {}).length; return n; }
+function acceptPending(pack, name) {
+  const prop = pending[pack] && pending[pack][name];
+  if (!prop) return;
+  const loc = editable[pack] && editable[pack].find((l) => l.name === name);
+  if (loc && !loc.roles.some((r) => r.toLowerCase() === prop.fr.toLowerCase())) loc.roles.push(prop.fr);
+  if (prop.en) acceptedEn[prop.fr] = prop.en;
+  delete pending[pack][name];
+}
+function applyPending(action, pack, name) {
+  if (action === "acceptAll" || action === "rejectAll") {
+    for (const p of Object.keys(pending)) for (const n of Object.keys(pending[p] || {})) {
+      if (action === "acceptAll") acceptPending(p, n); else delete pending[p][n];
+    }
+  } else if (action === "accept") {
+    if (!pending[pack] || !pending[pack][name]) throw httpError(404, "Proposition introuvable.");
+    acceptPending(pack, name);
+  } else if (action === "reject") {
+    if (!pending[pack] || !pending[pack][name]) throw httpError(404, "Proposition introuvable.");
+    delete pending[pack][name];
+  } else throw httpError(400, "Action inconnue.");
+  savePending();
+  if (action === "accept" || action === "acceptAll") saveEditable();
+}
+loadPending();
+
 // ---------------------------------------------------------------------------
 // Salles & joueurs.
 // ---------------------------------------------------------------------------
@@ -701,6 +753,22 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && url.pathname === "/api/suggestions") {
       return sendJSON(res, 200, { suggestions: SUGGESTIONS });
+    }
+    // Traductions EN des rôles acceptés (le client les fusionne dans son dico).
+    if (req.method === "GET" && url.pathname === "/api/role-en") {
+      return sendJSON(res, 200, { roles: acceptedEn });
+    }
+    // Personnages proposés à valider (1 par lieu).
+    if (url.pathname === "/api/pending") {
+      if (req.method === "GET") return sendJSON(res, 200, { pending, count: pendingCount() });
+      if (req.method === "POST") {
+        if (actionOverLimit(req, "edit", 60)) throw httpError(429, "Trop d'actions d'un coup, ralentis un peu.");
+        const body = await readBody(req);
+        applyPending(body.action, body.pack, body.name);
+        recordAction(req, "edit", 60 * 1000);
+        return sendJSON(res, 200, { pending, count: pendingCount() });
+      }
+      throw httpError(405, "Méthode non autorisée.");
     }
 
     // Éditeur de lieux & rôles.

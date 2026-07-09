@@ -876,6 +876,83 @@ $("btn-casier").onclick = openCasier;
 $("btn-casier-back").onclick = () => show("screen-home");
 $("btn-casier-share").onclick = () => shareCasier();
 
+// --- Personnages proposés (1 par lieu, à valider par l'hôte) ------------------
+
+let pendingLabels = {}; // key de paquet -> libellé (pour l'écran de validation)
+
+// Fusionne les traductions EN des rôles ACCEPTÉS dans le dico de contenu, pour
+// qu'ils s'affichent en anglais comme le reste (sinon repli FR).
+async function loadRoleEn() {
+  try {
+    const { roles } = await api("/api/role-en");
+    if (roles && window.HEXA_CONTENT_EN && window.HEXA_CONTENT_EN.roles) Object.assign(window.HEXA_CONTENT_EN.roles, roles);
+  } catch {}
+}
+
+// Badge d'accueil : affiche le bouton seulement s'il reste des propositions.
+async function loadPendingBadge() {
+  try {
+    const { count } = await api("/api/pending");
+    const b = $("btn-pending");
+    b.classList.toggle("hidden", !count);
+    if (count) b.textContent = t("🎭 Personnages proposés ({n})", { n: count });
+  } catch { $("btn-pending").classList.add("hidden"); }
+}
+
+async function openPending() {
+  setError("home-error", "");
+  try {
+    const [{ pending }, locs] = await Promise.all([api("/api/pending"), api("/api/locations")]);
+    pendingLabels = Object.fromEntries(locs.packs.map((p) => [p.key, p.label]));
+    renderPending(pending);
+    show("screen-pending");
+  } catch (e) { setError("home-error", e.message); }
+}
+
+function renderPending(pending) {
+  const packs = Object.keys(pending).filter((k) => Object.keys(pending[k] || {}).length);
+  const empty = !packs.length;
+  $("pending-empty").classList.toggle("hidden", !empty);
+  $("btn-pending-accept-all").classList.toggle("hidden", empty);
+  $("btn-pending-reject-all").classList.toggle("hidden", empty);
+  $("pending-list").innerHTML = empty ? "" : packs.map((pk) => {
+    const rows = Object.entries(pending[pk]).map(([name, prop]) => {
+      const char = i18n.isEn() ? (prop.en || prop.fr) : prop.fr;
+      return `<div class="pend-row">
+        <div class="pend-info"><span class="pend-loc">${escapeHtml(tLoc(name))}</span><span class="pend-char">🎭 ${escapeHtml(char)}</span></div>
+        <div class="pend-btns">
+          <button class="pend-yes" data-pack="${escapeHtml(pk)}" data-name="${escapeHtml(name)}">${t("✓ Accepter")}</button>
+          <button class="pend-no" data-pack="${escapeHtml(pk)}" data-name="${escapeHtml(name)}">${t("✗ Refuser")}</button>
+        </div>
+      </div>`;
+    }).join("");
+    return `<div class="pend-group"><h2 class="pend-pack">${escapeHtml(t(pendingLabels[pk] || pk))}</h2>${rows}</div>`;
+  }).join("");
+}
+
+async function pendingOp(payload) {
+  setError("pending-error", "");
+  try { const { pending } = await api("/api/pending", payload); renderPending(pending); loadPendingBadge(); }
+  catch (e) { setError("pending-error", e.message); }
+}
+
+$("btn-pending").onclick = openPending;
+$("btn-pending-back").onclick = () => { loadDecks(); show("screen-home"); };
+$("pending-list").onclick = (e) => {
+  const yes = e.target.closest(".pend-yes");
+  if (yes) { pendingOp({ action: "accept", pack: yes.dataset.pack, name: yes.dataset.name }); return; }
+  const no = e.target.closest(".pend-no");
+  if (no) { pendingOp({ action: "reject", pack: no.dataset.pack, name: no.dataset.name }); return; }
+};
+$("btn-pending-accept-all").onclick = () => withBusy($("btn-pending-accept-all"), async () => {
+  const { count } = await api("/api/pending").catch(() => ({ count: 0 }));
+  if (count && confirm(t("Accepter les {n} personnages proposés ?", { n: count }))) await pendingOp({ action: "acceptAll" });
+});
+$("btn-pending-reject-all").onclick = () => withBusy($("btn-pending-reject-all"), async () => {
+  const { count } = await api("/api/pending").catch(() => ({ count: 0 }));
+  if (count && confirm(t("Refuser (supprimer) les {n} personnages proposés ?", { n: count }))) await pendingOp({ action: "rejectAll" });
+});
+
 // --- Tutoriel express (#8, scripté, sans fausse IA) --------------------------
 
 const TUTO_STEPS = [
@@ -916,6 +993,8 @@ function lockGate(msg) {
 }
 function enterApp() {
   loadDecks();
+  loadRoleEn();       // trad EN des rôles déjà acceptés (fusion dans le dico)
+  loadPendingBadge(); // affiche le bouton « personnages proposés » s'il en reste
   const storedName = localStorage.getItem("spyfall-name");
   if (storedName && !$("name-input").value) $("name-input").value = storedName;
   const params = new URLSearchParams(location.search);
@@ -946,6 +1025,7 @@ window.onLangChange = () => {
   try { loadDecks(); } catch {} // menu de mode de l'accueil (libellés + « lieux »)
   const st = lastRenderedState;
   if (currentScreen === "screen-editor" && editorData) renderEditor();
+  else if (currentScreen === "screen-pending") openPending();
   else if (currentScreen === "screen-casier") openCasier();
   else if (currentScreen === "screen-tutorial") renderTuto();
   else if (currentScreen === "screen-lobby" && st) renderLobby(st);

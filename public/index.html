@@ -40,6 +40,7 @@
         <button id="btn-casier" class="ghost" data-i18n>🎖️ Mon Casier</button>
       </div>
       <button id="btn-open-editor" class="ghost" data-i18n>✏️ Modifier les lieux &amp; rôles</button>
+      <button id="btn-pending" class="ghost pending-cta hidden"></button>
       <p id="home-error" class="error" role="alert"></p>
     </section>
 
@@ -158,6 +159,22 @@
       <div id="casier-wrap" class="casier-wrap"></div>
       <p id="casier-empty" class="hint hidden" data-i18n>Joue une partie pour remplir ton Casier 🎖️</p>
       <button id="btn-casier-share" class="primary hidden" data-i18n>📲 Partager mon Casier</button>
+    </section>
+
+    <!-- Personnages proposés (à valider) -->
+    <section id="screen-pending" class="screen hidden">
+      <div class="editor-top">
+        <button id="btn-pending-back" class="ghost" data-i18n>← Retour</button>
+        <h1 tabindex="-1" data-i18n>Personnages proposés</h1>
+      </div>
+      <p class="hint" data-i18n>Un nouveau personnage a été proposé pour chaque lieu. Accepte ceux qui te font rire, refuse les autres.</p>
+      <div class="pending-actions">
+        <button id="btn-pending-accept-all" class="primary" data-i18n>✅ Tout accepter</button>
+        <button id="btn-pending-reject-all" class="ghost danger-ghost" data-i18n>🗑️ Tout refuser</button>
+      </div>
+      <div id="pending-list"></div>
+      <p id="pending-empty" class="hint hidden" data-i18n>Aucun personnage en attente — tout a été traité 🎉</p>
+      <p id="pending-error" class="error" role="alert"></p>
     </section>
 
     <!-- Tutoriel express -->

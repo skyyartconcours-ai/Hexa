@@ -408,6 +408,20 @@ body.defeat-flash::after {
 .sugg-del { flex: 0 0 auto; min-height: 44px; background: linear-gradient(180deg, #8a2020, var(--sang)); color: #ffe9e4; border: 1px solid #4d1010; padding: 7px 14px; font-size: 0.85rem; box-shadow: none; }
 .sugg-add-btn { flex: 0 0 auto; min-height: 44px; background: linear-gradient(180deg, #2e7a4a, #1c5030); color: #eafff0; border: 1px solid #1c5030; padding: 7px 14px; font-size: 0.85rem; box-shadow: none; }
 
+/* --- Personnages proposés (écran de validation) ---------------------------- */
+.pending-cta { border-color: var(--or); color: var(--or-clair); }
+.pending-actions { display: flex; gap: 10px; margin-bottom: 14px; }
+.pending-actions button { flex: 1; }
+.pend-group { margin-bottom: 16px; }
+.pend-pack { font-family: var(--serif); font-size: 1.1rem; color: var(--or); margin: 4px 0 8px; }
+.pend-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: linear-gradient(180deg, var(--panneau-2), var(--panneau)); border: 1px solid var(--bord); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; box-shadow: var(--liseret); }
+.pend-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.pend-loc { font-size: 0.8rem; color: var(--doux); }
+.pend-char { font-family: var(--serif); font-weight: 700; color: var(--creme); word-break: break-word; }
+.pend-btns { display: flex; gap: 6px; flex: 0 0 auto; }
+.pend-yes { min-height: 44px; background: linear-gradient(180deg, #2e7a4a, #1c5030); color: #eafff0; border: 1px solid #1c5030; padding: 8px 12px; font-size: 0.85rem; box-shadow: none; }
+.pend-no { min-height: 44px; background: linear-gradient(180deg, #8a2020, var(--sang)); color: #ffe9e4; border: 1px solid #4d1010; padding: 8px 12px; font-size: 0.85rem; box-shadow: none; }
+
 /* Focus clavier visible (accessibilité). */
 .loc-item:focus-visible, .pack-tab:focus-visible, .pick-btn:focus-visible, .loc-theme:focus-visible { outline: 2px solid var(--or); outline-offset: 2px; }
 
