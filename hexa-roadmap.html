@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HEXA — Plan de vol · SaaS streamers</title>
+<style>
+  :root{
+    --bg:#E8ECF1; --panel:#FDFEFF; --panel-2:#F1F4F8; --line:#D4DBE4;
+    --ink:#141A22; --muted:#54606F; --faint:#8593A3;
+    --accent:#DA352C; --go:#12885A; --warn:#946212; --steel:#2E6E93; --danger:#C22E24;
+    --shadow:0 1px 2px rgba(20,26,34,.06), 0 10px 30px rgba(20,26,34,.07);
+    --glow:0 0 0 rgba(0,0,0,0);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0C0F14; --panel:#141922; --panel-2:#1A212B; --line:rgba(255,255,255,.09);
+      --ink:#E7ECF3; --muted:#94A0B0; --faint:#647080;
+      --accent:#FF564C; --go:#3DD68C; --warn:#E8A33D; --steel:#79B4D6; --danger:#FF5A4E;
+      --shadow:0 1px 0 rgba(255,255,255,.02), 0 16px 44px rgba(0,0,0,.55);
+      --glow:0 0 14px rgba(255,86,76,.55);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#E8ECF1; --panel:#FDFEFF; --panel-2:#F1F4F8; --line:#D4DBE4;
+    --ink:#141A22; --muted:#54606F; --faint:#8593A3;
+    --accent:#DA352C; --go:#12885A; --warn:#946212; --steel:#2E6E93; --danger:#C22E24;
+    --shadow:0 1px 2px rgba(20,26,34,.06), 0 10px 30px rgba(20,26,34,.07);
+    --glow:0 0 0 rgba(0,0,0,0);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0C0F14; --panel:#141922; --panel-2:#1A212B; --line:rgba(255,255,255,.09);
+    --ink:#E7ECF3; --muted:#94A0B0; --faint:#647080;
+    --accent:#FF564C; --go:#3DD68C; --warn:#E8A33D; --steel:#79B4D6; --danger:#FF5A4E;
+    --shadow:0 1px 0 rgba(255,255,255,.02), 0 16px 44px rgba(0,0,0,.55);
+    --glow:0 0 14px rgba(255,86,76,.55);
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:16px; line-height:1.6; letter-spacing:-.006em;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 clamp(18px,4vw,40px)}
+  .prose{max-width:64ch}
+  a{color:var(--steel)}
+
+  /* ---- top bar ---- */
+  .topbar{position:sticky; top:0; z-index:20; background:color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter:saturate(1.2) blur(8px); border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex; align-items:center; justify-content:space-between; height:58px; gap:16px}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.14em; font-size:.9rem}
+  .brand .rec{width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:var(--glow)}
+  .brand small{color:var(--faint); font-weight:600; letter-spacing:.02em; text-transform:none}
+  .toggle{font:inherit; cursor:pointer; color:var(--muted); background:var(--panel-2);
+    border:1px solid var(--line); border-radius:999px; padding:7px 13px; font-size:.72rem;
+    letter-spacing:.1em; text-transform:uppercase; font-family:ui-monospace,Menlo,monospace}
+  .toggle:hover{color:var(--ink); border-color:var(--muted)}
+  .toggle:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  /* ---- hero ---- */
+  header.hero{padding:clamp(40px,7vw,84px) 0 clamp(30px,4vw,50px)}
+  .tally{display:inline-flex; align-items:center; gap:12px; font-family:ui-monospace,Menlo,monospace;
+    font-size:.68rem; letter-spacing:.24em; text-transform:uppercase; color:var(--muted);
+    border:1px solid var(--line); border-radius:999px; padding:8px 16px 8px 12px; background:var(--panel)}
+  .tally .dot{width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:var(--glow); animation:pulse 2.4s ease-in-out infinite}
+  h1{font-size:clamp(2.3rem,6vw,4.15rem); line-height:1.02; font-weight:850; letter-spacing:-.028em;
+    margin:.5em 0 .28em; text-wrap:balance; max-width:15ch}
+  h1 em{font-style:normal; color:var(--accent)}
+  .pitch{font-size:clamp(1.05rem,2.2vw,1.28rem); color:var(--ink); max-width:46ch; line-height:1.5;
+    border-left:3px solid var(--accent); padding:2px 0 2px 18px; margin:6px 0 0}
+  .pitch b{font-weight:700}
+  .verdict{margin-top:26px; color:var(--muted); max-width:60ch; font-size:1.02rem}
+
+  /* ---- stat strip ---- */
+  .stats{margin-top:38px; display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line); border-radius:14px; overflow:hidden}
+  .stat{background:var(--panel); padding:18px 20px}
+  .stat .k{font-family:ui-monospace,Menlo,monospace; font-size:.64rem; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--faint)}
+  .stat .v{font-size:1.5rem; font-weight:800; letter-spacing:-.02em; margin-top:6px; font-variant-numeric:tabular-nums}
+  .stat .v small{font-size:.82rem; font-weight:600; color:var(--muted); letter-spacing:0}
+
+  /* ---- sections ---- */
+  section{padding:clamp(34px,5vw,58px) 0; border-top:1px solid var(--line)}
+  .eyebrow{display:flex; align-items:baseline; gap:14px; font-family:ui-monospace,Menlo,monospace;
+    font-size:.7rem; letter-spacing:.2em; text-transform:uppercase; color:var(--faint); margin-bottom:6px}
+  .eyebrow .num{color:var(--accent)}
+  h2{font-size:clamp(1.5rem,3.2vw,2rem); font-weight:800; letter-spacing:-.02em; margin:.1em 0 .1em; text-wrap:balance}
+  .lede{color:var(--muted); max-width:62ch; margin:.2em 0 0}
+
+  /* ---- legend ---- */
+  .legend{display:flex; flex-wrap:wrap; gap:10px 20px; margin-top:22px; font-family:ui-monospace,Menlo,monospace;
+    font-size:.7rem; letter-spacing:.08em; text-transform:uppercase}
+  .legend span{display:inline-flex; align-items:center; gap:8px; color:var(--muted)}
+  .led{width:9px; height:9px; border-radius:50%; flex:none}
+  .led.live{background:var(--accent); box-shadow:var(--glow)}
+  .led.file{background:var(--warn)}
+  .led.diff{background:var(--steel)}
+  .led.cut{background:var(--faint)}
+  .led.dgr{background:var(--danger); box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 22%, transparent)}
+
+  /* ---- cards ---- */
+  .grid{margin-top:26px; display:grid; grid-template-columns:repeat(auto-fill,minmax(268px,1fr)); gap:14px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 18px 16px;
+    box-shadow:var(--shadow); display:flex; flex-direction:column; gap:11px; position:relative;
+    transition:transform .18s ease, border-color .18s ease}
+  .card:hover{transform:translateY(-3px); border-color:color-mix(in srgb,var(--muted) 45%, var(--line))}
+  .card .head{display:flex; align-items:center; gap:10px}
+  .card .code{font-family:ui-monospace,Menlo,monospace; font-size:.68rem; letter-spacing:.1em;
+    color:var(--muted); background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:3px 7px}
+  .card .st{margin-left:auto; display:inline-flex; align-items:center; gap:7px;
+    font-family:ui-monospace,Menlo,monospace; font-size:.6rem; letter-spacing:.12em; text-transform:uppercase; color:var(--faint)}
+  .card h3{font-size:1.04rem; line-height:1.28; font-weight:750; margin:0; letter-spacing:-.01em; text-wrap:balance}
+  .card p{margin:0; color:var(--muted); font-size:.92rem; line-height:1.5}
+  .card .price{font-family:ui-monospace,Menlo,monospace; font-size:.72rem; color:var(--accent); letter-spacing:.02em}
+  .card.free .price{color:var(--go)}
+
+  .meters{margin-top:auto; display:flex; gap:16px; padding-top:4px}
+  .m{flex:1; min-width:0}
+  .m .lab{display:flex; justify-content:space-between; font-family:ui-monospace,Menlo,monospace;
+    font-size:.58rem; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); margin-bottom:5px}
+  .m .lab b{color:var(--ink); font-weight:700; font-variant-numeric:tabular-nums}
+  .track{height:5px; border-radius:3px; background:var(--panel-2); overflow:hidden; border:1px solid var(--line)}
+  .fill{height:100%; width:calc(var(--v)*10%); border-radius:3px}
+  .fill.val{background:var(--accent)}
+  .fill.bld{background:var(--steel)}
+
+  /* accent bar by status (left edge) */
+  .card.s-live{border-left:3px solid var(--accent)}
+  .card.s-file{border-left:3px solid var(--warn)}
+  .card.s-diff{border-left:3px solid var(--steel)}
+
+  /* ---- timeline ---- */
+  .tlscroll{margin-top:28px; overflow-x:auto; padding-bottom:8px}
+  .timeline{min-width:660px; position:relative; padding:34px 4px 8px}
+  .rail{position:absolute; left:0; right:0; top:44px; height:4px; border-radius:3px;
+    background:linear-gradient(90deg,var(--accent),var(--warn) 42%,var(--steel))}
+  .nodes{display:grid; grid-template-columns:repeat(6,1fr); gap:10px}
+  .node{position:relative; padding-top:26px}
+  .node::before{content:""; position:absolute; top:8px; left:0; width:13px; height:13px; border-radius:50%;
+    background:var(--panel); border:3px solid var(--accent)}
+  .node.n2::before{border-color:var(--accent)}
+  .node.n3::before,.node.n4::before{border-color:var(--warn)}
+  .node.n5::before,.node.n6::before{border-color:var(--steel)}
+  .node .wk{font-family:ui-monospace,Menlo,monospace; font-size:.64rem; letter-spacing:.1em; color:var(--faint); text-transform:uppercase}
+  .node .t{font-weight:700; font-size:.92rem; margin:3px 0 3px; letter-spacing:-.01em}
+  .node .d{color:var(--muted); font-size:.82rem; line-height:1.45}
+
+  /* ---- pricing lower third ---- */
+  .lower{margin-top:26px; display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  .tier{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px; box-shadow:var(--shadow)}
+  .tier.hot{border-color:var(--accent); box-shadow:var(--shadow), inset 0 0 0 1px color-mix(in srgb,var(--accent) 40%,transparent)}
+  .tier .cap{font-family:ui-monospace,Menlo,monospace; font-size:.64rem; letter-spacing:.16em; text-transform:uppercase; color:var(--faint)}
+  .tier .amt{font-size:2rem; font-weight:850; letter-spacing:-.03em; margin:8px 0 2px; font-variant-numeric:tabular-nums}
+  .tier .amt small{font-size:.9rem; font-weight:600; color:var(--muted); letter-spacing:0}
+  .tier .note{color:var(--muted); font-size:.88rem; margin-top:6px}
+  .tier .flag{display:inline-block; margin-bottom:10px; font-family:ui-monospace,Menlo,monospace; font-size:.6rem;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--accent); border:1px solid color-mix(in srgb,var(--accent) 50%,var(--line)); border-radius:999px; padding:3px 9px}
+
+  /* ---- notes de régie ---- */
+  .notes{margin-top:24px; display:grid; grid-template-columns:repeat(2,1fr); gap:14px}
+  .note{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:16px 18px; border-left:3px solid var(--warn)}
+  .note h4{margin:0 0 6px; font-size:.95rem; font-weight:750; letter-spacing:-.01em; display:flex; align-items:center; gap:9px}
+  .note h4 .tag{font-family:ui-monospace,Menlo,monospace; font-size:.58rem; letter-spacing:.12em; text-transform:uppercase; color:var(--warn); border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line)); border-radius:5px; padding:2px 6px}
+  .note p{margin:0; color:var(--muted); font-size:.9rem; line-height:1.5}
+
+  /* ---- cut list ---- */
+  .cutlist{margin-top:24px; display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+  .row{background:var(--panel); display:flex; align-items:center; gap:14px; padding:13px 16px; flex-wrap:wrap}
+  .row .badge{font-family:ui-monospace,Menlo,monospace; font-size:.6rem; letter-spacing:.12em; text-transform:uppercase; padding:3px 8px; border-radius:6px; flex:none}
+  .row .badge.danger{color:#fff; background:var(--danger)}
+  .row .badge.cut{color:var(--muted); background:var(--panel-2); border:1px solid var(--line)}
+  .row .nm{font-weight:700; font-size:.92rem; flex:none}
+  .row .why{color:var(--muted); font-size:.88rem}
+
+  footer{border-top:1px solid var(--line); padding:30px 0 60px; color:var(--faint)}
+  footer .wrap{display:flex; flex-wrap:wrap; gap:12px 28px; align-items:baseline; justify-content:space-between}
+  footer .meta{font-family:ui-monospace,Menlo,monospace; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase}
+
+  .reveal{opacity:0; transform:translateY(14px); transition:opacity .5s ease, transform .5s ease}
+  .reveal.in{opacity:1; transform:none}
+
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  @media (max-width:720px){
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .lower{grid-template-columns:1fr}
+    .notes{grid-template-columns:1fr}
+  }
+  @media (max-width:440px){ .stats{grid-template-columns:1fr} }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important}
+    .reveal{opacity:1; transform:none; transition:none}
+    .card{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand mono"><span class="rec" aria-hidden="true"></span>HEXA <small>régie de stream</small></div>
+    <button class="toggle" id="themeBtn" type="button" aria-label="Changer de thème">Thème</button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="tally"><span class="dot" aria-hidden="true"></span>Plan de vol · SaaS streamers · Juillet 2026</span>
+    <h1>Coupe l'incident <em>avant</em> qu'il n'arrive à l'antenne.</h1>
+    <p class="pitch">« Tu te fais snipe ? Un clic — <b>les snipers regardent une vidéo, pas ton jeu.</b> »</p>
+    <p class="verdict">La première idée du dossier où toutes les vérifications adverses laissent une vraie porte ouverte. Une condition non négociable&nbsp;: valider en prévente <b style="color:var(--ink)">avant</b> d'écrire une ligne de code.</p>
+
+    <div class="stats" role="list">
+      <div class="stat" role="listitem"><div class="k">Cœur</div><div class="v">5,99 €<small> /mois</small></div></div>
+      <div class="stat" role="listitem"><div class="k">Add-on serveur</div><div class="v">+3 €<small> /mois</small></div></div>
+      <div class="stat" role="listitem"><div class="k">Prévente fondateurs</div><div class="v">49 €<small> /an à vie</small></div></div>
+      <div class="stat" role="listitem"><div class="k">Mise en marché</div><div class="v">14–18<small> semaines</small></div></div>
+      <div class="stat" role="listitem"><div class="k">Budget</div><div class="v">35–45<small> K€</small></div></div>
+      <div class="stat" role="listitem"><div class="k">MRR cible · 12 mois</div><div class="v">3–18<small> K€</small></div></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow mono"><span class="num">01</span> Le rundown</div>
+    <h2>Ce qu'on construit, et dans quel ordre</h2>
+    <p class="lede">Notes valeur / build après passage des trois agents adversariaux. Le <b>build</b> mesure la vitesse de dev IA&nbsp;: plus la barre est courte, plus il faut un dev vidéo dédié.</p>
+    <div class="legend mono">
+      <span><i class="led live"></i> En ligne · V1</span>
+      <span><i class="led file"></i> File d'attente · v1.5</span>
+      <span><i class="led diff"></i> Différé · v2+</span>
+      <span><i class="led cut"></i> Coupé</span>
+      <span><i class="led dgr"></i> Danger</span>
+    </div>
+  </div>
+</section>
+
+<section style="border-top:none; padding-top:4px">
+  <div class="wrap">
+    <div class="eyebrow mono"><i class="led live" style="width:9px;height:9px"></i> V1 — la prévente &amp; le lancement</div>
+    <div class="grid">
+      <article class="card s-live reveal">
+        <div class="head"><span class="code mono">M1</span><span class="st mono"><i class="led live"></i>En ligne</span></div>
+        <h3>Délai + kill switch + vidéo de remplacement</h3>
+        <p>Le produit. Un clic, les snipers voient une vidéo — pas ton jeu.</p>
+        <div class="price mono">5,99 € / mois · app locale</div>
+        <div class="meters">
+          <div class="m"><div class="lab mono">Valeur <b>9</b></div><div class="track"><span class="fill val" style="--v:9"></span></div></div>
+          <div class="m"><div class="lab mono">Build <b>3</b></div><div class="track"><span class="fill bld" style="--v:3"></span></div></div>
+        </div>
+      </article>
+
+      <article class="card s-live reveal">
+        <div class="head"><span class="code mono">M2</span><span class="st mono"><i class="led live"></i>Bêta fond.</span></div>
+        <h3>Drop protection serveur</h3>
+        <p>Le stream survit au crash du PC. La démo « je débranche le câble » en direct.</p>
+        <div class="price mono">add-on +3 € · le seul moat serveur</div>
+        <div class="meters">
+          <div class="m"><div class="lab mono">Valeur <b>7</b></div><div class="track"><span class="fill val" style="--v:7"></span></div></div>
+          <div class="m"><div class="lab mono">Build <b>2</b></div><div class="track"><span class="fill bld" style="--v:2"></span></div></div>
+        </div>
+      </article>
+
+      <article class="card s-live reveal">
+        <div class="head"><span class="code mono">M3</span><span class="st mono"><i class="led live"></i>En ligne</span></div>
+        <h3>Suite sponsors + preuve de diffusion PDF</h3>
+        <p>Rotation de logos en 1 clic + rapport d'impressions facturable aux marques.</p>
+        <div class="price mono">amorce la commission brand deals</div>
+        <div class="meters">
+          <div class="m"><div class="lab mono">Valeur <b>7.5</b></div><div class="track"><span class="fill val" style="--v:7.5"></span></div></div>
+          <div class="m"><div class="lab mono">Build <b>7</b></div><div class="track"><span class="fill bld" style="--v:7"></span></div></div>
+        </div>
+      </article>
+
+      <article class="card free s-live reveal">
+        <div class="head"><span class="code mono">P1</span><span class="st mono"><i class="led live"></i>Gratuit</span></div>
+        <h3>Discord clé en main · 1 clic</h3>
+        <p>Serveur complet, rôles, synchro subs, notif live. Le carburant anti-MEE6.</p>
+        <div class="price mono">acquisition · soft-launch à J-30</div>
+        <div class="meters">
+          <div class="m"><div class="lab mono">Valeur <b>7.5</b></div><div class="track"><span class="fill val" style="--v:7.5"></span></div></div>
+          <div class="m"><div class="lab mono">Build <b>7</b></div><div class="track"><span class="fill bld" style="--v:7"></span></div></div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section style="border-top:none; padding-top:12px">
+  <div class="wrap">
+    <div class="eyebrow mono"><i class="led file" style="width:9px;height:9px"></i> v1.5 — le fossé qui se creuse</div>
+    <div class="grid">
+      <article class="card s-file reveal">
+        <div class="head"><span class="code mono">IA-1</span><span class="st mono"><i class="led file"></i>File</span></div>
+        <h3>Ange Gardien</h3>
+        <p>Détecte doxx &amp; notifications sur le flux retardé et coupe avant diffusion. Impossible sans M1.</p>
+        <div class="price mono">OCR local · pas de NSFW auto-blur</div>
+        <div class="meters">
+          <div class="m"><div class="lab mono">Valeur <b>8</b></div><div class="track"><span class="fill val" style="--v:8"></span></div></div>
+          <div class="m"><div class="lab mono">Build <b>5</b></div><div class="track"><span class="fill bld" style="--v:5"></span></div></div>
+        </div>
+      </article>
+
+      <article class="card s-file reveal">
+        <div class="head"><span class="code mono">IA-2</span><span class="st mono"><i class="led file"></i>File</span></div>
+        <h3>Bookmaker assisté</h3>
+        <p>Predictions LoL créées au bon moment, résolues en 1 clic via l'API de jeu officielle.</p>
+        <div class="price mono">ToS OK · jamais full-auto</div>
+        <div class="meters">
+          <div class="m"><div class="lab mono">Valeur <b>7</b></div><div class="track"><span class="fill val" style="--v:7"></span></div></div>
+          <div class="m"><div class="lab mono">Build <b>7</b></div><div class="track"><span class="fill bld" style="--v:7"></span></div></div>
+        </div>
+      </article>
+
+      <article class="card s-file reveal">
+        <div class="head"><span class="code mono">IA-3</span><span class="st mono"><i class="led file"></i>File</span></div>
+        <h3>Habillage Broadcast</h3>
+        <p>Les bandeaux TV s'écrivent tout seuls&nbsp;: « 3ᵉ clutch de la soirée », « tentative n°14 ».</p>
+        <div class="price mono">bus d'événements game APIs</div>
+        <div class="meters">
+          <div class="m"><div class="lab mono">Valeur <b>6.5</b></div><div class="track"><span class="fill val" style="--v:6.5"></span></div></div>
+          <div class="m"><div class="lab mono">Build <b>6</b></div><div class="track"><span class="fill bld" style="--v:6"></span></div></div>
+        </div>
+      </article>
+
+      <article class="card free s-file reveal">
+        <div class="head"><span class="code mono">M7</span><span class="st mono"><i class="led file"></i>Réhabilité</span></div>
+        <h3>Auto-clips → verticaux</h3>
+        <p>Eklipse a paywallé son gratuit le 1ᵉʳ juin&nbsp;: la place d'arme d'acquisition se rouvre.</p>
+        <div class="price mono">export prêt-à-poster · via agrégateur</div>
+        <div class="meters">
+          <div class="m"><div class="lab mono">Valeur <b>5.5</b></div><div class="track"><span class="fill val" style="--v:5.5"></span></div></div>
+          <div class="m"><div class="lab mono">Build <b>4.5</b></div><div class="track"><span class="fill bld" style="--v:4.5"></span></div></div>
+        </div>
+      </article>
+
+      <article class="card free s-file reveal">
+        <div class="head"><span class="code mono">P3</span><span class="st mono"><i class="led file"></i>Gratuit</span></div>
+        <h3>Starter pack visuel</h3>
+        <p>Overlays, alertes, écrans cohérents en 5 min. Thèmes par un motion designer, perso par IA.</p>
+        <div class="price mono">socle partagé avec la suite sponsors</div>
+        <div class="meters">
+          <div class="m"><div class="lab mono">Valeur <b>7</b></div><div class="track"><span class="fill val" style="--v:7"></span></div></div>
+          <div class="m"><div class="lab mono">Build <b>6</b></div><div class="track"><span class="fill bld" style="--v:6"></span></div></div>
+        </div>
+      </article>
+
+      <article class="card free s-file reveal">
+        <div class="head"><span class="code mono">P6</span><span class="st mono"><i class="led file"></i>Gratuit</span></div>
+        <h3>Récap coaching IA</h3>
+        <p>Stats + 3 conseils concrets après chaque live. Le moteur de rétention D+1.</p>
+        <div class="price mono">seul vrai gap vs SullyGnome</div>
+        <div class="meters">
+          <div class="m"><div class="lab mono">Valeur <b>6.5</b></div><div class="track"><span class="fill val" style="--v:6.5"></span></div></div>
+          <div class="m"><div class="lab mono">Build <b>7</b></div><div class="track"><span class="fill bld" style="--v:7"></span></div></div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow mono"><span class="num">02</span> Notes de régie</div>
+    <h2>Ce que les adversaires ont corrigé</h2>
+    <p class="lede">Six agents (trois spécialisés, trois adversariaux). Les quatre pièges qui auraient tué le lancement.</p>
+    <div class="notes">
+      <div class="note reveal"><h4><span class="tag">Concurrence</span> Antisnipe existe déjà — à 4,99 $</h4><p>Délai en live + multistream. Uniques à nous&nbsp;: le kill switch <em>scénarisé</em> et la drop protection serveur. D'où le prix d'attaque à 5,99 €, pas 8–12 €.</p></div>
+      <div class="note reveal"><h4><span class="tag">Budget</span> Le dev vidéo coûte 26–32 K€, pas 12–18</h4><p>M1/M2 sont du temps réel vidéo (PTS/DTS, reconnexions), pas du CRUD. Base MediaMTX. Piste maligne&nbsp;: recruter l'auteur d'un des projets GitHub de délai.</p></div>
+      <div class="note reveal"><h4><span class="tag">Coûts IA</span> La vision cloud « always-on » : ×15 à ×100</h4><p>180–300 $/streamer/mois, pas 1,5 €. Règle absolue&nbsp;: local + APIs de jeu officielles (LoL Live Client). OCR jamais en v1, aucune inférence GPU cloud permanente.</p></div>
+      <div class="note reveal"><h4><span class="tag">Horloges</span> Le mur est administratif, pas technique</h4><p>À déposer dès la semaine 1&nbsp;: quota YouTube (jusqu'à 5 mois), audit TikTok, review Meta, certificat Windows, et soft-launch du bot Discord à J-30.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow mono"><span class="num">03</span> La séquence</div>
+    <h2>14–18 semaines, deux pistes en parallèle</h2>
+    <p class="lede">Piste web menée par toi + Claude Code. Piste vidéo co-menée avec le dev dédié. Tout démarre à la prévente.</p>
+    <div class="tlscroll">
+      <div class="timeline">
+        <div class="rail" aria-hidden="true"></div>
+        <div class="nodes">
+          <div class="node n1"><div class="wk mono">S0</div><div class="t">Prévente</div><div class="d">49 €/an à vie, en public. Seuil 200–300 — sinon pivot.</div></div>
+          <div class="node n2"><div class="wk mono">S1</div><div class="t">Contrats + horloges</div><div class="d">Dev vidéo, designer, dépôt de toutes les reviews.</div></div>
+          <div class="node n3"><div class="wk mono">S1–6</div><div class="t">Piste web</div><div class="d">Sponsors, Discord, radar. Démos publiques dès la S4.</div></div>
+          <div class="node n4"><div class="wk mono">S2–12</div><div class="t">Piste vidéo</div><div class="d">M1 app locale par le dev dédié.</div></div>
+          <div class="node n5"><div class="wk mono">S10–14</div><div class="t">Bêta fermée</div><div class="d">50–100 streamers de la communauté. Le vrai test OBS.</div></div>
+          <div class="node n6"><div class="wk mono">S14–18</div><div class="t">Lancement payant</div><div class="d">M1 à 5,99 €, add-on M2, P1 + M3 inclus.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lower">
+      <div class="tier reveal"><div class="cap mono">Cœur · app locale</div><div class="amt">5,99 €<small> /mois</small></div><div class="note">Délai + kill switch + vidéo de remplacement. Marge ≈ 100 %.</div></div>
+      <div class="tier hot reveal"><span class="flag mono">Prévente fondateurs</span><div class="cap mono">À vie</div><div class="amt">49 €<small> /an</small></div><div class="note">Le tarif qui fait passer les 200–300 préventes en live.</div></div>
+      <div class="tier reveal"><div class="cap mono">Add-on serveur</div><div class="amt">+3 €<small> /mois</small></div><div class="note">Drop protection. Coût infra 0,40–1,50 € — Hetzner/OVH, jamais AWS.</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow mono"><span class="num">04</span> Coupé au montage</div>
+    <h2>Ce qu'on ne construit pas — et pourquoi</h2>
+    <div class="cutlist">
+      <div class="row reveal"><span class="badge danger mono">Danger</span><span class="nm">Pilote BRB</span><span class="why">IA qui anime seule = ToS en durcissement + chat adversarial + personne au kill switch. Incohérent avec le produit.</span></div>
+      <div class="row reveal"><span class="badge cut mono">Coupé</span><span class="nm">Bot de chat</span><span class="why">Wizebot&nbsp;: 1,5 M de streamers, gratuit, FR, mod IA déjà shippée.</span></div>
+      <div class="row reveal"><span class="badge cut mono">Coupé</span><span class="nm">La Voix · caster IA</span><span class="why">COGS réel 10–25 $/mois (Questie), marché saturé. Prix de vente hors cible.</span></div>
+      <div class="row reveal"><span class="badge cut mono">Coupé</span><span class="nm">Multistream v1</span><span class="why">Adoption minoritaire + Kick coupe 50 % du payout pendant le multistream. → add-on « Studio » plus tard.</span></div>
+      <div class="row reveal"><span class="badge cut mono">Coupé</span><span class="nm">Lien unique · Babel · Mémoire Vive</span><span class="why">Linktree gratuit ; traduction sherlockable par Twitch ; ai_licia le fait déjà.</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="meta">6 agents · ~60 recherches web · post-audit adversarial</div>
+    <div class="meta">Dossier HEXA · 14 juillet 2026</div>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var root=document.documentElement, btn=document.getElementById('themeBtn');
+    function current(){
+      var s=root.getAttribute('data-theme');
+      if(s) return s;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light';
+    }
+    btn.addEventListener('click',function(){
+      var next=current()==='dark'?'light':'dark';
+      root.setAttribute('data-theme',next);
+      btn.textContent = next==='dark' ? 'Clair' : 'Sombre';
+    });
+    btn.textContent = current()==='dark' ? 'Clair' : 'Sombre';
+
+    var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var els=document.querySelectorAll('.reveal');
+    if(reduce || !('IntersectionObserver' in window)){
+      els.forEach(function(e){e.classList.add('in')});
+    } else {
+      var io=new IntersectionObserver(function(entries){
+        entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+      },{rootMargin:'0px 0px -8% 0px', threshold:.1});
+      els.forEach(function(e){io.observe(e)});
+    }
+  })();
+</script>
+</body>
+</html>
