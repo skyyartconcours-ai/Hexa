@@ -57,3 +57,15 @@
 5. **Budget test unique et plafonné** si envie de jouer : side-bet YouTube EN (5 K€ max, critères d'arrêt écrits à l'avance).
 
 *Rapport final du 13 juillet 2026 — détails, sources et fourchettes dans analyse-marches-ia-2026.md et verification-croisee-prompt.md (même branche).*
+
+---
+
+## Addendum (14 juillet 2026) — SaaS streamers « délai + kill switch » (idée validée en partie)
+
+Analyse post-classement (5 sous-recherches) de l'idée : SaaS pour streamers à 10-15 €/mois (délai de stream coupable en 1 clic avec vidéo de remplacement, boucles sponsors) + tier brand deals 40-50 €/mois.
+
+**Rejeté tel quel** : les petits streamers ne paient pas (fuite Twitch : 50 % des streamers payés ont gagné 28 $ en 26 mois ; marché ancré gratuit, zone payante 5-10 €/mois max) ; le tier brand deals est 4-5× au-dessus du marché (Beacons Pro 10 $/mois, marketplaces gratuites côté streamer, monétisation = commission au deal).
+
+**Mais gap réel identifié** : aucun SaaS grand public ne combine délai serveur + kill switch 1 clic + vidéo de remplacement ; le délai natif Twitch est réservé aux ~72 000 Partenaires (4,6 M d'affiliés sans solution) ; 3 projets GitHub amateurs créés mai-juillet 2026 codent exactement ça. Infra rentable uniquement sur bande passante unmetered (Hetzner/OVH : 0,40-1,50 €/streamer/mois, marge >90 % à 10-12 € ; AWS impossible : egress 24-43 $/streamer).
+
+**Architecture recommandée** : produit payant = délai/kill-switch à 8-12 €/mois pour streamers compétitifs affiliés ; overlays/boucles sponsors gratuits (acquisition) ; brand deals à la commission (marketplace) ; validation par préventes en public avant toute ligne de code (seuil ~200-300, sinon pivot). Ordre de grandeur à 12 mois si validé : 2-20 K€ MRR. Remplit la case wildcard n°5 du classement (« produit pour les créateurs de son audience, construit en public ») avec les meilleures données du dossier.
