@@ -1,0 +1,845 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Villa MH 3 — Plan d'exécution : main-d'œuvre, budget, phasage</title>
+
+<style>
+:root{
+  --bg:#faf9f7;--panel:#fff;--ink:#181818;--muted:#5d5a55;--line:#e4e0d9;
+  --accent:#1d4e5f;--accent-soft:#e7f0f2;
+  --ok:#1d6b3f;--ok-bg:#e8f4ec;--warn:#8a6100;--warn-bg:#fdf3dd;
+  --bad:#9b2226;--bad-bg:#fbe9e9;--neu:#3b5570;--neu-bg:#eaf0f6;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#14171a;--panel:#1c2025;--ink:#eceae7;--muted:#a2a6ad;--line:#30363e;
+  --accent:#6dbdd1;--accent-soft:#10262d;--ok:#6bcf95;--ok-bg:#15301e;
+  --warn:#e5b74d;--warn-bg:#332810;--bad:#f28b8b;--bad-bg:#361a1a;--neu:#8fb4d9;--neu-bg:#1a2534;}}
+:root[data-theme="dark"]{--bg:#14171a;--panel:#1c2025;--ink:#eceae7;--muted:#a2a6ad;--line:#30363e;
+  --accent:#6dbdd1;--accent-soft:#10262d;--ok:#6bcf95;--ok-bg:#15301e;--warn:#e5b74d;--warn-bg:#332810;
+  --bad:#f28b8b;--bad-bg:#361a1a;--neu:#8fb4d9;--neu-bg:#1a2534;}
+:root[data-theme="light"]{--bg:#faf9f7;--panel:#fff;--ink:#181818;--muted:#5d5a55;--line:#e4e0d9;
+  --accent:#1d4e5f;--accent-soft:#e7f0f2;--ok:#1d6b3f;--ok-bg:#e8f4ec;--warn:#8a6100;--warn-bg:#fdf3dd;
+  --bad:#9b2226;--bad-bg:#fbe9e9;--neu:#3b5570;--neu-bg:#eaf0f6;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px 110px}
+header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:42px 0 32px;margin-bottom:28px}
+header.hero .wrap{padding-bottom:0}
+.kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:10px}
+h1{font-size:clamp(24px,4.2vw,38px);line-height:1.14;margin:0 0 14px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:17px;max-width:70ch;margin:0}
+.meta{margin-top:20px;display:flex;flex-wrap:wrap;gap:8px 22px;font-size:13px;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:600}
+
+h2{font-size:clamp(20px,2.9vw,27px);margin:54px 0 6px;letter-spacing:-.015em;padding-top:14px;
+  border-top:3px solid var(--ink);line-height:1.2}
+h2 .num{color:var(--accent);font-variant-numeric:tabular-nums;margin-right:10px}
+h2+.lede{color:var(--muted);margin:0 0 20px;font-size:16.5px;max-width:74ch}
+h3{font-size:18.5px;margin:32px 0 10px;letter-spacing:-.01em}
+h4{font-size:15.5px;margin:22px 0 8px;color:var(--accent)}
+p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:22px}li{margin-bottom:7px}
+a{color:var(--accent)}strong{font-weight:650}
+
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 10px 10px 0;padding:16px 20px;margin:20px 0}
+.callout.bad{border-left-color:var(--bad);background:var(--bad-bg)}
+.callout.ok{border-left-color:var(--ok);background:var(--ok-bg)}
+.callout.warn{border-left-color:var(--warn);background:var(--warn-bg)}
+.callout.info{border-left-color:var(--neu);background:var(--neu-bg)}
+.callout .t{font-weight:700;margin-bottom:6px;font-size:14.5px}
+.callout p:last-child,.callout ul:last-child,.callout ol:last-child{margin-bottom:0}
+
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 8px;border-radius:5px;vertical-align:2px;white-space:nowrap}
+.t-ok{background:var(--ok-bg);color:var(--ok)}.t-bad{background:var(--bad-bg);color:var(--bad)}
+.t-warn{background:var(--warn-bg);color:var(--warn)}.t-neu{background:var(--neu-bg);color:var(--neu)}
+
+.scroll{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:14.2px;min-width:520px}
+th,td{padding:10px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);font-weight:650;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:13.4px;white-space:nowrap}
+tr.total td{font-weight:700;background:var(--accent-soft)}
+tr.hi td{background:var(--ok-bg)}
+
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin:20px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:16px 18px}
+.stat .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:650;margin-bottom:7px}
+.stat .val{font-size:25px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat .note{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.45}
+.stat.bad .val{color:var(--bad)}.stat.ok .val{color:var(--ok)}.stat.warn .val{color:var(--warn)}
+
+.verdict{border:2px solid var(--bad);border-radius:14px;background:var(--panel);padding:24px;margin:24px 0}
+.verdict.ok{border-color:var(--ok)}
+.verdict .head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.verdict .big{font-size:clamp(24px,4.6vw,34px);font-weight:800;color:var(--bad);letter-spacing:-.02em;line-height:1}
+.verdict.ok .big{color:var(--ok)}
+.verdict .qual{font-size:16px;color:var(--muted);font-weight:600}
+
+.calc{background:var(--panel);border:2px solid var(--accent);border-radius:14px;padding:22px;margin:26px 0}
+.calc h3{margin-top:0}
+.row{display:grid;grid-template-columns:1fr 96px 116px;gap:10px;align-items:center;margin-bottom:9px}
+.row .name{font-size:14px;font-weight:600}
+.row .name small{display:block;font-weight:400;color:var(--muted);font-size:12px;line-height:1.35}
+.row input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);
+  color:var(--ink);font:inherit;font-size:14px;font-family:var(--mono);text-align:right}
+.row input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.row .out{text-align:right;font-family:var(--mono);font-size:14px;font-weight:650;font-variant-numeric:tabular-nums}
+.row .hdr{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;text-align:right}
+.row .hdr.l{text-align:left}
+.calcout{border-top:2px solid var(--line);margin-top:16px;padding-top:14px}
+.line{display:flex;justify-content:space-between;gap:16px;padding:5px 0;font-size:14.5px}
+.line span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.line.big{font-size:19px;font-weight:700;border-top:1px solid var(--line);margin-top:8px;padding-top:12px}
+.line.big span:last-child{color:var(--accent)}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
+.presets button{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:7px;
+  border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.presets button:hover{border-color:var(--accent);color:var(--accent)}
+@media(max-width:600px){.row{grid-template-columns:1fr 74px 92px;gap:8px}}
+
+nav.toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin:24px 0}
+nav.toc .t{font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:11px}
+nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:32px}
+nav.toc li{margin-bottom:5px;font-size:14.3px;break-inside:avoid}
+@media(max-width:600px){nav.toc ol{columns:1}}
+footer{border-top:1px solid var(--line);margin-top:56px;padding-top:20px;font-size:13px;color:var(--muted)}
+.small{font-size:13.5px;color:var(--muted)}
+.src{font-size:12.5px;color:var(--muted);margin-top:-8px;margin-bottom:18px;word-break:break-word}
+hr{border:none;border-top:1px solid var(--line);margin:32px 0}
+del{color:var(--muted)}
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Plan d'exécution — version corrigée</div>
+    <h1>Villa MH 3 : qui construit, combien, et dans quel ordre</h1>
+    <p class="sub">Main-d'œuvre, budget de finition « premium série », suppression de la piscine
+    intérieure, phasage du sous-sol 2. Deux agents de recherche spécialisés, deux évaluateurs
+    adversariaux — qui ont réfuté l'essentiel des chiffres, y compris ceux que je vous avais donnés.</p>
+    <div class="meta">
+      <span><b>Bien</b> 906 m², shell form, Naxxar</span>
+      <span><b>Usage</b> résidence principale</span>
+      <span><b>Acquéreur</b> résident maltais 5 ans+</span>
+      <span><b>Date</b> 28 juillet 2026</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="callout bad">
+  <div class="t">⚠ À lire avant tout — ce document corrige mes propres recommandations</div>
+  <p>Le réseau a bloqué l'accès direct à <strong>tous</strong> les sites consultés (403 sur 15 hôtes
+  testés, legislation.mt, bca.gov.mt, jobsplus.gov.mt, mtca.gov.mt inclus). <strong>Aucune source
+  primaire n'a pu être lue.</strong> Sur 27 affirmations testées par la contre-expertise :
+  <strong>3 confirmées, 11 réfutées, 6 invérifiables.</strong></p>
+  <p style="margin-bottom:0"><strong>Trois recommandations que je vous avais faites sont fausses et sont
+  corrigées ici :</strong> l'embauche directe d'ouvriers siciliens, la « coquille saine » du sous-sol, et
+  le tarif de rachat photovoltaïque à 115 000 €. Les corrections sont laissées visibles plutôt que
+  réécrites en douce — savoir quels chiffres se sont effondrés vous dit lesquels des chiffres restants
+  méritent votre méfiance.</p>
+</div>
+
+<nav class="toc">
+  <div class="t">Sommaire</div>
+  <ol>
+    <li><a href="#s1">Les trois décisions</a></li>
+    <li><a href="#s2">Qui construit : le verdict</a></li>
+    <li><a href="#s3">Pourquoi l'embauche directe perd</a></li>
+    <li><a href="#s4">Le montage recommandé</a></li>
+    <li><a href="#s5">Combien : le vrai budget</a></li>
+    <li><a href="#s6">Calculateur de budget cible</a></li>
+    <li><a href="#s7">La piscine intérieure</a></li>
+    <li><a href="#s8">Le sous-sol 2</a></li>
+    <li><a href="#s9">Les postes oubliés</a></li>
+    <li><a href="#s10">Photovoltaïque : stratégie inversée</a></li>
+    <li><a href="#s11">Ordre des opérations</a></li>
+    <li><a href="#s12">Ce qui reste ouvert</a></li>
+  </ol>
+</nav>
+
+<!-- ═══════════ 1 ═══════════ -->
+<h2 id="s1"><span class="num">1</span>Les trois décisions</h2>
+
+<div class="grid">
+  <div class="stat bad"><div class="lbl">Main-d'œuvre</div><div class="val">Forfait</div>
+  <div class="note">Pas d'embauche directe, pas de détachement. <strong>Marché à forfait avec une
+  entreprise maltaise licenciée</strong>, compagnons siciliens nommés au contrat.</div></div>
+  <div class="stat warn"><div class="lbl">Budget travaux réaliste</div><div class="val">2,7 M€</div>
+  <div class="note">TTC, programme complet, hors mobilier. <strong>Cible réduite atteignable :
+  1,5 M€</strong> en coupant le programme, pas la qualité.</div></div>
+  <div class="stat ok"><div class="lbl">Piscine intérieure</div><div class="val">Supprimer</div>
+  <div class="note"><strong>342 000 à 402 000 €</strong> sur 10 ans. La raison est climatique, pas
+  budgétaire.</div></div>
+  <div class="stat ok"><div class="lbl">Sous-sol 2</div><div class="val">Ne pas phaser</div>
+  <div class="note">Le différé coûte <strong>125 000 € certains</strong> pour libérer 114 000 € de
+  trésorerie. Il faudrait que l'argent travaille à 11 %/an.</div></div>
+</div>
+
+<!-- ═══════════ 2 ═══════════ -->
+<h2 id="s2"><span class="num">2</span>Qui construit : le verdict</h2>
+
+<div class="verdict">
+  <div class="head">
+    <div class="big">NON à l'embauche directe</div>
+    <div class="qual">— je vous l'avais recommandée. C'était une erreur.</div>
+  </div>
+  <p>Trois raisons, de nature différente, dont deux suffiraient isolément : <strong>l'économie n'existe
+  pas</strong> (elle reposait sur deux hypothèses fausses tirées dans le même sens),
+  <strong>votre temps n'était pas compté</strong> (75 000 à 150 000 €), et surtout
+  <strong>l'architecture réglementaire maltaise n'a pas de case pour ce montage</strong>.</p>
+  <p style="margin-bottom:0">Sur 24 combinaisons de sensibilité testées, l'embauche directe
+  <strong>perd dans 20</strong>.</p>
+</div>
+
+<div class="scroll"><table>
+<thead><tr><th>Option</th><th class="n">Coût cash TTC</th><th class="n">+ votre temps</th><th class="n">Coût complet</th><th>Recours qualité</th></tr></thead>
+<tbody>
+<tr><td>Détachement d'une entreprise italienne</td><td class="n">686 760</td><td class="n">~15 000</td><td class="n">~702 000</td><td>contrat</td></tr>
+<tr class="hi"><td><strong>Sous-traitance maltaise à forfait</strong></td><td class="n"><strong>496 780</strong></td><td class="n">~25 000</td><td class="n"><strong>~522 000</strong></td><td><strong>retenue + pénalités + art. 1638</strong></td></tr>
+<tr><td>Embauche directe de Siciliens</td><td class="n">578 591</td><td class="n">75 000 – 150 000</td><td class="n">654 000 – 729 000</td><td><strong>aucun</strong></td></tr>
+</tbody></table></div>
+<p class="src">Base : 15 000 heures de main-d'œuvre livrées, fournitures exclues des trois options,
+encadrement et assurances inclus dans les trois, Project Supervisor à 6 000 € dans les trois.
+Le quantum de 15 000 h n'a été validé par personne — voir §12.</p>
+
+<!-- ═══════════ 3 ═══════════ -->
+<h2 id="s3"><span class="num">3</span>Pourquoi l'embauche directe perd</h2>
+
+<h3>3.1 — Vous paieriez vos ouvriers le double du marché</h3>
+<p>C'est le fait qui condamne l'arithmétique. Le marché maltais paie un maçon, un carreleur ou un
+plaquiste <strong>15 600 à 20 400 €/an</strong>. Le revenu médian d'un travailleur de pays tiers à Malte
+est de <strong>18 200 €</strong>.</p>
+
+<div class="scroll"><table>
+<thead><tr><th></th><th class="n">Coût employeur</th><th class="n">Coût horaire</th></tr></thead>
+<tbody>
+<tr><td>Un compagnon chez un sous-traitant maltais<br><span class="small">18 000 € de base + bonus statutaires + 10 % de charges</span></td><td class="n">20 364 €/an</td><td class="n"><strong>12,73 €/h</strong></td></tr>
+<tr><td>Le même compagnon chez vous<br><span class="small">package à 34 000 € + logement + gross-up + primes</span></td><td class="n">45 800 €/an</td><td class="n"><strong>28,63 €/h</strong></td></tr>
+</tbody></table></div>
+
+<p><strong>Vous paieriez 2,25 fois le coût de main-d'œuvre de votre concurrent.</strong> Pour que
+l'embauche directe gagne, il faudrait que les frais généraux et la marge du sous-traitant dépassent
+<strong>125 % de son coût direct de main-d'œuvre</strong>. Le multiplicateur usuel du marché est de
+1,5 à 2,0. Ce n'est pas un marché où cela existe.</p>
+
+<h3>3.2 — Deux hypothèses fausses, tirant dans le même sens</h3>
+<div class="scroll"><table>
+<thead><tr><th>Hypothèse</th><th>Ce que j'avais retenu</th><th>Le réel</th></tr></thead>
+<tbody>
+<tr><td><strong>Productivité</strong></td><td>1 776 h/ouvrier/an</td><td><span class="tag t-bad">impossible</span> 1 776 h suppose <strong>zéro maladie et zéro temps mort</strong>. Réel : <strong>1 450 à 1 600 h productives</strong> après maladie (3–5 %) et temps improductif (10–18 % : météo, attente matériaux, coordination, reprises)</td></tr>
+<tr><td><strong>Taux de sous-traitance maltais</strong></td><td>30 €/h HT</td><td><span class="tag t-bad">inventé</span> Reconstruit depuis les salaires réels × multiplicateur de marché : <strong>22 à 28 €/h</strong>. Le « 25–40 €/h » publié vise explicitement les <em>petits</em> chantiers</td></tr>
+</tbody></table></div>
+
+<p>Le seuil de bascule est net : <strong>dès 1 527 heures productives, la main-d'œuvre salariée coûte à
+elle seule plus cher que le taux de sous-traitance</strong> — avant outillage, échafaudage, assurances,
+paie, recrutement et encadrement.</p>
+
+<h3>3.3 — Le coût que je n'avais pas compté : le vôtre</h3>
+<div class="scroll"><table>
+<thead><tr><th>Tâche du maître d'ouvrage assumant la fonction d'entreprise générale</th><th class="n">h/semaine</th></tr></thead>
+<tbody>
+<tr><td>Tour de chantier et séquencement du lendemain</td><td class="n">5</td></tr>
+<tr><td>Approvisionnements, commandes, livraisons pour 906 m²</td><td class="n">6</td></tr>
+<tr><td>Coordination inter-métiers, arbitrages d'interface</td><td class="n">4</td></tr>
+<tr><td>Contrôle qualité, réserves, reprises</td><td class="n">3</td></tr>
+<tr><td>RH, paie, congés, arrêts maladie, entretiens</td><td class="n">5 – 9</td></tr>
+<tr><td>Liaison Project Supervisor, perit, BCA</td><td class="n">2</td></tr>
+<tr class="total"><td>TOTAL</td><td class="n">25 – 29 h</td></tr>
+</tbody></table></div>
+<p>Sur 14 mois : <strong>1 500 à 1 740 heures</strong>. Valorisées au coût de remplacement (un
+<em>owner's representative</em> maltais coûte 45 000–75 000 €/an) ou en coût d'opportunité :
+<strong>75 000 à 150 000 €</strong>. <strong>Soit trois à six fois l'avantage que je vous
+annonçais.</strong> Et si vous ne pouvez pas fournir ces heures, le chantier dérive —
+à <strong>41 000 € le mois</strong>.</p>
+
+<h3>3.4 — Le point qui clôt le débat : il n'y a pas de case pour ce montage</h3>
+<div class="callout bad">
+  <div class="t">Sans contractant licencié, vous ne pouvez pas démarrer</div>
+  <p>Le <strong>Commencement Notice</strong>, sans lequel la BCA ne délivre pas l'autorisation de
+  démarrage, <strong>doit être signé par un Site Technical Officer</strong>. Or le STO est, par
+  définition réglementaire, <strong>nommé par le contractant</strong> — et doit être un <strong>Perit ou
+  un ingénieur diplômé</strong>.</p>
+  <p style="margin-bottom:0"><strong>Pas de contractant licencié → pas de STO → pas de Commencement
+  Notice → pas de chantier.</strong> L'architecture réglementaire maltaise présuppose une entreprise.</p>
+</div>
+
+<p>S'y ajoutent quatre obstacles convergents :</p>
+<ul>
+  <li>La licence BCA est exigée de <em>« all persons from EU member states and third countries who will
+  be carrying out construction work in Malta »</em> — formulation qui ne laisse aucune place à une
+  exception « je travaille chez moi ».</li>
+  <li><em>« No one may work as a mason without a licence »</em> (S.L. 623.12), avec un
+  <strong>titre reconnu</strong> en prérequis — pas seulement un examen. La majorité des maçons siciliens
+  n'ont pas de diplôme formel et devraient passer par une reconnaissance MQRIC ou un <em>trade test</em>.</li>
+  <li><strong>Le lot électrique est juridiquement fermé</strong> aux ouvriers italiens : l'Authorisation
+  REWS A ou B est exigée pour installer <em>et certifier</em>, et son obtention requiert une pratique
+  endossée par un électricien maltais déjà autorisé. Sans certificat, <strong>pas de mise sous
+  tension</strong>. Ce lot (40 000–60 000 €) sort donc du périmètre — avec sa TVA à 18 %, dans un
+  montage dont le seul avantage structurel était d'éviter la TVA.</li>
+  <li>La <strong>Construction Industry Skill Card devient obligatoire au 1<sup>er</sup> janvier
+  2027</strong>, soit dans cinq mois, pour toute personne présente sur un chantier. Aucune exemption
+  connue pour les chantiers privés. La BCA vient de doubler son inspectorat.</li>
+</ul>
+
+<div class="callout warn">
+  <div class="t">Le risque n'est pas une amende</div>
+  <p style="margin-bottom:0">C'est un <strong>ordre d'arrêt sur un chantier qui brûle 41 000 € par
+  mois</strong>, avec neuf salariés à payer pendant l'arrêt. Le risque est asymétrique et non assurable.</p>
+</div>
+
+<h3>3.5 — Deux corrections sur le package salarial</h3>
+<div class="scroll"><table>
+<thead><tr><th>Ce que je vous ai dit</th><th>Correction</th></tr></thead>
+<tbody>
+<tr><td><del>Le net maltais est bien meilleur à brut égal, croisement à 30 000 €</del></td>
+<td>Le croisement est à <strong>32 000–34 000 €</strong>. À 34 000 € de brut, votre Sicilien ne gagne que <strong>~1 000 €/an de plus</strong> qu'en Sicile hors logement, soit <strong>+4 %</strong> — pas +34 %. Ce chiffre comparait une offre généreuse à Malte à une offre chiche en Italie : c'était un effet-salaire, pas un effet-pays.</td></tr>
+<tr><td><del>Le coût de la vie à Malte est 29 % plus cher qu'à Palerme</del></td>
+<td><span class="tag t-ok">en votre faveur</span> Naxxar n'est ni Valletta ni Sliema. L'écart réel est de <strong>5 à 15 %</strong>. Avec le logement fourni, l'offre reste attractive. <em>Nuance : ces deux comparateurs sont collaboratifs et auto-sélectionnés — aucun n'est une source statistique.</em></td></tr>
+</tbody></table></div>
+
+<h3>3.6 — Trois pièges que je n'avais pas vus</h3>
+<ul>
+  <li><strong>Le travail du dimanche n'est plus un levier.</strong> La réforme de 2026 impose le
+  <strong>consentement écrit</strong> du salarié, et l'absence de consentement ne peut entraîner aucune
+  conséquence. Le rattrapage de planning par le week-end disparaît.</li>
+  <li><strong>Rompre un CDD est un licenciement abusif en soi</strong>, et coûte
+  <strong>50 % des salaires restant à courir</strong>. Huit CDD de 18 mois rompus à 9 mois :
+  <strong>102 000 €</strong>. Ce risque est directement lié au quantum de 15 000 heures que personne
+  n'a validé.</li>
+  <li><strong>Une assurance travaux d'un minimum de 750 000 €</strong> (S.L. 623.06) est obligatoire
+  pour le maître d'ouvrage — <strong>dans les trois scénarios</strong>. La BCA ne délivre le
+  <em>clearance</em> qu'après réception de la police, du <em>condition report</em>, du
+  <em>method statement</em> <strong>et d'une garantie bancaire</strong>. Personne n'avait vu cette
+  obligation ; j'avais chiffré une assurance employeur qui, elle, n'est pas obligatoire.</li>
+</ul>
+
+<div class="callout ok">
+  <div class="t">Une bonne nouvelle au passage</div>
+  <p style="margin-bottom:0">Le <strong>licenciement collectif ne s'applique pas</strong> : le seuil est
+  de 10 licenciements ou plus dans un établissement employant normalement plus de 20 salariés. Avec neuf
+  personnes, la fin de chantier est juridiquement simple — à condition que les contrats arrivent à terme.</p>
+</div>
+
+<!-- ═══════════ 4 ═══════════ -->
+<h2 id="s4"><span class="num">4</span>Le montage recommandé</h2>
+
+<div class="verdict ok">
+  <div class="head">
+    <div class="big">Forfait + compagnons nommés</div>
+  </div>
+  <p style="margin-bottom:0">Un <strong>marché à forfait avec une entreprise maltaise licenciée BCA</strong>,
+  assorti d'une clause imposant <strong>nominativement les compagnons ou sous-traitants siciliens que vous
+  aurez agréés</strong>, plus une retenue de garantie de 5 % et un performance bond bancaire.</p>
+</div>
+
+<p>Vous achetez alors <strong>le savoir-faire que vous cherchez <em>et</em> le recours</strong> :</p>
+<div class="scroll"><table>
+<thead><tr><th>Ce que porte le contractant</th><th>Ce que vous conservez</th></tr></thead>
+<tbody>
+<tr><td>Licence BCA, licence de maçon, Site Technical Officer, Commencement Notice</td><td>Le choix nominatif des compagnons</td></tr>
+<tr><td>Skill Cards de ses ouvriers</td><td>La retenue de garantie de 5 % sur chaque situation</td></tr>
+<tr><td>Assurances, garanties, responsabilité du résultat</td><td>Le performance bond bancaire, appelable sans juge</td></tr>
+<tr><td>Le risque de productivité, de malfaçon, social et pénal</td><td>Le paiement contre certification du quantity surveyor</td></tr>
+<tr><td>Le lot électrique certifié REWS</td><td>Les pièces témoins validées avant série</td></tr>
+</tbody></table></div>
+
+<div class="callout warn">
+  <div class="t">Ce qui ne marche pas — trois fausses bonnes idées écartées</div>
+  <ul style="margin-bottom:0">
+    <li><strong>Une société maltaise plutôt qu'un particulier :</strong> aucun gain de TVA (une société
+    construisant la résidence privée de son actionnaire est hors activité économique), aucune
+    déductibilité, aucun écran de responsabilité pénale, et <strong>5 000 à 8 000 €/an</strong> de
+    comptabilité et d'audit obligatoire. Dépense pure.</li>
+    <li><strong>La mise à disposition de main-d'œuvre</strong> par une entreprise licenciée : aucune
+    entreprise maltaise n'emploiera des ouvriers à 34 000 € quand les siens coûtent 20 000 €. Elle
+    refacturerait le différentiel plus marge plus TVA — <strong>50 150 €/ouvrier/an</strong>, plus cher
+    que l'embauche directe et sans aucun de ses avantages. Et juridiquement, c'est du <em>temping</em>,
+    régime licencié.</li>
+    <li><strong>Un <em>employer of record</em> :</strong> 199 à 599 $/salarié/mois, soit
+    <strong>19 350 à 58 050 €/an</strong> pour neuf personnes — trois à dix fois le coût d'un cabinet de
+    paie local, et il ne résout ni la licence BCA ni le risque de résultat.</li>
+  </ul>
+</div>
+
+<!-- ═══════════ 5 ═══════════ -->
+<h2 id="s5"><span class="num">5</span>Combien : le vrai budget</h2>
+<p class="lede">Mon premier chiffrage annonçait 2 505 400 €. Il est faux — non pas parce que les prix
+unitaires sont mauvais, mais parce que le périmètre est incomplet.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Poste</th><th class="n">Chiffrage initial</th><th class="n">Corrigé</th><th>Pourquoi</th></tr></thead>
+<tbody>
+<tr><td>Travaux</td><td class="n">1 600 500</td><td class="n">1 610 500</td><td>+ ventilation et déshumidification du sous-sol</td></tr>
+<tr><td>Honoraires</td><td class="n">262 000 <span class="small">(16,4 %)</span></td><td class="n"><strong>319 000</strong> <span class="small">(19,8 %)</span></td><td>Perit + PM chiffrés à <strong>3,4 %</strong> des travaux contre <strong>6,5–10 %</strong> au marché. 120 jours sur 20 mois = 1,5 j/semaine pour piloter 1,6 M€ : ce n'est pas un budget, c'est un plafond arbitraire</td></tr>
+<tr><td>Aléas</td><td class="n">260 700 <span class="small">(14 %)</span></td><td class="n"><strong>347 000</strong> <span class="small">(18 %)</span></td><td>La provision a été fixée <strong>avant</strong> le diagnostic chlorures qui la détermine. Sur un substrat littoral non diagnostiqué, 18–20 % est le minimum</td></tr>
+<tr><td>TVA 18 %</td><td class="n">382 200</td><td class="n">409 800</td><td></td></tr>
+<tr class="total"><td>TOTAL TRAVAUX TTC</td><td class="n">2 505 400</td><td class="n"><strong>≈ 2 686 000</strong></td><td>+ 7,2 %</td></tr>
+</tbody></table></div>
+
+<div class="callout bad">
+  <div class="t">Et trois postes entièrement absents</div>
+  <div class="scroll" style="margin-top:12px"><table>
+  <tbody>
+  <tr><td><strong>Mobilier, décoration, luminaires, textiles</strong><br><span class="small">906 m² à 300–500 €/m² HT, même en catalogue sobre</span></td><td class="n">320 000 – 700 000 €</td></tr>
+  <tr><td><strong>Provision réparation d'armatures</strong><br><span class="small">si le diagnostic chlorures est positif</span></td><td class="n">0 – 400 000 €</td></tr>
+  <tr><td><strong>Ascenseur 4 niveaux</strong><br><span class="small">si la gaine n'existe pas dans le gros œuvre de 2022 : percer quatre dalles est structurel</span></td><td class="n">+ 30 000 – 60 000 €</td></tr>
+  </tbody></table></div>
+  <p style="margin-top:14px;margin-bottom:0"><strong>Le mobilier représente 11 à 18 % du projet.
+  C'est le poste que l'on découvre au 18<sup>e</sup> mois, quand la trésorerie est épuisée.</strong></p>
+</div>
+
+<div class="grid">
+  <div class="stat bad"><div class="lbl">Budget à provisionner, programme complet</div><div class="val">3,0 – 3,4 M€</div>
+  <div class="note">Soit <strong>3 300 à 3 750 €/m²</strong>, et non 2 765. La fourchette basse que
+  j'avais annoncée (2,15 M€) est <strong>inatteignable</strong>.</div></div>
+  <div class="stat ok"><div class="lbl">Cible réduite atteignable</div><div class="val">1,5 M€</div>
+  <div class="note">De travaux TTC, hors mobilier — en coupant le <strong>programme</strong>, pas la
+  qualité. Voir le calculateur ci-dessous.</div></div>
+</div>
+
+<h3>5.1 — Pourquoi 1,5 M€ reste atteignable</h3>
+<p>Décomposition des travaux du programme complet :</p>
+<div class="scroll"><table>
+<thead><tr><th></th><th class="n">€ HT</th><th class="n">Part</th></tr></thead>
+<tbody>
+<tr><td><strong>Finition des surfaces</strong> — les 906 m², tous niveaux</td><td class="n">556 000</td><td class="n">35 %</td></tr>
+<tr><td><strong>Postes forfaitaires</strong> — ascenseur, piscine extérieure, paysager, cuisine, 5 salles de bain, dressings, photovoltaïque, domotique, sécurité, portail, citerne</td><td class="n">1 044 000</td><td class="n"><strong>65 %</strong></td></tr>
+</tbody></table></div>
+
+<div class="callout ok">
+  <div class="t">Ce ne sont pas les finitions qui coûtent cher, c'est la liste d'équipements</div>
+  <p>Finir 906 m² en premium série ne coûte que <strong>556 000 €</strong>. Le reste est un
+  <em>programme</em> — et un programme se réduit sans toucher au niveau de finition.</p>
+  <p style="margin-bottom:0">Effet de levier à connaître : entre honoraires (19,8 %), aléas (18 %) et
+  TVA (18 %), <strong>chaque euro de travaux devient 1,67 € TTC</strong>. Autrement dit,
+  <strong>100 000 € retirés du programme, ce sont 167 000 € économisés en trésorerie.</strong></p>
+</div>
+
+<!-- ═══════════ 6 ═══════════ -->
+<h2 id="s6"><span class="num">6</span>Calculateur de budget cible</h2>
+<p class="lede">Réglez le programme, pas la qualité. Les trois boutons sont des points de départ.</p>
+
+<div class="calc">
+  <div class="presets">
+    <button onclick="p('eco')">Cible 1,0 M€</button>
+    <button onclick="p('med')">Cible 1,5 M€</button>
+    <button onclick="p('full')">Programme complet</button>
+  </div>
+
+  <div class="row"><div class="hdr l">Poste</div><div class="hdr">m² / qté</div><div class="hdr">€/m² ou €</div></div>
+  <div class="row"><div class="name">Zones à vue<small>réception, séjour, master</small></div><input id="s1" type="number" value="148" oninput="c()"><input id="r1" type="number" value="950" oninput="c()"></div>
+  <div class="row"><div class="name">Chambres et circulations</div><input id="s2" type="number" value="300" oninput="c()"><input id="r2" type="number" value="710" oninput="c()"></div>
+  <div class="row"><div class="name">Sous-sol 1</div><input id="s3" type="number" value="250" oninput="c()"><input id="r3" type="number" value="330" oninput="c()"></div>
+  <div class="row"><div class="name">Sous-sol 2</div><input id="s4" type="number" value="200" oninput="c()"><input id="r4" type="number" value="420" oninput="c()"></div>
+  <hr style="margin:14px 0">
+  <div class="row"><div class="name">Cuisine<small>catalogue italien</small></div><input id="q5" type="number" value="1" oninput="c()"><input id="f5" type="number" value="45000" oninput="c()"></div>
+  <div class="row"><div class="name">Salles de bain<small>nombre × prix unitaire</small></div><input id="q6" type="number" value="5" oninput="c()"><input id="f6" type="number" value="13000" oninput="c()"></div>
+  <div class="row"><div class="name">Dressings modulaires</div><input id="q7" type="number" value="1" oninput="c()"><input id="f7" type="number" value="25000" oninput="c()"></div>
+  <div class="row"><div class="name">Ascenseur 4 niveaux<small>vérifier que la gaine existe</small></div><input id="q8" type="number" value="1" oninput="c()"><input id="f8" type="number" value="50000" oninput="c()"></div>
+  <div class="row"><div class="name">Piscine extérieure<small>0 pour la différer</small></div><input id="q9" type="number" value="1" oninput="c()"><input id="f9" type="number" value="60000" oninput="c()"></div>
+  <div class="row"><div class="name">Paysager et extérieurs</div><input id="q10" type="number" value="1" oninput="c()"><input id="f10" type="number" value="60000" oninput="c()"></div>
+  <div class="row"><div class="name">Photovoltaïque 35 kWc<small>net de subvention — ne pas couper, il conditionne le prêt vert</small></div><input id="q11" type="number" value="1" oninput="c()"><input id="f11" type="number" value="31000" oninput="c()"></div>
+  <div class="row"><div class="name">Sécurité, domotique, portail, citerne</div><input id="q12" type="number" value="1" oninput="c()"><input id="f12" type="number" value="46000" oninput="c()"></div>
+  <div class="row"><div class="name">Divers et second œuvre non affecté</div><input id="q13" type="number" value="1" oninput="c()"><input id="f13" type="number" value="70000" oninput="c()"></div>
+  <hr style="margin:14px 0">
+  <div class="row"><div class="name">Honoraires<small>perit + PM + QS + MEP + contrôles, en %</small></div><input id="qh" type="number" value="1" oninput="c()"><input id="hp" type="number" value="19.8" oninput="c()"></div>
+  <div class="row"><div class="name">Aléas<small>18 % avant diagnostic chlorures, 12–14 % après un diagnostic négatif</small></div><input id="qa" type="number" value="1" oninput="c()"><input id="ap" type="number" value="18" oninput="c()"></div>
+
+  <div class="calcout">
+    <div class="line"><span>Finition des surfaces</span><span id="oS">—</span></div>
+    <div class="line"><span>Postes forfaitaires</span><span id="oF">—</span></div>
+    <div class="line"><span><strong>Travaux HT</strong></span><span id="oT">—</span></div>
+    <div class="line"><span>Honoraires</span><span id="oH">—</span></div>
+    <div class="line"><span>Aléas</span><span id="oA">—</span></div>
+    <div class="line"><span>TVA 18 %</span><span id="oV">—</span></div>
+    <div class="line big"><span>TRAVAUX TTC</span><span id="oTTC">—</span></div>
+    <div class="line"><span class="small">Coût au m² (sur la surface saisie)</span><span id="oM2">—</span></div>
+    <div class="line" style="border-top:1px solid var(--line);margin-top:10px;padding-top:12px"><span>+ mobilier et décoration <span class="small">(300–500 €/m² HT)</span></span><span id="oMob">—</span></div>
+    <div class="line big"><span>POUR Y VIVRE</span><span id="oAll">—</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ 7 ═══════════ -->
+<h2 id="s7"><span class="num">7</span>La piscine intérieure : supprimez-la</h2>
+
+<div class="verdict ok">
+  <div class="head"><div class="big">342 000 – 402 000 €</div><div class="qual">économisés sur 10 ans</div></div>
+  <p style="margin-bottom:0">La conclusion tient. <strong>Mais l'argument que je vous avais donné était
+  faux, et le vrai est meilleur.</strong></p>
+</div>
+
+<div class="callout warn">
+  <div class="t">Ce que je vous ai dit et qui ne tient pas</div>
+  <ul style="margin-bottom:0">
+    <li><del>« La déshumidification coûte 1,36 fois le bassin »</del> — artefact d'un bassin sous-évalué
+    à 64 000 €. Une piscine <em>intérieure</em> exige une structure étanche à la vapeur, un local
+    technique confiné, une plage carrelée : <strong>90 000 à 110 000 €</strong> réalistes.
+    Le vrai ratio est de <strong>0,8 à 1,0</strong>.</li>
+    <li><del>« 145 000 à 205 000 € d'exploitation sur 10 ans »</del> — surestimé de
+    <strong>40 à 70 %</strong>. Réel : <strong>6 000 à 12 000 €/an</strong>, soit 60 000 à 120 000 €.</li>
+    <li><del>« 20–40 % de récupération à la revente contre 60–90 % »</del> — <strong>aucune source</strong>.
+    La littérature donne 40–60 % toutes piscines confondues, et note même que les piscines couvertes
+    ajoutent <em>plus</em> de valeur en climat froid.</li>
+  </ul>
+</div>
+
+<div class="callout ok">
+  <div class="t">Le vrai argument, celui qu'il faut retenir</div>
+  <p>À Malte en août, le <strong>point de rosée extérieur (22–24 °C) est supérieur</strong> à celui d'un
+  hall de piscine tenu à 28 °C et 55 % d'humidité relative (~18 °C). La déshumidification par air neuf —
+  la solution économique partout ailleurs en Europe — est donc <strong>inopérante quatre à cinq mois par
+  an</strong>. Il faut du froid mécanique à pleine puissance, en permanence.</p>
+  <p style="margin-bottom:0">Et cela dans le pays où les <strong>bandes marginales d'électricité montent
+  à 0,3420 puis 0,6076 €/kWh</strong>. <strong>Une piscine intérieure à Malte est le pire compromis
+  climatique possible :</strong> vous payez un équipement de climat froid pour un usage que le climat
+  chaud rend redondant, à côté d'une piscine extérieure utilisable six à huit mois par an.</p>
+</div>
+
+<h3>Si la fosse est déjà coulée</h3>
+<p><strong>Ne la comblez pas.</strong> Plancher sur vide sanitaire ventilé (~11 100 € TTC) ou conversion
+en <strong>citerne d'eau de pluie</strong> — à Malte, où l'eau est facturée en bandes progressives, une
+citerne se rentabilise.</p>
+<p class="small">Nuance sur l'argument technique que je vous avais donné : un remblai de tout-venant pèse
+bien <strong>2,0 à 2,2 fois l'eau</strong> qu'il remplace (20–22 kN/m³ contre 9,81). Mais la conclusion
+« cela surcharge le radier » reste <strong>conditionnelle à un calcul</strong> — un radier de sous-sol est
+généralement dimensionné pour la sous-pression hydrostatique. La vraie raison de ne pas combler est plus
+simple : <strong>27 800 € de remblai est de l'argent définitivement détruit.</strong></p>
+
+<!-- ═══════════ 8 ═══════════ -->
+<h2 id="s8"><span class="num">8</span>Le sous-sol 2 : ne pas phaser — et pas de « coquille saine » non plus</h2>
+
+<div class="callout bad">
+  <div class="t">La « coquille saine » que je vous ai recommandée ne survit pas à son propre chiffrage</div>
+  <p>Je vous l'ai présentée à <strong>38 000 €</strong> (200 m² × 190 €/m²). Chiffrage poste par poste
+  aux prix maltais :</p>
+  <div class="scroll" style="margin-top:12px"><table>
+  <tbody>
+  <tr><td>Chape talochée + barrière anti-capillaire</td><td class="n">5 600 – 8 600</td></tr>
+  <tr><td>Enduit, skim et peinture anti-moisissure (362 m²)</td><td class="n">6 500 – 9 800</td></tr>
+  <tr><td>Éclairage définitif (divisionnaire, 40–50 points, BAES)</td><td class="n">9 000 – 14 000</td></tr>
+  <tr><td>VMC définitive gainée, atténuateurs, clapets coupe-feu, régulation</td><td class="n">10 000 – 18 000</td></tr>
+  <tr><td>Porte EI60 étanche</td><td class="n">1 200 – 2 500</td></tr>
+  <tr><td><strong>Point d'eau et WC avec station de relevage</strong> <span class="small">— sous le fil d'eau du réseau, poste que j'avais totalement omis</span></td><td class="n">5 000 – 10 500</td></tr>
+  <tr><td>Préliminaires, accès, évacuation, marge entreprise +15 %</td><td class="n">5 600 – 9 500</td></tr>
+  <tr class="total"><td>TOTAL RÉEL</td><td class="n"><strong>43 000 – 73 000 € HT</strong></td></tr>
+  </tbody></table></div>
+  <p style="margin-top:14px;margin-bottom:0"><strong>Sous-estimé de 55 à 85 %.</strong> Médiane réelle
+  ~59 000 € HT, soit 295 €/m². Conséquence : la coquille saine devient <strong>plus chère que tout finir
+  en phase 1, tout en libérant moins de trésorerie.</strong> Elle est strictement dominée. À abandonner.</p>
+</div>
+
+<h3>La raison de ne pas phaser — plus simple et plus solide que celles que je vous ai données</h3>
+<div class="scroll"><table>
+<thead><tr><th></th><th class="n">Total TTC</th></tr></thead>
+<tbody>
+<tr class="hi"><td><strong>Tout finir en phase 1</strong> (recommandé)</td><td class="n"><strong>2 686 000</strong></td></tr>
+<tr><td>Coquille saine puis finition en 2029</td><td class="n">2 745 000</td></tr>
+<tr><td>Phasage brut + travaux conservatoires</td><td class="n">2 811 000</td></tr>
+</tbody></table></div>
+
+<div class="callout ok">
+  <div class="t">Le raisonnement en une phrase</div>
+  <p style="margin-bottom:0">Le surcoût du différé — escalade des prix, remobilisation, perte des remises
+  de volume, protection des ouvrages finis, honoraires de reprise — est un coût
+  <strong>certain de ~125 000 €</strong>. Le bénéfice, 114 000 € de trésorerie pendant trois ans, n'a de
+  valeur que si cet argent travaille à <strong>plus de 11 % par an net</strong>. Il ne travaille pas à
+  11 %. <strong>Voilà tout le raisonnement</strong> — et il ne nécessite ni pondération de valuer, ni
+  scénario intermédiaire.</p>
+</div>
+
+<div class="callout warn">
+  <div class="t">Retirez ce chiffre de votre dossier</div>
+  <p style="margin-bottom:0">Je vous avais annoncé une <strong>perte de 204 600 € de capacité
+  d'emprunt</strong>. Reconstruit dans les hypothèses les plus généreuses, le maximum atteignable est de
+  <strong>99 000 €</strong> — il faudrait une base de 11 360 €/m² sur un second sous-sol sans lumière
+  pour justifier 204 600 €, soit plus du double du prix le plus élevé jamais publié à Malte. De plus,
+  les pondérations des <em>perit valuers</em> maltais <strong>ne sont pas publiées</strong>.
+  <strong>Si vous avancez ce chiffre devant votre banquier et qu'il le conteste, toute la crédibilité de
+  votre dossier tombe avec lui.</strong></p>
+</div>
+
+<h3>Le risque sanitaire : bon diagnostic, parade incomplète</h3>
+<p>Le mécanisme que je vous ai décrit est juste, et c'est le meilleur point technique du dossier :
+<strong>le vecteur est l'air, pas l'eau</strong>. Les spores et l'humidité montent par la cage d'escalier
+et la gaine d'ascenseur. Et <strong>à Malte, ventiler un sous-sol en été le mouille</strong> — l'air
+extérieur chaud et humide condense sur les parois froides.</p>
+
+<div class="callout bad">
+  <div class="t">Mais ma parade à 4 200 € ne protège rien</div>
+  <p>Un hygrostat <em>différentiel</em> ne ventile que si l'air extérieur est plus sec en humidité
+  absolue. À Malte, de juin à octobre, <strong>cette condition n'est presque jamais remplie</strong> :
+  le système se verrouille quatre à cinq mois. Pendant ce temps, aucun exutoire pour l'humidité
+  résiduelle du béton, des infiltrations et des remontées.</p>
+  <p style="margin-bottom:0"><strong>Il manque un déshumidificateur.</strong> Sans lui, l'hygrostat
+  garantit seulement qu'on n'aggrave pas — il ne traite rien. Parade complète :
+  <strong>8 000 à 14 000 €</strong> (porte EI60, extracteur et mise en dépression, hygrostat
+  différentiel, déshumidificateur gainé 50–100 l/j, évacuation des condensats par relevage).</p>
+</div>
+
+<div class="callout ok">
+  <div class="t">Un point parfaitement vérifié : le radon n'est pas un sujet à Malte</div>
+  <p style="margin-bottom:0">Étude nationale de cartographie (Malta Medical Journal, 85 bâtiments) :
+  moyenne <strong>32 Bq/m³</strong>, moyenne géométrique 25, <strong>maximum 92</strong>, minimum 11.
+  <strong>Aucun logement au-dessus de 100.</strong> C'est la seule affirmation du dossier qui soit
+  confirmée au chiffre près. <strong>6 000 à 12 000 € de dépense inutile évités.</strong></p>
+</div>
+
+<!-- ═══════════ 9 ═══════════ -->
+<h2 id="s9"><span class="num">9</span>Les postes oubliés</h2>
+<p class="lede">Ce que ni moi ni mes agents n'avions chiffré, et qui pèse plus que ce qui a été débattu.</p>
+
+<h3>9.1 — Le coût d'exploitation de la villa finie</h3>
+<div class="scroll"><table>
+<thead><tr><th>Poste</th><th class="n">€/an</th></tr></thead>
+<tbody>
+<tr><td>Électricité (30–45 000 kWh, bandes progressives jusqu'à 0,6076 €/kWh)</td><td class="n">4 000 – 12 000</td></tr>
+<tr><td>Eau (bandes progressives + piscine + jardin)</td><td class="n">1 500 – 3 500</td></tr>
+<tr><td>Entretien de la piscine extérieure</td><td class="n">1 000 – 1 500</td></tr>
+<tr><td>Jardin</td><td class="n">3 000 – 6 000</td></tr>
+<tr><td>Ascenseur (contrat + inspection réglementaire)</td><td class="n">1 200 – 2 500</td></tr>
+<tr><td>CVC, VMC, traitement d'eau</td><td class="n">1 500 – 3 000</td></tr>
+<tr><td>Assurance (0,10–0,20 % de la valeur de reconstruction)</td><td class="n">2 700 – 5 400</td></tr>
+<tr><td>Ménage et conciergerie sur 906 m²</td><td class="n">6 000 – 15 000</td></tr>
+<tr class="total"><td>Sous-total</td><td class="n">21 000 – 49 000</td></tr>
+<tr><td>Provision de renouvellement des équipements (~500 k€ sur 18 ans)</td><td class="n">+ 28 000</td></tr>
+<tr class="total"><td>COÛT ÉCONOMIQUE ANNUEL</td><td class="n"><strong>49 000 – 77 000</strong></td></tr>
+</tbody></table></div>
+<p><strong>Soit 490 000 à 770 000 € sur dix ans — davantage que le coût total de la piscine intérieure
+sur laquelle repose l'arbitrage n° 1.</strong> Personne ne l'avait chiffré.</p>
+
+<h3>9.2 — Le risque le plus cher, et il est gratuit à lever</h3>
+<div class="callout bad">
+  <div class="t">La vue mer</div>
+  <p style="margin-bottom:0">Toute la prime de ce bien tient à la vue sur trois niveaux. Le
+  <strong>Central Malta Local Plan</strong> couvre Naxxar et Baħar iċ-Ċagħaq avec des
+  <strong>cartes de limitation de hauteur</strong>, et les demandes de permis en cours sont consultables
+  gratuitement sur <strong>pa.org.mt</strong>, le portail MSDI et l'application Planning MT.
+  <strong>Vérification à 0 €, enjeu de 500 000 à 1 200 000 € de valeur.</strong> C'est l'angle mort le
+  plus cher du dossier.</p>
+</div>
+<p>À vérifier en même temps : <strong>la validité du permis PA d'origine</strong>. Le gros œuvre a été
+achevé en mars 2022 et les travaux reprendraient en 2026 — une <em>development permission</em> maltaise a
+une durée de validité. Si elle est échue, il faut une reprise <strong>avant</strong> le
+<em>Compliance Certificate</em>, lequel conditionne le raccordement Enemalta.</p>
+
+<h3>9.3 — Les chlorures : le seul euro correctement dépensé</h3>
+<p>Le gros œuvre a passé <strong>quatre hivers ouvert, sans menuiseries, sur une crête littorale</strong>.
+Au-delà de 0,15 % de chlorures par masse de ciment, la littérature situe les coûts de maintenance à
+<strong>20 à 40 % du coût de construction initial</strong> — soit une exposition de
+<strong>0 à 400 000 €</strong>, hors provision.</p>
+<div class="callout warn">
+  <div class="t">Correction d'ordre — importante</div>
+  <p style="margin-bottom:0">Je vous avais dit de commander les menuiseries extérieures en tout premier.
+  <strong>C'est faux : le diagnostic chlorures passe avant.</strong> Si une reprise structurelle est
+  nécessaire sur les allèges ou les linteaux de baie, vous auriez commandé des menuiseries aux dimensions
+  d'un gros œuvre qui va changer. <strong>Diagnostic d'abord (5 000–15 000 €), menuiseries ensuite.</strong></p>
+</div>
+
+<h3>9.4 — Menuiseries : ma comparaison était techniquement fausse</h3>
+<div class="scroll"><table>
+<thead><tr><th>Système</th><th>Type</th><th class="n">Montant vu</th></tr></thead>
+<tbody>
+<tr><td>Sky-Frame Classic</td><td><strong>Coulissant</strong></td><td class="n">20 mm</td></tr>
+<tr><td>Reynaers CS 77 Softline</td><td><strong>Fenêtre battante</strong></td><td class="n">102 mm</td></tr>
+</tbody></table></div>
+<p>Je vous avais dit « environ 30 mm de différence ». <strong>L'écart réel est de 82 mm</strong> — et
+surtout, <strong>le CS 77 n'est pas un coulissant</strong>. Le proposer en remplacement d'un Sky-Frame,
+ce n'est pas perdre quelques millimètres, c'est <strong>remplacer une paroi de verre coulissante par des
+châssis à la française</strong>. L'équivalent coulissant chez Reynaers est le Hi-Finity ou le CP 130.</p>
+
+<p>Quatre différences comptent davantage que les millimètres sur une crête littorale exposée sud-est :
+le <strong>seuil encastré à zéro ressaut drainé</strong> (standard en haut de gamme, quasi impossible en
+série sans caniveau sur mesure) ; le <strong>poids et les dimensions de vantail admissibles</strong> — si
+le gros œuvre de 2022 a été dimensionné pour de grandes baies, <strong>certaines ouvertures peuvent être
+infaisables en série</strong>, et les dimensions sont figées par le béton ; l'<strong>étanchéité à la
+pluie battante</strong> et la charge de vent, dimensionnantes ici, qui exigent une note de calcul ; et la
+<strong>motorisation</strong>, native en haut de gamme, option lourde ailleurs.</p>
+
+<div class="callout ok">
+  <div class="t">En revanche, ceci reste valable et important</div>
+  <p style="margin-bottom:0">Le <strong>traitement marin est non négociable</strong> quel que soit le
+  système retenu : anodisation 20 µm ou Qualicoat classe 2 « seaside », <strong>quincaillerie inox
+  A4</strong>, vitrage à contrôle solaire. Un profilé mal traité se pique en 3 à 5 ans en front de mer,
+  et le remplacement après finition coûte <strong>2 500 à 4 000 €/m² de baie</strong>, hors reprise des
+  ouvrages autour.</p>
+</div>
+
+<h3>9.5 — Revendre à mi-chantier : l'illiquidité que personne n'avait nommée</h3>
+<p>Un bien inachevé n'est pas finançable par un prêt logement maltais standard : l'acheteur doit être
+cash ou professionnel — donc il achète décoté. En ajoutant le droit d'enregistrement acheteur (5 %) et
+la retenue vendeur (8 %), <strong>une sortie à mi-chantier sur 2,5 M€ engagés en restitue
+vraisemblablement 1,5 à 1,9 M€</strong>. C'est le vrai coût du non-phasage, et il ne figurait nulle part.</p>
+
+<!-- ═══════════ 10 ═══════════ -->
+<h2 id="s10"><span class="num">10</span>Photovoltaïque : ma recommandation était inversée</h2>
+
+<div class="callout bad">
+  <div class="t">Le tarif de rachat à 115 000 € n'existe pas</div>
+  <p>Je vous avais recommandé de <strong>renoncer à la subvention pour garder le tarif de rachat à
+  0,15 €/kWh</strong>, en chiffrant le gain à ~5 900 €/an, soit 115 000 € sur 20 ans.
+  <strong>Erreur d'un facteur 8.</strong></p>
+  <p>Le plafond d'export résidentiel maltais est de <strong>kWc × 1 600 kWh, sans pouvoir dépasser
+  4 800 kWh/an</strong>. Au-delà, le surplus est racheté au <em>coût marginal</em> d'Enemalta. Sur une
+  installation de 39 kWc produisant ~57 000 kWh :</p>
+  <div class="scroll" style="margin-top:12px"><table>
+  <tbody>
+  <tr><td>Export remboursé au tarif de rachat</td><td class="n">4 800 kWh</td><td class="n"><strong>720 €/an</strong></td></tr>
+  <tr><td>Surplus au coût marginal (~0,045 €/kWh)</td><td class="n">52 140 kWh</td><td class="n">~2 350 €/an</td></tr>
+  </tbody></table></div>
+  <p style="margin-top:12px;margin-bottom:0">Et l'alternative n'était pas « tarif à 0,15 » contre
+  « 3 000 € une fois » : <strong>avec la subvention, vous conservez un tarif de 0,105 €/kWh sur 20 ans</strong>.
+  L'écart réel est de <strong>216 €/an</strong>. <strong>La subvention gagne</strong> — et à 6 000 € avec
+  batterie, elle gagne largement.</p>
+</div>
+
+<div class="callout ok">
+  <div class="t">La bonne stratégie : subvention + autoconsommation</div>
+  <p>Les bandes maltaises sont <strong>fortement progressives</strong> : 0,1047 → 0,1298 → 0,1607 →
+  <strong>0,3420</strong> → <strong>0,6076 €/kWh</strong>. Une villa de 906 m² avec VRF, ascenseur et
+  piscine sera dans les bandes hautes. <strong>Un kWh autoconsommé vaut donc 0,16 à 0,61 € — soit 1,1 à
+  4,1 fois le tarif de rachat.</strong></p>
+  <p style="margin-bottom:0"><strong>Prendre la subvention REWS, autoconsommer, ne pas exporter</strong>
+  vaut environ <strong>87 000 € de plus sur 20 ans</strong> que ce que je vous avais conseillé.</p>
+</div>
+
+<div class="callout warn">
+  <div class="t">Et une tension que personne n'avait vue</div>
+  <p style="margin-bottom:0">Si la méthodologie EPC maltaise ne crédite que la production
+  <strong>autoconsommée</strong> — pratique courante, non vérifiable ici —
+  <strong>l'export total dégraderait votre EPC</strong> et mettrait en péril le prêt vert APS à 1,50 %.
+  Les deux recommandations étaient contradictoires sans que je le voie.
+  <strong>À faire trancher par l'assesseur EPC.</strong></p>
+</div>
+
+<div class="callout warn">
+  <div class="t">Rappel sur le prêt vert : il ne finance que 20 % du projet</div>
+  <p style="margin-bottom:0">Le taux de 1,50 % d'APS s'applique <strong>les cinq premières années
+  seulement</strong>, sur un <strong>plafond de 500 000 €</strong>, un seul prêt par client. L'économie
+  maximale est de l'ordre de <strong>45 000 à 56 000 €</strong> — pas les 60 000 à 90 000 € annoncés.
+  Le reste du financement est au taux du marché.</p>
+</div>
+
+<!-- ═══════════ 11 ═══════════ -->
+<h2 id="s11"><span class="num">11</span>Ordre des opérations</h2>
+
+<h3>Immédiatement — avant toute décision, avant toute commande</h3>
+<ol>
+  <li><strong>Diagnostic structurel chlorures</strong> (potentiel de demi-pile + profils de chlorures) —
+  <strong>5 000 à 15 000 €</strong>. Il conditionne le budget d'aléas, le phasage, et les dimensions de
+  baie. <strong>Il passe avant les menuiseries.</strong></li>
+  <li><strong>Consulter pa.org.mt et le Central Malta Local Plan</strong> — permis voisins, cartes de
+  limitation de hauteur, validité du permis d'origine. <strong>Gratuit</strong>, enjeu 500 000 à
+  1 200 000 €.</li>
+  <li><strong>Demander trois devis écrits sur le même métré</strong> à des entreprises maltaises
+  licenciées. <strong>Gratuit, et cela règle à soi seul 80 % de l'incertitude de ce dossier.</strong>
+  Personne — ni moi, ni mes agents — n'a pu s'appuyer sur un seul prix réel.</li>
+  <li><strong>Faire établir un métré contradictoire par le perit</strong>, pas par un modèle. Le quantum
+  de 15 000 heures n'a jamais été validé, et il est le dénominateur de toute la comparaison
+  main-d'œuvre.</li>
+</ol>
+
+<h3>Ensuite — la structuration</h3>
+<ol start="5">
+  <li><strong>Perit indépendant</strong> (pas celui du promoteur), désigné aussi
+  <strong>Project Supervisor</strong> — c'est une obligation qui pèse sur vous. Budget honoraires réel :
+  <strong>6,5 à 10 % des travaux</strong> pour perit + project management, pas 3,4 %.</li>
+  <li><strong>Quantity surveyor indépendant</strong> : métrés, BOQ, analyse des offres, certification des
+  situations.</li>
+  <li><strong>Cahier des charges complet avant consultation.</strong> Sans lui, aucun forfait n'est
+  possible et tous les dérapages sont contractuellement légitimes.</li>
+  <li><strong>Souscrire l'assurance travaux obligatoire de 750 000 € minimum</strong> (S.L. 623.06) et
+  préparer la garantie bancaire — sans quoi la BCA ne délivre pas le <em>clearance</em>.</li>
+  <li><strong>Marché à forfait</strong> avec compagnons siciliens nommés, retenue 5 %, performance bond
+  bancaire 10 %, paiement contre certification du QS, pièces témoins validées avant série.
+  <strong>Jamais de cost-plus.</strong></li>
+</ol>
+
+<h3>Puis le chemin critique</h3>
+<p><strong>Diagnostic chlorures → permis PA de la piscine extérieure (4 à 8 mois, le poste le plus long,
+à déposer au mois 1) → commande des menuiseries extérieures (8–12 semaines en série) → mise hors d'air.</strong>
+La mise hors d'air arrête aussi la dégradation en cours depuis mars 2022.</p>
+
+<p class="small">Contraintes à inscrire au contrat, pas à découvrir : horaires de chantier 7 h–20 h avec
+arrêt obligatoire 14 h–16 h dès 65 dB, aucun travail le dimanche ni les jours fériés, marteau pneumatique
+7 h 30–16 h, brise-roche hydraulique interdit en permanence ; fermeture d'août de 1 à 2 semaines, à
+provisionner en 2 à 3 semaines improductives par an. <em>Ces éléments n'ont pas pu être vérifiés en
+source primaire — à faire confirmer par le perit.</em></p>
+
+<!-- ═══════════ 12 ═══════════ -->
+<h2 id="s12"><span class="num">12</span>Ce qui reste ouvert</h2>
+
+<div class="scroll"><table>
+<thead><tr><th>Point</th><th>Pourquoi c'est important</th><th>Auprès de qui</th></tr></thead>
+<tbody>
+<tr><td><strong>Aucun devis réel</strong></td><td>Le taux de sous-traitance maltais — 22 à 28 €/h — est <strong>reconstruit</strong>, pas relevé. Il décide du classement entre les options. <strong>C'est la plus grande incertitude du dossier.</strong></td><td>3 entreprises</td></tr>
+<tr><td><strong>Le quantum de 15 000 heures</strong></td><td>Jamais validé. Il implique 430 €/m² de main-d'œuvre seule, contre un marché à 250–450 €/m² <em>matériaux compris</em>. Incohérent, sauf spécification très haut de gamme.</td><td>Perit / QS</td></tr>
+<tr><td><strong>LN 118 de 2026</strong></td><td>Le Wage Regulation Order de la construction a été remplacé le <strong>30 juin 2026</strong>. Minima par catégorie, primes de hauteur, durée hebdomadaire de référence : <strong>aucun cabinet n'a publié les tables</strong>.</td><td>DIER / avocat</td></tr>
+<tr><td><strong>Périmètre de la licence de maçon</strong></td><td>La frontière « structurel / finition » n'est pas tranchée. Une cloison en bloc, un rebouchage de saignée, un percement sont en zone grise.</td><td>BCA, par écrit</td></tr>
+<tr><td><strong>Détail des 1 044 000 € de forfaits</strong></td><td>Non fourni, donc non auditable ligne à ligne. Marge d'erreur ±10 %.</td><td>QS</td></tr>
+<tr><td><strong>Traitement du PV dans l'EPC</strong></td><td>Production totale ou autoconsommée ? Détermine si l'objectif ≤ 25 kWh/m²/an du prêt vert est atteignable, et si export et EPC sont compatibles.</td><td>Assesseur EPC</td></tr>
+<tr><td><strong>Existence de la gaine d'ascenseur</strong></td><td>Si elle n'est pas dans le gros œuvre de 2022, percer quatre dalles est structurel : +30 000 à 60 000 €.</td><td>Plans / perit</td></tr>
+<tr><td><strong>Assurance habitation post-travaux</strong></td><td>Un assureur peut exclure ou surprimer un bien dont les travaux ont été réalisés hors entreprise licenciée.</td><td>Courtier</td></tr>
+</tbody></table></div>
+
+<div class="callout info">
+  <div class="t">Méthode, et pourquoi les corrections sont visibles</div>
+  <p>Deux agents de recherche spécialisés, puis deux <strong>évaluateurs adversariaux</strong> chargés de
+  détruire leurs conclusions. Résultat : sur 27 affirmations testées côté coûts, <strong>3 confirmées,
+  11 réfutées, 6 invérifiables</strong> ; côté main-d'œuvre, la conclusion elle-même a été inversée.</p>
+  <p style="margin-bottom:0">Le profil qui ressort du premier chiffrage est le plus dangereux qui soit :
+  <strong>excellent en physique du bâtiment</strong> — le sous-sol estival, le traitement marin, le point
+  de rosée de la piscine — et <strong>faible en économie</strong> : plafonds réglementaires non vérifiés,
+  actualisation absente, faux dilemmes, périmètre incomplet, et un chiffre décisif fabriqué pour clore un
+  débat. <strong>Ses deux conclusions principales étaient bonnes. Presque aucun des chiffres qui les
+  soutenaient ne l'était.</strong> C'est exactement ce que la contre-expertise sert à révéler.</p>
+</div>
+
+<footer>
+  <p><strong>Ce document n'est ni un conseil juridique, ni un conseil fiscal, ni un devis.</strong>
+  Il synthétise une recherche documentaire réalisée <strong>sans aucun accès aux sources primaires</strong>
+  (403 sur 15 hôtes testés). Aucun chiffre ne remplace trois devis réels, un métré contradictoire et un
+  diagnostic structurel.</p>
+  <p>Version corrigée du 28 juillet 2026.</p>
+</footer>
+
+</div>
+
+<script>
+const P={
+ eco:{r1:700,r2:520,r3:230,r4:190,f5:30000,q6:4,f6:11000,f7:15000,f8:45000,q9:0,f9:60000,f10:25000,f11:31000,f12:26000,f13:40000},
+ med:{r1:950,r2:710,r3:330,r4:420,f5:45000,q6:5,f6:13000,f7:25000,f8:50000,q9:1,f9:60000,f10:60000,f11:31000,f12:46000,f13:70000},
+ full:{r1:1200,r2:900,r3:400,r4:600,f5:90000,q6:5,f6:26000,f7:50000,f8:60000,q9:1,f9:140000,f10:130000,f11:31000,f12:90000,f13:120000}
+};
+function p(k){const o=P[k];for(const id in o)document.getElementById(id).value=o[id];c()}
+const eur=n=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);
+const v=id=>parseFloat(document.getElementById(id).value)||0;
+function c(){
+ const surf=v('s1')+v('s2')+v('s3')+v('s4');
+ const zones=v('s1')*v('r1')+v('s2')*v('r2')+v('s3')*v('r3')+v('s4')*v('r4');
+ let ff=0;
+ for(let i=5;i<=13;i++){ff+=v('q'+i)*v('f'+i)}
+ const works=zones+ff;
+ const h=works*v('hp')/100;
+ const a=(works+h)*v('ap')/100;
+ const ht=works+h+a;
+ const tva=ht*0.18;
+ const ttc=ht+tva;
+ const mob=surf*400*1.18;
+ document.getElementById('oS').textContent=eur(zones);
+ document.getElementById('oF').textContent=eur(ff);
+ document.getElementById('oT').textContent=eur(works);
+ document.getElementById('oH').textContent=eur(h);
+ document.getElementById('oA').textContent=eur(a);
+ document.getElementById('oV').textContent=eur(tva);
+ document.getElementById('oTTC').textContent=eur(ttc);
+ document.getElementById('oM2').textContent=surf?eur(ttc/surf)+' / m²':'—';
+ document.getElementById('oMob').textContent=eur(mob);
+ document.getElementById('oAll').textContent=eur(ttc+mob);
+}
+c();
+</script>
