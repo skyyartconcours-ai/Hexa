@@ -1,0 +1,940 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Faisabilité — équipe italienne détachée pour finir la villa (Malte)</title>
+
+<style>
+:root{
+  --bg:#faf9f7; --panel:#fff; --ink:#191919; --muted:#5e5b56; --line:#e3dfd8;
+  --accent:#0f5c5c; --accent-soft:#e6f1f1;
+  --ok:#1d6b3f; --ok-bg:#e8f4ec;
+  --warn:#8a6100; --warn-bg:#fdf3dd;
+  --bad:#9b2226; --bad-bg:#fbe9e9;
+  --neu:#3b5570; --neu-bg:#eaf0f6;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#131619;--panel:#1b1f24;--ink:#ecebe8;--muted:#a1a5ac;--line:#2f353d;
+  --accent:#5fc4c4;--accent-soft:#11292b;--ok:#6bcf95;--ok-bg:#15301e;
+  --warn:#e5b74d;--warn-bg:#332810;--bad:#f28b8b;--bad-bg:#361a1a;--neu:#8fb4d9;--neu-bg:#1a2534;}
+}
+:root[data-theme="dark"]{--bg:#131619;--panel:#1b1f24;--ink:#ecebe8;--muted:#a1a5ac;--line:#2f353d;
+  --accent:#5fc4c4;--accent-soft:#11292b;--ok:#6bcf95;--ok-bg:#15301e;
+  --warn:#e5b74d;--warn-bg:#332810;--bad:#f28b8b;--bad-bg:#361a1a;--neu:#8fb4d9;--neu-bg:#1a2534;}
+:root[data-theme="light"]{--bg:#faf9f7;--panel:#fff;--ink:#191919;--muted:#5e5b56;--line:#e3dfd8;
+  --accent:#0f5c5c;--accent-soft:#e6f1f1;--ok:#1d6b3f;--ok-bg:#e8f4ec;
+  --warn:#8a6100;--warn-bg:#fdf3dd;--bad:#9b2226;--bad-bg:#fbe9e9;--neu:#3b5570;--neu-bg:#eaf0f6;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:1020px;margin:0 auto;padding:0 20px 110px}
+header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:42px 0 32px;margin-bottom:30px}
+header.hero .wrap{padding-bottom:0}
+.kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:10px}
+h1{font-size:clamp(24px,4.2vw,38px);line-height:1.14;margin:0 0 14px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:17px;max-width:70ch;margin:0}
+.meta{margin-top:20px;display:flex;flex-wrap:wrap;gap:8px 22px;font-size:13px;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:600}
+
+h2{font-size:clamp(20px,2.9vw,27px);margin:52px 0 6px;letter-spacing:-.015em;padding-top:14px;
+  border-top:3px solid var(--ink);line-height:1.2}
+h2 .num{color:var(--accent);font-variant-numeric:tabular-nums;margin-right:10px}
+h2 + .lede{color:var(--muted);margin:0 0 20px;font-size:16.5px;max-width:74ch}
+h3{font-size:18.5px;margin:32px 0 10px;letter-spacing:-.01em}
+h4{font-size:15.5px;margin:22px 0 8px;color:var(--accent)}
+p{margin:0 0 14px} ul,ol{margin:0 0 16px;padding-left:22px} li{margin-bottom:7px}
+a{color:var(--accent)} strong{font-weight:650}
+
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 10px 10px 0;
+  padding:16px 20px;margin:20px 0}
+.callout.bad{border-left-color:var(--bad);background:var(--bad-bg)}
+.callout.ok{border-left-color:var(--ok);background:var(--ok-bg)}
+.callout.warn{border-left-color:var(--warn);background:var(--warn-bg)}
+.callout.info{border-left-color:var(--neu);background:var(--neu-bg)}
+.callout .t{font-weight:700;margin-bottom:6px;font-size:14.5px}
+.callout p:last-child,.callout ul:last-child,.callout ol:last-child{margin-bottom:0}
+
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 8px;border-radius:5px;vertical-align:2px;white-space:nowrap}
+.t-ok{background:var(--ok-bg);color:var(--ok)} .t-bad{background:var(--bad-bg);color:var(--bad)}
+.t-warn{background:var(--warn-bg);color:var(--warn)} .t-neu{background:var(--neu-bg);color:var(--neu)}
+
+.scroll{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:14.2px;min-width:520px}
+th,td{padding:10px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);font-weight:650;font-size:12.5px;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:13.4px;white-space:nowrap}
+tr.total td{font-weight:700;background:var(--accent-soft)}
+
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin:20px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:16px 18px}
+.stat .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:650;margin-bottom:7px}
+.stat .val{font-size:25px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat .note{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.45}
+.stat.bad .val{color:var(--bad)} .stat.ok .val{color:var(--ok)} .stat.warn .val{color:var(--warn)}
+
+/* verdict banner */
+.verdict{border:2px solid var(--bad);border-radius:14px;background:var(--panel);padding:24px;margin:24px 0}
+.verdict .head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.verdict .big{font-size:clamp(26px,5vw,38px);font-weight:800;color:var(--bad);letter-spacing:-.02em;line-height:1}
+.verdict .qual{font-size:16px;color:var(--muted);font-weight:600}
+
+/* cascade */
+.cascade{counter-reset:c;margin:20px 0;padding:0;list-style:none}
+.cascade li{position:relative;padding:12px 0 12px 52px;border-left:2px solid var(--bad);margin-left:16px}
+.cascade li::before{counter-increment:c;content:counter(c);position:absolute;left:-16px;top:12px;
+  width:30px;height:30px;border-radius:50%;background:var(--bad);color:#fff;font-weight:700;font-size:14px;
+  display:flex;align-items:center;justify-content:center}
+.cascade li:last-child{border-left-color:transparent}
+
+/* steps */
+.steps{counter-reset:s;list-style:none;padding:0;margin:20px 0}
+.steps li{position:relative;padding:14px 16px 14px 58px;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;margin-bottom:10px}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:16px;top:14px;
+  width:28px;height:28px;border-radius:7px;background:var(--accent);color:var(--bg);font-weight:700;font-size:14px;
+  display:flex;align-items:center;justify-content:center}
+.steps .when{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);font-weight:700;margin-bottom:3px}
+
+/* calculator */
+.calc{background:var(--panel);border:2px solid var(--accent);border-radius:14px;padding:22px;margin:26px 0}
+.calc h3{margin-top:0}
+.row{display:grid;grid-template-columns:1fr 100px 100px;gap:10px;align-items:center;margin-bottom:10px}
+.row .name{font-size:14px;font-weight:600}
+.row .name small{display:block;font-weight:400;color:var(--muted);font-size:12px;line-height:1.35}
+.row input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);
+  color:var(--ink);font:inherit;font-size:14px;font-family:var(--mono);text-align:right}
+.row input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.row .hdr{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;text-align:right}
+.row .hdr.l{text-align:left}
+.calcout{border-top:2px solid var(--line);margin-top:16px;padding-top:14px}
+.line{display:flex;justify-content:space-between;gap:16px;padding:5px 0;font-size:14.5px}
+.line span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.line.big{font-size:19px;font-weight:700;border-top:1px solid var(--line);margin-top:8px;padding-top:12px}
+.line.big span:last-child{color:var(--accent)}
+.line.res{font-size:20px;font-weight:800;margin-top:10px;padding-top:12px;border-top:2px solid var(--line)}
+@media(max-width:600px){.row{grid-template-columns:1fr 78px 78px;gap:8px}}
+
+nav.toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin:24px 0}
+nav.toc .t{font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:11px}
+nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:32px}
+nav.toc li{margin-bottom:5px;font-size:14.3px;break-inside:avoid}
+@media(max-width:600px){nav.toc ol{columns:1}}
+footer{border-top:1px solid var(--line);margin-top:56px;padding-top:20px;font-size:13px;color:var(--muted)}
+.small{font-size:13.5px;color:var(--muted)}
+.src{font-size:12.5px;color:var(--muted);margin-top:-8px;margin-bottom:18px;word-break:break-word}
+hr{border:none;border-top:1px solid var(--line);margin:32px 0}
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Étude de faisabilité — à trancher avant le reste</div>
+    <h1>Faire venir une équipe italienne pour finir la villa</h1>
+    <p class="sub">Détachement Italie → Malte : cadre juridique, licence BCA, TVA sur travaux immobiliers,
+    seuil d'établissement stable, et coût réel comparé tout compris. Analyse contradictoire — un agent
+    de recherche, un évaluateur adversarial chargé de le démolir.</p>
+    <div class="meta">
+      <span><b>Chantier</b> villa 906 m², shell form, Naxxar</span>
+      <span><b>Hypothèse testée</b> ~9 ouvriers siciliens, 6 mois full time</span>
+      <span><b>Date</b> 28 juillet 2026</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="callout warn">
+  <div class="t">Limite de la recherche — à lire d'abord</div>
+  <p style="margin-bottom:0">Le réseau a bloqué l'accès direct à <strong>tous</strong> les sites consultés
+  (legislation.mt, bca.gov.mt, dier.gov.mt, eur-lex, cassa edile, publicworks.gov.mt — erreur 403 systématique).
+  <strong>Aucun texte primaire n'a pu être lu.</strong> Tout provient d'extraits de moteur de recherche.
+  Les trois points marqués <span class="tag t-bad">bloquant</span> ci-dessous méritent une consultation
+  payante — un avocat maltais et un <em>consulente del lavoro</em> italien — pas une recherche
+  documentaire. C'est un coût de quelques milliers d'euros face à une exposition à six chiffres.</p>
+</div>
+
+<!-- ═══════════════ VERDICT ═══════════════ -->
+<div class="verdict">
+  <div class="head">
+    <div class="big">NON</div>
+    <div class="qual">— pas sous la forme envisagée. Mais une version réduite passe.</div>
+  </div>
+  <p><strong>Ce n'est pas une question de prix.</strong> Mon premier chiffrage annonçait +55 à +110 % de
+  surcoût ; la contre-expertise l'a ramené à <strong>+8 à +56 %, voire zéro</strong> une fois comparé au
+  vrai prix maltais du haut de gamme — et le <strong>coût du retard</strong> qu'une équipe dédiée
+  permettrait d'éviter vaut <strong>103 000 à 128 000 €</strong>, du même ordre que la prime.
+  <strong>Sur le plan économique, l'opération est défendable.</strong></p>
+  <p style="margin-bottom:0"><strong>Ce qui tue le scénario « 9 hommes, 6 mois », ce sont trois faits
+  réglementaires :</strong> le seuil d'établissement stable de la convention fiscale Italie–Malte est à
+  <strong>SIX mois</strong> et non douze ; la <strong>licence BCA n'exclut pas les travaux de
+  finition</strong> ; et il n'existe <strong>aucun précédent</strong> d'entreprise sicilienne sur un
+  chantier résidentiel privé maltais.</p>
+</div>
+
+<div class="grid">
+  <div class="stat bad"><div class="lbl">Scénario « 9 hommes, 6 mois »</div><div class="val">à écarter</div>
+  <div class="note">Exactement sur le seuil fiscal, et sous-dimensionné de 40 à 100 % par rapport au volume
+  de travail réel.</div></div>
+  <div class="stat ok"><div class="lbl">Scénario recommandé</div><div class="val">hybride</div>
+  <div class="note">Contractant maltais licencié + <strong>3 à 5 compagnons italiens</strong> sur les lots
+  premium, <strong>moins de 5 mois, hard stop</strong>.</div></div>
+  <div class="stat ok"><div class="lbl">Le compromis évident</div><div class="val">équipe nommée</div>
+  <div class="note">Une entreprise <strong>maltaise</strong> employant des artisans italiens, nommés au
+  contrat. Zéro exposition réglementaire.</div></div>
+</div>
+
+<nav class="toc">
+  <div class="t">Sommaire</div>
+  <ol>
+    <li><a href="#s1">Les trois verrous</a></li>
+    <li><a href="#s2">La falaise des 6 mois</a></li>
+    <li><a href="#s3">Licence BCA et professions réglementées</a></li>
+    <li><a href="#s4">TVA — le piège classique</a></li>
+    <li><a href="#s5">Le vrai coût — calculateur</a></li>
+    <li><a href="#s6">Le volume de travail réel</a></li>
+    <li><a href="#s7">Cadre du détachement, pas à pas</a></li>
+    <li><a href="#s8">Sécurité et obligations qui pèsent sur VOUS</a></li>
+    <li><a href="#s9">Est-ce que ça se fait ? Précédents</a></li>
+    <li><a href="#s10">Les 4 montages comparés</a></li>
+    <li><a href="#s11">Ce qui protège vraiment (pas les pénalités)</a></li>
+    <li><a href="#s12">Recommandation opérationnelle</a></li>
+    <li><a href="#s13">Registre des risques</a></li>
+    <li><a href="#s14">Sources</a></li>
+  </ol>
+</nav>
+
+<!-- ═══════════════ 1 ═══════════════ -->
+<h2 id="s1"><span class="num">1</span>Les trois verrous</h2>
+<p class="lede">Si vous ne devez retenir que trois choses avant de décider, ce sont celles-ci.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Verrou</th><th>Ce que c'est</th><th>Effet</th></tr></thead>
+<tbody>
+<tr><td><span class="tag t-bad">bloquant</span><br><strong>Établissement stable à 6 mois</strong></td>
+<td>La clause « chantier » de l'article 5 de la convention fiscale Italie–Malte retient <strong>« more than six months »</strong>, et non les 12 mois du modèle OCDE.</td>
+<td>Votre scénario nominal est <em>exactement</em> sur le seuil. Exposition fiscale <strong>90 000 – 150 000 €</strong>, et la parade des « 165 jours » devient inopérante.</td></tr>
+<tr><td><span class="tag t-bad">bloquant</span><br><strong>Licence BCA</strong></td>
+<td>La BCA énonce que la licence vise <em>« all persons from EU member states and third countries who will be carrying out construction work in Malta »</em>. <strong>Aucun texte n'exclut la finition.</strong></td>
+<td>Sans licence, <strong>le chantier est arrêtable</strong>. Une entreprise étrangère <em>peut</em> l'obtenir, mais c'est une démarche à anticiper.</td></tr>
+<tr><td><span class="tag t-warn">majeur</span><br><strong>Aucun précédent</strong></td>
+<td>Aucune trace d'entreprise sicilienne ayant opéré un chantier résidentiel privé à Malte.</td>
+<td>Pas de playbook, pas de fournisseurs, aucune référence à appeler — et un <strong>risque de sélection adverse</strong> (voir §9).</td></tr>
+</tbody></table></div>
+
+<div class="callout ok">
+  <div class="t">Et un verrou que j'avais annoncé à tort</div>
+  <p style="margin-bottom:0">J'avais écrit que l'électricité était <strong>bloquante</strong> — qu'un
+  électricien sicilien ne pouvait pas intervenir. <strong>C'est faux.</strong> La S.L. 545.24 contient une
+  dérogation UE explicite : un installateur légalement établi dans un autre État membre, ayant exercé
+  l'activité au moins un an sur les dix dernières années, peut exercer à Malte
+  <strong>à titre temporaire et occasionnel</strong>. Le point dur résiduel n'est pas l'exécution mais la
+  <strong>certification</strong> finale, exigée par Enemalta pour la mise en service — une friction
+  pratique, pas un mur juridique. En pratique : faites poser par qui vous voulez, faites
+  <strong>certifier par un titulaire d'Authorisation A ou B</strong>, et faites-le accepter par écrit
+  avant de commencer.</p>
+</div>
+
+<!-- ═══════════════ 2 ═══════════════ -->
+<h2 id="s2"><span class="num">2</span>La falaise des six mois</h2>
+<p class="lede">C'est le point le plus important de tout ce document, et celui que ma première analyse
+avait manqué.</p>
+
+<p>Le modèle OCDE fixe le seuil d'établissement stable d'un chantier à 12 mois. Beaucoup de praticiens le
+citent de mémoire. <strong>La convention Italie–Malte, elle, retient six mois :</strong></p>
+
+<p style="font-style:italic;font-size:15px;border-left:3px solid var(--bad);padding-left:16px;margin:16px 0">
+« a building site or construction, installation or assembly project… constitutes a permanent establishment
+where such site, project or activities (together with other such sites, projects or activities, if any)
+continue for a period of <strong>more than six months</strong> »</p>
+
+<p>Et le calcul est plus large qu'il n'y paraît : le délai court <strong>dès les travaux
+préparatoires</strong> ; des contrats successifs commercialement et géographiquement liés sont
+<strong>agrégés</strong> ; et pour un sous-traitant, on compte <strong>du premier au dernier jour de
+présence, jours d'absence intermédiaires inclus</strong>.</p>
+
+<h3>La cascade</h3>
+<ol class="cascade">
+  <li><strong>Le chantier dépasse 6 mois</strong> → l'entreprise italienne a un
+  <strong>établissement stable</strong> à Malte.</li>
+  <li>→ la rémunération des ouvriers est réputée <strong>« supportée par un établissement stable à
+  Malte »</strong>, ce qui fait tomber la <strong>troisième condition cumulative</strong> de l'article 15
+  (exonération des 183 jours).</li>
+  <li>→ <strong>les 9 ouvriers deviennent imposables à Malte dès le premier jour</strong>, quelle que soit
+  leur durée de présence. La parade « plafonner chacun à 165 jours » que je recommandais
+  <strong>ne sert à rien</strong>.</li>
+  <li>→ obligation de <strong>payroll FSS maltais</strong> pour l'employeur italien, enregistrement de
+  succursale au Malta Business Registry, régularisation rétroactive.</li>
+  <li>→ <strong>impôt sur les sociétés maltais à 35 %</strong> sur le bénéfice attribuable à
+  l'établissement stable.</li>
+</ol>
+
+<div class="grid">
+  <div class="stat bad"><div class="lbl">IS maltais sur l'ES</div><div class="val">21–39 k€</div>
+  <div class="note">35 % sur un bénéfice attribuable de 61–111 k€ (marge de 15–25 % sur 410–446 k€).</div></div>
+  <div class="stat bad"><div class="lbl">IR des 9 ouvriers</div><div class="val">~72 k€</div>
+  <div class="note">Barème non-résident maltais sur ~25 000 € de revenu de source maltaise par ouvrier
+  sur 6 mois, soit ~8 000 € × 9.</div></div>
+  <div class="stat bad"><div class="lbl">Exposition totale</div><div class="val">90–150 k€</div>
+  <div class="note">Avant pénalités et intérêts. <strong>Certaine, pas hypothétique</strong>, dans le
+  scénario nominal.</div></div>
+</div>
+
+<div class="callout bad">
+  <div class="t">Aggravant : la convention est votre seul bouclier</div>
+  <p style="margin-bottom:0">Le droit interne maltais impose les non-résidents sur le revenu de source
+  maltaise <strong>même en l'absence d'établissement stable</strong>. Ce n'est que la convention fiscale
+  qui protège — et son seuil est à six mois. Il n'y a pas de filet en dessous.</p>
+</div>
+
+<div class="callout ok">
+  <div class="t">La parade qui, elle, fonctionne</div>
+  <p style="margin-bottom:0"><strong>Rester franchement sous les six mois : viser 4 à 5 mois calendaires
+  maximum, avec un <em>hard stop</em> contractuel.</strong> Pas « environ six mois ». Pas « six mois plus
+  les finitions ». Un chantier borné, daté, documenté (feuilles de présence, billets de ferry), avec une
+  pénalité contractuelle si l'entreprise italienne dépasse. Sous ce seuil : pas d'établissement stable,
+  exonération des 183 jours préservée, et — accessoirement — pas de Skill Card à faire homologuer si
+  c'est terminé avant le 1<sup>er</sup> janvier 2027 (voir §3).</p>
+</div>
+
+<!-- ═══════════════ 3 ═══════════════ -->
+<h2 id="s3"><span class="num">3</span>Licence BCA et professions réglementées</h2>
+
+<h3>3.1 — La licence de contractant (LN 166 de 2023)</h3>
+<div class="scroll"><table>
+<thead><tr><th>Point</th><th>Contenu</th></tr></thead>
+<tbody>
+<tr><td>Texte</td><td><strong>Legal Notice n° 166 de 2023</strong>, premier régime de licence des contractants à Malte</td></tr>
+<tr><td>Catégories</td><td>Trois : <strong>démolition</strong> · <strong>excavation et pieux</strong> · <strong>construction</strong></td></tr>
+<tr><td>Calendrier</td><td>Licences provisoires la première année, puis <strong>licence pleine obligatoire depuis le 1<sup>er</sup> janvier 2025</strong>. Validité 2 ans, renouvelable.</td></tr>
+<tr><td><strong>Entreprise étrangère</strong></td><td><strong>Peut l'obtenir.</strong> Le texte prévoit expressément le cas du demandeur non résident habituel à Malte : il fournit un <strong>document équivalent délivré par l'autorité compétente de son pays de résidence</strong>, en lieu et place du certificat de conduite maltais.</td></tr>
+<tr><td>Pièces</td><td>Copie CI/passeport, certificat de conduite de moins de 2 mois (ou équivalent étranger), déclaration de non-faillite. Dépôt en ligne uniquement.</td></tr>
+<tr><td>Classes et barème de frais</td><td><span class="tag t-bad">non vérifié</span> Introuvables dans les sources accessibles. À demander directement à la BCA.</td></tr>
+</tbody></table></div>
+
+<div class="callout bad">
+  <div class="t">Correction importante de ma première analyse</div>
+  <p>J'avais écrit que <strong>« les travaux de finition semblent hors du champ de la licence »</strong>.
+  <strong>Cette affirmation ne repose sur aucune source primaire</strong> — mes sources étaient un site de
+  réservation de <em>services de ménage</em> et un annuaire commercial d'artisans. C'est indéfendable sur
+  un point qui peut faire arrêter un chantier.</p>
+  <p>Ce que dit la BCA, en revanche : la licence est requise pour <em>« all persons from EU member states
+  and third countries who will be carrying out construction work in Malta »</em>.
+  <strong>Aucun carve-out pour la finition n'a été trouvé.</strong></p>
+  <p style="margin-bottom:0"><strong>Action :</strong> écrivez à la BCA <em>avant</em> de contracter et
+  faites confirmer le périmètre <strong>par écrit</strong>. La question exacte à poser figure en §12.</p>
+</div>
+
+<h3>3.2 — Le Perit : verrou incontournable</h3>
+<p>L'architecture et le génie civil sont des <strong>professions réglementées</strong> à Malte
+(<em>Periti Act</em>, Chap. 390). Toute personne assumant la responsabilité de la conception et de la
+construction doit détenir un <strong>warrant de Perit maltais</strong>, être agréée au titre du
+<em>Mutual Recognition of Qualifications Act</em>, ou exercer à titre temporaire et occasionnel sous
+conditions.</p>
+<p><strong>Traduction opérationnelle :</strong> un architecte italien peut être associé au design et à la
+direction artistique, mais <strong>la responsabilité réglementaire, les dépôts auprès de la Planning
+Authority et la supervision passent obligatoirement par un Perit maltais</strong>. Vous en aurez un de
+toute façon — autant en faire le pivot du projet.</p>
+
+<h3>3.3 — L'angle mort : la Construction Industry Skill Card</h3>
+<div class="callout warn">
+  <div class="t">Obligatoire au 1<sup>er</sup> janvier 2027 — et votre chantier déborde probablement dessus</div>
+  <p>La <strong>Construction Industry Skill Card</strong> devient obligatoire pour
+  <strong>toute personne travaillant sur un chantier maltais</strong> à compter du
+  1<sup>er</sup> janvier 2027. Les qualifications étrangères doivent être <strong>validées par le
+  MQRIC</strong> contre le Malta Qualifications Framework.</p>
+  <p style="margin-bottom:0">Or le volume de travail réel (§6) porte le chantier à 8,5–14 mois — donc
+  <strong>au-delà de 2027</strong>. Il faudrait alors faire homologuer neuf qualifications italiennes.
+  <strong>Coût faible en euros</strong> (quelques dizaines d'euros par carte plus traductions,
+  ~1 500–3 000 € au total) ; <strong>le coût réel est le délai</strong> : plusieurs mois de vetting MQRIC.
+  À démarrer maintenant si vous y allez.</p>
+</div>
+
+<!-- ═══════════════ 4 ═══════════════ -->
+<h2 id="s4"><span class="num">4</span>TVA — le piège que beaucoup ratent</h2>
+
+<p><strong>La règle :</strong> les prestations de services se rattachant à un bien immeuble sont taxables
+<strong>au lieu de situation de l'immeuble</strong> (article 47 de la directive 2006/112/CE ; article 31 bis
+du règlement d'exécution 282/2011, qui vise expressément la construction, la transformation, les travaux
+de finition et l'installation).</p>
+
+<ol>
+  <li>Une entreprise italienne qui finit une villa à Naxxar réalise une <strong>opération taxable à
+  Malte</strong>. Elle <strong>ne facture pas 22 % de TVA italienne</strong>.</li>
+  <li>L'<strong>autoliquidation est impossible</strong> : le renversement de redevable (article 12 du VAT
+  Act maltais) suppose un preneur assujetti immatriculé à Malte sous l'article 10.
+  <strong>Vous êtes un particulier.</strong></li>
+  <li>Donc l'entreprise italienne <strong>doit s'immatriculer à la TVA à Malte</strong>. Pour les
+  non-résidents, <strong>aucun seuil</strong> : une seule opération taxable déclenche l'obligation
+  (contre 35 000 € / 30 000 € pour les résidents).</li>
+  <li>Elle facture la <strong>TVA maltaise au taux normal de 18 %</strong>, qui est un
+  <strong>coût sec</strong> pour vous.</li>
+</ol>
+
+<div class="callout warn">
+  <div class="t">Deux corrections de mon analyse initiale, dans les deux sens</div>
+  <p><strong>À charge de mon rapport :</strong> j'avais présenté la TVA comme une pénalité de l'option
+  italienne. <strong>C'est faux — elle frappe les deux options.</strong> Un contractant maltais
+  immatriculé facture aussi 18 %. J'avais comparé l'italien TTC au maltais HT : biais de présentation de
+  <strong>74 000 à 95 000 €</strong>.</p>
+  <p style="margin-bottom:0"><strong>À décharge de l'option maltaise, en revanche :</strong> une part
+  importante des sous-traitants maltais de finition opère <strong>sous le seuil de 35 000 €</strong> et
+  ne facture légitimement pas de TVA. Sur 285 000 € de main-d'œuvre, cela représente jusqu'à
+  <strong>51 300 € d'économie disponible uniquement sur la voie maltaise</strong>. Je ne l'avais pas
+  mentionné. <em>Attention : ne budgétez pas de travail non facturé — sur un chantier de cette taille,
+  avec déclaration BCA, assurance et revente à la clé, cela vous priverait de tout recours.</em></p>
+</div>
+
+<div class="callout ok">
+  <div class="t">Il n'y a pas de taux réduit à espérer</div>
+  <p style="margin-bottom:0">À Malte, le taux réduit de 5 % couvre l'électricité, la confiserie, les
+  accessoires médicaux, les imprimés et les réparations mineures de vélos, chaussures, vêtements et linge
+  de maison ; le 7 % l'hébergement ; le 12 % certains services financiers et la plaisance.
+  <strong>Rien sur l'immobilier bâti.</strong> <em>Avertissement :</em> les moteurs de recherche renvoient
+  massivement des résultats <strong>chypriotes</strong> sur cette question — Chypre a bien un taux réduit
+  de 5 % pour la rénovation de logements privés. Ne confondez pas : ce n'est pas le droit maltais.</p>
+</div>
+
+<!-- ═══════════════ 5 ═══════════════ -->
+<h2 id="s5"><span class="num">5</span>Le vrai coût — calculateur</h2>
+<p class="lede">Recalez les hypothèses vous-même. Les valeurs par défaut sont celles du scénario que vous
+envisagiez, avec les corrections de la contre-expertise.</p>
+
+<div class="calc">
+  <h3 style="margin-bottom:14px">Équipe italienne détachée — coût complet</h3>
+  <div class="row"><div class="hdr l">Paramètre</div><div class="hdr">valeur</div><div class="hdr">unité</div></div>
+  <div class="row"><div class="name">Nombre d'ouvriers</div><input id="n" type="number" value="9" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">pers.</div></div>
+  <div class="row"><div class="name">Durée<small>⚠ au-delà de 6 mois : établissement stable</small></div><input id="m" type="number" value="6" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">mois</div></div>
+  <div class="row"><div class="name">Coût horaire entreprise Sicile<small>operaio comune 26–29 · specializzato 30–33</small></div><input id="th" type="number" value="30" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">€/h</div></div>
+  <div class="row"><div class="name">Heures par mois et par ouvrier</div><input id="hm" type="number" value="176" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">h</div></div>
+  <div class="row"><div class="name">Per diem / trasferta<small>exonéré jusqu'à 25,82 €/j si repas ET logement fournis</small></div><input id="pd" type="number" value="30" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">€/jour</div></div>
+  <div class="row"><div class="name">Logement à Malte<small>2–3 ch. à Mosta/Naxxar : 1 000–1 400 €/mois</small></div><input id="lg" type="number" value="2400" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">€/mois</div></div>
+  <div class="row"><div class="name">Rotations ferry + acheminement<small>Virtu Pozzallo–La Valette, A/R ~130–150 €</small></div><input id="rot" type="number" value="180" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">€/pers./mois</div></div>
+  <div class="row"><div class="name">Véhicules, carburant, assurance</div><input id="veh" type="number" value="1700" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">€/mois</div></div>
+  <div class="row"><div class="name">Structure locale<small>chef de chantier, RC/TRC, comptable, TVA, déclarations</small></div><input id="str" type="number" value="1500" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">€/mois</div></div>
+  <div class="row"><div class="name">Non-récurrents<small>fret outillage A/R, immatriculation TVA MT, A1, conseil juridique, cautions</small></div><input id="nr" type="number" value="11900" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">€</div></div>
+  <div class="row"><div class="name">Marge de l'entreprise italienne</div><input id="mg" type="number" value="20" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">%</div></div>
+  <hr style="margin:16px 0">
+  <div class="row"><div class="name"><strong>Comparaison :</strong> coût horaire sous-traité maltais<small>corrigé : 30–40 €/h — le « 22–30 » de ma première analyse n'était pas sourcé</small></div><input id="mt" type="number" value="35" oninput="c()"><div class="small" style="text-align:right;padding-top:8px">€/h</div></div>
+
+  <div class="calcout">
+    <div class="line"><span>Heures livrées</span><span id="oH">—</span></div>
+    <div class="line"><span>Coût du travail (Sicile)</span><span id="oT">—</span></div>
+    <div class="line"><span>Logistique expatriée (per diem, logement, rotations, véhicules, structure)</span><span id="oL">—</span></div>
+    <div class="line"><span>Non-récurrents</span><span id="oN">—</span></div>
+    <div class="line"><span><strong>Coût de revient</strong></span><span id="oR">—</span></div>
+    <div class="line"><span>Marge entreprise</span><span id="oM">—</span></div>
+    <div class="line big"><span>ÉQUIPE ITALIENNE — HT</span><span id="oI">—</span></div>
+    <div class="line"><span class="small">soit, par heure livrée</span><span id="oPH">—</span></div>
+    <div class="line" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px"><span><strong>Même volume, corps d'état maltais — HT</strong></span><span id="oMT">—</span></div>
+    <div class="line res"><span id="oLbl">Écart</span><span id="oD">—</span></div>
+    <div class="line"><span class="small">TVA maltaise 18 % — s'applique aux DEUX options, donc neutre dans la comparaison</span><span class="small" id="oV">—</span></div>
+  </div>
+</div>
+
+<div class="callout warn">
+  <div class="t">Ce que ce calcul ne dit pas</div>
+  <p style="margin-bottom:0">Il compare de la <strong>main-d'œuvre à main-d'œuvre</strong>, hors
+  fournitures. Ma première analyse commettait ici une faute lourde : elle opposait la main-d'œuvre
+  italienne (410–446 k€) à un « chantier maltais complet fournitures comprises » chiffré à
+  <strong>250–450 €/m²</strong> — un prix de <strong>finition standard d'appartement</strong>. Le vrai
+  repère maltais pour du haut de gamme est <strong>900–1 400 €/m² de finition</strong>, soit
+  <strong>810 000 à 1 260 000 € sur 900 m²</strong>. Face à ce chiffre, la main-d'œuvre italienne
+  représente 35 à 50 % du chantier — <strong>l'incidence normale de la main-d'œuvre. Il n'y a plus
+  d'anomalie.</strong></p>
+</div>
+
+<h3>Le coût du retard — l'autre moitié de l'équation</h3>
+<p>Mon analyse initiale attribuait <strong>zéro coût</strong> au scénario que vous redoutez. C'est
+précisément l'argument en faveur d'une équipe dédiée. Chiffrage d'un dérapage de 8 à 18 mois :</p>
+<div class="scroll"><table>
+<thead><tr><th>Poste</th><th>Hypothèse</th><th class="n">Coût</th></tr></thead>
+<tbody>
+<tr><td>Portage financier</td><td>1,5 M€ immobilisés × 4 %/an × 10/12</td><td class="n">50 000</td></tr>
+<tr><td>Logement de remplacement</td><td>2 500–4 000 €/mois × 10</td><td class="n">25 000 – 40 000</td></tr>
+<tr><td>Perit + Project Supervisor prolongés</td><td>1 000–2 000 €/mois × 10</td><td class="n">10 000 – 20 000</td></tr>
+<tr><td>Escalade des matériaux non commandés</td><td>400 k€ × 4 %/an × 10/12</td><td class="n">13 000</td></tr>
+<tr><td>Assurance, gardiennage, fluides</td><td>500 €/mois × 10</td><td class="n">5 000</td></tr>
+<tr class="total"><td>TOTAL QUANTIFIABLE</td><td>10 mois de retard</td><td class="n">103 000 – 128 000</td></tr>
+</tbody></table></div>
+
+<div class="callout info">
+  <div class="t">La conclusion honnête sur le prix</div>
+  <p style="margin-bottom:0">Le coût du retard est <strong>du même ordre de grandeur que la prime
+  italienne</strong>. Autrement dit : <strong>si l'équipe sicilienne tenait réellement le délai, elle
+  serait rentable.</strong> Toute la décision se joue donc sur cette question — pas sur le prix. Et c'est
+  précisément ce qu'on ne peut pas garantir contractuellement à Malte (voir §11).</p>
+</div>
+
+<!-- ═══════════════ 6 ═══════════════ -->
+<h2 id="s6"><span class="num">6</span>Le volume de travail réel — votre scénario est sous-dimensionné</h2>
+
+<p>9 ouvriers × 6 mois × 176 h = <strong>9 504 heures</strong> pour 906 m², soit
+<strong>10,5 h/m²</strong>. Or une finition haut de gamme complète (chapes, enduits, carrelage, MEP
+premier et second œuvre, menuiserie, peinture) demande <strong>15 à 25 h/m²</strong>.</p>
+
+<div class="grid">
+  <div class="stat warn"><div class="lbl">Besoin réel</div><div class="val">13 500–22 500 h</div>
+  <div class="note">900 m² × 15–25 h/m².</div></div>
+  <div class="stat bad"><div class="lbl">À 9 hommes</div><div class="val">8,5–14 mois</div>
+  <div class="note">→ <strong>franchit le seuil des 6 mois</strong>, déclenche l'établissement stable et
+  déborde sur la Skill Card 2027.</div></div>
+  <div class="stat ok"><div class="lbl">Pour tenir en 6 mois</div><div class="val">13–21 hommes</div>
+  <div class="note">Effectif à peu près doublé — logement, rotations et encadrement doublent avec.</div></div>
+</div>
+
+<div class="callout warn">
+  <div class="t">Une nuance de méthode, à mon propre détriment</div>
+  <p style="margin-bottom:0">J'avais présenté ce ratio comme un argument <em>contre</em> l'option
+  italienne. C'était une erreur de logique : <strong>15–25 h/m² est une propriété du bâtiment, pas de
+  l'équipe</strong>. Le côté maltais consomme exactement les mêmes heures. La correction est
+  <strong>neutre sur la comparaison</strong> — elle fait simplement monter les deux budgets de 40 à
+  100 %. Ce qu'elle change réellement, c'est autre chose, et c'est décisif : <strong>elle rend
+  arithmétiquement impossible de tenir sous les six mois à neuf hommes.</strong></p>
+</div>
+
+<!-- ═══════════════ 7 ═══════════════ -->
+<h2 id="s7"><span class="num">7</span>Cadre du détachement, pas à pas</h2>
+<p class="lede">Ce bloc est le seul du dossier qui n'ait été contesté sur aucun point par la
+contre-expertise. Si vous y allez, voici la séquence.</p>
+
+<ol class="steps">
+  <li><div class="when">préalable critique — avant tout</div>
+  <strong>Vérifier que le détachement est « authentique ».</strong> Le détachement suppose une
+  <strong>prestation de services</strong> exécutée par l'entreprise italienne <em>sous sa propre direction
+  et à ses risques</em>. Si elle se contente de vous « fournir des ouvriers » que vous dirigez, ce n'est
+  plus un détachement mais de la <strong>fourniture de main-d'œuvre</strong> : cela relève des
+  <em>Employment Agencies Regulations</em> (en vigueur depuis le 1<sup>er</sup> avril 2024) et exige une
+  <strong>licence DIER + une garantie de 20 000 €</strong>.
+  <div class="callout bad" style="margin:12px 0 0"><div class="t">C'est le piège n° 1, et il vise
+  directement votre formulation</div><p style="margin-bottom:0">Vous dites vouloir « <em>mon</em> équipe
+  de 9 hommes à plein temps <em>pour moi</em> ». <strong>C'est littéralement la définition de la
+  fourniture de main-d'œuvre.</strong> Vous ne devez <strong>jamais donner d'ordre direct</strong> aux
+  ouvriers : tout passe par le chef de chantier de l'entreprise italienne, par écrit.</p></div></li>
+
+  <li><div class="when">J−45 · Italie</div>
+  <strong>Obtenir les formulaires A1 auprès de l'INPS</strong>, un par salarié, <strong>avant le
+  départ</strong>. Demande télématique par l'employeur sur inps.it. L'A1 est remis au salarié et doit être
+  disponible sur le chantier. Sans A1, Malte peut réclamer les cotisations maltaises.</li>
+
+  <li><div class="when">J−30 · Malte — aucun rattrapage possible</div>
+  <strong>Notification préalable au DIER</strong> (Department of Industrial and Employment Relations) via
+  le guichet unique <strong>postedworkersmalta.gov.mt</strong>. <strong>Avant</strong> le début du
+  détachement : <strong>aucun délai de grâce, aucune régularisation a posteriori</strong>. Contenu :
+  identité du prestataire, adresse du lieu de travail habituel dans le pays d'origine, nombre
+  prévisionnel de travailleurs détachés.</li>
+
+  <li><div class="when">J−30</div>
+  <strong>Désigner une personne de contact à Malte.</strong> Obligatoire. Elle n'a
+  <strong>pas besoin d'être physiquement présente</strong>, mais doit être joignable sur demande du DIER.
+  En pratique : votre Perit ou votre comptable maltais.</li>
+
+  <li><div class="when">J−30 · votre responsabilité, pas celle du contractant</div>
+  <strong>Notification OHSA du chantier.</strong> Obligatoire si les travaux dépassent 30 jours ouvrables
+  ET 20 travailleurs simultanés, <strong>OU</strong> si le volume dépasse <strong>500
+  personnes-jours</strong> — les deux branches sont alternatives. Votre chantier :
+  9 × 6 × 22 ≈ <strong>1 190 personnes-jours</strong>. <strong>Obligatoire, au moins 4 semaines avant le
+  démarrage.</strong></li>
+
+  <li><div class="when">avant la première facture</div>
+  <strong>Immatriculation TVA maltaise</strong> de l'entreprise italienne. Aucun seuil pour les
+  non-résidents. Exigez contractuellement un <strong>numéro de TVA maltais valide avant tout
+  paiement</strong>.</li>
+
+  <li><div class="when">pendant toute la durée</div>
+  <strong>Classeur documentaire en anglais sur le chantier</strong> : contrats de travail, fiches de paie,
+  feuilles de temps, preuves de paiement des salaires, <strong>traduits en anglais</strong>, plus une
+  copie de la notification conservée sur le lieu de travail pour les inspecteurs du DIER.</li>
+
+  <li><div class="when">suivi continu</div>
+  <strong>Compteur des 12 mois.</strong> La durée est <strong>cumulée</strong> : même tâche, même lieu,
+  plusieurs travailleurs de la même entreprise, décomptée depuis le premier détachement.
+  <strong>Les rotations d'équipes ne remettent pas le compteur à zéro.</strong> Au-delà de 12 mois, tout
+  le droit du travail maltais s'applique (sauf licenciement et retraite professionnelle) ; extension à
+  18 mois possible sur notification motivée.</li>
+</ol>
+
+<h3>Le plancher salarial maltais — un point en votre faveur</h3>
+<p>Les conditions offertes aux détachés ne peuvent être inférieures aux minima maltais. Or ces minima sont
+bas :</p>
+<div class="scroll"><table>
+<tbody>
+<tr><td>Salaire minimum national (≥ 18 ans)</td><td class="n">229,44 €/semaine</td><td class="small">≈ 5,74 €/h</td></tr>
+<tr><td>Bonus statutaires</td><td class="n">2 × 135,10 €</td><td class="small">fin juin et décembre</td></tr>
+<tr><td>Weekly allowances</td><td class="n">2 × 121,16 €</td><td class="small">mars et septembre</td></tr>
+<tr><td>COLA 2026</td><td class="n">4,66 €/semaine</td><td></td></tr>
+</tbody></table></div>
+<p><strong>Le CCNL Edilizia italien est très au-dessus. Le « noyau dur » maltais n'ajoutera donc aucun coût
+salarial.</strong> Le surcoût du détachement est <strong>logistique</strong>, pas salarial — c'est
+important à comprendre pour négocier.</p>
+
+<div class="callout warn">
+  <div class="t">Réserve non levée</div>
+  <p style="margin-bottom:0">Il existe une trentaine de <strong>Wage Regulation Orders</strong> sectoriels
+  à Malte, <strong>dont un pour la construction</strong>. Ses taux et primes 2026 (majorations d'heures
+  supplémentaires, travail en hauteur, indemnités) <strong>n'ont pas pu être vérifiés</strong> et
+  s'appliquent aux détachés. Demandez la <em>DIER Resource Pack</em> annuelle. Risque : rappel salarial.</p>
+</div>
+
+<p class="small">Sanctions en cas de manquement aux règles de détachement : amendes de <strong>117 à
+1 165 €</strong>, recouvrables en Italie via le mécanisme d'exécution transfrontalière.
+<strong>Le vrai risque n'est pas l'amende</strong> — c'est l'arrêt de chantier, le contrôle OHSA et la
+requalification.</p>
+
+<!-- ═══════════════ 8 ═══════════════ -->
+<h2 id="s8"><span class="num">8</span>Sécurité — les obligations qui pèsent sur VOUS</h2>
+
+<p>Cadre : <strong>LN 88 de 2018</strong> (santé et sécurité dans la construction), sous la loi-cadre
+<strong>Health and Safety at Work Act, Act XXXIII de 2024, Chapitre 646</strong>.</p>
+
+<div class="callout bad">
+  <div class="t">Ces obligations sont celles du CLIENT — elles ne sont pas délégables par défaut</div>
+  <ul style="margin-bottom:0">
+    <li><strong>Nommer un Project Supervisor</strong> pour la conception et l'exécution. Article 3(1) :
+    <em>« it shall be the duty of a client to appoint, in respect of every project, a project supervisor
+    for the design and execution stage »</em>. Formulaire en ligne dédié sur ohsa.mt.
+    <strong>Ce n'est pas délégable au contractant italien sans acte formel.</strong></li>
+    <li><strong>Tenir un Health &amp; Safety File</strong> contenant toute l'information pertinente pour
+    les travaux ultérieurs.</li>
+    <li><strong>Traiter les rapports du Project Supervisor</strong> et veiller à ce que les mesures soient
+    prises promptement. Le Project Supervisor a le <strong>pouvoir d'arrêter les travaux</strong>.</li>
+    <li><strong>Faire notifier le chantier à l'OHSA</strong> — voir §7, étape 5. Votre chantier dépasse
+    largement le seuil.</li>
+  </ul>
+</div>
+
+<p>S'y ajoute le <strong>régime BCA pendant les travaux</strong> : Commencement Notice, désignation d'un
+<strong>Site Technical Officer</strong>, method statement, <strong>assurance responsabilité civile
+tiers</strong>. Non optionnel.</p>
+
+<p class="small">Côté urbanisme : les travaux de finition intérieure relèvent en principe d'une
+<em>Development Notification Order</em> (procédure allégée, réponse sous 30 jours), avec dépôt d'un
+<em>Commencement Notice</em>. Toute modification structurelle bascule en demande complète, portée par le
+Perit. <strong>Attention : les piscines ont été retirées des exemptions DNO</strong> — une piscine exige
+une demande PA complète.</p>
+
+<!-- ═══════════════ 9 ═══════════════ -->
+<h2 id="s9"><span class="num">9</span>Est-ce que ça se fait ? Les précédents</h2>
+
+<div class="scroll"><table>
+<thead><tr><th>Donnée</th><th class="n">Valeur</th><th>Lecture</th></tr></thead>
+<tbody>
+<tr><td>Étrangers dans la population active maltaise (juin 2025)</td><td class="n">38,6 %</td><td>87 624 ressortissants de pays tiers, 41 150 UE, 333 526 Maltais</td></tr>
+<tr><td>Dépendance de la construction à la main-d'œuvre migrante</td><td class="n">~30 %</td><td><strong>Le BTP maltais est déjà massivement étranger</strong></td></tr>
+<tr><td>Taux de vacance d'emploi, construction (sept. 2025)</td><td class="n">4,10 %</td><td>Marché tendu</td></tr>
+<tr><td>Permis de construire, Q3 2025</td><td class="n">+110,3 %</td><td>Surchauffe de la demande de main-d'œuvre</td></tr>
+<tr><td>A1 émis par Malte, toutes périodes</td><td class="n">&lt; 10 000</td><td>Malte est un petit émetteur ; les détachés <em>entrants</em> viennent à plus de 90 % de l'UE-15</td></tr>
+<tr><td>A1 émis par l'Italie (2021)</td><td class="n">&gt; 200 000</td><td>L'Italie <strong>est</strong> un grand détacheur, spécialisé dans la construction</td></tr>
+</tbody></table></div>
+
+<p><strong>Lecture décisive :</strong> le BTP maltais importe massivement sa main-d'œuvre — mais par
+<strong>embauche locale de ressortissants de pays tiers</strong>, pas par détachement UE. C'est le modèle
+économique dominant, avec des charges patronales maltaises de <strong>10 % plafonnées à 55,93 €/semaine</strong>.
+Une entreprise italienne détachant des Siciliens entre en concurrence frontale avec ce modèle — et perd
+sur le prix.</p>
+
+<div class="callout bad">
+  <div class="t">Le signal le plus fort, et il est silencieux</div>
+  <p><strong>Aucun cas documenté</strong> d'entreprise italienne ou sicilienne opérant un chantier
+  résidentiel privé à Malte n'a été trouvé. Les annuaires du BTP maltais ne remontent que des acteurs
+  maltais. Cela ne veut pas dire que c'est interdit — cela veut dire que <strong>vous seriez le cas
+  n° 1</strong> : pas de playbook, pas d'écosystème de fournisseurs, aucune référence à appeler, aucun
+  précédent auquel se raccrocher en cas de litige.</p>
+  <p style="margin-bottom:0"><strong>Et un risque de sélection adverse.</strong> Une entreprise sicilienne
+  structurée, capable de mobiliser 9 hommes pendant 6 mois hors d'Italie, avec un carnet plein,
+  <strong>n'a aucun intérêt économique à traverser la mer</strong>. Vous attirerez donc précisément
+  <strong>les entreprises qui n'ont pas de travail chez elles</strong> — l'inverse exact de ce que vous
+  cherchez.</p>
+</div>
+
+<div class="callout ok">
+  <div class="t">En revanche, votre plainte de fond est fondée</div>
+  <p style="margin-bottom:0">« Les contractants maltais jonglent souvent entre plusieurs chantiers ; ce
+  qui est annoncé comme un travail de six mois se transforme fréquemment en douze mois ou plus. » C'est
+  documenté, ce n'est pas un préjugé. Mon premier rapport le psychologisait — c'était une erreur. Le
+  problème existe. La question est seulement de savoir si importer des Siciliens le résout.</p>
+</div>
+
+<!-- ═══════════════ 10 ═══════════════ -->
+<h2 id="s10"><span class="num">10</span>Les quatre montages comparés</h2>
+
+<div class="scroll"><table>
+<thead><tr><th>Critère</th><th>A — Détachement classique</th><th>B — Embauche directe d'Italiens sous contrat maltais</th><th>C — Entreprise maltaise, équipe italienne nommée</th><th>D — Entreprise italienne « main contractor »</th></tr></thead>
+<tbody>
+<tr><td><strong>Base juridique</strong></td><td>Libre prestation de services (art. 56 TFUE) + dir. 96/71</td><td>Libre circulation des travailleurs (art. 45 TFUE)</td><td>Contrat d'entreprise de droit maltais</td><td>Idem A, rôle élargi</td></tr>
+<tr><td><strong>Formalités</strong></td><td>A1 + DIER + contact + docs EN + TVA MT</td><td>Jobsplus Engagement Form, n° sécurité sociale, n° fiscal, FSS/PAYE maltais</td><td><strong>Aucune</strong> — le contractant porte tout</td><td>A + licence BCA + TVA MT + risque ES</td></tr>
+<tr><td><strong>Établissement stable</strong></td><td>⚠ au-delà de 6 mois</td><td>Sans objet</td><td><strong>Sans objet</strong></td><td>⚠ élevé</td></tr>
+<tr><td><strong>Licence BCA</strong></td><td>⚠ probablement requise</td><td>Portée par vous comme employeur</td><td><strong>Détenue par le contractant</strong></td><td>Requise</td></tr>
+<tr><td><strong>Skill Card 2027</strong></td><td>⚠ homologation MQRIC de 9 qualifications</td><td>⚠ idem</td><td><strong>Portée par le contractant</strong></td><td>⚠ idem</td></tr>
+<tr><td><strong>Votre contrôle</strong></td><td>Faible en droit — <strong>vous ne DEVEZ pas diriger</strong></td><td>Total — mais vous devenez employeur</td><td>Via le contrat (équipe nommée)</td><td>Faible, mais responsabilité unique</td></tr>
+<tr><td><strong>Qui porte les malfaçons</strong></td><td>L'entreprise italienne — <strong>recours difficile depuis Malte</strong></td><td><strong>Personne : vous</strong></td><td>Le contractant maltais, <strong>saisissable localement</strong></td><td>Le contractant</td></tr>
+<tr><td><strong>Délai de mise en place</strong></td><td>4–8 semaines</td><td>2–4 semaines</td><td>1–3 semaines</td><td>8–16 semaines</td></tr>
+<tr><td><strong>Verdict</strong></td><td><span class="tag t-warn">réservé aux lots premium, &lt; 5 mois</span></td><td><span class="tag t-bad">vous devenez employeur</span></td><td><span class="tag t-ok">recommandé</span></td><td><span class="tag t-bad">exposition maximale</span></td></tr>
+</tbody></table></div>
+
+<div class="callout ok">
+  <div class="t">Le montage C — celui que personne ne vous a proposé</div>
+  <p>38,6 % de la population active maltaise est étrangère, et le BTP dépend à ~30 % de la main-d'œuvre
+  migrante. <strong>Il y a déjà des artisans italiens et siciliens à Malte, employés localement.</strong></p>
+  <p>Contracter avec une <strong>entreprise maltaise licenciée BCA, en nommant les compagnons et le chef
+  d'équipe dans le contrat</strong>, vous donne exactement votre objectif réel — une équipe dédiée,
+  qualifiée, italophone, affectée à un seul chantier — avec <strong>zéro exposition</strong> : pas de
+  détachement, pas d'établissement stable, pas de TVA étrangère, pas de licence à obtenir, pas de Skill
+  Card à homologuer, et un contractant <strong>saisissable devant un tribunal maltais</strong>.</p>
+  <p style="margin-bottom:0">Même logique pour les équipes d'Europe de l'Est déjà présentes.
+  <strong>La question à poser à chaque contractant turnkey maltais tient en une phrase : « qui, dans vos
+  équipes, est italien — et pouvez-vous les nommer au contrat ? »</strong></p>
+</div>
+
+<!-- ═══════════════ 11 ═══════════════ -->
+<h2 id="s11"><span class="num">11</span>Ce qui vous protège vraiment — et ce qui ne marche pas</h2>
+
+<div class="callout bad">
+  <div class="t">Les pénalités de retard ne vous protégeront pas à Malte</div>
+  <p>Ma première analyse recommandait une <em>manning clause</em> nominative et des
+  <em>liquidated damages</em> par jalon comme protection principale. La contre-expertise a démoli cette
+  thèse :</p>
+  <ul>
+    <li>L'<strong>article 1122 du Code civil maltais</strong> autorise le juge à
+    <strong>réduire</strong> la pénalité contractuelle.</li>
+    <li>L'arrêt <em>Michael Pace vs Richard Micallef</em> (Cour d'appel, 2004) a
+    <strong>annulé une pénalité intégrale</strong> au motif que 99 % des travaux étaient exécutés.</li>
+    <li>Délais judiciaires maltais : <strong>2 à 4 ans en première instance</strong>,
+    <strong>1 119 jours en appel</strong> — contre une moyenne européenne de 141 jours.</li>
+  </ul>
+  <p style="margin-bottom:0">Une pénalité de retard est donc <strong>judiciairement réductible et
+  pratiquement inexécutable dans un délai utile</strong>. Elle sert à la négociation, pas au recouvrement.
+  Et contre une SRL sicilienne sans actifs à Malte, c'est encore plus illusoire.</p>
+</div>
+
+<div class="callout ok">
+  <div class="t">Les cinq mécanismes qui fonctionnent — parce qu'ils ne passent pas par un juge</div>
+  <ol>
+    <li><strong>Retenue de garantie de 5 %</strong> prélevée sur <em>chaque</em> situation. 2,5 % libérés
+    à la réception, 2,5 % à la fin de la garantie de 12 mois.</li>
+    <li><strong>Performance bond bancaire à première demande, 10 %</strong>, émis par une
+    <strong>banque maltaise</strong>. Appelable sans juge. <strong>Non négociable si le contractant est
+    étranger.</strong></li>
+    <li><strong>Paiement contre certification</strong> d'un Quantity Surveyor indépendant, adossé à
+    l'avancement physique constaté — <strong>jamais au calendrier</strong>. Jamais d'avance au-delà de
+    10 %.</li>
+    <li><strong>Pièces témoins validées</strong> (un mur, un sol, une salle de bains) servant de référence
+    contractuelle de qualité. Meilleur outil contre les malfaçons de finition qu'un cahier des charges
+    verbeux.</li>
+    <li><strong>Clause de substitution</strong> : si l'effectif garanti n'est pas tenu X jours
+    consécutifs, vous faites exécuter par un tiers <strong>aux frais du contractant, prélevés sur la
+    retenue</strong>.</li>
+  </ol>
+  <p style="margin-top:14px;margin-bottom:0"><strong>Et le mécanisme le plus puissant n'est pas juridique,
+  il est économique : faire de votre chantier le plus rentable de son carnet.</strong> C'est la seule
+  chose au monde qui garantisse qu'un contractant y envoie ses hommes le lundi matin. Une équipe
+  sicilienne sans cet alignement fera exactement ce que font les Maltais que vous fuyez — parce qu'elle
+  aussi aura d'autres chantiers en Sicile.</p>
+</div>
+
+<!-- ═══════════════ 12 ═══════════════ -->
+<h2 id="s12"><span class="num">12</span>Recommandation opérationnelle</h2>
+
+<h3>L'architecture cible</h3>
+<ol class="steps">
+  <li><div class="when">semaine 1</div><strong>Perit maltais indépendant</strong> — pas celui du
+  promoteur vendeur. Pivot légal et technique. Le désigner aussi <strong>Project Supervisor</strong>
+  (obligation qui pèse sur vous) et personne de contact au sens du détachement.</li>
+  <li><div class="when">semaines 1–2</div><strong>Quantity Surveyor indépendant</strong> pour les métrés,
+  le budget, le contrôle des situations et les avenants. Le meilleur euro du projet.</li>
+  <li><div class="when">semaines 2–8</div><strong>Cahier des charges et métré complets AVANT toute
+  consultation.</strong> Sans cela, aucun forfait n'est possible et tous les dérapages sont
+  contractuellement légitimes. C'est aussi le QS qui chiffrera les heures réelles et donc l'effectif —
+  ne validez pas un effectif avant.</li>
+  <li><div class="when">semaine 2 — en parallèle, gratuit</div><strong>Écrire à la BCA</strong> pour faire
+  confirmer par écrit le périmètre de la licence sur des travaux de finition, et la situation d'une
+  entreprise établie dans un autre État membre. <em>Question exacte ci-dessous.</em></li>
+  <li><div class="when">semaine 2 — en parallèle</div><strong>Faire lire l'article 5 de la convention
+  Italie–Malte par un fiscaliste</strong> et confirmer le seuil de six mois ainsi que ses modalités de
+  calcul. Quelques centaines d'euros contre une exposition de 90 000 à 150 000 €.</li>
+  <li><div class="when">semaines 8–12</div><strong>Consulter 3 à 4 contractants turnkey maltais</strong>
+  en forfait <strong>+ 1 à 2 entreprises siciliennes</strong>, sur le <strong>même</strong> cahier des
+  charges. Comparer sur pièces, pas sur intuition. <strong>Demander à chaque maltais qui, dans ses
+  équipes, est italien.</strong></li>
+  <li><div class="when">phase 2 — si vous y allez</div><strong>Réserver l'italien aux lots à forte valeur
+  ajoutée</strong> : marbre, pierre, stuc et enduits décoratifs, menuiserie et cuisine sur mesure,
+  ferronnerie. <strong>3 à 5 compagnons, moins de 5 mois calendaires, hard stop contractuel</strong>, en
+  sous-traitance d'un contractant maltais titulaire de la licence. Sous ce format : pas d'établissement
+  stable, exonération des 183 jours préservée, pas de licence propre à obtenir, pas de Skill Card si
+  terminé avant le 1<sup>er</sup> janvier 2027.</li>
+  <li><div class="when">toujours</div><strong>Lots réglementés maltais :</strong> certification électrique
+  par un titulaire d'Authorisation REWS A ou B, et tout ce qui touche à la structure (licence BCA).</li>
+  <li><div class="when">à la signature</div><strong>Contrat forfaitaire</strong> avec équipe nommée,
+  retenue 5 %, <strong>performance bond bancaire maltais 10 %</strong>, paiement contre certification du
+  QS, pièces témoins, clause de substitution. <strong>Pas de cost-plus. Jamais.</strong></li>
+</ol>
+
+<h3>Les trois questions à poser par écrit, avant tout engagement</h3>
+<div class="callout info">
+  <div class="t">À la BCA</div>
+  <p style="margin-bottom:0">« Les travaux de <strong>finition intérieure</strong> — chapes, enduits,
+  carrelage, plaques de plâtre, menuiserie, peinture — sur une villa existante entrent-ils dans le champ
+  de la licence de contractant au titre de la <strong>LN 166 de 2023</strong> ? Une entreprise établie
+  dans un autre État membre de l'UE doit-elle en détenir une pour ces travaux ? Quelles sont les classes
+  de licence et le barème de frais ? »</p>
+</div>
+<div class="callout info">
+  <div class="t">À un fiscaliste italo-maltais</div>
+  <p style="margin-bottom:0">« Confirmez-moi le seuil de la clause chantier de l'<strong>article 5 de la
+  convention fiscale Italie–Malte de 1981</strong> : six mois ou douze ? Comment se décompte-t-il
+  exactement — travaux préparatoires inclus ? contrats successifs agrégés ? Et si un établissement stable
+  naît, quelles sont précisément les conséquences pour les salariés au regard de l'article 15(2)(c) ? »</p>
+</div>
+<div class="callout info">
+  <div class="t">Au REWS et à Enemalta</div>
+  <p style="margin-bottom:0">« Une installation électrique <strong>posée</strong> par un installateur
+  italien exerçant à titre temporaire et occasionnel sous la S.L. 545.24, puis
+  <strong>certifiée</strong> par un titulaire d'Authorisation B maltais, est-elle recevable pour la mise
+  en service ? <strong>Oui ou non</strong>, et sous quelles conditions ? »</p>
+</div>
+
+<!-- ═══════════════ 13 ═══════════════ -->
+<h2 id="s13"><span class="num">13</span>Registre des risques</h2>
+
+<div class="scroll"><table>
+<thead><tr><th>#</th><th>Risque</th><th>Gravité</th><th>Parade</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><strong>Établissement stable au-delà de 6 mois</strong> → IS maltais 35 % + chute de l'exonération des 183 jours pour les 9 ouvriers</td><td><span class="tag t-bad">critique</span></td><td>Hard stop contractuel à 4–5 mois. Faire lire l'art. 5 avant signature. Si le chantier doit durer, ne pas détacher.</td></tr>
+<tr><td>2</td><td><strong>Licence BCA</strong> — la finition n'est pas exclue du champ</td><td><span class="tag t-bad">critique</span></td><td>Confirmation écrite de la BCA avant de contracter. À défaut, sous-traiter à un licencié maltais.</td></tr>
+<tr><td>3</td><td><strong>Requalification en fourniture de main-d'œuvre</strong> si vous dirigez les ouvriers → licence DIER + garantie 20 000 €</td><td><span class="tag t-bad">élevé</span></td><td>Jamais d'ordre direct. Tout passe par le chef de chantier italien, par écrit. Reformuler votre demande auprès des entreprises.</td></tr>
+<tr><td>4</td><td><strong>Sous-dimensionnement du planning</strong> — 10,5 h/m² prévues contre 15–25 réelles</td><td><span class="tag t-bad">élevé</span></td><td>Faire chiffrer les heures par le QS <em>avant</em> de valider l'effectif. Un dérapage déclenche les risques 1 et 6 en cascade.</td></tr>
+<tr><td>5</td><td><strong>Notification DIER tardive</strong> — aucun rattrapage possible</td><td><span class="tag t-warn">moyen</span></td><td>Déposer sur postedworkersmalta.gov.mt avant l'embarquement du premier ouvrier.</td></tr>
+<tr><td>6</td><td><strong>Skill Card au 1<sup>er</sup> janvier 2027</strong> — homologation MQRIC de qualifications italiennes</td><td><span class="tag t-warn">moyen</span></td><td>Terminer avant. Sinon lancer le vetting MQRIC dès maintenant (plusieurs mois).</td></tr>
+<tr><td>7</td><td><strong>Notification OHSA omise</strong> — ~1 190 personnes-jours contre un seuil de 500</td><td><span class="tag t-warn">moyen</span></td><td>4 semaines avant le démarrage. Responsabilité du Project Supervisor, que <strong>vous</strong> devez avoir nommé.</td></tr>
+<tr><td>8</td><td><strong>Wage Regulation Order Construction</strong> — taux et primes 2026 non vérifiés, applicables aux détachés</td><td><span class="tag t-warn">moyen</span></td><td>Demander la DIER Resource Pack 2026. Risque de rappel salarial.</td></tr>
+<tr><td>9</td><td><strong>Recouvrement en cas de litige</strong> — poursuivre une SRL sicilienne depuis Malte est long et coûteux ; elle peut disparaître</td><td><span class="tag t-warn">moyen</span></td><td>Performance bond bancaire maltais à première demande + retenue + droit maltais et juridiction maltaise.</td></tr>
+<tr><td>10</td><td><strong>Snagging transfrontalier</strong> — chaque reprise après réception coûte ferry, hôtel et jours perdus</td><td><span class="tag t-warn">moyen</span></td><td>Provisionner explicitement. Retenue de garantie suffisante pour financer une reprise par un tiers local.</td></tr>
+<tr><td>11</td><td><strong>Garantie décennale</strong> — régime applicable à un ouvrage maltais réalisé par une entreprise italienne incertain</td><td><span class="tag t-warn">moyen</span></td><td>Faire trancher par l'avocat maltais avant signature. Exiger une assurance couvrant expressément Malte.</td></tr>
+<tr><td>12</td><td><strong>Logement</strong> — entasser 9 ouvriers dans 2 appartements peut heurter le bail, la copropriété et les conditions de logement du noyau dur maltais</td><td><span class="tag t-warn">moyen</span></td><td>Baux explicites sur l'occupation. Ne pas sous-déclarer le nombre d'occupants.</td></tr>
+<tr><td>13</td><td><strong>Sélection adverse</strong> — vous attirerez les entreprises siciliennes sans carnet</td><td><span class="tag t-warn">moyen</span></td><td>Exiger des références vérifiables de chantiers <strong>hors d'Italie</strong>, pas seulement en Sicile.</td></tr>
+<tr><td>14</td><td><strong>Illusion d'économie</strong></td><td><span class="tag t-neu">à savoir</span></td><td>Il n'y a pas d'économie franche. Toute proposition commerciale annonçant le contraire est un signal d'alarme.</td></tr>
+</tbody></table></div>
+
+<div class="callout ok">
+  <div class="t">Le levier que vous cherchez est peut-être ailleurs</div>
+  <p style="margin-bottom:0">Si votre objectif est de <strong>faire jouer votre lien avec la Sicile</strong>,
+  le gisement le plus important n'est pas la main-d'œuvre : c'est <strong>l'achat des matériaux</strong>.
+  Malte importe déjà 29 % de sa céramique d'Italie, et chaque marge d'importateur maltais s'empile sur le
+  prix sicilien. Sur un package de 400 000 à 600 000 € (marbre, pierre, carrelage, menuiserie,
+  sanitaire), la suppression de la marge de distribution représente 100 000 à 240 000 €, dont il faut
+  retrancher 20 000 à 35 000 € de fret ro-ro : <strong>80 000 à 205 000 € d'économie nette</strong>.
+  Droits de douane nuls en marché unique. <strong>À faire porter par votre contractant maltais
+  immatriculé</strong>, pour un traitement propre de l'acquisition intracommunautaire — un particulier
+  achetant en Italie paierait 22 % de TVA à l'origine.</p>
+</div>
+
+<!-- ═══════════════ 14 ═══════════════ -->
+<h2 id="s14"><span class="num">14</span>Sources</h2>
+<p class="lede">Aucune n'a pu être ouverte directement — toutes proviennent d'extraits de moteur de
+recherche. Listées pour vérification.</p>
+
+<h4>Détachement et droit du travail</h4>
+<p class="src">postedworkersmalta.gov.mt (portail officiel DIER, FAQ, handbook) · dier.gov.mt (posting of
+workers ; sectoral minimum conditions ; national minimum wage) · ela.europa.eu (fiche bonne pratique du
+portail maltais) · S.L. 452.82 <em>Posting of Workers in Malta Regulations 2016</em> · LN 262 de 2020 ·
+eur-lex.europa.eu (directive (UE) 2018/957) · gvzh.mt · bdo.com.mt · csbgroup.com · gtg.com.mt ·
+<em>Employment Agencies Regulations 2023/2024</em> (csbgroup.com, gvzh.mt, ccmalta.com) ·
+jobsplus.gov.mt · eures.com.mt · socialsecurity.gov.mt · inps.it, fiscomania.com, studiomiazzo.it
+(modello A1)</p>
+
+<h4>Fiscalité</h4>
+<p class="src"><strong>fbsmalta.com/docs/italy.pdf</strong> — convention fiscale Italie–Malte, article 5,
+seuil de six mois · mtca.gov.mt (foreign workers, règle des 183 jours ; VAT rates) ·
+taxsummaries.pwc.com/malta (corporate residence ; other taxes) · zampapartners.com (VAT on construction of
+immovable property) · pwc.com/mt (VAT implications on immovable property) · vatdesk.eu ·
+globalvatcompliance.com · invoicedataextraction.com (article 12 reverse charge) · commenda.io ·
+numeral.com · arlettipartners.com (permanent establishment from construction site) · avalara.com</p>
+
+<h4>Sécurité, licences, professions réglementées</h4>
+<p class="src">ohsa.mt/legislation · ohsa.mt/eforms/construction (nomination du Project Supervisor ; arrêt
+de travaux) · servizz.gov.mt (Construction Notification) · camilleripreziosi.com et advisory21.com.mt
+(Health and Safety at Work Act, Act XXXIII de 2024) · bca.gov.mt (régime de licence LN 166/2023 ; FAQ ;
+formulaire ; skill-cards) · bca.org.mt · maltabusinessweekly.com et maltatoday.com.mt (LN 166/2023) ·
+businessfirst.com.mt (licensing of contractors ; wiremen authorisation) · mtip.gov.mt (warrants
+d'architecte) · kamratalperiti.org (obtention du warrant ; DIR 01/18 ; CIR 01/26 Skill Card ; CIR 15/19) ·
+lexology.com (Q&amp;A construction regulation Malta) · rews.org.mt (authorised electrician) ·
+S.L. 545.24 <em>Electricity Installations Regulations</em> · pa.org.mt</p>
+
+<h4>Coûts et marché du travail</h4>
+<p class="src">checkyourtraders.com (contractor costs Malta 2026 ; electrician ; plumber) ·
+remax-malta.com (finishing a shell property in Malta) · freemalta.com (construction salary guide 2026) ·
+salaryexpert.com · maltasalarycalc.com (minimum wage 2026) · csbgroup.com et papilioservices.com
+(social security contributions 2026) · investropa.com (loyers Malte janvier 2026) · myrent.mt ·
+virtuferries.com, hubpymalta.com, ferriesonline.com (ferry Malte–Sicile) · fiscoinvestimenti.it
+(CCNL Edilizia 2026) · cantiericloud.com (costo orario operaio edile ; hausses 2026) ·
+<strong>lavoripubblici.it — Decreto Direttoriale n° 40 du 13/05/2026, qui remplace le D.M. n° 23 du
+26/03/2026</strong> · ediltecnico.it · fiscoetasse.com · consulentidellavoro-piga-riitano.it et tot.money
+(indennità di trasferta estero) · newsbook.com.mt et theshiftnews.com (part des étrangers dans la
+population active) · tradingeconomics.com (vacance d'emploi construction) · ec.europa.eu,
+labourinstitute.eu, hiva.kuleuven.be (rapports A1) · maltapropertybook.com (retours d'expérience
+rénovation) · volza.com (imports de céramique à Malte)</p>
+
+<h4>Contentieux et exécution</h4>
+<p class="src">gvzh.mt (penalty clauses and limitation of liability clauses) · maltatoday.com.mt
+(<em>penalty clause must be applied according to the principles of equity</em> — Pace vs Micallef,
+Cour d'appel 2004) · mondaq.com (litigation in Malta, délais judiciaires)</p>
+
+<hr>
+
+<div class="callout info">
+  <div class="t">Méthode</div>
+  <p style="margin-bottom:0">Ce document résulte d'un agent de recherche spécialisé, puis d'un
+  <strong>évaluateur adversarial</strong> chargé de détruire ses conclusions. La contre-expertise a
+  réfuté plusieurs affirmations structurantes : le blocage électrique présenté comme absolu, l'exemption
+  de licence BCA pour la finition, le prix maltais de référence, la prime de +55 à +110 %, et la
+  protection supposée des pénalités de retard. <strong>Les corrections sont conservées visibles plutôt
+  que réécrites en douce</strong> — savoir quels chiffres se sont effondrés vous dit lesquels des chiffres
+  restants méritent votre méfiance.</p>
+</div>
+
+<footer>
+  <p><strong>Ce document n'est ni un conseil juridique, ni un conseil fiscal.</strong> Il synthétise une
+  recherche documentaire réalisée sans accès aux sources primaires. Les trois points marqués
+  « bloquant » exigent une consultation payante — un avocat maltais et un <em>consulente del lavoro</em>
+  italien — avant tout engagement.</p>
+  <p>Étude générée le 28 juillet 2026.</p>
+</footer>
+
+</div>
+
+<script>
+const eur=n=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);
+const v=id=>parseFloat(document.getElementById(id).value)||0;
+function c(){
+  const n=v('n'),m=v('m'),th=v('th'),hm=v('hm');
+  const hours=n*m*hm;
+  const work=n*m*hm*th;
+  const days=22;
+  const logi=(v('pd')*days*n + v('lg') + v('rot')*n + v('veh') + v('str'))*m;
+  const nr=v('nr');
+  const rev=work+logi+nr;
+  const mg=rev*v('mg')/100;
+  const ital=rev+mg;
+  const malt=hours*v('mt');
+  const diff=ital-malt;
+  const pct=malt?((ital/malt-1)*100):0;
+
+  document.getElementById('oH').textContent=new Intl.NumberFormat('fr-FR').format(Math.round(hours))+' h';
+  document.getElementById('oT').textContent=eur(work);
+  document.getElementById('oL').textContent=eur(logi);
+  document.getElementById('oN').textContent=eur(nr);
+  document.getElementById('oR').textContent=eur(rev);
+  document.getElementById('oM').textContent=eur(mg);
+  document.getElementById('oI').textContent=eur(ital);
+  document.getElementById('oPH').textContent=hours?eur(ital/hours)+' / h':'—';
+  document.getElementById('oMT').textContent=eur(malt);
+  const lbl=document.getElementById('oLbl'), d=document.getElementById('oD');
+  lbl.textContent = diff>=0 ? 'Prime de l’option italienne' : 'Économie de l’option italienne';
+  d.textContent = eur(Math.abs(diff))+'  ('+(diff>=0?'+':'−')+Math.abs(pct).toFixed(0)+' %)';
+  d.style.color = diff>=0 ? 'var(--bad)' : 'var(--ok)';
+  document.getElementById('oV').textContent='ital. '+eur(ital*1.18)+' · malt. '+eur(malt*1.18);
+}
+c();
+</script>
