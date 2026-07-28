@@ -1,0 +1,1530 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dossier d'acquisition — Villa MH 3, Madliena / Naxxar (Malte)</title>
+
+<style>
+:root{
+  --bg:#faf9f7; --panel:#ffffff; --ink:#1a1a1a; --muted:#5f5c57; --line:#e2ded7;
+  --accent:#8a5a2b; --accent-soft:#f4ede4;
+  --ok:#1d6b3f; --ok-bg:#e8f4ec;
+  --warn:#8a6100; --warn-bg:#fdf3dd;
+  --bad:#9b2226; --bad-bg:#fbe9e9;
+  --neutral:#3b5570; --neutral-bg:#eaf0f6;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#14161a; --panel:#1c1f25; --ink:#eceae6; --muted:#a0a4ab; --line:#31363f;
+    --accent:#d5a15e; --accent-soft:#2a231a;
+    --ok:#6bcf95; --ok-bg:#16301f;
+    --warn:#e5b74d; --warn-bg:#33290f;
+    --bad:#f08a8a; --bad-bg:#361a1a;
+    --neutral:#8fb4d9; --neutral-bg:#1a2534;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14161a; --panel:#1c1f25; --ink:#eceae6; --muted:#a0a4ab; --line:#31363f;
+  --accent:#d5a15e; --accent-soft:#2a231a;
+  --ok:#6bcf95; --ok-bg:#16301f;
+  --warn:#e5b74d; --warn-bg:#33290f;
+  --bad:#f08a8a; --bad-bg:#361a1a;
+  --neutral:#8fb4d9; --neutral-bg:#1a2534;
+}
+:root[data-theme="light"]{
+  --bg:#faf9f7; --panel:#ffffff; --ink:#1a1a1a; --muted:#5f5c57; --line:#e2ded7;
+  --accent:#8a5a2b; --accent-soft:#f4ede4;
+  --ok:#1d6b3f; --ok-bg:#e8f4ec;
+  --warn:#8a6100; --warn-bg:#fdf3dd;
+  --bad:#9b2226; --bad-bg:#fbe9e9;
+  --neutral:#3b5570; --neutral-bg:#eaf0f6;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px 120px}
+
+/* ---------- header ---------- */
+header.hero{
+  border-bottom:1px solid var(--line); background:var(--panel);
+  padding:44px 0 34px; margin-bottom:34px;
+}
+header.hero .wrap{padding-bottom:0}
+.kicker{
+  font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--accent); font-weight:700; margin-bottom:10px;
+}
+h1{font-size:clamp(25px,4.4vw,40px);line-height:1.14;margin:0 0 14px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:17px;max-width:70ch;margin:0}
+.meta{
+  margin-top:22px;display:flex;flex-wrap:wrap;gap:8px 22px;
+  font-size:13px;color:var(--muted);
+}
+.meta b{color:var(--ink);font-weight:600}
+
+h2{
+  font-size:clamp(21px,3vw,28px); margin:56px 0 6px; letter-spacing:-.015em;
+  padding-top:14px; border-top:3px solid var(--ink); line-height:1.2;
+}
+h2 .num{color:var(--accent); font-variant-numeric:tabular-nums; margin-right:10px}
+h2 + .lede{color:var(--muted);margin:0 0 22px;font-size:16.5px;max-width:74ch}
+h3{font-size:19px;margin:34px 0 10px;letter-spacing:-.01em}
+h4{font-size:15.5px;margin:24px 0 8px;color:var(--accent);letter-spacing:.01em}
+p{margin:0 0 14px}
+ul,ol{margin:0 0 16px;padding-left:22px}
+li{margin-bottom:7px}
+a{color:var(--accent)}
+strong{font-weight:650}
+
+/* ---------- components ---------- */
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:20px 22px;margin:20px 0;
+}
+.callout{
+  border-left:4px solid var(--accent); background:var(--accent-soft);
+  border-radius:0 10px 10px 0; padding:16px 20px; margin:20px 0;
+}
+.callout.bad{border-left-color:var(--bad);background:var(--bad-bg)}
+.callout.ok{border-left-color:var(--ok);background:var(--ok-bg)}
+.callout.warn{border-left-color:var(--warn);background:var(--warn-bg)}
+.callout.info{border-left-color:var(--neutral);background:var(--neutral-bg)}
+.callout .t{font-weight:700;margin-bottom:6px;font-size:14.5px;letter-spacing:.01em}
+.callout p:last-child,.callout ul:last-child{margin-bottom:0}
+
+.tag{
+  display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;padding:2px 8px;border-radius:5px;vertical-align:2px;
+  white-space:nowrap;
+}
+.t-ok{background:var(--ok-bg);color:var(--ok)}
+.t-bad{background:var(--bad-bg);color:var(--bad)}
+.t-warn{background:var(--warn-bg);color:var(--warn)}
+.t-neu{background:var(--neutral-bg);color:var(--neutral)}
+
+.scroll{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:14.2px;min-width:520px}
+th,td{padding:10px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);font-weight:650;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:13.4px;white-space:nowrap}
+tr.total td{font-weight:700;background:var(--accent-soft)}
+tr.sub td{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
+
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));margin:20px 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:16px 18px}
+.stat .lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:650;margin-bottom:7px}
+.stat .val{font-size:26px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat .note{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.45}
+.stat.bad .val{color:var(--bad)} .stat.ok .val{color:var(--ok)} .stat.warn .val{color:var(--warn)}
+
+.q{
+  border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:0 10px 10px 0;
+  background:var(--panel);padding:14px 18px;margin:14px 0;font-size:15px;
+}
+.q .who{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);font-weight:700;margin-bottom:6px}
+.q em{font-style:normal;background:var(--accent-soft);padding:1px 4px;border-radius:3px}
+
+.src{font-size:12.5px;color:var(--muted);margin-top:-8px;margin-bottom:18px;word-break:break-word}
+.src a{color:var(--muted)}
+
+/* ---------- calculator ---------- */
+.calc{background:var(--panel);border:2px solid var(--accent);border-radius:14px;padding:22px;margin:26px 0}
+.calc h3{margin-top:0}
+.rows{display:grid;gap:12px;margin:16px 0}
+.row{display:grid;grid-template-columns:1fr 96px 116px 130px;gap:10px;align-items:center}
+.row .name{font-size:14px;font-weight:600}
+.row .name small{display:block;font-weight:400;color:var(--muted);font-size:12px;line-height:1.35}
+.row input{
+  width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;
+  background:var(--bg);color:var(--ink);font:inherit;font-size:14px;
+  font-family:var(--mono);text-align:right;
+}
+.row input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.row .out{text-align:right;font-family:var(--mono);font-size:14px;font-weight:650;font-variant-numeric:tabular-nums}
+.row .hdr{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;text-align:right}
+.row .hdr.l{text-align:left}
+.calcout{border-top:2px solid var(--line);margin-top:16px;padding-top:16px}
+.line{display:flex;justify-content:space-between;gap:16px;padding:6px 0;font-size:14.5px}
+.line span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.line.big{font-size:19px;font-weight:700;border-top:1px solid var(--line);margin-top:8px;padding-top:12px}
+.line.big span:last-child{color:var(--accent)}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 4px}
+.presets button{
+  font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:7px;
+  border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;
+}
+.presets button:hover{border-color:var(--accent);color:var(--accent)}
+@media(max-width:640px){
+  .row{grid-template-columns:1fr 74px 92px;gap:8px}
+  .row .out{grid-column:1/-1;text-align:right;padding-top:2px;border-top:1px dashed var(--line)}
+  .row .hdr:nth-child(4){display:none}
+}
+
+/* ---------- toc ---------- */
+nav.toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin:26px 0 10px}
+nav.toc .t{font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:12px}
+nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:34px}
+nav.toc li{margin-bottom:5px;font-size:14.3px;break-inside:avoid}
+@media(max-width:620px){nav.toc ol{columns:1}}
+
+footer{border-top:1px solid var(--line);margin-top:60px;padding-top:22px;font-size:13px;color:var(--muted)}
+hr{border:none;border-top:1px solid var(--line);margin:34px 0}
+.small{font-size:13.5px;color:var(--muted)}
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Dossier d'acquisition &amp; de finition</div>
+    <h1>Villa « MH 3 » — Madliena / Naxxar, Malte</h1>
+    <p class="sub">Analyse contradictoire du financement, du prix, du coût de finition et de l'option
+    « équipe italienne détachée ». Trois agents de recherche spécialisés, trois évaluateurs adversariaux
+    chargés de détruire leurs conclusions.</p>
+    <div class="meta">
+      <span><b>Date</b> 28 juillet 2026</span>
+      <span><b>Bien</b> 906 m², shell form, 3 niveaux</span>
+      <span><b>Prix publié</b> 3 400 000 €</span>
+      <span><b>Prix demandé</b> 3 850 000 €</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="callout bad">
+  <div class="t">⚠ Lisez ceci avant tout le reste — limite de la recherche</div>
+  <p>Le réseau de cet environnement a <strong>bloqué l'accès direct à 100 % des sites consultés</strong>
+  (banques, Central Bank of Malta, NSO, MTCA, BCA, Enemalta, et même Wikipédia — erreur 403 sur toutes
+  les tentatives). <strong>Aucune page primaire n'a pu être lue.</strong> Tout ce document repose sur
+  des extraits de moteur de recherche.</p>
+  <p>Conséquence pratique : chaque chiffre marqué <span class="tag t-warn">à vérifier</span> doit être
+  reconfirmé par une pièce datée (fiche précontractuelle bancaire, devis, acte, texte officiel)
+  <strong>avant tout engagement</strong>. Les évaluateurs adversariaux ont détruit plusieurs chiffres
+  qui « sonnaient juste » et n'étaient attestés nulle part — y compris dans mes propres rapports.
+  C'est la raison d'être de ce document.</p>
+</div>
+
+<nav class="toc">
+  <div class="t">Sommaire</div>
+  <ol>
+    <li><a href="#s1">Ce qu'il faut retenir</a></li>
+    <li><a href="#s2">Identification du bien</a></li>
+    <li><a href="#s3">Le prêt : ce qui est vrai, ce qui est faux</a></li>
+    <li><a href="#s4">Coût total d'acquisition</a></li>
+    <li><a href="#s5">Le prix est-il justifié ?</a></li>
+    <li><a href="#s6">Négociation : votre vrai levier</a></li>
+    <li><a href="#s7">Coût de finition + calculateur</a></li>
+    <li><a href="#s8">Ouvriers italiens : la réponse</a></li>
+    <li><a href="#s9">Qui pilote le chantier</a></li>
+    <li><a href="#s10">L'arbitrage à 200–600 k€</a></li>
+    <li><a href="#s11">Création ou destruction de valeur</a></li>
+    <li><a href="#s12">Contradictions non résolues</a></li>
+    <li><a href="#s13">Plan d'action</a></li>
+    <li><a href="#s14">Questions à poser</a></li>
+    <li><a href="#s15">Sources</a></li>
+  </ol>
+</nav>
+
+<!-- ══════════════════════════════════════ 1 ══════════════════════════════════════ -->
+<h2 id="s1"><span class="num">1</span>Ce qu'il faut retenir</h2>
+<p class="lede">Six conclusions qui changent la décision. Les trois premières contredisent
+directement vos hypothèses de départ.</p>
+
+<div class="callout bad">
+  <div class="t">1. Le prêt à 1,5 % chez BOV n'existe pas — et vous n'y aviez pas droit</div>
+  <p>Le 1,50 % réellement existant était un <strong>taux d'appel HSBC sur 36 mois</strong>, dont la
+  fenêtre d'accord s'est fermée le <strong>31/05/2026</strong>, et qui repassait ensuite à 2,75 %.
+  Surtout, la page HSBC précise : <em>« Classic Home Loans may only be availed of by residents of
+  Malta »</em> — vous êtes non-résident, vous n'y étiez <strong>de toute façon pas éligible</strong>.
+  Il existe aussi un <strong>APS Green Home Loan à 1,50 % fixe 5 ans</strong> : c'est la seule piste
+  crédible restante, à instruire. <strong>Modélisez à 3,0–4,5 %.</strong> La BCE a <em>relevé</em> ses
+  taux en juin 2026 — la fenêtre des taux bas est fermée.</p>
+</div>
+
+<div class="callout ok">
+  <div class="t">2. Bonne nouvelle : le « plafond de 1 M€ » des banques maltaises est un mythe</div>
+  <p>Ce chiffre, très répandu, vient de trois sites de contenu qui se recopient. La documentation
+  précontractuelle de BOV dit littéralement l'inverse : <em>« There are no set minimum or maximum
+  amounts for a home loan. »</em> Votre dossier n'est pas structurellement infinançable. Le vrai sujet
+  est votre <strong>capacité de remboursement</strong> (DSTI stressé à 40 %) et l'appétit du comité de
+  crédit — pas une limite produit.</p>
+</div>
+
+<div class="callout bad">
+  <div class="t">3. Les ouvriers siciliens ne vous feront pas économiser d'argent — et le montage a un verrou fiscal à 6 mois</div>
+  <p>Deux corrections en sens inverse s'annulent presque : mon premier chiffrage annonçait +55 à +110 %
+  de surcoût, l'adversarial l'a ramené à <strong>+8 à +56 %, voire zéro</strong> une fois comparé au
+  vrai prix maltais du haut de gamme. <strong>Le prix ne tranche donc pas.</strong> Ce qui tranche,
+  c'est ceci : la clause « chantier » de la convention fiscale Italie–Malte fixe le seuil
+  d'établissement stable à <strong>SIX mois</strong>, pas douze. Votre scénario « six mois full time »
+  est <em>exactement</em> sur le seuil — et le volume de travail réel le porte à 8,5–14 mois.
+  Exposition fiscale : <strong>90 000 à 150 000 €</strong>, plus pénalités.</p>
+</div>
+
+<div class="callout warn">
+  <div class="t">4. Le budget de finition réel est bien plus élevé que les chiffres qui circulent</div>
+  <p>Les « 250–450 €/m² » que l'on trouve partout sont un prix de <em>finition standard
+  d'appartement</em>. Pour une villa haut de gamme à Malte, le vrai repère est
+  <strong>810 000 à 1 260 000 €</strong> pour 900 m², fournitures comprises — <em>avant</em> piscine,
+  ascenseur, paysager, domotique, honoraires, aléas et TVA. Avec ces postes, comptez
+  <strong>1,2 à 2,3 M€ TTC</strong> pour un vrai haut de gamme, davantage en ultra-premium.</p>
+</div>
+
+<div class="callout info">
+  <div class="t">5. La question la plus rentable du dossier n'a jamais été posée</div>
+  <p>À Malte, <strong>la vente d'un immeuble est exonérée de TVA</strong>. Acheter en shell et finir
+  vous-même = <strong>18 % de TVA sur tous les travaux</strong>. Acheter la villa <strong>déjà
+  finie</strong> par le promoteur = <strong>0 € de TVA</strong> sur la valeur de finition. Le point mort
+  est à <strong>12,4 % de marge promoteur</strong>. C'est probablement au-dessus dans la réalité, mais
+  <strong>demander à ICI un prix ferme « clés en main finies » ne coûte rien et l'enjeu est de
+  200 000 à 600 000 €</strong>.</p>
+</div>
+
+<div class="callout bad">
+  <div class="t">6. L'opération détruit probablement de la valeur — et l'alternative est brutale</div>
+  <p>Coût de revient médian réaliste, portage compris : <strong>~7,0 M€</strong>. Valeur de sortie nette
+  de la taxe de cession de 8 % : <strong>4,2 à 5,2 M€</strong>. Pendant ce temps, une villa
+  <strong>déjà finie de 1 100 m² à Madliena se vend 6,25 M€</strong> — moins cher, plus grand, meilleure
+  adresse, aucun risque de chantier, jouissance immédiate. <strong>Ce projet ne se défend qu'en
+  résidence longue durée (10 ans et plus), pas en logique patrimoniale.</strong></p>
+</div>
+
+<!-- ══════════════════════════════════════ 2 ══════════════════════════════════════ -->
+<h2 id="s2"><span class="num">2</span>Identification du bien</h2>
+<p class="lede">Première chose à corriger : le nom. « New Heights 3 » n'existe pas au catalogue d'ICI.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Élément</th><th>Donnée</th><th>Statut</th></tr></thead>
+<tbody>
+<tr><td>Nom réel du projet</td><td><strong>MH 3 — Madliena Heights 3</strong>, ICI Homes. « New height 3 » est une déformation orale de « MH 3 ».</td><td><span class="tag t-ok">confirmé</span></td></tr>
+<tr><td>Autres projets ICI</td><td>MH 3, MH 4+5, Maghtab Villas (Naxxar). <strong>Aucun projet « New Heights »</strong> — le bon bien a bien été analysé.</td><td><span class="tag t-ok">confirmé</span></td></tr>
+<tr><td>Surface</td><td>906 m², maison familiale sur 3 niveaux (un niveau par fonction : vie / nuit / loisirs)</td><td><span class="tag t-ok">confirmé</span></td></tr>
+<tr><td>Prix affiché sur le site du promoteur</td><td><strong>3 400 000 €</strong></td><td><span class="tag t-ok">confirmé</span></td></tr>
+<tr><td>État</td><td>Shell form, « with various finishing options available »</td><td><span class="tag t-ok">confirmé</span></td></tr>
+<tr><td>Achèvement du gros œuvre</td><td><strong>mars 2022</strong> — c'est une date d'<em>achèvement</em>, pas de mise en vente (correction : mon premier rapport disait « affiché depuis mars 2022 »)</td><td><span class="tag t-ok">confirmé</span></td></tr>
+<tr><td>Adresse</td><td>Triq E. Pirotta, Madliena</td><td><span class="tag t-ok">confirmé</span></td></tr>
+<tr><td>Code postal</td><td><strong>NXR 5314 / 5315 — Baħar iċ-Ċagħaq, Naxxar</strong>. GPS 35.93861 / 14.45417</td><td><span class="tag t-ok">confirmé</span></td></tr>
+<tr><td>Vendeur</td><td>ICI Malta — groupe intégré : immobilier, conception architecturale, démolition/excavation, construction, project management, MEP <strong>et finitions</strong></td><td><span class="tag t-ok">confirmé</span></td></tr>
+</tbody></table></div>
+
+<h3>« Madliena » ou « Naxxar » ? Les deux — et ce n'est pas un mensonge</h3>
+<p>La localité de Madliena <strong>chevauche deux conseils locaux</strong> : celui de Swieqi (qui comprend
+Swieqi, Tal-Ibraġ, Madliena et une partie de St Andrews) et celui de Naxxar (qui comprend explicitement
+« une partie de Madliena », ainsi que Baħar iċ-Ċagħaq). L'appellation commerciale est donc défendable.</p>
+
+<p>Mais les conséquences sont réelles et chiffrables :</p>
+<ul>
+  <li>Le <strong>code postal sera NXR</strong> — visible sur l'acte, l'assurance, et toutes les annonces à la revente.</li>
+  <li>Les portails indexeront le bien en <strong>Naxxar / Baħar iċ-Ċagħaq</strong>, pas en Madliena Ridge.</li>
+  <li>Un <em>perit valuer</em> — y compris celui de votre banque — travaillera sur des comparables Baħar iċ-Ċagħaq. <strong>Cela affecte directement votre financement.</strong></li>
+  <li>La description du promoteur situe la villa « face à l'ancienne tour de guet » : c'est la crête côtière Naxxar/Pembroke, <strong>pas le cœur historique de Madliena</strong>.</li>
+</ul>
+
+<div class="callout warn">
+  <div class="t">Chiffre à ne pas utiliser</div>
+  <p>La « décote d'adresse de −10 à −20 % » que produit mon rapport QS est <strong>inventée</strong> :
+  aucune source. Le <em>sens</em> est juste (Baħar iċ-Ċagħaq &lt; cœur Madliena), l'ampleur ne l'est pas.
+  Ne l'utilisez pas en négociation : elle est indéfendable si le vendeur la conteste.</p>
+</div>
+
+<div class="callout bad">
+  <div class="t">Le fait technique que personne n'avait vu : quatre hivers, ouvert, en bord de mer</div>
+  <p>Gros œuvre achevé en <strong>mars 2022</strong>, <strong>sans menuiseries</strong>, sur une crête
+  côtière exposée au vent et aux embruns. Cela fait quatre saisons de pluie et de chlorures. Risques :
+  <strong>corrosion des armatures</strong> par pénétration de chlorures (le risque n° 1 en bord de mer),
+  altération de la pierre globigérine exposée, infiltrations piégées dans les dalles et maçonneries.</p>
+  <p><strong>Action impérative avant toute offre :</strong> diagnostic structurel avec mesure de potentiel
+  de demi-pile et profils de chlorures. <strong>Coût 5 000 à 15 000 €. Exposition potentielle : six
+  chiffres.</strong> Et exigez par écrit la garantie d'ICI sur la stabilité et l'étanchéité, cédée à
+  l'acquéreur.</p>
+</div>
+
+<div class="callout warn">
+  <div class="t">Le risque binaire que personne ne surveille : la vue mer</div>
+  <p>Toute la prime de ce bien tient à la vue mer sur trois niveaux. <strong>Une seule demande de permis
+  voisine peut l'effacer.</strong> C'est vérifiable gratuitement sur <strong>pa.org.mt</strong>, par
+  localité et par rue. Personne ne l'a fait — l'accès était bloqué. C'est le plus gros risque
+  tout-ou-rien du dossier et il coûte zéro euro à lever.</p>
+</div>
+
+<!-- ══════════════════════════════════════ 3 ══════════════════════════════════════ -->
+<h2 id="s3"><span class="num">3</span>Le prêt : ce qui est vrai, ce qui est faux</h2>
+<p class="lede">Vous m'avez demandé de vérifier la rumeur des 1,5 % chez BOV. Réponse détaillée.</p>
+
+<h3>3.1 — D'où vient le « 1,5 % »</h3>
+<div class="scroll"><table>
+<thead><tr><th>Hypothèse d'origine</th><th>Réalité</th><th>Verdict pour vous</th></tr></thead>
+<tbody>
+<tr><td><strong>HSBC Classic Home Loan — 1,50 % fixe 36 mois</strong></td>
+<td>Existe réellement. Conditions : prêt ≥ 350 000 €, LTV ≤ 80 %, bien ≥ 437 500 €. Fenêtre d'accord 14/01/2026 → <strong>31/05/2026</strong>. Repasse ensuite à 2,75 % variable.</td>
+<td><span class="tag t-bad">exclu ×2</span> Expiré <em>et</em> réservé aux <strong>résidents de Malte</strong></td></tr>
+<tr><td><strong>APS Green Home Loan — 1,50 % fixe 5 ans</strong></td>
+<td>Existe. Conditionné à la performance énergétique du bien.</td>
+<td><span class="tag t-warn">à instruire</span> Seule piste crédible. Éligibilité non-résident non vérifiée</td></tr>
+<tr><td>Ancien taux BOV</td><td>BOV a pratiqué 1,99 % fixe 12 mois (offre 2018), puis 3,1 % variable</td><td><span class="tag t-bad">≠ 1,5 %</span></td></tr>
+<tr><td>Home Deposit Scheme</td><td>Finance l'acompte de 10 %, intérêts pris en charge par la Housing Authority — d'où l'impression de « taux quasi nul ». Plafond de valeur du bien : <strong>250 000 €</strong></td><td><span class="tag t-bad">hors sujet</span></td></tr>
+<tr><td>Equity Sharing Scheme</td><td>Plafond 200 000 € (350 000 € cas particuliers, Budget 2026)</td><td><span class="tag t-bad">hors sujet</span></td></tr>
+</tbody></table></div>
+
+<div class="callout">
+  <div class="t">Verdict</div>
+  <p><strong>Non, il n'y a pas de prêt à 1,5 % chez BOV en juillet 2026</strong>, et le produit qui portait
+  ce taux vous était fermé en tant que non-résident. Modélisez votre plan de financement à
+  <strong>3,0–4,5 %</strong>. Contexte : la BCE a <strong>relevé</strong> ses taux directeurs le
+  11 juin 2026 (facilité de dépôt à 2,25 %). La direction du marché est haussière.</p>
+</div>
+
+<h3>3.2 — Taux par banque (à reconfirmer par fiche précontractuelle datée)</h3>
+<div class="scroll"><table>
+<thead><tr><th>Banque</th><th>Taux de base</th><th>Variable / fixe</th><th>Fiabilité</th></tr></thead>
+<tbody>
+<tr><td>BOV</td><td>HLBBR 2,15 %</td><td>Exemple représentatif APR 3,493 %</td><td><span class="tag t-warn">à vérifier</span></td></tr>
+<tr><td>HSBC Malta</td><td>2,25 %</td><td>2,75 % variable ; HomeOwner 3,99 %</td><td><span class="tag t-warn">à vérifier</span></td></tr>
+<tr><td>APS Bank</td><td>2,25 %</td><td>FIRHL 2,45 % fixe 5 ans ; <strong>Green 1,50 % fixe 5 ans</strong></td><td><span class="tag t-warn">à vérifier</span></td></tr>
+<tr><td>BNF Bank</td><td>benchmark 2,742 % (27/05/2026)</td><td>2,70 % variable ; 2,1 % fixe 2 ans</td><td><span class="tag t-warn">à vérifier</span></td></tr>
+<tr><td>MeDirect</td><td>—</td><td>APRC 2,89 % sur un exemple probablement ancien</td><td><span class="tag t-bad">non vérifié</span></td></tr>
+<tr><td>Lombard Bank</td><td>—</td><td>Aucune donnée trouvée</td><td><span class="tag t-bad">non vérifié</span></td></tr>
+</tbody></table></div>
+<p class="src">Aucune de ces pages n'a pu être ouverte. Exigez de chaque banque une <strong>ESIS / fiche
+d'information précontractuelle datée</strong> avant de modéliser quoi que ce soit.</p>
+
+<h3>3.3 — Ce qui vous limite réellement</h3>
+
+<div class="callout ok">
+  <div class="t">Le « plafond de 1 M€ » : réfuté</div>
+  <p>BOV, dans sa <em>Home Loans Pre-contractual Information</em> : <strong>« There are no set minimum
+  or maximum amounts for a home loan. »</strong> La Directive 16 de la Central Bank of Malta ne contient
+  aucun plafond en valeur absolue — uniquement des ratios. Le chiffre de 1 M€ venait de trois sites SEO
+  qui reprenaient une fourchette commerciale indicative (« loans start at about €25,000, reaching
+  €1,000,000 for big investments ») transformée en fait par recopiage.</p>
+</div>
+
+<p>La contrainte réelle est réglementaire, et elle tient en trois lignes :</p>
+<div class="scroll"><table>
+<thead><tr><th>Paramètre</th><th>Votre situation</th><th>Effet</th></tr></thead>
+<tbody>
+<tr><td>Texte applicable</td><td><strong>Directive n° 16</strong> de la CBM (<em>Borrower-Based Measures</em>, en vigueur 01/07/2019) — <strong>pas</strong> la Directive n° 11, qui est le texte institutionnel macroprudentiel et ne contient ni LTV ni DSTI</td><td>Correction de fond</td></tr>
+<tr><td>Catégorie</td><td><strong>Catégorie II</strong> (résidence secondaire / autre bien)</td><td>LTV plafonné à <strong>75 %</strong></td></tr>
+<tr><td>DSTI stressé</td><td><strong>40 %</strong> du revenu, avec choc de taux</td><td>C'est <em>ça</em> qui vous limite, pas un plafond</td></tr>
+<tr><td>Pratique banques non-résidents</td><td>HSBC publie 75 % pour résidence secondaire ; MeDirect exige 25 % d'apport ; BOV 25 % minimum</td><td>Moins restrictif que les 60–70 % annoncés ailleurs</td></tr>
+<tr><td>Dérogations (« speed limits »)</td><td>La Directive 16 prévoit des <strong>contingents de dérogation</strong></td><td>C'est la porte par laquelle passent les dossiers atypiques bien capitalisés. <strong>Demandez-la explicitement.</strong></td></tr>
+</tbody></table></div>
+
+<div class="callout warn">
+  <div class="t">Le point qui reste ouvert et qui peut tout changer</div>
+  <p>Le DSTI de 40 % se calcule-t-il sur le <strong>revenu brut</strong> ou sur le <strong>revenu net
+  disponible</strong> ? Je n'ai pas pu trancher. Sur un prêt de 2,3 M€ à 20 ans au taux stressé de 5 % :
+  revenu requis ≈ <strong>455 000 €/an</strong> si la base est le brut, mais
+  <strong>640 000 à 900 000 €/an</strong> si c'est le net disponible. <strong>C'est la première question
+  à poser à votre banquier</strong>, avant même le taux.</p>
+</div>
+
+<h3>3.4 — Les alternatives, probablement votre vraie voie</h3>
+<ol>
+  <li><strong>Crédit lombard / nantissement de portefeuille</strong> (banque privée FR / LU / CH). Taux
+  2,0–4,0 %, structure <em>in fine</em>, indexé Euribor 3M ou €STR + marge 0,8–2,5 %. <strong>Pas de
+  Directive 16, pas de DSTI, pas d'assurance décès obligatoire, déblocage en jours.</strong> Risque
+  central : <strong>appel de marge</strong> en cas de baisse des marchés, adossé à un actif immobilier
+  illiquide — à ne pas sous-estimer.</li>
+  <li><strong>Montage hybride</strong> : lombard pour l'apport + hypothèque maltaise réduite. Fait tomber
+  le LTV demandé et rend le dossier finançable.</li>
+  <li><strong>Hypothèque sur un bien français</strong> — souvent plus simple qu'un prêt transfrontalier.</li>
+  <li><strong>Courtier maltais enregistré MFSA</strong> pour mettre 4 banques en concurrence. Vérifiable
+  sur le <em>Financial Services Register</em> public. C'est le moyen le plus direct de faire tomber la
+  question du « plafond ».</li>
+</ol>
+
+<div class="callout ok">
+  <div class="t">L'argument financier en faveur de l'emprunt que personne ne vous a donné</div>
+  <p>Si vous êtes résident fiscal français : une villa à 3,5 M€ entre intégralement dans l'assiette de
+  l'<strong>IFI</strong> (~20 700 €/an). Or <strong>la dette bancaire affectée est déductible</strong> :
+  un emprunt de 2,3 M€ ramène l'assiette à ~1,2 M€, soit un IFI d'environ 2 500 €/an.
+  <strong>~18 000 €/an d'économie</strong>, plusieurs centaines de milliers d'euros sur la durée du prêt.
+  Emprunter n'est donc pas seulement une nécessité de trésorerie : c'est un choix fiscalement rentable
+  indépendamment du taux. <em>Réserves : plafonnement de déductibilité au-delà de 5 M€ de patrimoine, et
+  amortissement notionnel imposé aux prêts in fine. À faire valider par un fiscaliste français.</em></p>
+</div>
+
+<div class="callout info">
+  <div class="t">Piste à 100 k€ pour débloquer 578 k€ de financement</div>
+  <p>Passer de Catégorie II (LTV 75 %) à <strong>Catégorie I</strong> (LTV 90 %) sur 3,85 M€ représente
+  <strong>577 500 € de financement supplémentaire</strong>. Le <strong>MPRP</strong> ou la résidence
+  fiscale maltaise coûte de l'ordre de 100 000 € et supprime en outre, après 5 ans de résidence,
+  l'AIP <strong>et l'interdiction de louer</strong>. <em>Réserve : la Catégorie I exige que le bien soit
+  votre résidence principale et que vous n'ayez pas d'autre prêt immobilier résidentiel en cours.</em></p>
+</div>
+
+<h3>3.5 — Financer les travaux sur un bien vendu en shell</h3>
+<p>Point structurant que vous devez connaître : <strong>la banque prête sur la valeur, pas sur le prix
+que vous payez.</strong> Sur un bien en shell, l'architecte agréé produit <strong>deux valeurs</strong>
+au <em>Valuation Certificate</em> : la valeur en l'état, et la valeur après achèvement sur la base d'un
+devis de finition qu'il valide. Le LTV s'applique à la <strong>plus faible du prix et de la valeur</strong>,
+et une reconfirmation est exigée avant la signature de l'acte.</p>
+
+<div class="callout bad">
+  <div class="t">Le trou de trésorerie possible</div>
+  <p>Si l'architecte de la banque valorise la villa à 2,9 M€ alors que vous payez 3,85 M€, la banque
+  finance sur 2,9 M€. À 70 % de LTV, cela fait 2,03 M€ au lieu de 2,695 M€ — <strong>665 000 € à trouver
+  en cash</strong>. <strong>Faites réaliser une expertise indépendante AVANT de signer le konvenju</strong>
+  (1 500–3 000 €), pas après. C'est la protection n° 1 sur un bien dont le prix demandé a monté de 13 %
+  sans transaction.</p>
+</div>
+
+<p>Autres points : les home loans maltais couvrent explicitement <em>« purchase, build, finish, rebuild,
+alter or improve a home or a second residence »</em>, avec tirage contre factures <strong>après
+l'acte</strong>. Prévoyez donc des <strong>intérêts intercalaires</strong> pendant 12–18 mois de
+finition, période durant laquelle vous payez des intérêts <em>et</em> les entreprises. Négociez une
+franchise d'amortissement. Enfin, l'<strong>assurance décès sur 2,3 M€</strong> exige une sélection
+médicale complète : faites-en une <strong>condition suspensive explicite au konvenju</strong> et
+pré-instruisez-la avant de signer quoi que ce soit — un refus après signature fait tomber le financement.</p>
+
+<!-- ══════════════════════════════════════ 4 ══════════════════════════════════════ -->
+<h2 id="s4"><span class="num">4</span>Coût total d'acquisition</h2>
+
+<div class="scroll"><table>
+<thead><tr><th>Poste</th><th class="n">à 3 400 000 €</th><th class="n">à 3 850 000 €</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td>Prix d'achat</td><td class="n">3 400 000</td><td class="n">3 850 000</td><td></td></tr>
+<tr><td><strong>Droit de timbre 5 %</strong></td><td class="n">170 000</td><td class="n">192 500</td><td><span class="tag t-ok">confirmé</span></td></tr>
+<tr><td class="small">— dont au konvenju (20 % du droit = <strong>1 %</strong>, pas 1,5 %)</td><td class="n">34 000</td><td class="n">38 500</td><td class="small">enregistrement sous 21 j</td></tr>
+<tr><td class="small">— dont à l'acte final (4 %)</td><td class="n">136 000</td><td class="n">154 000</td><td></td></tr>
+<tr><td>Notaire (1 % à 2,5 %, dégressif, <strong>négociable</strong>)</td><td class="n">34 000 – 85 000</td><td class="n">38 500 – 96 250</td><td>~⅓ au konvenju, ~⅔ à l'acte</td></tr>
+<tr><td>Permis AIP</td><td class="n">233</td><td class="n">233</td><td>~35 j / 6–12 sem.</td></tr>
+<tr><td>Searches, enregistrement</td><td class="n">~1 000</td><td class="n">~1 000</td><td><span class="tag t-warn">estimation</span></td></tr>
+<tr><td>Expertise architecte (banque)</td><td class="n">200 – 1 200</td><td class="n">200 – 1 200</td><td></td></tr>
+<tr><td>Frais de dossier bancaires</td><td class="n">~2 000</td><td class="n">~2 000</td><td><span class="tag t-warn">estimation</span></td></tr>
+<tr class="total"><td>TOTAL FRAIS</td><td class="n">207 400 – 259 400</td><td class="n">234 400 – 293 200</td><td>6,1 % à 7,6 %</td></tr>
+<tr class="total"><td>BUDGET D'ACQUISITION</td><td class="n">3 607 000 – 3 659 000</td><td class="n">4 084 000 – 4 143 000</td><td><strong>hors travaux</strong></td></tr>
+</tbody></table></div>
+
+<div class="callout warn">
+  <div class="t">Correction d'une erreur de mon premier rapport</div>
+  <p>Il annonçait que le passage de 3,4 à 3,85 M€ « coûte réellement ~583 000 € ». C'est faux : 583 000 €
+  correspond au delta 3,3 → 3,85 M€. Pour un delta de 3,4 → 3,85 M€, le coût réel est de
+  <strong>477 000 à 484 000 €</strong>. Erreur de ~100 000 € dans un document destiné à cadrer une
+  négociation — corrigée ici.</p>
+</div>
+
+<h3>4.1 — TVA : la bonne nouvelle et la mauvaise</h3>
+<div class="grid">
+  <div class="stat ok"><div class="lbl">Sur le prix d'achat</div><div class="val">0 €</div>
+  <div class="note">La vente d'immeuble à Malte est <em>exempt without credit</em>. <strong>Aucune TVA
+  sur les 3,85 M€</strong>, même auprès d'un promoteur.</div></div>
+  <div class="stat bad"><div class="lbl">Sur les travaux de finition</div><div class="val">18 %</div>
+  <div class="note">Taux plein sur la totalité des travaux, matériaux et honoraires. Non récupérable
+  pour un particulier.</div></div>
+</div>
+
+<div class="callout bad">
+  <div class="t">Le taux réduit de 5 % que l'on vous citera peut-être : c'est du droit CHYPRIOTE</div>
+  <p>Mon rapport QS citait un régime de TVA réduite à 5 % pour la rénovation de logements privés,
+  conditionné à un critère d'ancienneté. <strong>La source était un cabinet fiscal de Limassol
+  commentant la VAT Law 95(I)/2000 — la loi de Chypre.</strong> Le moteur de recherche renvoie
+  massivement des résultats chypriotes sur cette question : c'est un piège documenté.</p>
+  <p>À Malte, le taux réduit de 5 % couvre l'électricité, la confiserie, les accessoires médicaux, les
+  imprimés et les réparations mineures de vélos, chaussures, vêtements et linge de maison ; le 7 %
+  l'hébergement ; le 12 % certains services financiers et la plaisance. <strong>Rien sur l'immobilier
+  bâti. Retenez 18 %.</strong> Toute promesse d'un intervenant à 5 % doit être documentée par un
+  <em>ruling</em> écrit du MTCA.</p>
+</div>
+
+<h3>4.2 — Le permis AIP et l'interdiction de louer</h3>
+<div class="scroll"><table>
+<thead><tr><th>Point</th><th>Contenu</th></tr></thead>
+<tbody>
+<tr><td>Qui a besoin d'un AIP</td><td>Un citoyen UE <strong>non-résident</strong> (ou résident depuis moins de 5 ans) achetant une <strong>résidence secondaire</strong>. → <strong>c'est votre cas</strong></td></tr>
+<tr><td>Coût / délai</td><td><strong>233 €</strong> ; permis émis 35 jours après approbation ; 6 à 12 semaines pour le processus complet. <strong>Jalon sur le chemin critique jusqu'à l'acte</strong> — à intégrer dans la durée du konvenju</td></tr>
+<tr><td>Seuils minimums de valeur</td><td>174 274 € (appartement) / 300 619 € (tout autre bien) — non bloquants ici</td></tr>
+<tr><td>Restrictions</td><td><strong>Un seul bien immobilier</strong>, et <strong>INTERDICTION DE LE LOUER</strong></td></tr>
+<tr><td><strong>L'exception</strong></td><td>En <strong>Special Designated Area (SDA)</strong> : pas d'AIP, <strong>location libre</strong>, achats multiples autorisés</td></tr>
+</tbody></table></div>
+
+<div class="callout warn">
+  <div class="t">Vérification gratuite, enjeu majeur</div>
+  <p>Le <em>Madliena Village Complex</em> <strong>est</strong> une SDA — mais c'est un complexe fermé et
+  précis de 85 appartements. Ma conclusion « donc la villa n'y est pas » est une
+  <strong>déduction, jamais vérifiée</strong>. C'est une simple question au notaire, gratuite, et
+  l'enjeu est la différence entre un actif locatif et un actif dormant. <strong>Posez-la.</strong></p>
+</div>
+
+<div class="callout info">
+  <div class="t">Fenêtre fiscale qui se ferme le 31 décembre 2026</div>
+  <p>Le schéma <strong>LN 363/2024</strong>, prolongé par le Budget 2026 <strong>jusqu'au 31/12/2026
+  seulement</strong> : exonération de droit de timbre et de taxe de cession sur les
+  <strong>750 000 premiers euros</strong>, plus un <strong>remboursement de TVA jusqu'à 54 000 €</strong>
+  sur les premiers 300 000 € de travaux de restauration et de finition. Trois catégories éligibles : bien
+  de plus de 20 ans vacant depuis plus de 7 ans, bien en <em>Urban Conservation Area</em>, <strong>ou bien
+  nouvellement développé répondant à des critères approuvés</strong>. Une villa moderne de 2022 ne
+  qualifiera probablement pas — mais c'est <strong>15 minutes de question au notaire pour un enjeu à
+  cinq chiffres, avec une date-couperet</strong>.</p>
+</div>
+
+<h3>4.3 — Deux vérifications de titre à ne pas oublier</h3>
+<ul>
+  <li><strong>Freehold ou ċens ?</strong> Personne n'a vérifié si le bien est en pleine propriété ou grevé
+  d'une emphytéose. Un <em>ċens</em> temporaire à échéance courte peut rendre le bien
+  <strong>inéligible au financement bancaire</strong> et amputer sa valeur. Le rachat d'un ċens perpétuel
+  vaut 20 fois la redevance annuelle. <strong>Question à poser avant le konvenju, pas après.</strong></li>
+  <li><strong>Solidité du vendeur.</strong> Si une partie du prix ou des finitions est payée avant
+  achèvement, la garantie de l'<em>Off-Plan Act 2018</em> ne couvre que l'acompte, pas les tranches
+  intermédiaires — qui passent après la banque de financement de la construction en cas de défaut.
+  À vérifier : extrait du Malta Business Registry, comptes, et antécédents de chantier.</li>
+</ul>
+
+<!-- ══════════════════════════════════════ 5 ══════════════════════════════════════ -->
+<h2 id="s5"><span class="num">5</span>Le prix est-il justifié ?</h2>
+<p class="lede">Ici, mes deux agents se sont contredits frontalement. Je vous donne les deux lectures,
+parce que la réponse honnête est « on ne sait pas trancher avec les données disponibles ».</p>
+
+<h3>5.1 — La thèse « vous surpayez » (agent QS)</h3>
+<p>3 850 000 € / 906 m² = <strong>4 249 €/m² de gros œuvre</strong>. Mais un m² de sous-sol ne vaut pas
+un m² de séjour à vue mer. En pondérant le sous-sol à 0,30–0,40, la surface pondérée tombe à 583–631 m²,
+soit <strong>6 100–6 600 €/m² pondéré — le prix d'une villa <em>finie</em> en cœur de Madliena</strong>.
+Conclusion : surprix de 400 000 à 850 000 €, cible de négociation 3,3–3,5 M€.</p>
+
+<h3>5.2 — La démolition de cette thèse (évaluateur adversarial)</h3>
+<div class="scroll"><table>
+<thead><tr><th>Maillon</th><th>Ce qu'en dit l'adversarial</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>Comparable pivot : villa shell 485 m² à 1,9 M€ = 3 918 €/m²</td>
+<td>Les 1,95 M€ portaient sur un <strong>terrain de 500 m²</strong>. Le « 3 918 €/m² » est un prix au m² <strong>de terrain</strong>, comparé aux 4 249 €/m² <strong>de plancher</strong> de MH 3. <strong>Deux grandeurs sans rapport.</strong></td>
+<td><span class="tag t-bad">réfuté</span></td></tr>
+<tr><td>« Le segment villas ne croît qu'à +2,5 %/an »</td>
+<td>La série réelle est <strong>+6,9 % (Q2 25) → −7,23 % (Q3 25) → +2,5 % (Q4 25)</strong>. Le +2,5 % est un <strong>rebond</strong>, pas une tendance. L'extrapoler sur 4 ans fabrique le verdict.</td>
+<td><span class="tag t-bad">réfuté</span></td></tr>
+<tr><td>« Appartements +6,9 % vs villas +2,5 % »</td>
+<td>Confusion de séries : les appartements font +6,2 % au Q4 2025. Le +6,9 % était le chiffre <em>« other houses »</em> du Q2. Contraste artificiellement gonflé.</td>
+<td><span class="tag t-bad">réfuté</span></td></tr>
+<tr><td>Villas Madliena finies à 4 900–6 900 €/m²</td>
+<td>Confirmé par des comparables indépendants : 6 250 000 € / 1 100 m² = <strong>5 682 €/m²</strong>. <strong>Votre hypothèse implicite de 7 000–9 000 €/m² n'est pas soutenue.</strong></td>
+<td><span class="tag t-ok">confirmé</span></td></tr>
+<tr><td><strong>Fait nouveau</strong></td>
+<td>Une villa <strong>shell form</strong> concurrente à Madliena — neuve, détachée, flanc de colline, ~620 m² — se demande <strong>4 950 000 €</strong>, soit ~7 900 €/m². Contredit frontalement « 4 249 €/m² en shell = niveau d'une villa finie ».</td>
+<td><span class="tag t-neu">nouveau</span></td></tr>
+</tbody></table></div>
+
+<div class="callout bad">
+  <div class="t">Le calcul qui retourne la conclusion</div>
+  <p>Avec l'indice général RPPI maltais (+5,7 à +6,7 % par an sur 2025–2026) plutôt qu'avec le sous-indice
+  « villas » volatil :</p>
+  <p style="font-family:var(--mono);font-size:15px;text-align:center;margin:14px 0">
+  3 400 000 × 1,06<sup>4</sup> = <strong>4 293 000 €</strong></p>
+  <p>C'est <strong>au-dessus</strong> du prix demandé de 3,85 M€. <strong>Le verdict « surpayé de
+  12–22 % » se retourne en « décoté de 10 % » par le seul choix de l'indice.</strong> C'est le défaut le
+  plus grave du raisonnement initial : la conclusion était déterminée par un choix méthodologique non
+  discuté, appuyé sur un sous-indice minuscule, sourcé chez un blog.</p>
+</div>
+
+<div class="callout warn">
+  <div class="t">Conséquence tactique — important</div>
+  <p><strong>N'entrez PAS en négociation avec l'argument « le segment villas ne fait que +2,5 %/an ».</strong>
+  Il est faux, vérifiable en trente secondes par le vendeur, et le faire tomber
+  <strong>discréditerait toute votre position</strong>. Et <strong>la cible de 3,3–3,5 M€ n'est pas
+  soutenue par les preuves</strong> : elle risque de faire échouer la négociation sur un argument
+  statistique erroné. Fourchette défensible : <strong>3,6–3,8 M€</strong>.</p>
+</div>
+
+<!-- ══════════════════════════════════════ 6 ══════════════════════════════════════ -->
+<h2 id="s6"><span class="num">6</span>Négociation : votre vrai levier</h2>
+
+<div class="callout bad">
+  <div class="t">Correction importante sur les 5 % d'agence</div>
+  <p>Vous pensez avoir gagné 5 % en contactant le vendeur en direct. <strong>À Malte, la commission
+  d'agence est payée par le VENDEUR</strong> — 5 % en <em>open agency</em>, 3,5 % en <em>sole
+  agency</em>, plus 18 % de TVA. Les acheteurs ne paient normalement pas de commission. Donc en direct,
+  <strong>ce n'est pas vous qui économisez mécaniquement, c'est le promoteur</strong>. Vous devez
+  <em>négocier pour capturer</em> tout ou partie de cette économie ; ce n'est pas automatique.</p>
+  <p class="small" style="margin-top:10px">Nuance : c'est un <strong>usage</strong> de marché largement
+  attesté, pas une règle de droit. Il existe des contre-exemples (le <em>sensar</em>, intermédiaire de
+  village, prend traditionnellement 1 % à chaque partie).</p>
+</div>
+
+<h3>6.1 — L'argumentaire chiffré</h3>
+<div class="scroll"><table>
+<thead><tr><th>Scénario</th><th class="n">Prix</th><th class="n">Commission TTC</th><th class="n">Net vendeur</th></tr></thead>
+<tbody>
+<tr><td>Vente via agence, <em>open</em> (5 % + TVA)</td><td class="n">3 850 000</td><td class="n">227 150</td><td class="n">3 622 850</td></tr>
+<tr><td>Vente via agence, <em>sole</em> (3,5 % + TVA)</td><td class="n">3 850 000</td><td class="n">159 005</td><td class="n">3 690 995</td></tr>
+<tr class="sub"><td><strong>Votre offre directe équivalente pour lui</strong></td><td class="n"><strong>3 630 000</strong></td><td class="n">0</td><td class="n"><strong>3 630 000</strong></td></tr>
+<tr><td>Votre offre basse</td><td class="n">3 400 000</td><td class="n">0</td><td class="n">3 400 000</td></tr>
+</tbody></table></div>
+<p>Autrement dit : une offre directe à <strong>3 630 000 €</strong> lui rapporte autant qu'une vente en
+agence à 3,85 M€. C'est votre <strong>point d'ancrage haut</strong>. Mais attention à l'ancrage :</p>
+
+<div class="callout ok">
+  <div class="t">Votre meilleur argument, et il est écrit</div>
+  <p><strong>Le prix publié par le vendeur, sur son propre site, est 3 400 000 €.</strong> Mon premier
+  rapport construisait toute l'analyse à partir de 3,85 M€ — c'est-à-dire qu'il traitait le prix demandé
+  oralement comme la référence et le prix publié comme un souvenir. <strong>C'est exactement l'inverse
+  de la bonne tactique.</strong></p>
+  <p>La question à poser n'est pas « comment justifier 3,63 M€ ». C'est :</p>
+  <div class="q" style="margin-top:12px">
+    <div class="who">au vendeur, par écrit</div>
+    « Votre site affiche MH 3 à <em>3 400 000 €</em>. Sur quelle base me demandez-vous
+    <em>3 850 000 €</em> ? »
+  </div>
+</div>
+
+<h3>6.2 — Ce sur quoi négocier (solide) et ce qu'il faut éviter (fragile)</h3>
+<div class="grid">
+  <div class="stat ok"><div class="lbl">✔ Arguments solides</div>
+    <div class="note" style="font-size:14px;line-height:1.6">
+    • <strong>Prix publié à 3,4 M€</strong> sur son propre site<br>
+    • <strong>Gros œuvre achevé mars 2022</strong>, toujours invendu<br>
+    • <strong>4 hivers ouvert sans menuiseries</strong>, en bord de mer<br>
+    • <strong>Adresse postale NXR</strong>, Baħar iċ-Ċagħaq<br>
+    • <strong>450 m² de sous-sol</strong> sans valeur de marché proportionnelle<br>
+    • Taxe de cession du promoteur : <strong>8 %</strong> (264–308 k€) — il a un intérêt fiscal chiffrable à conclure
+    </div></div>
+  <div class="stat bad"><div class="lbl">✘ À ne surtout pas invoquer</div>
+    <div class="note" style="font-size:14px;line-height:1.6">
+    • « Le segment villas ne fait que <strong>+2,5 %/an</strong> » — <strong>faux</strong>, réfutable en 30 s<br>
+    • « <strong>Décote d'adresse de 10 à 20 %</strong> » — chiffre inventé, non sourçable<br>
+    • Le comparable à <strong>3 918 €/m²</strong> — c'était du prix au m² de terrain<br>
+    • Toute cible sous <strong>3,5 M€</strong> présentée comme « le prix de marché »
+    </div></div>
+</div>
+
+<h3>6.3 — Le risque juridique : la clause d'introduction</h3>
+<div class="callout warn">
+  <div class="t">Ce risque est réel, pas théorique</div>
+  <p>Des villas Madliena en shell form sont <strong>activement listées chez Frank Salt et Perry</strong>.
+  Il existe donc probablement un mandat sur ce bien ou ses voisins. Le critère juridique est
+  l'<em>« effective cause of the sale »</em> : <strong>si une agence vous a présenté le bien</strong>
+  (visite, plaquette, e-mail, listing), l'introduction est constituée, et la clause standard fait
+  <strong>indemniser le vendeur par l'acheteur</strong>.</p>
+  <p><strong>Parade :</strong> inverser la clause. Exigez au konvenju que <strong>le vendeur déclare et
+  garantisse</strong> qu'aucun agent n'a droit à commission, et <strong>vous indemnise</strong> de toute
+  réclamation. Lui seul connaît ses mandats. C'est le point à négocier.</p>
+</div>
+
+<p>Autres protections : notaire <strong>indépendant, choisi par vous</strong> (jamais celui du vendeur —
+à Malte le notaire est traditionnellement choisi et payé par l'acheteur) ; dépôt de 10 % sur
+<strong>compte séquestre du notaire</strong>, jamais directement au promoteur ; konvenju de 3 à 6 mois
+avec <strong>conditions suspensives impératives</strong> : obtention du financement, obtention de l'AIP,
+assurance décès accordée, searches satisfaisants, conformité PA. Le régulateur du secteur est la
+<strong>Property Market Agency</strong> (Chapter 644, en vigueur depuis le 26/09/2024) : vérifiez la
+licence de tout intervenant.</p>
+
+<!-- ══════════════════════════════════════ 7 ══════════════════════════════════════ -->
+<h2 id="s7"><span class="num">7</span>Coût de finition</h2>
+<p class="lede">Vous m'avez donné 148 m² à faire très bien, 300 m² un peu moins bien, et le sous-sol
+phasable. Voici le chiffrage — et l'erreur de facteur 3 qu'il fallait corriger.</p>
+
+<div class="callout bad">
+  <div class="t">L'erreur qu'il fallait absolument corriger</div>
+  <p>Les « <strong>250–450 €/m²</strong> » que l'on trouve partout sur les sites maltais désignent des
+  <em>« standard finishes including flooring, bathrooms and doors »</em> — c'est-à-dire la finition d'un
+  <strong>appartement standard</strong>. Appliqué à votre villa, ce chiffre sous-estime le budget d'un
+  facteur 2,5 à 4.</p>
+  <p><strong>Le bon repère maltais :</strong> une construction de luxe complète coûte
+  <strong>1 500–2 000+ €/m²</strong> (structure incluse) et le shell 600–900 €/m². Par différence, la
+  <strong>finition seule d'une villa haut de gamme = 600–1 400 €/m²</strong>, centre de fourchette
+  900–1 100 €/m².</p>
+  <p style="margin-bottom:0"><strong>→ Sur 900 m² : 810 000 à 1 260 000 €, fournitures comprises</strong>
+  — <em>avant</em> piscine, ascenseur, paysager, domotique, honoraires, aléas et TVA.</p>
+</div>
+
+<h3>7.1 — Ce que « shell form » veut dire exactement à Malte</h3>
+<p>Les portails maltais classent les biens en cinq états : <em>shell form</em> → <em>finished excluding
+bathrooms and internal doors</em> → <em>finished including</em> → <em>partially furnished</em> →
+<em>furnished</em>. <strong>Attention : à Malte, « finished » exclut par défaut la cuisine, les salles de
+bain complètes et les portes intérieures.</strong> Le vocabulaire maltais est nettement moins-disant que
+le « fini » français.</p>
+
+<p>En shell form, il reste typiquement à faire : <strong>toutes les apertures</strong> (fenêtres et
+baies), enduits et plâtrerie, chapes, électricité (1er et 2e fix), plomberie (1er et 2e fix), sols,
+peinture, portes intérieures, salles de bain, cuisine, climatisation, VMC, chauffage au sol, domotique —
+et selon spécification piscine, ascenseur, photovoltaïque, paysager.</p>
+
+<h3>7.2 — Calculateur paramétrique</h3>
+<p>Vos surfaces sont issues d'une transcription orale imparfaite. Recalez-les vous-même : tout se
+recalcule instantanément.</p>
+
+<div class="calc">
+  <h3 style="margin-bottom:4px">Budget de finition — modèle paramétrique</h3>
+  <p class="small" style="margin-bottom:14px">Ratios en €/m² HT, hors postes forfaitaires (traités
+  séparément ci-dessous).</p>
+
+  <div class="presets">
+    <button onclick="preset('eco')">Économe</button>
+    <button onclick="preset('med')">Médian</button>
+    <button onclick="preset('prem')">Premium</button>
+    <button onclick="preset('bench')">Repère marché maltais HDG</button>
+  </div>
+
+  <div class="rows">
+    <div class="row">
+      <div class="hdr l">Zone</div><div class="hdr">m²</div><div class="hdr">€/m² HT</div><div class="hdr">Total HT</div>
+    </div>
+    <div class="row">
+      <div class="name">Premium — zones à vue<small>réception, séjour, master</small></div>
+      <input id="s1" type="number" value="148" oninput="calc()">
+      <input id="r1" type="number" value="1600" oninput="calc()">
+      <div class="out" id="o1">—</div>
+    </div>
+    <div class="row">
+      <div class="name">Bon standing<small>chambres, sdb, circulations</small></div>
+      <input id="s2" type="number" value="300" oninput="calc()">
+      <input id="r2" type="number" value="950" oninput="calc()">
+      <div class="out" id="o2">—</div>
+    </div>
+    <div class="row">
+      <div class="name">Sous-sol / annexes<small>garage, technique, buanderie — phasable</small></div>
+      <input id="s3" type="number" value="450" oninput="calc()">
+      <input id="r3" type="number" value="330" oninput="calc()">
+      <div class="out" id="o3">—</div>
+    </div>
+    <div class="row">
+      <div class="name">Postes forfaitaires<small>cuisine, sdb, dressings, ascenseur, piscine, extérieurs, PV, sécurité, domotique</small></div>
+      <input id="fq" type="number" value="1" oninput="calc()" title="laisser à 1">
+      <input id="ff" type="number" value="520000" oninput="calc()">
+      <div class="out" id="of">—</div>
+    </div>
+    <div class="row">
+      <div class="name">Honoraires<small>perit + archi d'intérieur + project management, en %</small></div>
+      <input id="hq" type="number" value="1" oninput="calc()" title="laisser à 1">
+      <input id="hp" type="number" value="15" oninput="calc()">
+      <div class="out" id="oh">—</div>
+    </div>
+    <div class="row">
+      <div class="name">Aléas / contingency<small>en % — 15 à 20 % est la norme en fit-out sur mesure</small></div>
+      <input id="aq" type="number" value="1" oninput="calc()" title="laisser à 1">
+      <input id="ap" type="number" value="15" oninput="calc()">
+      <div class="out" id="oa">—</div>
+    </div>
+  </div>
+
+  <div class="calcout">
+    <div class="line"><span>Enveloppe (surfaces × ratios)</span><span id="tEnv">—</span></div>
+    <div class="line"><span>Postes forfaitaires</span><span id="tFf">—</span></div>
+    <div class="line"><span>Honoraires</span><span id="tH">—</span></div>
+    <div class="line"><span>Aléas</span><span id="tA">—</span></div>
+    <div class="line"><span><strong>Total HT</strong></span><span id="tHT">—</span></div>
+    <div class="line"><span>TVA maltaise 18 %</span><span id="tTVA">—</span></div>
+    <div class="line big"><span>TOTAL FINITION TTC</span><span id="tTTC">—</span></div>
+    <div class="line"><span class="small">Coût de finition au m² (sur surface totale saisie)</span><span id="tM2">—</span></div>
+    <div class="line" style="border-top:1px solid var(--line);margin-top:10px;padding-top:12px"><span>+ prix d'achat + frais d'acquisition (à 3,85 M€)</span><span id="tAcq">—</span></div>
+    <div class="line big"><span>COÛT DE REVIENT TOTAL</span><span id="tRev">—</span></div>
+    <div class="line"><span class="small">+ coût de portage (18 mois, ~4 %) et mobilier — non inclus</span><span class="small" id="tPort">—</span></div>
+  </div>
+</div>
+
+<h3>7.3 — Ordres de grandeur des trois scénarios</h3>
+<div class="scroll"><table>
+<thead><tr><th>Scénario</th><th class="n">Finition TTC</th><th class="n">€/m²</th><th>Ce que ça achète</th></tr></thead>
+<tbody>
+<tr><td><strong>Économe</strong></td><td class="n">1,1 – 1,4 M€</td><td class="n">~1 300 – 1 550</td><td>Grès cérame de qualité, alu standard, clim split, cuisine correcte, piscine classique, pas de domotique</td></tr>
+<tr><td><strong>Médian</strong> <span class="tag t-ok">recommandé</span></td><td class="n">1,8 – 2,3 M€</td><td class="n">~2 000 – 2 550</td><td>Grandes baies alu premium, VRF gainable, chauffage au sol, cuisine italienne, ascenseur, piscine à débordement, pierre sur les zones à vue</td></tr>
+<tr><td><strong>Premium</strong> <span class="tag t-bad">déconseillé ici</span></td><td class="n">2,8 – 3,9 M€</td><td class="n">~3 100 – 4 350</td><td>Systèmes minimalistes type Sky-Frame/Vitrocsa, pierre naturelle partout, KNX complet, spa, sur-mesure intégral</td></tr>
+</tbody></table></div>
+
+<div class="callout warn">
+  <div class="t">Honnêteté sur l'incertitude de ces chiffres</div>
+  <p>Mon modèle QS initial donnait 1,33 / 2,47 / 3,92 M€. L'adversarial a montré que ses ratios premium
+  (2 800 €/m² de <em>finition seule</em>) dépassent le coût d'une <em>construction de luxe complète</em>
+  à Malte (1 500–2 000 €/m², structure comprise) — un signe qu'ils ont probablement été transposés depuis
+  la France ou la Suisse. J'ai révisé la fourchette à la baisse ci-dessus. <strong>Aucun de ces chiffres
+  ne remplace trois devis réels.</strong></p>
+  <p style="margin-bottom:0">Le poste qui reste le mieux calibré est celui des <strong>apertures</strong> :
+  un Schüco AS 77 Panorama de 3000×2200 démarre à ~9 800 €, soit ~1 485 €/m² <em>en fourniture seule</em>.
+  La fourchette de 900–1 800 €/m² de baie est donc réaliste, voire conservatrice une fois ajoutés le fret
+  vers Malte, la motorisation et la pose. <strong>Ce qui n'est pas fiable, c'est le ratio baie/plancher
+  (0,35–0,50) : il est supposé, alors qu'il est mesurable sur les élévations du permis PA.</strong>
+  Demandez-les — c'est la donnée manquante la plus rentable du dossier.</p>
+</div>
+
+<h3>7.4 — Deux fausses alertes à retirer de votre plan</h3>
+<div class="grid">
+  <div class="stat ok"><div class="lbl">Raccordement Enemalta</div><div class="val">900 €</div>
+  <div class="note">Présenté dans mon rapport comme « le tueur de planning n° 1 » à 5 000–40 000 € et
+  6–18 mois. <strong>Faux.</strong> Un triphasé ≤ 60 A/phase à moins de 150 m d'un point BT coûte
+  <strong>900 €</strong>. Une sous-station n'est requise que si (ampérage × distance) &gt; 30 000.</div></div>
+  <div class="stat ok"><div class="lbl">Interdiction estivale de chantier</div><div class="val">hors champ</div>
+  <div class="note">La SL 623.08 (15 juin – 30 sept.) ne vise que <strong>démolition et
+  excavation</strong>, et Naxxar n'est pas sur la liste des localités. Vos travaux de finition sont hors
+  champ deux fois. <strong>Seule exposition : l'excavation de la piscine</strong> — et la liste 2026 de
+  la MTA, qui cible des <em>rues nommées</em>, n'a pas pu être lue.</div></div>
+</div>
+
+<div class="callout warn">
+  <div class="t">En revanche, la contrainte que personne n'avait vue coûte bien plus de temps</div>
+  <p>Les <strong>horaires de chantier maltais</strong> : travaux de 7 h à 20 h, <strong>arrêt obligatoire
+  de 14 h à 16 h dès que le bruit dépasse 65 dB</strong>, <strong>aucun travail le dimanche ni les jours
+  fériés</strong>, marteau pneumatique limité à 7 h 30–16 h, brise-roche hydraulique
+  <strong>interdit en permanence</strong>. Un durcissement est proposé (7 h 30–16 h 30, heure calme
+  13 h–14 h 30, samedi 9 h–13 h en travaux légers uniquement).</p>
+  <p>Ajoutez la <strong>fermeture d'août</strong> (semaine de Santa Marija) : beaucoup d'entreprises
+  ferment 1 à 2 semaines. <strong>Provisionnez 2 à 3 semaines improductives chaque août</strong> — sur un
+  chantier de 24 mois, cela fait 4 à 6 semaines. À inscrire au contrat, pas à découvrir.</p>
+</div>
+
+<h3>7.5 — Phasage du sous-sol : oui, mais avec une règle absolue</h3>
+<p>Phaser les 450 m² de sous-sol est <strong>économiquement justifié</strong> : le surcoût du différé est
+de <strong>+15 à +30 %</strong> sur le lot reporté (remobilisation, perte des remises de volume,
+protection des ouvrages finis, escalade des prix), ce qui est acceptable au regard de la trésorerie
+différée sur 2 à 4 ans.</p>
+
+<div class="callout bad">
+  <div class="t">La règle qui ne souffre aucune exception</div>
+  <p><strong>Tout ce qui est enterré, encastré ou structurel se fait en Phase 1 — même si la pièce reste
+  brute pendant quatre ans.</strong></p>
+  <p>Concrètement, en Phase 1 dans le sous-sol : cuvelage, drainage et pompe de relevage ; colonnes
+  montantes eau, eaux usées, électricité, fibre, fourreaux d'attente ; gaines VMC et VRF traversant vers
+  les niveaux hauts ; <strong>fosse et gaine d'ascenseur complètes</strong> ; local technique piscine avec
+  ses réseaux ; cuve d'eau, surpresseur, adoucisseur ; attentes bornes de recharge.</p>
+  <p style="margin-bottom:0"><strong>Coût de cette discipline : ~55 000 €. Coût de son omission :
+  200 000 à 400 000 €</strong> de casse-reprise-refinition, plus le blocage de planning.</p>
+</div>
+
+<h3>7.6 — Les cinq postes où il ne faut pas économiser</h3>
+<ol>
+  <li><strong>Étanchéité et gestion de l'eau</strong> (toiture, terrasses, sous-sol, drainage périphérique,
+  cuvelage). Air salin, remontées capillaires dans la globigérine, pluies torrentielles d'octobre à
+  décembre. Une infiltration se détecte 6 à 18 mois après la finition. <strong>Coût d'une reprise : 5 à
+  10 fois le coût initial</strong>, plus la destruction de tout ce qui est au-dessus.</li>
+  <li><strong>Apertures et vitrage</strong> — traitement qualité marine, quincaillerie dimensionnée,
+  vitrage à contrôle solaire. Un profilé mal traité se pique en 3–5 ans en front de mer. Le remplacement
+  post-finition détruit plâtre, sols et menuiserie autour de chaque baie :
+  <strong>2 500–4 000 €/m² de baie</strong>, hors reprises.</li>
+  <li><strong>Lots techniques (MEP) et first-fix partout</strong>, y compris au sous-sol non fini.</li>
+  <li><strong>Perit et project manager indépendants, payés par vous et par personne d'autre</strong> —
+  voir §9 sur le risque de captivité. Le régime BCA (Commencement Notice, Site Technical Officer, method
+  statement, assurance RC tiers) est obligatoire. <strong>La piscine exige une demande PA complète</strong>
+  (les piscines ont été retirées des exemptions DNO) : l'oublier, c'est un ordre d'arrêt.</li>
+  <li><strong>Ascenseur et structure du noyau technique.</strong> Une villa de 906 m² sur 4 niveaux est
+  invivable et invendable sans ascenseur — critère éliminatoire pour la clientèle 50+ qui constitue
+  l'essentiel des acheteurs à ce prix. Gaine, fosse et réservations sont structurelles : c'est en Phase 1
+  ou jamais.</li>
+</ol>
+
+<h3>7.7 — Le levier d'économie que personne n'avait chiffré</h3>
+<div class="callout ok">
+  <div class="t">Acheter les matériaux en Sicile : 80 000 à 205 000 €</div>
+  <p>Malte importe déjà <strong>29 % de sa céramique d'Italie</strong> — chaque marge d'importateur
+  maltais s'empile sur le prix sicilien. Sur un package matériaux haut de gamme (marbre, pierre,
+  carrelage, menuiserie, sanitaire) de 400 000 à 600 000 € :</p>
+  <div class="scroll" style="margin-top:12px"><table>
+  <tbody>
+  <tr><td>Suppression de la marge distributeur maltaise (25–40 %)</td><td class="n">100 000 – 240 000 €</td></tr>
+  <tr><td>Moins fret ro-ro Pozzallo/Catane – La Valette + manutention</td><td class="n">− 20 000 à 35 000 €</td></tr>
+  <tr class="total"><td><strong>Économie nette estimée</strong></td><td class="n"><strong>80 000 – 205 000 €</strong></td></tr>
+  </tbody></table></div>
+  <p style="margin-top:12px;margin-bottom:0">Droits de douane nuls (marché unique). <strong>Attention TVA :</strong>
+  un particulier achetant en Italie paie 22 % à l'origine. Il faut passer par un <strong>opérateur
+  immatriculé</strong> pour traiter l'acquisition intracommunautaire à 0 % et l'autoliquider à 18 % à
+  Malte — argument supplémentaire pour faire porter les achats par votre contractant maltais.</p>
+  <p style="margin-bottom:0"><strong>Ce levier est plus important que toute la prime de main-d'œuvre
+  débattue dans la section suivante.</strong> C'est peut-être la meilleure façon de faire jouer votre
+  lien avec la Sicile.</p>
+</div>
+
+<!-- ══════════════════════════════════════ 8 ══════════════════════════════════════ -->
+<h2 id="s8"><span class="num">8</span>Faire venir des ouvriers siciliens : la réponse</h2>
+<p class="lede">Vous posiez cinq questions. Les voici, une par une.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Votre question</th><th>Réponse</th></tr></thead>
+<tbody>
+<tr><td><strong>Est-ce légalement possible ?</strong></td>
+<td><strong>Oui</strong>, via le détachement de prestation de services (directives 96/71/CE et 2018/957). Mais c'est une opération réglementée à ~8 formalités distinctes, dont trois sont de vrais verrous.</td></tr>
+<tr><td><strong>Est-ce moins cher ?</strong></td>
+<td><strong>Non — mais l'écart est bien plus faible que je ne l'ai d'abord écrit.</strong> Mon premier chiffrage annonçait +55 à +110 %. Après correction (le prix maltais de référence était celui d'un appartement standard), la prime réelle est de <strong>+8 % à +56 %, et possiblement nulle</strong> face à un vrai contractant haut de gamme maltais. <strong>Le prix ne tranche pas la question.</strong></td></tr>
+<tr><td><strong>Est-ce que ça se fait à Malte ?</strong></td>
+<td>Le détachement entrant existe et dispose d'un guichet dédié. Mais le BTP maltais importe sa main-d'œuvre par <strong>embauche locale de ressortissants de pays tiers (~30 % du secteur)</strong>, pas par détachement UE. <strong>Aucun cas documenté</strong> d'entreprise sicilienne sur un chantier résidentiel privé maltais n'a été trouvé.</td></tr>
+<tr><td><strong>Est-ce que ça marche vraiment ?</strong></td>
+<td><strong>Partiellement.</strong> Ça marche pour un <strong>noyau de 3 à 5 spécialistes</strong> sur les lots à forte valeur ajoutée (marbre, pierre, stuc, ébénisterie, ferronnerie). Ça ne marche pas comme substitut complet : les lots réglementés restent maltais.</td></tr>
+<tr><td><strong>Peut-on trouver quelqu'un qui pilote jusqu'à la fin ?</strong></td>
+<td><strong>Oui</strong>, et c'est un marché structuré à Malte — le « turnkey finishing ». Voir §9.</td></tr>
+</tbody></table></div>
+
+<div class="callout bad">
+  <div class="t">Le verrou qui tue le scénario « six mois full time »</div>
+  <p>La clause « chantier » de l'<strong>article 5 de la convention fiscale Italie–Malte</strong> fixe le
+  seuil d'établissement stable à <strong>SIX MOIS</strong> — et non aux douze mois du modèle OCDE :</p>
+  <p style="font-style:italic;font-size:14.5px;border-left:3px solid var(--bad);padding-left:14px;margin:12px 0">
+  « a building site or construction, installation or assembly project… constitutes a permanent
+  establishment where such site, project or activities continue for a period of <strong>more than six
+  months</strong> »</p>
+  <p>Et la cascade est brutale :</p>
+  <ol style="margin-bottom:0">
+    <li>Chantier &gt; 6 mois → <strong>établissement stable</strong> à Malte</li>
+    <li>→ la rémunération est « supportée par un ES à Malte » → <strong>la 3<sup>e</sup> condition
+    de l'exonération des 183 jours tombe</strong></li>
+    <li>→ <strong>les 9 ouvriers deviennent imposables à Malte dès le premier jour</strong>, quelle que
+    soit leur durée de présence</li>
+    <li>→ la parade « plafonner à 165 jours » que je recommandais est <strong>totalement
+    inopérante</strong></li>
+    <li>→ obligation de payroll FSS maltais pour l'employeur italien, enregistrement de succursale au
+    Malta Business Registry, régularisation rétroactive</li>
+  </ol>
+</div>
+
+<div class="grid">
+  <div class="stat bad"><div class="lbl">Exposition fiscale si ES</div><div class="val">90–150 k€</div>
+  <div class="note">IS maltais 35 % sur le bénéfice attribuable (21–39 k€) + IR des 9 ouvriers
+  (~72 k€), avant pénalités et intérêts. <strong>Certain, pas hypothétique</strong>, dans le scénario
+  6 mois.</div></div>
+  <div class="stat warn"><div class="lbl">Volume de travail réel</div><div class="val">8,5–14 mois</div>
+  <div class="note">900 m² × 15–25 h/m² = 13 500–22 500 h. À 9 hommes, cela fait 8,5 à 14 mois — <strong>ou
+  13 à 21 hommes pendant 6 mois</strong>. Le scénario « 9 hommes, 6 mois » est sous-dimensionné de 40 à
+  100 %.</div></div>
+</div>
+
+<h3>8.1 — Les autres obstacles, corrigés</h3>
+<div class="scroll"><table>
+<thead><tr><th>Point</th><th>Ce que j'avais écrit</th><th>Après contre-expertise</th></tr></thead>
+<tbody>
+<tr><td><strong>Licence BCA</strong></td>
+<td>« Les travaux de finition semblent hors du champ de la LN 166/2023 »</td>
+<td><span class="tag t-bad">réfuté</span> La BCA énonce que la licence vise <em>« all persons from EU member states and third countries who will be carrying out construction work in Malta »</em>. <strong>Aucun texte n'exclut la finition.</strong> Ma source était <strong>une plateforme de réservation de services de ménage</strong> — indéfendable. <strong>Sans licence, le chantier est arrêtable.</strong></td></tr>
+<tr><td><strong>Électricité (REWS)</strong></td>
+<td>« Bloquant : un électricien sicilien ne peut pas »</td>
+<td><span class="tag t-warn">surévalué</span> La S.L. 545.24 contient une <strong>dérogation UE explicite</strong> : un installateur légalement établi dans un autre État membre, ayant exercé ≥ 1 an sur les 10 dernières années, peut exercer à Malte <strong>à titre temporaire et occasionnel</strong>. Le point dur résiduel est la <strong>certification</strong> pour le raccordement Enemalta — friction pratique, pas mur juridique.</td></tr>
+<tr><td><strong>TVA</strong></td>
+<td>Présentée comme une pénalité de l'option italienne</td>
+<td><span class="tag t-warn">biais</span> Les 18 % frappent <strong>les deux options</strong>. J'avais comparé l'italien TTC au maltais HT — biais de 74 000 à 95 000 €. <strong>À l'inverse</strong>, beaucoup de sous-traitants maltais sont sous le seuil de 35 000 € et ne facturent pas de TVA : jusqu'à <strong>51 300 € d'économie disponible uniquement sur la voie maltaise</strong>.</td></tr>
+<tr><td><strong>Skill Card</strong></td>
+<td>Non mentionnée</td>
+<td><span class="tag t-neu">angle mort</span> La <strong>Construction Industry Skill Card</strong> devient obligatoire pour <strong>toute personne travaillant sur un chantier maltais au 1<sup>er</sup> janvier 2027</strong>. Les qualifications étrangères doivent être validées par le MQRIC. Un chantier de 8,5–14 mois débordera sur 2027 → homologation de 9 qualifications italiennes. Coût faible, <strong>délai long : à démarrer maintenant</strong>.</td></tr>
+<tr><td><strong>Fourniture de main-d'œuvre</strong></td>
+<td>Mentionné puis oublié</td>
+<td><span class="tag t-bad">piège n° 1</span> Vous dites vouloir « <em>mon</em> équipe de 9 hommes à plein temps pour moi ». C'est <strong>littéralement de la fourniture de main-d'œuvre</strong>. Si vous dirigez les ouvriers, il faut une <strong>licence DIER + garantie de 20 000 €</strong>, et le détachement est requalifié. <strong>Vous ne devez jamais donner d'ordre direct</strong> : tout passe par le chef de chantier de l'entreprise italienne, par écrit.</td></tr>
+</tbody></table></div>
+
+<h3>8.2 — Ce qui n'a PAS été contesté</h3>
+<p>Le cadre du détachement lui-même est solide et vérifié. Si vous y allez, la séquence est :
+<strong>A1 auprès de l'INPS</strong> pour chaque salarié avant le départ → <strong>notification préalable
+au DIER</strong> via postedworkersmalta.gov.mt (aucun délai de grâce, aucune régularisation possible) →
+<strong>désignation d'une personne de contact</strong> à Malte (pas besoin d'être physiquement présente) →
+<strong>classeur documentaire en anglais sur le chantier</strong> (contrats, fiches de paie, feuilles de
+temps, preuves de paiement) → <strong>notification OHSA au moins 4 semaines avant</strong> (votre chantier
+fait ~1 190 personnes-jours, le seuil est à 500) → <strong>immatriculation TVA maltaise</strong> de
+l'entreprise italienne (aucun seuil pour les non-résidents ; l'autoliquidation est impossible puisque
+vous êtes un particulier).</p>
+
+<p>Point favorable au passage : le <strong>salaire minimum maltais est de 229,44 €/semaine (~5,74 €/h)</strong>,
+très en dessous du CCNL Edilizia italien. Le « noyau dur » maltais n'ajoutera donc <strong>aucun coût
+salarial</strong>. Le surcoût du détachement est <strong>logistique</strong>, pas salarial.</p>
+
+<div class="callout warn">
+  <div class="t">Le signal le plus fort du dossier, et il est silencieux</div>
+  <p><strong>Il n'existe aucun précédent.</strong> Aucune trace d'entreprise sicilienne ayant opéré un
+  chantier résidentiel privé à Malte. Vous seriez le cas n° 1 : pas de playbook, pas d'écosystème de
+  fournisseurs, aucune référence à appeler, aucun précédent en cas de litige.</p>
+  <p style="margin-bottom:0">Et un risque de <strong>sélection adverse</strong> : une entreprise
+  sicilienne structurée, capable de mobiliser 9 hommes pendant 6 mois hors d'Italie, avec un carnet plein,
+  <strong>n'a aucun intérêt économique à traverser la mer</strong>. Vous attirerez donc précisément
+  <strong>les entreprises qui n'ont pas de travail chez elles</strong> — l'inverse de ce que vous
+  cherchez.</p>
+</div>
+
+<h3>8.3 — Verdict</h3>
+<div class="callout bad">
+  <div class="t">NON — mais pas pour la raison que vous croyez, ni pour celle que j'avais d'abord donnée</div>
+  <p><strong>Ce n'est pas une question de prix.</strong> Après correction, l'écart entre équipe sicilienne
+  et contractant maltais haut de gamme est faible, incertain, peut-être nul. Et le
+  <strong>coût du retard</strong> — que je n'avais pas chiffré — vaut <strong>103 000 à 128 000 €</strong>
+  pour un dérapage de 8 à 18 mois (portage financier, logement de remplacement, prolongation du perit,
+  escalade des matériaux). C'est <strong>le même ordre de grandeur que la prime</strong>. Autrement dit :
+  si l'équipe sicilienne tenait vraiment le délai, elle serait rentable.</p>
+  <p><strong>Ce qui tranche, ce sont trois faits réglementaires :</strong> le seuil d'établissement stable
+  à 6 mois, la licence BCA qui n'exclut pas les finitions, et l'absence totale de précédent.</p>
+</div>
+
+<h3>8.4 — Le compromis que personne n'avait proposé</h3>
+<div class="callout ok">
+  <div class="t">Une entreprise MALTAISE avec une équipe italienne nommée au contrat</div>
+  <p>38,6 % de la population active maltaise est étrangère, et le BTP dépend à ~30 % de la main-d'œuvre
+  migrante. <strong>Il y a déjà des artisans italiens et siciliens à Malte, employés localement.</strong></p>
+  <p>Contracter avec une <strong>entreprise maltaise licenciée BCA en nommant les compagnons et le chef
+  d'équipe dans le contrat</strong> vous donne exactement votre objectif réel — une équipe dédiée,
+  qualifiée, italophone, sur un seul chantier — avec <strong>zéro exposition</strong> : pas de détachement,
+  pas d'établissement stable, pas de TVA étrangère, pas de licence à obtenir, pas de Skill Card à faire
+  homologuer.</p>
+  <p style="margin-bottom:0">Même logique pour les équipes d'Europe de l'Est déjà présentes à Malte.
+  <strong>La question à poser aux contractants turnkey maltais est simplement : « qui, chez vous, est
+  italien ? »</strong></p>
+</div>
+
+<p>Et si vous voulez malgré tout de l'italien en direct : <strong>réservez-le aux lots premium</strong>
+(marbre, pierre, stuc, ébénisterie, ferronnerie), <strong>3 à 5 compagnons, moins de 5 mois calendaires,
+hard stop</strong>, en sous-traitance d'un contractant maltais titulaire de la licence. Sous 6 mois : pas
+d'établissement stable, exonération des 183 jours préservée, pas de licence BCA propre à obtenir, et pas
+de Skill Card si c'est terminé avant le 1<sup>er</sup> janvier 2027.</p>
+
+<!-- ══════════════════════════════════════ 9 ══════════════════════════════════════ -->
+<h2 id="s9"><span class="num">9</span>Qui pilote le chantier — et pourquoi le contrat ne vous protégera pas comme vous le croyez</h2>
+
+<p>Votre plainte de fond — « ils travaillent sur trois chantiers à la fois » — est
+<strong>documentée, pas un préjugé</strong> : <em>« contractors often juggle multiple jobs… what's quoted
+as a six-month job frequently turns into twelve months or more »</em>. Mon rapport initial la
+psychologisait ; c'était une erreur.</p>
+
+<h3>9.1 — Les rôles à Malte</h3>
+<div class="scroll"><table>
+<thead><tr><th>Rôle</th><th>Fonction</th><th>Obligatoire ?</th></tr></thead>
+<tbody>
+<tr><td><strong>Perit</strong></td><td>Conception, dépôts Planning Authority, supervision, certification. Seul professionnel habilité à assumer la responsabilité de conception et construction à Malte (<em>Periti Act</em>, Chap. 390)</td><td><span class="tag t-bad">OUI</span></td></tr>
+<tr><td><strong>Project Supervisor</strong></td><td>Sécurité chantier. <strong>Nommé par VOUS</strong> (art. 3(1) LN 88/2018), notifie l'OHSA, peut arrêter les travaux</td><td><span class="tag t-bad">OUI</span></td></tr>
+<tr><td><strong>Électricien autorisé REWS (A ou B)</strong></td><td>Installation <strong>et certification</strong> électriques — sans son certificat, pas de mise en service Enemalta</td><td><span class="tag t-bad">OUI</span></td></tr>
+<tr><td><strong>Quantity Surveyor</strong></td><td>Métrés, budget, contrôle des situations, gestion des avenants</td><td>Non — mais <strong>c'est le meilleur euro dépensé du projet</strong></td></tr>
+<tr><td><strong>Main contractor turnkey</strong></td><td>Exécute, coordonne, <strong>porte la responsabilité unique du résultat</strong></td><td>Non — mais c'est la clé</td></tr>
+<tr><td>Project Manager / Interior designer</td><td>Planning, coordination, spécifications, direction esthétique</td><td>Non</td></tr>
+</tbody></table></div>
+
+<p><strong>Le marché du « turnkey finishing » maltais existe et il est structuré.</strong> Le problème que
+vous croyez unique est un marché établi : le shell form est le mode d'achat standard à Malte, et une
+filière entière s'est créée autour (Verified Turnkey, Shell Form Projects, AGF Turnkey à Mosta — à côté
+de Naxxar, Evolve, GRF, TS Malta, MBF Malta, plus des annuaires de vérification d'artisans).
+<em>Leur existence est établie ; ni leur qualité, ni leur solvabilité, ni leur licence BCA n'ont été
+vérifiées.</em></p>
+
+<h3>9.2 — La correction la plus importante de cette section</h3>
+<div class="callout bad">
+  <div class="t">Les pénalités de retard ne vous protégeront pas à Malte</div>
+  <p>Mon rapport recommandait <em>manning clause</em> nominative et <em>liquidated damages</em> par jalon
+  comme votre protection principale. <strong>L'adversarial a démoli cette thèse :</strong></p>
+  <ul>
+    <li>L'<strong>article 1122 du Code civil maltais</strong> autorise le juge à <strong>réduire</strong>
+    la pénalité contractuelle.</li>
+    <li>L'arrêt <em>Michael Pace vs Richard Micallef</em> (Cour d'appel, 2004) a <strong>annulé une
+    pénalité intégrale</strong> au motif que 99 % des travaux étaient faits.</li>
+    <li>Les délais judiciaires maltais : <strong>2 à 4 ans en première instance</strong>,
+    <strong>1 119 jours en appel</strong> — contre une moyenne UE de 141 jours.</li>
+  </ul>
+  <p style="margin-bottom:0">Autrement dit : une pénalité de retard est <strong>judiciairement réductible
+  et pratiquement inexécutable dans un délai utile</strong>. Elle sert à la négociation, pas au
+  recouvrement.</p>
+</div>
+
+<div class="callout ok">
+  <div class="t">Ce qui marche vraiment : les mécanismes auto-exécutoires</div>
+  <p>Ceux qui ne passent <strong>pas</strong> par un tribunal :</p>
+  <ol>
+    <li><strong>Retenue de garantie de 5 %</strong> prélevée sur <em>chaque</em> situation — 2,5 % libérés
+    à la réception, 2,5 % à la fin de la garantie de 12 mois.</li>
+    <li><strong>Performance bond bancaire à première demande de 10 %</strong>, émis par une
+    <strong>banque maltaise</strong>. Appelable sans juge. Indispensable si le contractant est étranger —
+    poursuivre une SRL sicilienne sans actifs à Malte est illusoire.</li>
+    <li><strong>Paiement contre certification</strong> d'un QS indépendant, adossé à l'avancement physique
+    constaté, <strong>jamais au calendrier</strong>. Ne jamais payer d'avance au-delà de 10 %.</li>
+    <li><strong>Pièce témoin validée</strong> (un mur, un sol, une salle de bains) servant de référence
+    contractuelle de qualité. Meilleur outil contre les malfaçons de finition qu'un cahier des charges
+    verbeux.</li>
+    <li><strong>Clause de substitution</strong> : si l'effectif garanti n'est pas tenu X jours consécutifs,
+    vous faites exécuter par un tiers aux frais du contractant, prélevés sur la retenue.</li>
+  </ol>
+  <p style="margin-bottom:0"><strong>Et le mécanisme le plus puissant est économique, pas juridique :
+  faire de votre chantier le plus rentable de son carnet.</strong> C'est la seule chose au monde qui
+  garantisse qu'il y envoie ses hommes le lundi matin.</p>
+</div>
+
+<div class="callout warn">
+  <div class="t">Attention à la captivité</div>
+  <p>ICI Malta est à la fois <strong>vendeur, constructeur, MEP et finisseur</strong>. C'est un vrai atout
+  logistique — et un vrai risque de captivité tarifaire. <strong>Prenez un perit et un project manager
+  payés par vous et par personne d'autre</strong>, et consultez ICI <em>plus</em> deux entreprises
+  générales indépendantes sur le même cahier des charges. Le devis d'ICI vous donne le prix plancher
+  logistique ; la mise en concurrence vous protège.</p>
+</div>
+
+<!-- ══════════════════════════════════════ 10 ══════════════════════════════════════ -->
+<h2 id="s10"><span class="num">10</span>L'arbitrage à 200–600 k€ que personne n'avait posé</h2>
+
+<p>Rappel du mécanisme fiscal maltais : <strong>la vente d'un immeuble est exonérée de TVA</strong>
+(<em>exempt without credit</em>), alors que <strong>les travaux facturés séparément sont à 18 %</strong>.
+Deux chemins, deux fiscalités radicalement différentes :</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Chemin</th><th>TVA sur la finition</th><th>Autres coûts</th></tr></thead>
+<tbody>
+<tr><td><strong>A —</strong> acheter en shell + finir vous-même</td><td class="n"><strong>18 %</strong></td><td>Vous portez le risque, le délai, la coordination</td></tr>
+<tr><td><strong>B —</strong> acheter la villa <strong>déjà finie</strong> à ICI</td><td class="n"><strong>0 €</strong></td><td>5 % de droit d'enregistrement sur le prix incrémental + <strong>marge du promoteur</strong></td></tr>
+</tbody></table></div>
+
+<div class="callout info">
+  <div class="t">Le point mort</div>
+  <p style="font-family:var(--mono);font-size:15px;margin:10px 0">
+  0,18 × HT = 0,05 × HT(1+M) + M × HT<br>
+  0,13 = 1,05 M &nbsp;→&nbsp; <strong>M = 12,4 %</strong></p>
+  <p><strong>Si la marge d'ICI sur le lot finition est inférieure à ~12,4 %, acheter fini est moins cher.
+  Au-dessus, finir soi-même l'emporte.</strong></p>
+  <p style="margin-bottom:0"><em>Honnêteté requise :</em> une marge de promoteur maltais sur du fit-out
+  est réalistement de 15 à 25 %, donc l'arbitrage <strong>ne paie probablement pas</strong> en pur calcul
+  fiscal. <strong>Mais il ne coûte rien à tester</strong> — et du côté « acheter fini » s'ajoutent des
+  bénéfices non monétaires massifs : zéro gestion d'entreprises, zéro risque de dérive, zéro portage de
+  16 à 38 mois, jouissance immédiate.</p>
+</div>
+
+<div class="callout ok">
+  <div class="t">Action</div>
+  <p style="margin-bottom:0"><strong>Demandez à ICI un prix ferme « clés en main, finitions
+  comprises », avec cahier des charges détaillé.</strong> C'est une seule question, elle ne coûte rien,
+  et l'enjeu est de <strong>200 000 à 600 000 €</strong>. Aucun de mes agents ne l'avait posée avant
+  la contre-expertise.</p>
+</div>
+
+<!-- ══════════════════════════════════════ 11 ══════════════════════════════════════ -->
+<h2 id="s11"><span class="num">11</span>Création ou destruction de valeur ?</h2>
+
+<p>C'est la conclusion la plus grave du dossier. Elle a été attaquée, plusieurs de ses inputs ont été
+réfutés — et <strong>elle survit quand même, en s'aggravant</strong>, parce que deux postes majeurs
+manquaient.</p>
+
+<h3>11.1 — Les deux postes oubliés</h3>
+<div class="grid">
+  <div class="stat bad"><div class="lbl">Taxe de cession à la revente</div><div class="val">368–456 k€</div>
+  <div class="note"><strong>8 % de la valeur de cession</strong>, due <strong>même sans plus-value</strong>.
+  Absente du calcul initial. Atténuation possible : 5 % si cession sous 5 ans hors projet de
+  développement, 2 % si résidence ordinaire unique — <strong>à structurer dès l'acquisition</strong>.</div></div>
+  <div class="stat bad"><div class="lbl">Coût de portage (22 mois)</div><div class="val">~420 k€</div>
+  <div class="note">Financement de 3,85 M€ à ~4,5 % (318 k€) + logement de remplacement à Malte (64 k€) +
+  assurance chantier, gardiennage, taxes (40 k€). En scénario 38 mois : <strong>+700 à 750 k€</strong>.</div></div>
+</div>
+
+<h3>11.2 — Le bilan corrigé</h3>
+<div class="scroll"><table>
+<thead><tr><th>Scénario (achat à 3,85 M€)</th><th class="n">Coût de revient</th><th class="n">Valeur réalisée</th><th class="n">Écart</th></tr></thead>
+<tbody>
+<tr><td>Économe</td><td class="n">~5,9 M€</td><td class="n">4,3 – 5,0 M€</td><td class="n">− 0,9 à − 1,6 M€</td></tr>
+<tr><td>Médian</td><td class="n">~7,0 M€</td><td class="n">4,6 – 5,7 M€</td><td class="n">− 1,3 à − 2,4 M€</td></tr>
+<tr><td>Premium</td><td class="n">~8,4 M€</td><td class="n">4,8 – 5,9 M€</td><td class="n">− 2,5 à − 3,6 M€</td></tr>
+<tr class="sub"><td><em>Médian, achat renégocié à 3,5 M€</em></td><td class="n"><em>~6,6 M€</em></td><td class="n"><em>4,6 – 5,7 M€</em></td><td class="n"><em>− 0,9 à − 2,0 M€</em></td></tr>
+</tbody></table></div>
+<p class="src">Coûts de revient incluant achat, frais d'acquisition, finition TTC et portage. Valeur
+réalisée nette de la taxe de cession de 8 %. Fourchettes larges, à traiter comme des ordres de grandeur.</p>
+
+<h3>11.3 — Pourquoi</h3>
+<ol>
+  <li><strong>450 m² de sous-sol représentent 50 % de la surface pour 12 à 17 % de la valeur.</strong>
+  Chaque euro dépensé au-delà du strict fonctionnel y est quasi intégralement perdu à la revente. C'est
+  le vrai problème structurel du bien.</li>
+  <li><strong>L'adresse plafonne la valeur.</strong> Vous financeriez une finition de niveau Madliena sur
+  un foncier de niveau Baħar iċ-Ċagħaq.</li>
+  <li><strong>Marché acheteur étroit.</strong> À 5–6 M€ à Malte, on compte quelques dizaines
+  d'acquéreurs solvables par an, et la fin du programme de citoyenneté par investissement en 2025 a réduit
+  le flux. Délai de commercialisation attendu : <strong>12 à 30 mois</strong>.</li>
+</ol>
+
+<div class="callout bad">
+  <div class="t">L'argument qui tue le projet — et ce n'est pas l'arithmétique en €/m²</div>
+  <p>Une villa <strong>déjà finie de 1 100 m² à Madliena se vend 6 250 000 €</strong> (5 682 €/m²), et une
+  autre de 4 chambres sur 1 600 m² de terrain à 6 000 000 €.</p>
+  <p style="margin-bottom:0"><strong>C'est ~755 000 € DE MOINS que le coût de revient médian de votre
+  projet — pour 200 m² de plus, une meilleure adresse, aucun risque de chantier, et une jouissance
+  immédiate.</strong></p>
+</div>
+
+<h3>11.4 — Quand ce projet a quand même du sens</h3>
+<ul>
+  <li>✅ <strong>En résidence d'usage à long terme (10 ans et plus)</strong>, pas en investissement. La
+  destruction de valeur comptable cesse alors d'être le critère : vous achetez 906 m² sur mesure, vue
+  mer, à dix minutes de Sliema et St Julian's — un bien introuvable sur le marché secondaire.</li>
+  <li>✅ <strong>Si vous renégociez à 3,5–3,7 M€</strong> et restez au scénario médian-bas.</li>
+  <li>❌ <strong>Comme opération patrimoniale ou de revente : non, à aucun prix.</strong> Le scénario
+  premium est financièrement indéfendable ici.</li>
+</ul>
+
+<!-- ══════════════════════════════════════ 12 ══════════════════════════════════════ -->
+<h2 id="s12"><span class="num">12</span>Contradictions et incertitudes non résolues</h2>
+<p class="lede">Je préfère vous les donner que les masquer. Ce sont les points où mes agents se
+contredisent ou où la donnée manque.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Sujet</th><th>La contradiction</th><th>Comment trancher</th></tr></thead>
+<tbody>
+<tr><td><strong>Swieqi ou Naxxar ?</strong></td><td>Le code postal donne NXR 5314 (Naxxar) ; mais Madliena relève du conseil local de Swieqi. Les deux sources sont crédibles.</td><td><strong>Titre de propriété + searches du notaire.</strong> Pas Wikipédia.</td></tr>
+<tr><td><strong>Le prix est-il excessif ?</strong></td><td>Selon l'indice « villas » : surpayé de 12–22 %. Selon l'indice général RPPI : <strong>décoté de ~10 %</strong>. Et une villa shell concurrente à Madliena se demande 4,95 M€.</td><td><strong>Expertise indépendante d'un perit valuer maltais</strong> (1 500–3 000 €) <em>avant</em> toute offre. Seule façon de trancher.</td></tr>
+<tr><td><strong>Coût de finition</strong></td><td>Mon modèle QS : 2,47 M€ en médian. Le repère marché maltais : 810 k€–1,26 M€ pour la finition seule. L'écart tient aux forfaits (piscine, ascenseur, extérieurs, domotique), aux honoraires et à la TVA — mais pas entièrement.</td><td><strong>Trois devis réels</strong> sur un cahier des charges identique, dont celui d'ICI.</td></tr>
+<tr><td><strong>Base du DSTI</strong></td><td>Revenu brut (455 k€ requis) ou net disponible (640–900 k€) ? Non tranché.</td><td>Question directe au banquier, par écrit.</td></tr>
+<tr><td><strong>Statut SDA</strong></td><td>Déduit, jamais vérifié. Détermine si vous pouvez louer.</td><td>Question au notaire. Gratuite.</td></tr>
+<tr><td><strong>Directive 16 amendée ?</strong></td><td>La CBM a publié un document <em>« Proposed Amendments Directive 16 »</em> dont le statut en juillet 2026 est inconnu. Si ces amendements sont entrés en vigueur, toute l'analyse LTV/DSTI est à refaire.</td><td>Question au banquier ou à un avocat maltais.</td></tr>
+<tr><td><strong>Liste MTA 2026</strong></td><td>Naxxar n'apparaît pas sur la liste des localités sous interdiction estivale — mais la liste 2026, qui cible des <em>rues nommées</em>, n'a pas pu être lue. Baħar iċ-Ċagħaq est une zone balnéaire : candidat plausible.</td><td>Demander la liste MTA 2026 et vérifier Triq Edward Pirotta. Concerne l'excavation de la piscine.</td></tr>
+<tr><td><strong>Ratio baie/plancher</strong></td><td>0,35–0,50 supposé. C'est le poste le plus lourd du budget premium.</td><td><strong>Élévations du permis PA.</strong> Mesurable, gratuit.</td></tr>
+<tr><td><strong>Honoraires 20–26 %</strong></td><td>Probablement gonflés. Le barème DIR 01/18 de la Kamra tal-Periti n'a pas pu être lu, et il autorise explicitement la dérogation par accord préalable.</td><td>Négocier au <strong>forfait</strong>, jamais en pourcentage — le % incite mécaniquement à la dépense.</td></tr>
+</tbody></table></div>
+
+<div class="callout warn">
+  <div class="t">Sur la qualité des sources — soyez averti</div>
+  <p>Une part importante de l'information disponible en ligne sur l'immobilier maltais provient de sites
+  de contenu SEO qui se recopient (investropa, djar.ai, imin-malta), de blogs marketing de promoteurs ou
+  d'annuaires d'artisans. Les contre-expertises ont identifié, parmi les sources de mes propres agents :
+  <strong>un cabinet fiscal chypriote</strong> présenté comme référence de droit maltais, et
+  <strong>une plateforme de réservation de services de ménage</strong> citée sur le périmètre d'un
+  <em>Legal Notice</em>.</p>
+  <p style="margin-bottom:0"><strong>Les six seules autorités qui comptent</strong> — NSO, KPMG-MDA, MTCA,
+  Enemalta, Kamra tal-Periti, BCA — n'ont pu être lues dans aucun cas. Le rapport
+  <strong>KPMG-MDA Construction Industry and Property Market Report</strong> est la lacune principale :
+  c'est lui qui contient les prix au m² par localité et par typologie. <strong>Procurez-vous-le.</strong></p>
+</div>
+
+<!-- ══════════════════════════════════════ 13 ══════════════════════════════════════ -->
+<h2 id="s13"><span class="num">13</span>Plan d'action</h2>
+
+<h3>Avant toute offre — coût total ~10 000 à 25 000 €, enjeu à sept chiffres</h3>
+<ol>
+  <li><strong>Consultez pa.org.mt</strong> sur les demandes de permis voisines susceptibles de boucher la
+  vue mer. <em>Gratuit. Risque binaire maximal.</em></li>
+  <li><strong>Demandez à ICI un prix ferme « clés en main finies »</strong> avec cahier des charges.
+  <em>Gratuit. Enjeu 200–600 k€.</em></li>
+  <li><strong>Diagnostic structurel et chlorures</strong> sur un gros œuvre resté quatre hivers ouvert en
+  bord de mer, + garantie écrite d'ICI sur stabilité et étanchéité, cédée à l'acquéreur.
+  <em>5 000–15 000 €.</em></li>
+  <li><strong>Expertise indépendante d'un perit valuer maltais.</strong> <em>1 500–3 000 €.</em> Tranche
+  la question du prix <em>et</em> vous protège du trou de financement.</li>
+  <li><strong>Visitez les villas FINIES de Madliena à 6,0 et 6,25 M€</strong> avant toute offre sur MH 3.
+  <em>Gratuit, et probablement décisif.</em></li>
+  <li><strong>Notaire indépendant</strong> : SDA oui/non, freehold ou ċens, permis PA et conformité du
+  bâti aux plans sanctionnés, éligibilité au schéma LN 363/2024 (échéance 31/12/2026), qualification
+  fiscale du vendeur (8 % ou 5 %).</li>
+  <li><strong>Obtenez les élévations du permis PA</strong> pour mesurer le vrai ratio baie/plancher.</li>
+  <li><strong>Visitez le sous-sol après une forte pluie</strong>, avec un humidimètre.</li>
+  <li><strong>Pré-instruisez l'assurance décès</strong> sur le montant emprunté. Un refus après konvenju
+  fait tomber le financement.</li>
+</ol>
+
+<h3>Financement — en parallèle</h3>
+<ol start="10">
+  <li>Mettez <strong>4 banques en concurrence</strong>, si possible via un intermédiaire enregistré MFSA.
+  Exigez de chacune une <strong>ESIS datée</strong>.</li>
+  <li>Instruisez en parallèle une <strong>solution lombard</strong> auprès de votre banque privée — c'est
+  probablement votre voie réelle, ou au minimum votre solution d'apport.</li>
+  <li>Faites chiffrer l'<strong>impact IFI</strong> de la dette par un fiscaliste français, et étudiez la
+  piste <strong>MPRP / résidence maltaise</strong> (Catégorie I, +577 k€ de capacité, et fin de
+  l'interdiction de louer après 5 ans).</li>
+</ol>
+
+<h3>Si vous achetez — structuration du chantier</h3>
+<ol start="13">
+  <li><strong>Perit indépendant</strong> (pas celui du promoteur), désigné aussi <strong>Project
+  Supervisor</strong> — c'est une obligation qui pèse sur vous, pas sur le contractant.</li>
+  <li><strong>Quantity Surveyor indépendant</strong>. Le meilleur euro du projet.</li>
+  <li><strong>Cahier des charges et métré complets AVANT toute consultation.</strong> Sans cela, aucun
+  forfait n'est possible et tous les dérapages sont contractuellement légitimes.</li>
+  <li><strong>Consultez 3 à 4 contractants turnkey maltais</strong> en forfait, sur un cahier des charges
+  identique — <strong>en demandant à chacun qui, dans ses équipes, est italien</strong>.</li>
+  <li><strong>Contrat forfaitaire</strong> avec : équipe nommée, retenue de garantie 5 %, <strong>performance
+  bond bancaire maltais à première demande de 10 %</strong>, paiement contre certification du QS, pièces
+  témoins. <em>Pas de cost-plus. Jamais.</em></li>
+  <li><strong>Phase 1 = first-fix intégral partout</strong>, y compris dans le sous-sol qui restera brut
+  (~55 000 €).</li>
+  <li><strong>Sourcez les matériaux en Sicile</strong> via votre contractant maltais immatriculé
+  (80 000–205 000 €).</li>
+  <li>Provisionnez <strong>2 à 3 semaines improductives chaque août</strong> et les horaires de chantier
+  maltais dans le planning contractuel.</li>
+</ol>
+
+<!-- ══════════════════════════════════════ 14 ══════════════════════════════════════ -->
+<h2 id="s14"><span class="num">14</span>Les questions à poser</h2>
+<p class="lede">Formulées pour qu'une réponse évasive soit impossible : chacune exige un chiffre, une
+lettre, ou un oui/non.</p>
+
+<div class="q"><div class="who">Au vendeur — par écrit</div>
+« Votre site affiche MH 3 à <em>3 400 000 €</em>. Sur quelle base me demandez-vous
+<em>3 850 000 €</em> ? Et ce bien fait-il, ou a-t-il fait, l'objet d'un mandat auprès d'une agence —
+Frank Salt, Perry ou autre ? Je souhaite une <strong>déclaration écrite</strong> qu'aucune commission ne
+pourra m'être réclamée ni répercutée au titre d'une clause d'introduction. »</div>
+
+<div class="q"><div class="who">Au vendeur — la question à 200–600 k€</div>
+« Quel serait votre <strong>prix ferme, clés en main, finitions comprises</strong>, sur cahier des charges
+détaillé ? »</div>
+
+<div class="q"><div class="who">Au banquier — le plafond</div>
+« Sur ce dossier précis — non-résident, résidence secondaire, bien en shell form — donnez-moi
+<strong>le montant maximum en euros</strong> que votre comité peut approuver. Et dites-moi si ce plafond
+résulte de <em>(a)</em> une limite produit écrite, <em>(b)</em> ma seule capacité de remboursement, ou
+<em>(c)</em> une limite d'exposition interne discrétionnaire. <strong>Le chiffre et la lettre.</strong>
+Si c'est (a), envoyez-moi la clause. »</div>
+
+<div class="q"><div class="who">Au banquier — l'assiette</div>
+« Les 75 % s'appliquent-ils à la <strong>valeur d'expertise</strong>, au <strong>prix</strong>, ou au
+<strong>plus faible des deux</strong> ? L'expertise porte-t-elle sur la valeur <strong>en l'état
+(shell)</strong> ou sur la <strong>valeur après achèvement</strong> ? Donnez-moi <strong>les deux montants
+de prêt</strong> qui en résultent. »</div>
+
+<div class="q"><div class="who">Au banquier — DSTI et dérogations</div>
+« Votre DSTI de 40 % se calcule-t-il sur le revenu <strong>brut</strong> ou sur le revenu <strong>net
+disponible</strong> ? Avec quel taux stressé exactement ? Et disposez-vous d'un <strong>contingent de
+dérogation (speed limit) au titre de la Directive 16</strong> de la Central Bank of Malta ?
+<strong>Oui ou non</strong>, et combien de dossiers y reste-t-il pour l'exercice en cours ? »</div>
+
+<div class="q"><div class="who">Au notaire — AIP, SDA et titre</div>
+« <strong>Oui ou non</strong> : ce bien est-il en Special Designated Area ? Si non, le permis AIP
+m'interdira-t-il de louer, et cette interdiction figure-t-elle dans <strong>le texte même du
+permis</strong> ou dans une condition administrative révisable ? Envoyez-moi un modèle de permis AIP.
+Et : le titre est-il <strong>freehold</strong>, ou grevé d'un <strong>ċens perpétuel ou
+temporaire</strong> ? »</div>
+
+<div class="q"><div class="who">Au notaire / fiscaliste maltais</div>
+« Ce bien constitue-t-il, pour le vendeur, un <em>property forming part of a project</em> au sens de
+l'article 5A ITA — sa taxe de cession est-elle de <strong>8 % ou de 5 %</strong> ? Et ce bien est-il
+éligible au schéma <strong>LN 363/2024</strong> — exonération sur les premiers 750 000 € et remboursement
+de TVA jusqu'à 54 000 € sur les travaux — <strong>avant son expiration au 31 décembre 2026</strong> ? »</div>
+
+<div class="q"><div class="who">À la BCA — par écrit, avant de contracter</div>
+« Les travaux de <strong>finition intérieure</strong> (chapes, enduits, carrelage, plaques de plâtre,
+menuiserie, peinture) sur une villa existante entrent-ils dans le champ de la licence de contractant au
+titre de la <strong>LN 166 de 2023</strong> ? Et une entreprise établie dans un autre État membre de l'UE
+doit-elle en détenir une pour ces travaux ? »</div>
+
+<!-- ══════════════════════════════════════ 15 ══════════════════════════════════════ -->
+<h2 id="s15"><span class="num">15</span>Sources</h2>
+<p class="lede">Aucune n'a pu être ouverte directement — toutes proviennent d'extraits de moteur de
+recherche. Elles sont listées pour que vous puissiez les vérifier vous-même.</p>
+
+<h4>Banques et réglementation financière</h4>
+<p class="src">
+bov.com/meta/downloads/home-loans-precontractual-information-0 ·
+bov.com/bov-interest-rates · bov.com/meta/downloads/tariff-of-charges ·
+hsbc.com.mt/home-loans/products/classic-home-loan/ ·
+apsbank.com.mt/interest-rates/ · apsbank.com.mt/green-homeloan/ ·
+bnf.bank/interest-reference-rates · medirect.com.mt ·
+centralbankmalta.org/borrower-based-measures ·
+centralbankmalta.org/site/About-Us/Legislation/Directive-16-2021.pdf ·
+esrb.europa.eu (notification BBM Malta 2019) ·
+moodysanalytics.com (amendement CBM COVID) ·
+ecb.europa.eu/press/pr/date/2026 (décisions du 11/06/2026) ·
+mfsa.mt/financial-services-register/
+</p>
+
+<h4>Fiscalité, acquisition, AIP</h4>
+<p class="src">
+mtca.gov.mt/personal-tax/property-taxes/promise-of-sale ·
+mtca.gov.mt/.../acquisition-of-immovable-property-in-malta-by-non-residents/ ·
+mtca.gov.mt/personal-tax/property-taxes/faqs/new-property-tax-system---faq ·
+mtca.gov.mt/business-tax/vat1/vat-compliance/vat-rates/vat-rates ·
+pwc.com/mt (VAT on immovable property ; Property Tax &amp; Duty ; Worldwide Tax Summaries) ·
+ccmalta.com (AIP Permit ; Budget 2026 property measures) ·
+zampapartners.com (VAT on construction) · globalvatcompliance.com · avalara.com ·
+aelegal.com.mt (Property Market Agency Act) · equitas.com.mt · gvzh.mt · sciberras.legal ·
+franksalt.com.mt/guide-books/property-tax-in-malta-when-buying/ · saragrech.com (notary fees) ·
+maltasothebysrealty.com (ground rent / ċens ; SDA) · bernardsrealestate.com.mt (liste SDA)
+</p>
+
+<h4>Le bien et le marché</h4>
+<p class="src">
+icihomes.mt/project/mh-3-madliena-malta/ · ici.com.mt/portfolio/ ·
+mlt.postcodequery.com (Triq Edward Pirotta → NXR 5314) ·
+globalpropertyguide.com/europe/malta/price-history (NSO RPPI) ·
+assets.kpmg.com/.../kpmg-mda-construction-industry-and-property-market-report-2025.pdf <strong>(non consulté — à récupérer)</strong> ·
+tradingeconomics.com (indice coût de construction Malte) · themalteseherald.com ·
+businessnow.mt (MDA « new normal ») · christiesrealestatemalta.com ·
+comparables : franksalt.com.mt/property/044371/ · perry.com.mt (SV600230, SV600242) ·
+jamesedition.com/real_estate/madliena-malta · rightmove.co.uk · maltaproperty.com ·
+propertymarket.com.mt
+</p>
+
+<h4>Construction, coûts, réglementation chantier</h4>
+<p class="src">
+bca.gov.mt (régime de licence LN 166/2023 ; FAQ ; skill-cards ; interdiction estivale) ·
+kamratalperiti.org (DIR 01/18 Fees ; CIR 01/26 Skill Card ; CIR 15/19) ·
+ohsa.mt/legislation · ohsa.mt/eforms/construction/ · servizz.gov.mt (Construction Notification) ·
+camilleripreziosi.com (Health and Safety at Work Act 2024) ·
+rews.org.mt (électriciens autorisés ; scheme PV/batteries 2026) ·
+enemalta.com.mt/13797-2/ (services résidentiels) · S.L. 545.24 Electricity Installations Regulations ·
+pa.org.mt/en/do-i-need-a-permit · maltatoday.com.mt (liste des zones d'interdiction estivale) ·
+independent.com.mt (horaires de chantier et bruit) · themaltapost.com ·
+remax-malta.com/blog/finishing-a-shell-property-in-malta · gap.com.mt · zanzihomes.com ·
+elzanproperties.com · checkyourtraders.com · kibitec.com · oldhousesmalta.com ·
+gomila-ceramica.com · thebestmalta.com · terrapincg.com (délais matériaux) ·
+debesto.com (prix Schüco) · guidememalta.com (fermeture d'août)
+</p>
+
+<h4>Détachement, droit du travail, main-d'œuvre</h4>
+<p class="src">
+postedworkersmalta.gov.mt · dier.gov.mt (posting of workers ; conditions sectorielles ; salaire minimum) ·
+ela.europa.eu (fiche bonne pratique du portail maltais) · S.L. 452.82 · LN 262/2020 ·
+eur-lex.europa.eu (Directive 2018/957) · gvzh.mt · bdo.com.mt · csbgroup.com · gtg.com.mt ·
+Employment Agencies Regulations 2023/2024 · jobsplus.gov.mt · eures.com.mt · socialsecurity.gov.mt ·
+inps.it / fiscomania.com / studiomiazzo.it (modello A1) ·
+fbsmalta.com/docs/italy.pdf <strong>(convention fiscale Italie–Malte, art. 5 — seuil de 6 mois)</strong> ·
+arlettipartners.com · consulentidellavoro-piga-riitano.it · tot.money (indennità di trasferta) ·
+cantiericloud.com · fiscoinvestimenti.it · lavoripubblici.it (Decreto Direttoriale n° 40 du 13/05/2026) ·
+ediltecnico.it · salaryexpert.com · freemalta.com · papilioservices.com ·
+investropa.com/blogs/news/malta-rents · myrent.mt · virtuferries.com ·
+newsbook.com.mt · theshiftnews.com · tradingeconomics.com (vacance d'emploi construction) ·
+ec.europa.eu / labourinstitute.eu / hiva.kuleuven.be (rapports A1) ·
+mondaq.com (litigation in Malta) · maltatoday.com.mt (clauses pénales) ·
+maltapropertybook.com · volza.com (imports céramique Malte)
+</p>
+
+<hr>
+
+<div class="callout info">
+  <div class="t">Méthode</div>
+  <p style="margin-bottom:0">Ce dossier a été produit par <strong>trois agents de recherche
+  spécialisés</strong> (financement, main-d'œuvre détachée, coûts et marché), puis soumis à
+  <strong>trois évaluateurs adversariaux</strong> dont la mission explicite était de détruire leurs
+  conclusions — chercher la preuve du contraire, traquer les chiffres non sourcés et les sources
+  douteuses. Les contre-expertises ont réfuté une quinzaine d'affirmations, dont plusieurs qui
+  structuraient les recommandations initiales. <strong>Les corrections sont conservées visibles dans le
+  document plutôt que réécrites en douce</strong>, parce que savoir <em>quels</em> chiffres se sont
+  effondrés vous dit lesquels des chiffres restants méritent votre méfiance.</p>
+</div>
+
+<footer>
+  <p><strong>Ce document n'est ni un conseil juridique, ni un conseil fiscal, ni un conseil en
+  investissement.</strong> Il synthétise une recherche documentaire réalisée sans accès aux sources
+  primaires. Avant tout engagement, faites valider les points marqués « à vérifier » par un notaire
+  maltais, un avocat maltais, un perit valuer indépendant et un fiscaliste français.</p>
+  <p>Dossier généré le 28 juillet 2026.</p>
+</footer>
+
+</div>
+
+<script>
+const PRESETS = {
+  eco:   {r1:1100, r2:700,  r3:260, ff:330000, hp:12, ap:12},
+  med:   {r1:1600, r2:950,  r3:330, ff:520000, hp:15, ap:15},
+  prem:  {r1:2400, r2:1450, r3:520, ff:900000, hp:20, ap:18},
+  bench: {r1:1400, r2:1000, r3:600, ff:0,      hp:0,  ap:0}
+};
+function preset(k){
+  const p = PRESETS[k];
+  for (const id in p) document.getElementById(id).value = p[id];
+  calc();
+}
+const eur = n => new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0);
+const v = id => parseFloat(document.getElementById(id).value) || 0;
+
+function calc(){
+  const s1=v('s1'), s2=v('s2'), s3=v('s3');
+  const a=s1*v('r1'), b=s2*v('r2'), c=s3*v('r3');
+  const env=a+b+c;
+  const ff=v('ff');
+  const base=env+ff;
+  const h=base*v('hp')/100;
+  const al=(base+h)*v('ap')/100;
+  const ht=base+h+al;
+  const tva=ht*0.18;
+  const ttc=ht+tva;
+  const surf=s1+s2+s3;
+
+  document.getElementById('o1').textContent=eur(a);
+  document.getElementById('o2').textContent=eur(b);
+  document.getElementById('o3').textContent=eur(c);
+  document.getElementById('of').textContent=eur(ff);
+  document.getElementById('oh').textContent=eur(h);
+  document.getElementById('oa').textContent=eur(al);
+
+  document.getElementById('tEnv').textContent=eur(env);
+  document.getElementById('tFf').textContent=eur(ff);
+  document.getElementById('tH').textContent=eur(h);
+  document.getElementById('tA').textContent=eur(al);
+  document.getElementById('tHT').textContent=eur(ht);
+  document.getElementById('tTVA').textContent=eur(tva);
+  document.getElementById('tTTC').textContent=eur(ttc);
+  document.getElementById('tM2').textContent= surf ? eur(ttc/surf)+' / m²' : '—';
+
+  const acq = 3850000 + 265000;
+  document.getElementById('tAcq').textContent=eur(acq);
+  document.getElementById('tRev').textContent=eur(acq+ttc);
+  const portage = (3850000*0.045*1.5) + 48000 + 40000;
+  document.getElementById('tPort').textContent='≈ '+eur(portage)+' + mobilier';
+}
+calc();
+</script>
