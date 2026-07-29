@@ -1,0 +1,1347 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Villa MH 3 — Dossier final : prix, délai, contrat, exécution</title>
+
+<style>
+:root{
+  --bg:#faf9f7;--panel:#fff;--ink:#181818;--muted:#5d5a55;--line:#e4e0d9;
+  --accent:#1d4e5f;--accent-soft:#e7f0f2;
+  --ok:#1d6b3f;--ok-bg:#e8f4ec;--warn:#8a6100;--warn-bg:#fdf3dd;
+  --bad:#9b2226;--bad-bg:#fbe9e9;--neu:#3b5570;--neu-bg:#eaf0f6;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#14171a;--panel:#1c2025;--ink:#eceae7;--muted:#a2a6ad;--line:#30363e;
+  --accent:#6dbdd1;--accent-soft:#10262d;--ok:#6bcf95;--ok-bg:#15301e;
+  --warn:#e5b74d;--warn-bg:#332810;--bad:#f28b8b;--bad-bg:#361a1a;--neu:#8fb4d9;--neu-bg:#1a2534;}}
+:root[data-theme="dark"]{--bg:#14171a;--panel:#1c2025;--ink:#eceae7;--muted:#a2a6ad;--line:#30363e;
+  --accent:#6dbdd1;--accent-soft:#10262d;--ok:#6bcf95;--ok-bg:#15301e;--warn:#e5b74d;--warn-bg:#332810;
+  --bad:#f28b8b;--bad-bg:#361a1a;--neu:#8fb4d9;--neu-bg:#1a2534;}
+:root[data-theme="light"]{--bg:#faf9f7;--panel:#fff;--ink:#181818;--muted:#5d5a55;--line:#e4e0d9;
+  --accent:#1d4e5f;--accent-soft:#e7f0f2;--ok:#1d6b3f;--ok-bg:#e8f4ec;--warn:#8a6100;--warn-bg:#fdf3dd;
+  --bad:#9b2226;--bad-bg:#fbe9e9;--neu:#3b5570;--neu-bg:#eaf0f6;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px 110px}
+header.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:42px 0 32px;margin-bottom:28px}
+header.hero .wrap{padding-bottom:0}
+.kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:10px}
+h1{font-size:clamp(24px,4.2vw,38px);line-height:1.14;margin:0 0 14px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:17px;max-width:70ch;margin:0}
+.meta{margin-top:20px;display:flex;flex-wrap:wrap;gap:8px 22px;font-size:13px;color:var(--muted)}
+.meta b{color:var(--ink);font-weight:600}
+
+h2{font-size:clamp(20px,2.9vw,27px);margin:54px 0 6px;letter-spacing:-.015em;padding-top:14px;
+  border-top:3px solid var(--ink);line-height:1.2}
+h2 .num{color:var(--accent);font-variant-numeric:tabular-nums;margin-right:10px}
+h2+.lede{color:var(--muted);margin:0 0 20px;font-size:16.5px;max-width:74ch}
+h3{font-size:18.5px;margin:32px 0 10px;letter-spacing:-.01em}
+h4{font-size:15.5px;margin:22px 0 8px;color:var(--accent)}
+p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:22px}li{margin-bottom:7px}
+a{color:var(--accent)}strong{font-weight:650}
+
+.callout{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 10px 10px 0;padding:16px 20px;margin:20px 0}
+.callout.bad{border-left-color:var(--bad);background:var(--bad-bg)}
+.callout.ok{border-left-color:var(--ok);background:var(--ok-bg)}
+.callout.warn{border-left-color:var(--warn);background:var(--warn-bg)}
+.callout.info{border-left-color:var(--neu);background:var(--neu-bg)}
+.callout .t{font-weight:700;margin-bottom:6px;font-size:14.5px}
+.callout p:last-child,.callout ul:last-child,.callout ol:last-child{margin-bottom:0}
+
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 8px;border-radius:5px;vertical-align:2px;white-space:nowrap}
+.t-ok{background:var(--ok-bg);color:var(--ok)}.t-bad{background:var(--bad-bg);color:var(--bad)}
+.t-warn{background:var(--warn-bg);color:var(--warn)}.t-neu{background:var(--neu-bg);color:var(--neu)}
+
+.scroll{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:14.2px;min-width:520px}
+th,td{padding:10px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--accent-soft);font-weight:650;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:13.4px;white-space:nowrap}
+tr.total td{font-weight:700;background:var(--accent-soft)}
+tr.sub td{background:var(--bg);font-size:13.6px}
+
+.verdict{border:2px solid var(--accent);border-radius:14px;padding:22px 24px;margin:26px 0;background:var(--panel)}
+.verdict .lbl{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px}
+.verdict .big{font-size:clamp(20px,3.4vw,29px);font-weight:750;line-height:1.2;letter-spacing:-.02em;margin-bottom:10px}
+.verdict.bad{border-color:var(--bad)}.verdict.bad .big{color:var(--bad)}
+.verdict.ok{border-color:var(--ok)}.verdict.ok .big{color:var(--ok)}
+.verdict.warn{border-color:var(--warn)}.verdict.warn .big{color:var(--warn)}
+.verdict .qual{font-size:16px;color:var(--muted);font-weight:600}
+
+.calc{background:var(--panel);border:2px solid var(--accent);border-radius:14px;padding:22px;margin:26px 0}
+.calc h3{margin-top:0}
+.row{display:grid;grid-template-columns:1fr 96px 116px;gap:10px;align-items:center;margin-bottom:9px}
+.row .name{font-size:14px;font-weight:600}
+.row .name small{display:block;font-weight:400;color:var(--muted);font-size:12px;line-height:1.35}
+.row input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);
+  color:var(--ink);font:inherit;font-size:14px;font-family:var(--mono);text-align:right}
+.row input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.row .out{text-align:right;font-family:var(--mono);font-size:14px;font-weight:650;font-variant-numeric:tabular-nums}
+.row .hdr{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;text-align:right}
+.row .hdr.l{text-align:left}
+.calcout{border-top:2px solid var(--line);margin-top:16px;padding-top:14px}
+.line{display:flex;justify-content:space-between;gap:16px;padding:5px 0;font-size:14.5px}
+.line span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.line.big{font-size:19px;font-weight:700;border-top:1px solid var(--line);margin-top:8px;padding-top:12px}
+.line.big span:last-child{color:var(--accent)}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px}
+.presets button{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:7px;
+  border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.presets button:hover{border-color:var(--accent);color:var(--accent)}
+@media(max-width:600px){.row{grid-template-columns:1fr 74px 92px;gap:8px}}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:20px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.card .k{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:6px}
+.card .v{font-size:23px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15}
+.card .d{font-size:13px;color:var(--muted);margin-top:5px;line-height:1.45}
+.card.hi{border-color:var(--accent);border-width:2px}.card.hi .v{color:var(--accent)}
+.card.danger{border-color:var(--bad);border-width:2px}.card.danger .v{color:var(--bad)}
+
+nav.toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin:24px 0}
+nav.toc .t{font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:700;margin-bottom:11px}
+nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:32px}
+nav.toc li{margin-bottom:5px;font-size:14.3px;break-inside:avoid}
+@media(max-width:600px){nav.toc ol{columns:1}}
+footer{border-top:1px solid var(--line);margin-top:56px;padding-top:20px;font-size:13px;color:var(--muted)}
+.small{font-size:13.5px;color:var(--muted)}
+.src{font-size:12.5px;color:var(--muted);margin-top:-8px;margin-bottom:18px;word-break:break-word}
+hr{border:none;border-top:1px solid var(--line);margin:32px 0}
+del{color:var(--muted)}
+blockquote{margin:18px 0;padding:2px 0 2px 18px;border-left:3px solid var(--line);color:var(--muted);font-style:italic}
+blockquote strong{color:var(--ink);font-style:normal}
+.steps{counter-reset:st;list-style:none;padding-left:0}
+.steps li{counter-increment:st;position:relative;padding-left:44px;margin-bottom:16px}
+.steps li::before{content:counter(st);position:absolute;left:0;top:1px;width:30px;height:30px;
+  border-radius:50%;background:var(--accent);color:var(--panel);display:grid;place-items:center;
+  font-weight:750;font-size:14px;font-variant-numeric:tabular-nums}
+.q{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--neu);
+  border-radius:0 10px 10px 0;padding:14px 18px;margin:14px 0;font-size:14.5px;line-height:1.55}
+.q .qn{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--neu);font-weight:700;margin-bottom:6px}
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Dossier consolidé — version finale</div>
+    <h1>Villa MH 3 : prix, délai, contrat, exécution</h1>
+    <p class="sub">Ce document remplace les trois précédents. Il intègre les corrections de
+    l'évaluation adversariale sur la vitesse de chantier — qui a réfuté l'argument juridique central,
+    inversé la lecture de l'article 1122, dégonflé le coût du retard de 40 %, et identifié
+    <strong>450 000 €</strong> que personne ne regardait.</p>
+    <div class="meta">
+      <span><b>Bien</b> Villa MH 3, ICI Homes — 906 m², shell form</span>
+      <span><b>Lieu</b> Triq E. Pirotta, NXR 5314, Naxxar / Baħar iċ-Ċagħaq</span>
+      <span><b>Usage</b> résidence principale</span>
+      <span><b>Acquéreur</b> résident maltais, citoyen UE, 5 ans+</span>
+      <span><b>Date</b> 29 juillet 2026</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="callout bad">
+  <div class="t">⚠ Statut des sources — à lire avant d'utiliser un seul chiffre de ce document</div>
+  <p>Le proxy réseau de cet environnement renvoie <strong>403 sur pratiquement tous les domaines</strong> :
+  legislation.mt, bca.gov.mt, pa.org.mt, mta.com.mt, jafbase.fr ont tous été testés et refusés.
+  <strong>Aucun texte législatif primaire n'a pu être lu.</strong> Tout ce qui est marqué [VÉRIFIÉ] l'est
+  via des extraits de résultats de recherche, jamais via la lecture de la source — y compris les
+  citations qui contredisent les rapports.</p>
+  <p style="margin-bottom:0">Sur ce dossier, cinq agents spécialisés et quatre évaluateurs adversariaux
+  se sont succédé. <strong>Les adversariaux ont réfuté ou dégonflé la majorité des chiffres produits par
+  les spécialistes, y compris ceux que je vous avais transmis comme acquis.</strong> Les corrections sont
+  laissées visibles plutôt que réécrites en douce : savoir quels chiffres se sont effondrés vous dit
+  lesquels des chiffres restants méritent votre méfiance.</p>
+</div>
+
+<nav class="toc">
+  <div class="t">Sommaire</div>
+  <ol>
+    <li><a href="#s1">Ce qu'il faut faire, dans l'ordre</a></li>
+    <li><a href="#s2">Les 450 000 € que personne ne regarde</a></li>
+    <li><a href="#s3">Le certificat de conformité : le verrou de sortie</a></li>
+    <li><a href="#s4">Faut-il finir les 458 m² de sous-sol ?</a></li>
+    <li><a href="#s5">Le projet sicilien : verdict définitif</a></li>
+    <li><a href="#s6">La vitesse : ce qu'elle coûte vraiment</a></li>
+    <li><a href="#s7">Calculateur — coût du retard et prime</a></li>
+    <li><a href="#s8">Le planning réel</a></li>
+    <li><a href="#s9">Le contrat : l'article 1122 renversé</a></li>
+    <li><a href="#s10">Les dix leviers, classés</a></li>
+    <li><a href="#s11">Le budget de finition</a></li>
+    <li><a href="#s12">Smart premium : les arbitrages</a></li>
+    <li><a href="#s13">Sourcing sicilien : ce qui marche</a></li>
+    <li><a href="#s14">Choisir l'entreprise</a></li>
+    <li><a href="#s15">Les questions à envoyer cette semaine</a></li>
+    <li><a href="#s16">Journal des erreurs corrigées</a></li>
+    <li><a href="#s17">Ce que personne n'a pu vérifier</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================ -->
+<h2 id="s1"><span class="num">01</span>Ce qu'il faut faire, dans l'ordre</h2>
+<p class="lede">L'ordre compte plus que le contenu. Vous êtes sur le point de dépenser 250 000 € pour
+gagner du temps sur un projet dont les deux plus gros gisements de valeur sont ailleurs — et gratuits.</p>
+
+<ol class="steps">
+  <li><strong>Négocier l'écart de 450 000 € sur le prix d'acquisition.</strong> Le promoteur affiche
+  3,4 M€ sur son propre site ; on vous demande 3,85 M€. Effort : une réunion. Risque : nul.
+  Aucun levier de chantier de ce dossier n'approche ce montant.</li>
+
+  <li><strong>Faire valoriser le bien fini par un perit indépendant du vendeur.</strong>
+  3,85 M€ + 1,75 M€ = 5,6 M€, soit ~6 180 €/m² brut, sur un marché où le segment haut de Naxxar est
+  étroit. Ce n'est pas une question d'investisseur, c'est une question de solvabilité patrimoniale.</li>
+
+  <li><strong>Décider du sort des 458 m² de sous-sol avant de parler délai.</strong> Les livrer en
+  finition technique minimale retire deux niveaux entiers du chemin critique — pour un coût négatif.
+  C'est le premier levier de délai en gestion de projet, et aucun des rapports ne l'avait envisagé.</li>
+
+  <li><strong>Vérifier le certificat de conformité PA et l'écart aux plans approuvés.</strong>
+  Exposition : 3 à 8 mois. C'est le risque le plus cher du dossier et il est invisible jusqu'à la fin
+  (§ 03).</li>
+
+  <li><strong>Trancher la question du permis</strong> — mais avec la bonne formulation : non pas
+  « DNO ou permis complet ? » mais <em>« le programme s'écarte-t-il des plans du permis existant, et
+  y a-t-il une piscine ? »</em> La piscine ne relève plus du DNO.</li>
+
+  <li><strong>Scan laser 3D du shell (5 000 – 8 000 €).</strong> La dépense la plus rentable du dossier.
+  Sans elle, tout achat de sur-mesure anticipé est un pari, et deux autres leviers s'effondrent.</li>
+
+  <li><strong>Design freeze total avant consultation.</strong> Registre de 300 à 450 décisions, dates
+  limites calculées à rebours des délais de fabrication. Ordre de service émis seulement après signature.</li>
+
+  <li><strong><em>Ensuite seulement</em>, acheter de la vitesse</strong> — avec un budget de
+  90 000 à 150 000 €, pas de 250 000 à 330 000 €.</li>
+</ol>
+
+<div class="cards">
+  <div class="card hi"><div class="k">Négociation prix</div><div class="v">450 000 €</div>
+    <div class="d">Écart entre le prix demandé et le prix affiché par le promoteur. Risque nul.</div></div>
+  <div class="card"><div class="k">Budget compression corrigé</div><div class="v">90–150 k€</div>
+    <div class="d">Au lieu de 250–330 k€. ~80 % du gain pour ~40 % du coût.</div></div>
+  <div class="card danger"><div class="k">Risque conformité PA</div><div class="v">3–8 mois</div>
+    <div class="d">45 000 à 115 000 €. Invisible jusqu'à la demande de compteurs.</div></div>
+  <div class="card"><div class="k">Date à contractualiser</div><div class="v">18 mois</div>
+    <div class="d">Cible interne 15 · vie privée 20. Jamais 14–15 au contrat.</div></div>
+</div>
+
+<!-- ============================================ -->
+<h2 id="s2"><span class="num">02</span>Les 450 000 € que personne ne regarde</h2>
+<p class="lede">Mettez les trois chiffres du dossier côte à côte. La conclusion est embarrassante.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Action</th><th class="n">Montant</th><th>Risque</th><th>Effort</th></tr></thead>
+<tbody>
+<tr><td><strong>Négocier l'écart prix demandé / prix affiché</strong></td><td class="n">+450 000 €</td>
+  <td>Aucun</td><td>Une négociation</td></tr>
+<tr><td>Budget de compression recommandé par le rapport spécialiste</td><td class="n">−250 000 à −330 000 €</td>
+  <td>Élevé — qualité, exécution, requalification juridique</td><td>14 mois de pilotage</td></tr>
+<tr><td>Coût économique réellement évité par cette compression</td><td class="n">+58 000 à +130 000 €</td>
+  <td>Probabiliste</td><td>—</td></tr>
+<tr class="total"><td>Solde de la stratégie « vitesse » prise isolément</td><td class="n">−120 000 à −270 000 €</td>
+  <td colspan="2">Destruction de valeur en termes strictement financiers</td></tr>
+</tbody></table></div>
+
+<div class="callout bad">
+  <div class="t">La phrase que les deux rapports auraient dû écrire</div>
+  <p style="margin-bottom:0">« La compression coûte 250–330 k€ et vous fait économiser 60–130 k€.
+  Vous payez donc <strong>120 000 à 270 000 € pour vivre chez vous 4 à 9 mois plus tôt</strong>, soit
+  25 000 à 35 000 € par mois de vie gagnée. Est-ce que ça les vaut ? <strong>C'est votre décision,
+  pas un calcul.</strong> »</p>
+</div>
+
+<p>Ce n'est pas un argument contre l'accélération. C'est un argument contre le fait de se la vendre
+comme un investissement rentable. La valeur d'habiter sa résidence principale six mois plus tôt est
+une <strong>préférence de consommation</strong>, pas un flux actualisable. Elle peut parfaitement
+valoir 25 000 €/mois pour vous — mais alors il faut le dire, et cesser de faire semblant de le
+démontrer. Un client à qui l'on vend un ratio de 1,4 qui vaut en réalité 0,4 prendra ses arbitrages
+suivants sur une base fausse.</p>
+
+<h3>La sur-capitalisation, en question ouverte</h3>
+<p>3,85 M€ d'acquisition + 1,75 M€ de finition = <strong>5,6 M€</strong> pour une villa à Naxxar.
+Des transactions au-delà de 5 M€ existent dans cette localité et le haut de marché local dépasse
+10 M$ — <strong>je ne dis donc pas que le bien est surpayé. Je dis que personne ne l'a regardé.</strong>
+Sur un marché aussi étroit, la question « à quel prix ce bien se revend-il dans dix ans » mérite une
+valorisation indépendante avant toute discussion de calendrier.</p>
+<p class="small">Rappel établi plus tôt dans ce dossier : le marché maltais paie le passage
+shell&nbsp;→&nbsp;fini <strong>600 à 900 €/m²</strong>, alors qu'une finition premium coûte
+1 700 à 2 000 €/m². <strong>Le taux de récupération est de 35 à 50 %</strong> — finir détruit
+structurellement de la valeur à Malte. Ce n'est pas une raison de mal finir votre résidence
+principale ; c'en est une de ne pas se raconter que la finition est un investissement.</p>
+
+<!-- ============================================ -->
+<h2 id="s3"><span class="num">03</span>Le certificat de conformité : le verrou est à la sortie</h2>
+<p class="lede">Tout le monde regarde la porte d'entrée du chantier — DNO ou permis complet.
+Personne n'a regardé la porte de sortie. C'est là qu'est le risque le plus cher du dossier.</p>
+
+<div class="verdict bad">
+  <div class="lbl">Risque non traité par les deux rapports</div>
+  <div class="big">Pas de Compliance Certificate → pas d'eau, pas d'électricité</div>
+  <div class="qual">Art. 102(2) du Development Planning Act 2016 <span class="tag t-ok">Vérifié</span></div>
+</div>
+
+<p>Aucun nouveau raccordement eau ou électricité ne peut être fourni sans un
+<strong>Compliance Certificate de la Planning Authority</strong>, demandé par un perit warranté, et
+délivré uniquement si les travaux ont été exécutés <strong>conformément au permis de développement</strong>.</p>
+
+<p>Ce que ça veut dire concrètement, et c'est le point vicieux : chaque écart aux plans approuvés
+commis pendant le fit-out — un mur intérieur déplacé, une gaine d'ascenseur non prévue, une ouverture
+modifiée — <strong>ne se manifeste pas au moment où il est commis. Il se manifeste à la fin, quand
+vous demandez vos compteurs.</strong> À ce stade, le remède est une demande de sanctionnement, qui
+se compte en mois et se déroule pendant que vous payez le coût du retard.</p>
+
+<div class="callout warn">
+  <div class="t">Exposition chiffrée</div>
+  <p style="margin-bottom:0"><strong>3 à 8 mois, soit 45 000 à 115 000 €</strong> — c'est-à-dire
+  <em>plus que le gain net de la plupart des leviers d'accélération recommandés</em>. C'est exactement
+  le profil de risque contre lequel toute la stratégie de compression est censée protéger, et il
+  n'était traité nulle part.</p>
+</div>
+
+<p><strong>Deux actions.</strong> (1) La question n° 4 du § 15, à envoyer au perit cette semaine :
+le certificat a-t-il déjà été délivré pour le shell, les compteurs existent-ils, et le programme
+s'écarte-t-il des plans approuvés ? (2) Une clause contractuelle : <em>toute exécution non conforme
+aux plans PA approuvés est un manquement de l'entreprise, à ses frais et à son risque de délai.</em></p>
+
+<h3>Le permis d'entrée, reformulé</h3>
+<div class="scroll"><table>
+<thead><tr><th>Situation</th><th>Procédure</th><th>Délai</th></tr></thead>
+<tbody>
+<tr><td>Finition strictement conforme aux plans du permis sous lequel le shell a été livré</td>
+  <td><strong>Aucune démarche</strong> — ce n'est pas le fit-out qui déclenche une procédure, ce sont
+  les écarts</td><td class="n">0</td></tr>
+<tr><td>Altérations internes s'écartant des plans approuvés</td>
+  <td>DNO (S.L. 552.08) — notification via perit, plans + photos, 60 €</td>
+  <td class="n">~1 mois</td></tr>
+<tr><td><strong>Piscine non couverte par le permis initial</strong></td>
+  <td><span class="tag t-bad">Attention</span> <strong>La piscine a été retirée du DNO</strong> et exige
+  désormais une demande de permis complète <span class="tag t-ok">Vérifié</span></td>
+  <td class="n">4–8 mois</td></tr>
+<tr><td>Modification de façade, d'ouvertures, de volume</td><td>Permis complet</td>
+  <td class="n">4–8 mois</td></tr>
+</tbody></table></div>
+
+<p class="small">Le rapport spécialiste présentait le sujet comme « DNO à 60 € ou permis complet à
+4–8 mois, à trancher dans les 15 jours ». Le cadrage était juste sur la priorité, faux sur la question.
+<strong>La bonne question n'est pas quelle procédure choisir, c'est de savoir si vous vous écartez du
+permis existant.</strong></p>
+
+<!-- ============================================ -->
+<h2 id="s4"><span class="num">04</span>Faut-il finir les 458 m² de sous-sol maintenant ?</h2>
+<p class="lede">La vraie question de vitesse n'est peut-être pas « comment finir 906 m² en 14 mois »,
+mais « faut-il finir 906 m² ». Réduire le périmètre est le premier levier de délai en gestion de projet.
+Aucun des rapports ne l'avait envisagé.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Effet du report des sous-sols en phase 2</th><th>Impact</th></tr></thead>
+<tbody>
+<tr><td>Chemin critique</td><td><strong>Deux niveaux entiers retirés</strong> du séquençage en zones</td></tr>
+<tr><td>Logistique verticale</td><td>La cage d'escalier unique et l'accès unique cessent d'être saturés
+  par 458 m² de trafic supplémentaire — c'est la <em>vraie</em> contrainte du bâtiment (§ 08)</td></tr>
+<tr><td>Stockage</td><td>Les sous-sols deviennent un <strong>entrepôt permanent</strong> sur toute la
+  durée du chantier, au lieu d'être libérés puis re-mobilisés</td></tr>
+<tr><td>Coût</td><td><strong>Négatif</strong> — vous ne dépensez pas l'argent maintenant</td></tr>
+<tr><td>Risque</td><td>Il faut des <strong>travaux de protection minimaux</strong> pour ne pas abîmer
+  la maison : étanchéité, drainage, ventilation, réservations. Voir l'avertissement ci-dessous.</td></tr>
+</tbody></table></div>
+
+<div class="callout bad">
+  <div class="t">Correction d'une erreur que je vous avais transmise</div>
+  <p>Je vous avais chiffré une option « coquille saine » du sous-sol à <del>38 000 €</del>. La
+  contre-expertise a établi que le chiffre était sous-estimé de <strong>55 à 85 %</strong> — le réel
+  est de <strong>43 000 à 73 000 € HT</strong>, la station de relevage des eaux usées ayant été
+  purement oubliée. À ce prix, l'option devenait <em>strictement dominée</em> : elle coûtait presque
+  aussi cher que de finir, sans le bénéfice.</p>
+  <p style="margin-bottom:0"><strong>Ce que ça change ici :</strong> le report en phase 2 reste
+  probablement le bon choix, mais <em>pour la raison délai, pas pour la raison prix</em>, et il faut
+  budgéter 43–73 k€ de travaux de protection, pas 38 k€. Faites chiffrer la station de relevage
+  séparément et explicitement.</p>
+</div>
+
+<p><strong>Point de méthode important :</strong> la même erreur de ratio uniforme €/m² appliquée aux
+458 m² de sous-sol avait déjà produit, plus tôt dans ce dossier, une surestimation de
+<strong>463 000 €</strong> du coût de finition (413 €/m² réel contre 1 268 €/m² appliqué). Elle
+réapparaît sous une autre forme dans le calcul de densité de main-d'œuvre du rapport spécialiste
+(§ 08). <strong>Chaque fois qu'un chiffre de ce dossier traite les 906 m² comme homogènes, il est
+faux.</strong></p>
+
+<!-- ============================================ -->
+<h2 id="s5"><span class="num">05</span>Le projet sicilien : verdict définitif</h2>
+<p class="lede">Vous vouliez faire venir neuf artisans siciliens six mois à plein temps. Vous avez
+raison sur le diagnostic — la lenteur maltaise vient bien du multi-chantier. Vous avez tort sur le
+remède, et pour des raisons qui ont changé trois fois au cours de ce dossier.</p>
+
+<div class="verdict bad">
+  <div class="lbl">Verdict consolidé</div>
+  <div class="big">Non — mais pas pour les raisons que je vous avais données</div>
+  <div class="qual">Ce que vous cherchez s'appelle la <strong>dédicace</strong>, et elle s'achète en droit maltais</div>
+</div>
+
+<h3>Ce qui tenait, et qui tombe maintenant</h3>
+
+<div class="callout bad">
+  <div class="t">RÉFUTÉ — « l'inversion juridique » Italie / Malte</div>
+  <p>Je vous avais présenté comme décisif l'argument suivant : l'Italie plafonne à 48 h en dur
+  (D.Lgs 66/2003 + CCNL Edilizia), Malte autorise l'opt-out individuel des 48 h (S.L. 452.87, un des
+  4 seuls États UE), donc <em>vos Siciliens travailleraient moins qu'une équipe maltaise</em>.
+  <strong>Cet argument est faux sur trois points.</strong></p>
+  <ul>
+    <li>Le <strong>CCNL Edilizia</strong> autorise expressément de dépasser l'horaire normal
+    « <em>fino ad un massimo di 10 ore giornaliere e di 60 ore settimanali, per un periodo di quattro
+    mesi all'anno</em> ». Il n'y a pas de plafond dur. <span class="tag t-ok">Vérifié</span></li>
+    <li>Les 48 h du D.Lgs 66/2003 sont une <strong>moyenne sur 4 mois, extensible à 6 ou 12 par
+    convention collective</strong>. Quatre mois à 60 h suivis de huit mois à 40 h donnent une moyenne
+    de 46,7 h — parfaitement conforme. <span class="tag t-ok">Vérifié</span></li>
+    <li>Le noyau dur de la directive 96/71 impose les règles de l'État d'<strong>accueil</strong> sur
+    la durée du travail, mais comme <strong>plancher</strong> : le S.L. 452.82 maltais dit
+    « <em>shall not be less than the minimum conditions</em> ». Le droit maltais ne neutralise donc pas
+    le droit italien — mais le droit italien ne plafonne pas non plus. <span class="tag t-ok">Vérifié</span></li>
+  </ul>
+  <p style="margin-bottom:0"><strong>Le vrai plafond est le même pour les deux équipes : le S.L. 623.08.</strong>
+  Chantier 07:00–20:00, zéro dimanche, zéro férié — soit ~78 h théoriques, ~60 h praticables.
+  <strong>Le temps de travail n'est le facteur limitant d'aucun des deux scénarios. L'argument
+  juridique est neutre.</strong></p>
+</div>
+
+<h3>Ce qui reste vrai — et ce qui le neutralise</h3>
+
+<p>Le seul argument honnête qui subsistait en faveur des Siciliens n'était pas la vitesse mais la
+<strong>disponibilité de capacité</strong> : taux de vacance de l'emploi dans la construction maltaise
+à <strong>4,8 %</strong> (industrie+construction 3,8 %, plus du double de la moyenne UE), demandes de
+permis <strong>+110,3 % au T3 2025</strong>. <span class="tag t-ok">Vérifié</span> Le marché est saturé ;
+trouver une équipe réellement disponible est un vrai problème.</p>
+
+<div class="callout bad">
+  <div class="t">Deux règles maltaises que le rapport spécialiste n'avait pas vues — et qui bloquent le montage</div>
+  <ul>
+    <li><strong>Licence contractant BCA.</strong> Elle est exigée « <em>for <strong>all persons from EU
+    member states</strong> and third countries who will be carrying out construction work in Malta</em> ».
+    Une entreprise sicilienne doit donc obtenir une <strong>licence maltaise</strong>. Le dossier suppose
+    des pièces judiciaires équivalentes du pays de résidence habituelle et peut donner lieu à une
+    demande d'information auprès de l'autorité italienne. Délai inconnu, mais non nul.
+    <span class="tag t-ok">Vérifié</span></li>
+    <li><strong>Skill Card au 01/01/2027</strong>, obligatoire pour <em>toute personne entrant sur un
+    chantier</em>. Elle exige un certificat santé-sécurité <strong>et un certificat de compétence métier
+    d'un organisme reconnu</strong>. Un carreleur sicilien titulaire d'une qualification italienne devra
+    la faire reconnaître à Malte. <span class="tag t-ok">Vérifié</span></li>
+  </ul>
+  <p style="margin-bottom:0">Sur un chantier qui démarre fin 2026 et court sur 2027,
+  <strong>vos neuf artisans peuvent se retrouver interdits d'accès au chantier le 1<sup>er</sup> janvier.</strong>
+  Et l'argument de disponibilité de capacité est précisément celui que ces deux règles neutralisent :
+  la capacité sicilienne n'est disponible que si elle est <em>admissible</em>.</p>
+</div>
+
+<h3>Les autres obstacles, établis plus tôt et toujours valables</h3>
+<div class="scroll"><table>
+<thead><tr><th>Obstacle</th><th>Contenu</th><th>Effet</th></tr></thead>
+<tbody>
+<tr><td><strong>Établissement stable fiscal</strong></td>
+  <td>Traité Italie–Malte, art. 5 : le seuil de constitution d'un établissement stable pour un chantier
+  est de <strong>six mois</strong>, pas douze</td>
+  <td class="n">Bloquant au-delà de 6 mois</td></tr>
+<tr><td><strong>Embauche directe</strong></td>
+  <td>Coût réel ~2,25× le salaire de marché une fois logement, transport, charges et encadrement
+  intégrés ; plus votre propre temps valorisé 75–150 k€</td>
+  <td class="n">Réfuté</td></tr>
+<tr><td><strong>Certification électrique</strong></td>
+  <td>REWS Authorisation B (triphasé) requise pour installer <em>et</em> certifier ; dérogation UE
+  temporaire/occasionnelle existante (S.L. 545.24) mais à instruire</td>
+  <td class="n">À traiter</td></tr>
+<tr><td><strong>Site manager</strong></td>
+  <td>S.L. 623.08 : « <em>In the absence of a nomination for the appointment of a site manager, the
+  owner will be deemed to be the site manager</em> »</td>
+  <td class="n">Responsabilité sur vous</td></tr>
+</tbody></table></div>
+
+<div class="callout ok">
+  <div class="t">Ce que vous cherchiez existe — mais en droit maltais</div>
+  <p style="margin-bottom:0">Votre diagnostic est juste : une équipe qui n'est <em>que</em> sur votre
+  chantier avance beaucoup plus vite qu'une équipe partagée entre cinq. Mais ce gain vient de la
+  <strong>dédicace</strong>, pas de la nationalité. Et la dédicace s'achète contractuellement, auprès
+  d'une entreprise maltaise licenciée, avec des ouvriers déjà titulaires de leur Skill Card et déjà en
+  poste. C'est l'objet du § 09 et du § 10.</p>
+</div>
+
+<p class="small"><strong>Note sur la répartition « 95 % dédicace / 5 % nationalité »</strong> que je
+vous avais transmise : elle est <span class="tag t-bad">réfutée</span>. Le chiffre n'est pas mesuré, il
+est incohérent avec le tableau du rapport qui le produit (le recalcul donne 90/10), et surtout la
+démonstration est <strong>circulaire</strong> — les durées des scénarios sont des postulats, pas des
+observations, et le rapport « démontre » ce qu'il avait supposé. Formulation défendable, et rien de
+plus : <em>la dédicace explique l'essentiel du gain, la nationalité n'a pas d'effet identifiable,
+aucun des deux termes n'est quantifiable en l'état.</em></p>
+
+<!-- ============================================ -->
+<h2 id="s6"><span class="num">06</span>La vitesse : ce qu'elle coûte vraiment</h2>
+<p class="lede">Le chiffre du coût mensuel du retard pilote toute votre politique de prime. S'il est
+faux de 40 %, vous surpayez de 40 % chaque mois acheté.</p>
+
+<h3>Le coût d'un mois de retard, corrigé ligne par ligne</h3>
+<div class="scroll"><table>
+<thead><tr><th>Poste</th><th class="n">Rapport spécialiste</th><th class="n">Corrigé</th><th>Motif de la correction</th></tr></thead>
+<tbody>
+<tr><td>Portage du capital engagé</td><td class="n">13 100 €</td><td class="n"><strong>8 000 – 11 000 €</strong></td>
+  <td>Le rapport applique un <strong>taux d'emprunt</strong> (3,5 %, sourcé sur une offre HSBC de crédit
+  logement) à un capital qu'il classe lui-même en coût d'opportunité, donc <em>non emprunté</em>.
+  Si vous empruntez réellement, 13 100 € est juste — mais c'est alors du cash-out, et le rapport se
+  contredit.</td></tr>
+<tr><td>Logement de remplacement</td><td class="n">4 000 €</td><td class="n"><strong>0 – 3 200 €</strong></td>
+  <td>Poste <strong>binaire et non renseigné</strong>. Si vous êtes propriétaire de votre logement actuel,
+  le surcoût marginal d'un mois de retard est <strong>zéro</strong> — et l'immobilisation de ce capital
+  est déjà comptée à la ligne au-dessus. Le rapport a retenu le <em>haut</em> d'une fourchette observée
+  de 2 700–4 250 € sans savoir si le poste existe.</td></tr>
+<tr><td>Honoraires perit + project management</td><td class="n">4 500 €</td><td class="n"><strong>3 500 – 4 500 €</strong></td>
+  <td><span class="tag t-ok">Validé</span> Un 15<sup>e</sup> mois est un mois de PM réellement dû.
+  L'hypothèse de double comptage avec le levier « PM côté client » ne tient pas.</td></tr>
+<tr><td>Garde-meubles, double équipement</td><td class="n">400 €</td><td class="n">0 – 400 €</td>
+  <td>Dépend entièrement du poste « logement ».</td></tr>
+<tr><td>Assurance chantier + gardiennage</td><td class="n">800 €</td><td class="n"><strong>0 €</strong></td>
+  <td>Dans un marché forfaitaire, l'assurance TRC et le gardiennage sont <strong>au compte de
+  l'entreprise</strong> et déjà dans les 1,75 M€. Un retard qui lui est imputable les lui coûte.</td></tr>
+<tr><td>Installations de chantier</td><td class="n">1 500 €</td><td class="n"><strong>0 €</strong></td>
+  <td>Idem — prix généraux du marché, risque de l'entreprise.</td></tr>
+<tr><td>Escalade des prix</td><td class="n">1 000 €</td><td class="n"><strong>0 €</strong></td>
+  <td><strong>Contradiction directe avec le levier « acheter 100 % des matériaux avant démarrage »</strong>
+  du même rapport. Si tout est acheté, il n'y a plus de reste à engager à réévaluer : le mois est
+  facturé deux fois. Et l'indice maltais est à +1,3 % en 2025 — sur 500 k€ cela ferait 540 €, pas 1 000 €.</td></tr>
+<tr class="total"><td>TOTAL</td><td class="n">25 300 €</td><td class="n">≈ 14 500 €</td>
+  <td>Fourchette 11 500 – 19 100 €. <strong>Cash-out réel : 4 000 – 8 500 €</strong> (et non 12 200 €).</td></tr>
+</tbody></table></div>
+
+<div class="callout warn">
+  <div class="t">La « convergence » qui validait le chiffre était un calage</div>
+  <p style="margin-bottom:0">Le rapport présentait comme une validation croisée le fait que
+  15 000 €/mois × 5 mois = 4,3 % du marché, « exactement dans la fourchette 2,5–5 % de la pratique
+  documentée de l'<em>early completion bonus</em> ». <strong>C'est un artefact :</strong> le rapport a
+  choisi 5 mois de compression pour retomber dans la fourchette. Avec 4 ou 6 mois, on en sort.
+  Ce n'est pas une convergence, c'est un ajustement de paramètre.</p>
+</div>
+
+<div class="verdict warn">
+  <div class="lbl">Montant rationnel de la prime, corrigé</div>
+  <div class="big">8 000 – 10 000 € par mois gagné</div>
+  <div class="qual">Plafond dur <strong>14 500 €</strong>. Ne payez jamais plus qu'un mois ne vous coûte.
+  <br><span class="small">(Le rapport disait 15 000 € / plafond 25 000 €.)</span></div>
+</div>
+
+<p class="small"><strong>Sur le contre-argument de l'appréciation immobilière :</strong> le rapport
+signalait que le marché maltais monte de 6,7 %/an, soit +25 000 €/mois d'appréciation latente sur
+4,5 M€, ce qui annulerait arithmétiquement le portage. Il a eu raison de refuser de le déduire, mais
+pour la mauvaise raison. La bonne raison n'est pas « c'est une plus-value non réalisée » — c'est que
+<strong>l'indice RPPI maltais est dominé par les appartements</strong> et n'a aucun sens statistique
+appliqué à une villa à 4,5 M€ dans un segment qui traite quelques dizaines de transactions par an.</p>
+
+<!-- ============================================ -->
+<h2 id="s7"><span class="num">07</span>Calculateur — votre coût du retard et votre prime plafond</h2>
+<p class="lede">Deux questions à une ligne déplacent le coût du retard de 8 000 €/mois : empruntez-vous,
+et payez-vous un loyer ? Ni l'un ni l'autre rapport ne les a posées. Répondez ici.</p>
+
+<div class="calc">
+  <h3>Paramètres</h3>
+  <div class="presets">
+    <button onclick="setP('rapport')">Hypothèse du rapport (25 300 €)</button>
+    <button onclick="setP('proprio')">Vous êtes propriétaire, achat comptant</button>
+    <button onclick="setP('emprunt')">Vous empruntez et vous louez</button>
+    <button onclick="setP('median')">Médian corrigé</button>
+  </div>
+
+  <div class="row"><div class="hdr l">Poste</div><div class="hdr">Valeur</div><div class="hdr">€ / mois</div></div>
+
+  <div class="row">
+    <div class="name">Capital total engagé en fin de projet
+      <small>Acquisition + finition, en milliers d'euros</small></div>
+    <input id="cap" type="number" step="50" value="5600"><div class="out" id="o_cap">—</div>
+  </div>
+  <div class="row">
+    <div class="name">Taux applicable au capital
+      <small>Taux d'emprunt si vous empruntez ; rendement alternatif réel sinon (2,0–3,0 %)</small></div>
+    <input id="tx" type="number" step="0.05" value="2.25"><div class="out" id="o_tx">—</div>
+  </div>
+  <div class="row">
+    <div class="name">Loyer de remplacement effectivement payé
+      <small>Mettez <b>0</b> si vous êtes propriétaire de votre logement actuel</small></div>
+    <input id="loy" type="number" step="100" value="0"><div class="out" id="o_loy">—</div>
+  </div>
+  <div class="row">
+    <div class="name">Garde-meubles et double équipement
+      <small>0 si pas de déménagement intermédiaire</small></div>
+    <input id="gm" type="number" step="50" value="0"><div class="out" id="o_gm">—</div>
+  </div>
+  <div class="row">
+    <div class="name">Perit + project management prolongés
+      <small>PM 2 j/semaine + supervision. Poste validé par la contre-expertise</small></div>
+    <input id="pm" type="number" step="100" value="4000"><div class="out" id="o_pm">—</div>
+  </div>
+  <div class="row">
+    <div class="name">Postes au compte de l'entreprise
+      <small>Assurance TRC, gardiennage, installations de chantier — <b>laissez 0</b> en marché forfaitaire</small></div>
+    <input id="ent" type="number" step="100" value="0"><div class="out" id="o_ent">—</div>
+  </div>
+  <div class="row">
+    <div class="name">Escalade des prix sur le reste à engager
+      <small><b>0</b> si vous appliquez le pré-achat de 100 % des matériaux</small></div>
+    <input id="esc" type="number" step="100" value="0"><div class="out" id="o_esc">—</div>
+  </div>
+  <div class="row">
+    <div class="name">Mois de compression que vous comptez acheter
+      <small>Gain attaquable réaliste : 4 à 9 mois</small></div>
+    <input id="mois" type="number" step="1" value="5"><div class="out" id="o_mois">—</div>
+  </div>
+
+  <div class="calcout">
+    <div class="line"><span>Coût d'opportunité (portage du capital)</span><span id="r_port">—</span></div>
+    <div class="line"><span>Sortie de trésorerie réelle</span><span id="r_cash">—</span></div>
+    <div class="line big"><span>Coût d'un mois de retard</span><span id="r_tot">—</span></div>
+    <hr style="margin:16px 0">
+    <div class="line"><span>Prime rationnelle par mois gagné <span class="small">(60–70 % du coût évité)</span></span><span id="r_prime">—</span></div>
+    <div class="line"><span>Plafond dur — ne jamais dépasser</span><span id="r_plaf">—</span></div>
+    <div class="line"><span>Coût total évité sur la compression achetée</span><span id="r_evite">—</span></div>
+    <div class="line big"><span>Enveloppe d'incitation maximale défendable</span><span id="r_env">—</span></div>
+    <div class="line" style="margin-top:10px"><span>Cette enveloppe rapportée au marché travaux de 1,75 M€</span><span id="r_pct">—</span></div>
+  </div>
+  <p class="small" id="verdictline" style="margin-top:14px"></p>
+</div>
+
+<script>
+const P={
+ rapport:{cap:4500,tx:3.50,loy:4000,gm:400,pm:4500,ent:2300,esc:1000,mois:5},
+ proprio:{cap:5600,tx:2.25,loy:0,gm:0,pm:4000,ent:0,esc:0,mois:5},
+ emprunt:{cap:5600,tx:3.50,loy:3200,gm:400,pm:4500,ent:0,esc:0,mois:5},
+ median: {cap:5600,tx:2.60,loy:0,gm:0,pm:4000,ent:0,esc:0,mois:5}
+};
+const ids=['cap','tx','loy','gm','pm','ent','esc','mois'];
+const eur=n=>Math.round(n).toLocaleString('fr-FR')+' €';
+function setP(k){const p=P[k];ids.forEach(i=>document.getElementById(i).value=p[i]);calc();}
+function v(i){const x=parseFloat(document.getElementById(i).value);return isNaN(x)?0:x;}
+function calc(){
+  const port = v('cap')*1000*(v('tx')/100)/12;
+  const cash = v('loy')+v('gm')+v('pm')+v('ent')+v('esc');
+  const tot  = port+cash;
+  document.getElementById('o_cap').textContent = eur(port);
+  document.getElementById('o_tx').textContent  = v('tx').toFixed(2)+' %';
+  ['loy','gm','pm','ent','esc'].forEach(i=>document.getElementById('o_'+i).textContent=eur(v(i)));
+  document.getElementById('o_mois').textContent = v('mois')+' mois';
+  document.getElementById('r_port').textContent = eur(port);
+  document.getElementById('r_cash').textContent = eur(cash);
+  document.getElementById('r_tot').textContent  = eur(tot);
+  const prime = tot*0.65, evite = tot*v('mois'), env = prime*v('mois');
+  document.getElementById('r_prime').textContent = eur(prime)+' / mois';
+  document.getElementById('r_plaf').textContent  = eur(tot)+' / mois';
+  document.getElementById('r_evite').textContent = eur(evite);
+  document.getElementById('r_env').textContent   = eur(env);
+  document.getElementById('r_pct').textContent   = (env/1750000*100).toFixed(1)+' % du marché';
+  const vl=document.getElementById('verdictline');
+  const pct=env/1750000*100;
+  if(pct>7) vl.innerHTML='<b style="color:var(--bad)">Au-delà de 7 % du marché, vous sortez de toute pratique documentée.</b> Vérifiez vos hypothèses de capital et de taux — vous êtes probablement en train de compter un coût d\'opportunité comme s\'il était du cash.';
+  else if(pct>=2.5) vl.innerHTML='<b style="color:var(--ok)">Cohérent avec la pratique documentée de l\'early completion bonus (2,5–5 % du marché).</b> Cette enveloppe est défendable en négociation.';
+  else vl.innerHTML='<b style="color:var(--warn)">Sous 2,5 % du marché, une prime ne change pas le comportement d\'une entreprise.</b> Elle représente moins de 20 % de sa marge nette : elle l\'empochera si ça arrive, sans rien réorganiser pour l\'obtenir. Réorientez le budget vers les leviers structurels du § 10.';
+}
+ids.forEach(i=>document.getElementById(i).addEventListener('input',calc));
+calc();
+</script>
+
+<p class="small"><strong>Lecture :</strong> avec le préréglage « propriétaire, achat comptant » — qui
+est probablement votre situation — le coût du retard tombe autour de <strong>14 500 €/mois</strong>,
+dont seulement <strong>4 000 € de sortie de trésorerie réelle</strong>. L'écart avec les 25 300 € du
+rapport se joue presque entièrement sur deux paramètres : le taux appliqué au capital, et l'existence
+ou non d'un loyer.</p>
+
+<!-- ============================================ -->
+<h2 id="s8"><span class="num">08</span>Le planning réel</h2>
+<p class="lede">Trois chiffres, pas un. Celui que vous visez, celui que vous signez, et celui sur lequel
+vous organisez votre vie.</p>
+
+<div class="cards">
+  <div class="card hi"><div class="k">Cible interne</div><div class="v">15 mois</div>
+    <div class="d">C'est là-dessus qu'on cale la prime de vitesse — comme <em>objectif</em>.</div></div>
+  <div class="card"><div class="k">Date contractuelle</div><div class="v">18 mois</div>
+    <div class="d">Ce que vous signez. Une prime adossée à une date impossible n'incite à rien.</div></div>
+  <div class="card"><div class="k">Vie privée</div><div class="v">20 mois</div>
+    <div class="d">Bail, école, déménagement, garde-meubles. Ne planifiez rien avant.</div></div>
+</div>
+
+<div class="scroll"><table>
+<thead><tr><th>Scénario</th><th class="n">Rapport spécialiste</th><th class="n">Corrigé</th><th>Motif</th></tr></thead>
+<tbody>
+<tr><td><strong>Référence non compressée</strong><br><span class="small">entreprise multi-chantiers,
+  décisions au fil de l'eau</span></td><td class="n">24 – 28 mois</td><td class="n"><strong>20 – 26 mois</strong></td>
+  <td>Le rapport admet que c'est une estimation construite. Il ne dit pas qu'elle est gonflée <em>dans
+  le sens qui sert sa conclusion</em> : plus la référence est haute, plus le gain paraît spectaculaire
+  et le budget de compression justifié.</td></tr>
+<tr><td><strong>Cible tous leviers activés</strong></td><td class="n">14 – 15 mois</td>
+  <td class="n"><strong>16 – 20 mois</strong></td>
+  <td>Le cycle « 6,5 mois × 5 zones décalées de 3 semaines » suppose un décalage inter-zones tenu
+  parfaitement pendant 9 mois sur un bâtiment à <strong>une seule cage d'escalier et un seul accès</strong> —
+  contrainte que le rapport identifie lui-même puis oublie dans son calcul. Il applique ensuite 8 %
+  d'aléa alors qu'il cite une littérature donnant 10–30 % de dépassement sur 70 % des projets.
+  Appliquer 15 % à sa propre base donne déjà 15,5–16,5 mois.</td></tr>
+<tr class="total"><td>Gain réellement attaquable</td><td class="n">9 – 14 mois</td>
+  <td class="n"><strong>4 – 9 mois</strong></td><td>C'est ce chiffre qui fait s'effondrer le rendement
+  de la compression (§ 02).</td></tr>
+</tbody></table></div>
+
+<h3>Les contraintes maltaises, recalibrées</h3>
+<div class="scroll"><table>
+<thead><tr><th>Contrainte</th><th>Réalité</th><th class="n">Impact</th></tr></thead>
+<tbody>
+<tr><td>Horaires de chantier</td><td>07:00–20:00, S.L. 623.08 <em>Construction (Management of Site)
+  Regulations</em>. Marteau hydraulique sur excavatrice <strong>interdit en permanence</strong>,
+  marteau-piqueur 07:30–16:00. <span class="tag t-ok">Vérifié</span></td><td class="n">0–1 %</td></tr>
+<tr><td><span class="tag t-bad">Corrigé</span> La pause 14:00–16:00</td>
+  <td>Ce n'est <strong>pas</strong> un arrêt du bruit général : c'est l'obligation de cesser les
+  activités générant <strong>plus de 65 dB mesurés immédiatement à l'extérieur du site</strong> — et un
+  Legal Notice de 2007 a écarté de l'enforcement précisément cette clause. Sur un fit-out, l'impact est
+  <strong>nul</strong>, pas 2–4 % comme annoncé.</td><td class="n">≈ 0 %</td></tr>
+<tr><td>Dimanches et jours fériés</td><td>Aucun travail. 14 fériés, dont ~10 en semaine.
+  <span class="tag t-ok">Vérifié</span></td><td class="n">4–5 %</td></tr>
+<tr><td><strong>Santa Marija</strong></td><td>Shutdown d'août autour du 15, 1 à 2 semaines, très
+  largement pratiqué. <strong>Le seul poste vraiment coûteux.</strong> Mettez-le au planning — le
+  racheter est cher, mal accepté socialement et de faible rendement.</td><td class="n">2–3 sem. / août</td></tr>
+<tr><td>Interdiction estivale démolition/excavation</td>
+  <td>15/06–30/09, zones listées par la MTA. Le rapport écartait Naxxar un peu vite : <strong>Baħar
+  iċ-Ċagħaq relève du conseil local de Naxxar et est côtier.</strong> La liste MTA n'a pas pu être
+  obtenue (403). <strong>Sans objet si le programme ne comporte ni démolition ni excavation</strong> —
+  mais déterminant si la piscine implique une excavation entre juin et septembre.</td>
+  <td class="n">0 ou bloquant</td></tr>
+<tr class="total"><td>Perte cumulée</td><td>Le rapport annonçait 10–12 %</td><td class="n"><strong>6–8 %</strong></td></tr>
+</tbody></table></div>
+
+<h3>La densité de main-d'œuvre — une arithmétique incohérente, une recommandation juste</h3>
+<div class="callout warn">
+  <p>Le rapport annonçait « 1 ouvrier pour 15–25 m² utiles, soit 18 à 28 ouvriers sur 906 m² ».
+  <strong>906 ÷ 25 = 36 et 906 ÷ 15 = 60.</strong> Le ratio annoncé donne 36–60 ouvriers, pas 18–28.
+  Les deux chiffres ne se réconcilient qu'en excluant les 458 m² de sous-sol — c'est-à-dire en
+  appliquant <em>exactement le ratio erroné</em> qui avait déjà produit la surestimation de 463 000 €
+  du coût de finition.</p>
+  <p style="margin-bottom:0"><strong>La recommandation reste bonne, la démonstration est fausse.</strong>
+  Chiffres corrigés : <strong>20–30 ouvriers en régime, pointe 40, plafond dur 45.</strong> Et le vrai
+  argument n'est pas le ratio m²/ouvrier — c'est <strong>une cage d'escalier, un accès unique, deux
+  niveaux sans lumière naturelle</strong>. La contrainte est logistique et verticale, pas surfacique.
+  D'où l'importance du monte-matériaux : sans lui, le portage manuel sur 5 niveaux consomme 10 à 15 %
+  de la main-d'œuvre.</p>
+</div>
+
+<blockquote><strong>Ne demandez pas « 40 ouvriers ». Demandez 20 ouvriers présents tous les jours.</strong>
+La régularité bat la pointe — c'est tout le sens de la clause d'effectif.</blockquote>
+
+<!-- ============================================ -->
+<h2 id="s9"><span class="num">09</span>Le contrat : l'article 1122 dit l'inverse de ce qu'on m'avait dit</h2>
+<p class="lede">C'est la correction la plus importante du dossier. Le rapport spécialiste a bâti une
+architecture contractuelle entière pour contourner un obstacle que le législateur maltais avait déjà levé.</p>
+
+<div class="verdict bad">
+  <div class="lbl">Prémisse renversée</div>
+  <div class="big">L'article 1122 est prohibitif, pas permissif</div>
+  <div class="qual">Il <em>interdit</em> au juge d'abattre une pénalité de simple retard, ou assortie d'une renonciation expresse</div>
+</div>
+
+<p>On m'avait présenté l'art. 1122 comme donnant au juge un pouvoir général de réduction de la clause
+pénale, d'où la conclusion que toute pénalité serait structurellement fragile à Malte. Le texte dit
+autre chose :</p>
+
+<blockquote>
+« <em>It shall not be lawful for the court to abate or mitigate the penalty except in the following
+cases: (a) if the debtor has performed the obligation in part, and the creditor has expressly accepted
+the part so performed; (b) if the debtor has performed the obligation in part, and the part so
+performed, having regard to the particular circumstances of the creditor, is manifestly useful to the
+latter.</em> »<br><br>
+« <em>An abatement cannot be made if the debtor, in undertaking to pay the penalty, has
+<strong>expressly waived his right to any abatement</strong> or if the penalty has been stipulated in
+consideration of <strong>mere delay</strong>.</em> »
+</blockquote>
+<p class="src">Recoupement de deux extraits concordants de cabinets maltais.
+<strong>Le texte officiel n'a pas pu être lu — legislation.mt renvoie 403.</strong> C'est le premier
+point à faire confirmer par l'avocat : trente secondes de lecture pour lui.</p>
+
+<p><strong>Autrement dit, les deux protections dont vous avez précisément besoin sont écrites dans la
+loi et gratuites :</strong> une pénalité de retard est expressément soustraite à l'abattement, et une
+renonciation expresse le verrouille en toute hypothèse.</p>
+
+<h3>Pourquoi le « prix conditionnel » est <em>plus faible</em> qu'une pénalité classique</h3>
+<p>L'architecture proposée par le rapport — 10 à 15 % du prix (soit <strong>175 000 à 260 000 €</strong>)
+requalifiés en « part présence » payée au prorata des jours-homme constatés, plutôt qu'en pénalité —
+repose sur l'idée que « dans un prix conditionnel, le fait générateur ne s'est pas produit, il n'y a
+rien à réduire ». Trois objections :</p>
+<ul>
+  <li><strong>Elle tombe pile dans les exceptions (a)/(b) de l'art. 1122.</strong> L'entreprise plaidera
+  qu'elle a <em>exécuté en partie</em> — le mois a été travaillé à 60 % de l'effectif mais l'ouvrage a
+  avancé — et que vous avez <em>accepté</em> cette exécution partielle en certifiant l'avancement.
+  C'est exactement la porte que la loi laisse ouverte.</li>
+  <li><strong>Le juge requalifie selon la fonction, pas selon le nom.</strong> Le Code civil maltais est
+  d'ascendance franco-italienne, et le principe cardinal de cette tradition est la requalification des
+  « stipulations qui, sous des noms divers, présentent les caractères de la clause pénale ». Une somme
+  perdue parce que l'effectif manquait est <em>fonctionnellement</em> une sanction de l'inexécution.
+  Le mot « prix » ne change pas la fonction. <span class="tag t-warn">Inférence par analogie de tradition
+  juridique — aucune jurisprudence maltaise trouvée</span></li>
+  <li><strong>Vous vous privez de la liquidation forfaitaire du préjudice.</strong> Sans clause pénale,
+  en cas de retard vous devrez <em>prouver</em> votre dommage. Or ce dommage est à 60–75 % un coût
+  d'opportunité (§ 06) — quasi impossible à établir devant un juge.</li>
+</ul>
+
+<div class="callout bad">
+  <div class="t">Coût d'une erreur sur ce point</div>
+  <p style="margin-bottom:0">Si le prix conditionnel est requalifié et abattu, et qu'il n'y a pas de
+  clause pénale en second rideau, vous vous retrouvez avec <strong>un chantier en retard et aucun
+  remède liquidé</strong>. Sur six mois de retard : ~90 000 € d'exposition non couverte, et une position
+  de négociation nulle.</p>
+</div>
+
+<h3>L'architecture corrigée — cumuler, ne pas substituer</h3>
+<ol class="steps">
+  <li><strong>Clause pénale de retard journalière, avec renonciation expresse à l'abattement.</strong>
+  Calibrée sur le coût réel — de l'ordre de 500 €/jour ouvré. C'est la fondation. Coût de rédaction :
+  deux phrases.</li>
+  <li><strong>Part de prix conditionnée à la présence, en complément.</strong> 10–15 % du prix payés
+  mensuellement au prorata strict du ratio jours-homme constatés / jours-homme contractuels.
+  Non rattrapable. <em>Jamais à la place de la pénalité.</em></li>
+  <li><strong>Droit de substitution (step-in).</strong> Au-delà de deux mois consécutifs sous 80 % de
+  l'effectif contractuel, vous pouvez faire exécuter le solde par un tiers aux frais de l'entreprise,
+  sans résiliation. <strong>C'est le seul mécanisme qui échappe entièrement au débat de l'art. 1122,
+  parce que ce n'est pas une somme d'argent mais une perte de marché.</strong> Le rapport avait raison
+  là-dessus et l'avait enterré en note.</li>
+  <li><strong>Annexe « effectif contractuel » nominative</strong> — chef de chantier plein temps,
+  conducteur de travaux à 50 %, 16 à 20 compagnons désignés par nom, métier et <strong>numéro de Skill
+  Card</strong>. La Skill Card devient votre instrument de contrôle, et elle est obligatoire au 01/01/2027.</li>
+  <li><strong>Constat contradictoire quotidien</strong> — registre signé chaque matin, photo horodatée,
+  relevé des Skill Cards. <em>Sans constat, la journée est réputée à effectif zéro.</em></li>
+  <li><strong>Clause de personnel clé</strong> — chef de chantier nommé, sur ce seul chantier, non
+  remplaçable sans accord écrit.</li>
+  <li><strong>Interdiction de sous-traitance en cascade</strong> sans agrément écrit nominatif. Prévoyez
+  explicitement le cas où l'entreprise principale sous-traite 60 % des lots, avec engagement d'effectif
+  en cascade.</li>
+  <li><strong>Conformité PA</strong> — toute exécution non conforme aux plans approuvés est un manquement
+  de l'entreprise, à ses frais et à son risque de délai (§ 03).</li>
+</ol>
+
+<div class="callout warn">
+  <div class="t">Garantie bancaire autonome : moins liquide que promis</div>
+  <p style="margin-bottom:0">Le rapport affirmait qu'une garantie autonome à première demande « échappe
+  en principe à la révision judiciaire ». La contre-expertise est <strong>plus pessimiste</strong> :
+  Malte connaît le <em>mandat ta' inibizzjoni</em> (art. 873–877 du Code d'organisation et de procédure
+  civile), dont le seuil d'octroi est un <strong>droit prima facie</strong> et un préjudice — un standard
+  structurellement plus bas que la « fraude uniquement » des juridictions de common law. Une entreprise
+  qui plaide que le retard vous est imputable peut plausiblement obtenir un mandat bloquant le paiement.
+  <strong>Gardez la garantie de 10 % — mais ne la traitez pas comme du cash inconditionnel.</strong>
+  <span class="tag t-warn">Aucune décision maltaise trouvée sur le blocage d'un appel de garantie autonome</span></p>
+</div>
+
+<h3>Structurer la prime pour qu'elle ne dégrade pas la qualité</h3>
+<p>Le risque est documenté : les primes poussent à couper les coins sur ce qui ne se voit pas.
+Cinq verrous, non négociables :</p>
+<ol>
+  <li><strong>Date de référence réaliste</strong> — 18 mois au contrat, pas 14 (§ 08). Une prime adossée
+  à une date impossible n'incite à rien ; adossée à une date facile, elle est un cadeau.</li>
+  <li><strong>Définition dure de la « fin »</strong> — réception <em>sans réserve autre que mineure</em>,
+  constatée par le perit, liste plafonnée (maximum 30 réserves mineures, aucune majeure). Sinon
+  l'entreprise « finit » en laissant 200 points de reprise.</li>
+  <li><strong>Paiement en deux temps : 50 % à la réception, 50 % à 90 jours après levée complète des
+  réserves.</strong> C'est le mécanisme central : il rend la vitesse rentable seulement si elle est propre.</li>
+  <li><strong>Prime réduite à zéro</strong> en cas d'accident du travail déclaré ou de mise en demeure
+  BCA/OHSA. Élimine l'incitation à sacrifier la sécurité.</li>
+  <li><strong>Clause de non-agression sur les réclamations</strong> — la prime n'est acquise que si
+  l'entreprise n'a pas déposé de réclamation en prolongation de délai fondée sur des faits non notifiés
+  dans les 15 jours. Cela tue le jeu classique « j'accélère et je vous facture l'accélération ».</li>
+</ol>
+
+<!-- ============================================ -->
+<h2 id="s10"><span class="num">10</span>Les dix leviers, classés après contre-expertise</h2>
+<p class="lede">Le renversement de séquence du rapport spécialiste est son meilleur apport et il survit
+intact : <em>une entreprise ne va lentement que parce qu'elle attend une décision, un matériau, ou son
+argent. Payer une prime à une entreprise qui attend vos décisions revient à la payer pour attendre plus cher.</em></p>
+
+<div class="scroll"><table>
+<thead><tr><th>Levier</th><th class="n">Gain</th><th class="n">Coût</th><th>Verdict après contre-expertise</th></tr></thead>
+<tbody>
+<tr><td><strong>0. Trancher le permis et la conformité PA</strong></td><td class="n">évite 3–8 mois</td>
+  <td class="n">60 € + réunion</td><td><span class="tag t-ok">Priorité absolue</span> Le seul point qui
+  peut faire dérailler le projet de six mois, dans les deux sens (§ 03).</td></tr>
+<tr><td><strong>1. Réduire le périmètre — sous-sols en phase 2</strong></td><td class="n">2–4 mois</td>
+  <td class="n">négatif</td><td><span class="tag t-ok">Ajouté</span> Deux niveaux retirés du chemin
+  critique, stockage permanent, coût négatif. Budgéter 43–73 k€ de protection (§ 04).</td></tr>
+<tr><td><strong>2. Scan laser 3D du shell</strong></td><td class="n">condition</td><td class="n">5–8 k€</td>
+  <td><span class="tag t-ok">Confirmé</span> La dépense la plus rentable du dossier. Sans elle, deux
+  autres leviers s'effondrent et tout sur-mesure acheté d'avance est un pari.</td></tr>
+<tr><td><strong>3. Design freeze total avant ordre de service</strong></td><td class="n">2–4 mois</td>
+  <td class="n">30–50 k€</td><td><span class="tag t-ok">Confirmé</span> Registre de 300–450 décisions,
+  dates limites calculées à rebours des délais de fabrication, trois options par poste, un showroom par
+  famille. Le seul levier dont le mécanisme est physiquement évident.</td></tr>
+<tr><td><strong>4. Achat + stockage de 100 % des matériaux avant démarrage</strong></td><td class="n">2–3 mois</td>
+  <td class="n">30–50 k€</td><td><span class="tag t-ok">Confirmé</span> Les sous-sols sont votre entrepôt.
+  Sur-commande 7–10 % sur pierre/carrelage/parquet, 5 % sur appareillage : <strong>20–35 k€ qui suppriment
+  la catastrophe classique du bain de carrelage introuvable.</strong></td></tr>
+<tr><td><strong>5. Effectif nommé + pénalité + step-in + PM client</strong></td><td class="n">3–5 mois</td>
+  <td class="n">60–90 k€</td><td><span class="tag t-warn">Architecture corrigée</span> Voir § 09 :
+  pénalité de retard <em>en plus</em> du prix conditionnel, jamais à la place.</td></tr>
+<tr><td><strong>6. Paiement à 15 j + situations bimensuelles + avance 10 %</strong></td>
+  <td class="n"><del>1–2 mois</del> <strong>0,3–0,8</strong></td><td class="n">5–7,5 k€</td>
+  <td><span class="tag t-warn">Dégonflé</span> Présenté comme « le meilleur ratio du dossier » : 1 à 2 mois
+  sur 11 par un simple changement de délai de paiement, sans mécanisme sur le chemin critique.
+  L'effet est réel mais <strong>comportemental et redondant avec le levier 5</strong> — si l'effectif est
+  verrouillé, vous avez déjà acheté le comportement. Reste bon marché : gardez-le, mais bas dans le classement.</td></tr>
+<tr><td><strong>7. Préfabrication atelier</strong> (agencements, escalier, ferronnerie, pierre CN)</td>
+  <td class="n">0,7–1,3 mois</td><td class="n">15–30 k€</td><td>Dépend entièrement du scan 3D.</td></tr>
+<tr><td><strong>8. Chapes fluides anhydrite</strong></td><td class="n">0,7–1,2 mois</td><td class="n">12–20 k€</td>
+  <td>Compatibilité colle/pierre à valider avec le fournisseur italien. Sensibilité à l'humidité en sous-sol.</td></tr>
+<tr><td><strong>9. Prime de vitesse plafonnée</strong></td><td class="n">1–2,5 mois</td>
+  <td class="n"><del>55–90 k€</del> <strong>40–50 k€</strong></td>
+  <td><span class="tag t-warn">Recalibré</span> 8 000–10 000 €/mois d'avance sur une date réaliste,
+  plafond 5 mois (§ 06). Conditionnel : dû seulement si atteint.</td></tr>
+</tbody></table></div>
+
+<h3>Ce qu'il faut refuser malgré l'attrait</h3>
+<div class="scroll"><table>
+<thead><tr><th>Levier</th><th>Pourquoi non</th></tr></thead>
+<tbody>
+<tr><td><strong>Pods de salle de bain préfabriqués</strong></td>
+  <td><span class="tag t-bad">Zéro gain</span> Ils se posent à la grue <em>avant</em> fermeture de dalle.
+  Sur un shell fermé, 5 niveaux, accès par cage d'escalier, trames irrégulières : physiquement impossible.
+  <strong>Le levier le plus survendu du marché.</strong></td></tr>
+<tr><td><strong>Cloisons sèches généralisées</strong></td>
+  <td>Gagnent 1–1,5 mois <em>et</em> font économiser 15–25 k€ — mais mur creux, fixations lourdes à
+  anticiper, acoustique à traiter, et <strong>culturellement dévalorisé à Malte</strong> : impact réel à
+  la revente. À réserver aux cloisons non structurantes de service.</td></tr>
+<tr><td><strong>Heures supplémentaires prolongées</strong></td>
+  <td>Perte de productivité documentée jusqu'à 25 % au-delà de quelques semaines. À garder en réserve
+  pour les 6 dernières semaines uniquement.</td></tr>
+<tr><td><strong>Sur-effectif au-delà de 40 ouvriers</strong></td>
+  <td>L'empilement des corps d'état (facteurs MCAA) coûte 15–20 % de rendement dans des affaires jugées.
+  <strong>Vous paierez plus pour avancer moins vite.</strong></td></tr>
+<tr><td><strong>Racheter le shutdown de Santa Marija</strong></td>
+  <td>Cher, mal accepté socialement, faible rendement. Mettez-le au planning.</td></tr>
+</tbody></table></div>
+
+<!-- ============================================ -->
+<h2 id="s11"><span class="num">11</span>Le budget de finition</h2>
+<p class="lede">Votre perit avait raison et j'avais tort. L'écart venait d'un ratio uniforme appliqué
+à des surfaces qui ne sont pas comparables — et d'une confusion entre coût de finition et prix de vente.</p>
+
+<div class="callout bad">
+  <div class="t">Correction : les 2 505 400 € que je vous avais annoncés</div>
+  <p>Vous aviez raison de challenger ce chiffre. Deux erreurs :</p>
+  <ul>
+    <li><strong>Un ratio €/m² uniforme appliqué aux 458 m² de sous-sol</strong> — 1 268 €/m² appliqué
+    contre <strong>413 €/m² réel</strong>. Surestimation : ≈ <strong>463 000 €</strong>.</li>
+    <li><strong>2 759 €/m² n'est pas un coût de finition</strong> : c'est le <em>prix de vente au m²
+    d'un bien fini à Malte</em>. Deux choses complètement différentes.</li>
+  </ul>
+  <p style="margin-bottom:0">Le même projet chiffre de <strong>747 000 € à 1 790 000 €</strong> — un
+  facteur 2,4 — selon l'endroit où l'on trace le périmètre. <strong>Quand votre perit et moi
+  annonçons des chiffres différents, la première question n'est pas « qui a raison » mais
+  « qu'est-ce qui est dedans ».</strong></p>
+</div>
+
+<div class="cards">
+  <div class="card"><div class="k">Sans les sous-sols, premium série</div><div class="v">1,10–1,35 M€</div>
+    <div class="d">448 m² hors sol + extérieurs, sans piscine intérieure</div></div>
+  <div class="card hi"><div class="k">Cible retenue, projet complet</div><div class="v">1,65–1,85 M€</div>
+    <div class="d">906 m², smart premium, sans piscine intérieure au sous-sol</div></div>
+  <div class="card"><div class="k">Protection sous-sols si phase 2</div><div class="v">43–73 k€</div>
+    <div class="d">Étanchéité, drainage, ventilation, <b>station de relevage</b></div></div>
+  <div class="card"><div class="k">Récupération à la revente</div><div class="v">35–50 %</div>
+    <div class="d">Le marché paie 600–900 €/m² un passage shell→fini qui coûte 1 700–2 000</div></div>
+</div>
+
+<h3>Postes que la sous-traitance exclut systématiquement de ses devis</h3>
+<p>Vous m'aviez demandé ce qu'étaient les « 70 000 € que la sous-traitance inclut dans son prix et que
+vous devrez acheter vous-même ». Réponse : ce sont les postes qu'un devis de finition maltais présente
+en « fourniture non comprise » ou omet purement.</p>
+<div class="scroll"><table>
+<thead><tr><th>Poste</th><th>Piège</th></tr></thead>
+<tbody>
+<tr><td>Appareillage électrique, luminaires, domotique</td><td>Le devis chiffre la pose, pas le produit.
+  Sur 906 m² c'est un poste à cinq chiffres.</td></tr>
+<tr><td>Robinetterie, sanitaires, receveurs</td><td>Idem. « Sanitary ware by others » est la formule standard.</td></tr>
+<tr><td>Cuisine, dressings, agencements</td><td>Presque toujours hors marché principal, et c'est un
+  délai de fabrication de 10–16 semaines qui doit être commandé en M0.</td></tr>
+<tr><td>Portes intérieures et quincaillerie</td><td>Souvent « prime cost sum » — une provision, pas un prix.</td></tr>
+<tr><td><strong>Raccordement Enemalta</strong></td><td><span class="tag t-ok">Corrigé</span> Je vous
+  avais annoncé 5 000–40 000 € et 6–18 mois. Le réel : <strong>≈ 900 €</strong> pour un triphasé
+  ≤ 60 A/phase à moins de 150 m d'un point BT.</td></tr>
+<tr><td>Monte-matériaux de chantier</td><td>10–15 k€, et sans lui le portage manuel sur 5 niveaux
+  consomme 10–15 % de la main-d'œuvre. À exiger explicitement au marché.</td></tr>
+</tbody></table></div>
+
+<div class="callout warn">
+  <div class="t">Le grant de 54 000 € : fermé</div>
+  <p style="margin-bottom:0">La <em>Grant on Restoration and Finishing of Privately Owned Residential
+  Properties</em> (18 % / 10 %, plafond 54 000 €, fenêtre 01/01/2025–31/12/2026) exige l'un des trois
+  critères : bien en UCA, bien de plus de 20 ans vacant depuis 7 ans, ou <strong>bien neuf construit
+  dans le style traditionnel maltais typique</strong> — façades traditionnelles, escaliers de pierre,
+  cours intérieures, gallarija en bois. <strong>Une villa contemporaine livrée en 2022 échoue sur les
+  trois.</strong> N'en tenez pas compte dans votre plan de financement. (Elle exigeait de toute façon
+  des reçus fiscaux maltais, ce qui entrait en conflit direct avec le sourcing italien.)</p>
+</div>
+
+<!-- ============================================ -->
+<h2 id="s12"><span class="num">12</span>Smart premium : les arbitrages</h2>
+<p class="lede">Votre formulation était juste : « des choses qui ont l'air incroyable mais plutôt un
+objet classique pas trop cher, hyper qualitatif ». Voici où céder et où ne rien céder.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Poste</th><th>Position</th><th>Raison</th></tr></thead>
+<tbody>
+<tr><td><strong>Menuiseries extérieures</strong></td><td class="n"><span class="tag t-bad">Ne cédez rien</span></td>
+  <td>Bord de mer, crête côtière, orientation sud-est. Exigez <strong>Qualicoat Seaside</strong>
+  (décapage ≥ 2,0 g/m²) ou anodisation ≥ 25 µm classe marine, quincaillerie <strong>inox A4 / AISI 316</strong>,
+  vitrage à facteur solaire g entre 0,25 et 0,35. C'est le poste où une économie se paie en corrosion
+  visible à trois ans.</td></tr>
+<tr><td><strong>Étanchéité et traitement marin</strong></td><td class="n"><span class="tag t-bad">Ne cédez rien</span></td>
+  <td>Non réparable après coup sans tout casser. Enduits respirants uniquement.</td></tr>
+<tr><td><strong>Pierre : franka vs żonqor</strong></td><td class="n">Arbitrage matériau</td>
+  <td><strong>Franka</strong> (globigérine) en intérieur uniquement — elle se dégrade par cristallisation
+  saline en extérieur. <strong>Żonqor</strong> (corallin) pour tout ce qui est exposé.
+  <strong>Refusez le « soll ».</strong> C'est un arbitrage gratuit qui a l'air d'une expertise.</td></tr>
+<tr><td><strong>Baies vitrées</strong></td><td class="n">Le meilleur gain d'arbitrage</td>
+  <td>La différence de finesse de montant entre un système ultra-premium et un système premium de série
+  est de l'ordre de 80 mm, pas de 30. Sur les baies non-signature, un système de série bien posé donne
+  95 % de l'effet pour une fraction du prix. <strong>Concentrez le budget sur une ou deux baies
+  signature</strong> — celles qu'on voit en entrant et celles qui cadrent la mer.</td></tr>
+<tr><td><strong>Robinetterie et sanitaires</strong></td><td class="n">Smart premium type</td>
+  <td>Une marque italienne de série haute vaut visuellement une marque de designer à 3× le prix.
+  Uniformisez sur une seule famille : la cohérence lit « premium » mieux que la variété.</td></tr>
+<tr><td><strong>Sur-mesure</strong></td><td class="n"><span class="tag t-warn">À limiter</span></td>
+  <td>Vous l'aviez dit vous-même : « rien de sur-mesure ». Chaque pièce sur-mesure est un délai de
+  fabrication sur le chemin critique <em>et</em> un pari sur les cotes tant que le scan 3D n'est pas fait.</td></tr>
+<tr><td><strong>Photovoltaïque</strong></td><td class="n"><span class="tag t-ok">Stratégie inversée</span></td>
+  <td>Je vous avais annoncé 115 000 € de rachat sur 20 ans : <strong>erreur d'un facteur 8</strong>.
+  L'export résidentiel est plafonné à 4 800 kWh/an, soit ~720 €/an. <strong>C'est la subvention à
+  l'installation + l'autoconsommation qui gagnent, pas la revente.</strong> Dimensionnez sur votre
+  consommation, pas sur la surface de toiture.</td></tr>
+</tbody></table></div>
+
+<blockquote>Sur les deux postes « ne cédez rien » — enveloppe et traitement marin — la question que vous
+posiez (<em>« comment s'assurer qu'il travaille bien ? »</em>) se règle par les <strong>échantillons
+témoins</strong> : un panneau de référence validé et conservé sur site, contre lequel toute la
+production est comparée. Ce qui n'est pas conforme au témoin n'est pas payé. C'est plus efficace que
+n'importe quelle clause.</blockquote>
+
+<!-- ============================================ -->
+<h2 id="s13"><span class="num">13</span>Sourcing sicilien : ce qui marche, ce qui piège</h2>
+<p class="lede">Votre idée d'aller chercher les arbres en Sicile est bonne. Le raisonnement se
+généralise — mais pas à tout, et pas n'importe comment.</p>
+
+<div class="callout ok">
+  <div class="t">Ce qui joue pour vous</div>
+  <p style="margin-bottom:0"><strong>La Sicile est à 1h45 de Malte.</strong> Virtu Ferries opère
+  quotidiennement Valletta–Pozzallo (3 traversées/jour) et Catania ; le fret embarqué le matin est
+  déchargé à Malte le matin même, véhicules de retour en Sicile le soir. Véhicules commerciaux jusqu'à
+  19 m / 45 t. <span class="tag t-ok">Vérifié</span> <strong>Le risque n'est donc pas le transport,
+  c'est la fabrication.</strong></p>
+</div>
+
+<div class="scroll"><table>
+<thead><tr><th>Point</th><th>Ce qu'il faut savoir</th></tr></thead>
+<tbody>
+<tr><td><strong>Végétaux</strong></td><td>L'idée initiale est validée : sourcing sicilien, zones
+  <strong>indemnes de Xylella</strong>, passeport phytosanitaire à exiger. Gain réel sur des sujets de
+  belle taille.</td></tr>
+<tr><td><strong>Le piège EXW / DAP</strong></td><td><span class="tag t-bad">Attention</span> Acheter
+  <strong>EXW</strong> (départ usine) vous fait payer la TVA italienne à 22 %. Acheter <strong>DAP/DDP</strong>
+  avec livraison à Malte relève du régime intracommunautaire à 18 %. <strong>Quatre points d'écart sur
+  plusieurs centaines de milliers d'euros.</strong> Négociez l'incoterm avant le prix.</td></tr>
+<tr><td><strong>TVA — la vérité désagréable</strong></td><td>La TVA maltaise standard est de 18 % et
+  <strong>il n'existe pas de taux réduit pour la rénovation résidentielle à Malte</strong> (la règle des
+  5 % que j'avais trouvée était du droit <em>chypriote</em>). Pour un particulier construisant sa
+  résidence principale, <strong>l'avantage fiscal du sourcing italien est faible ou nul — l'avantage est
+  en délai et en choix, pas en prix.</strong></td></tr>
+<tr><td><strong>Artisans sous le seuil</strong></td><td>Le régime maltais de la petite entreprise
+  (article 11) place le seuil à <strong>35 000 €</strong> : en dessous, l'artisan ne facture pas de TVA.
+  Utile pour des lots courts et isolés. L'article 12 n'est pas ouvert aux particuliers.</td></tr>
+<tr><td><strong>Partage de responsabilité</strong></td><td>Si vous achetez et que l'entreprise pose,
+  elle se dédouanera de tout défaut d'aspect ou de compatibilité. <strong>Rédigez : obligation de
+  vérification et de réserve écrite dans les 5 jours de la mise à disposition ; à défaut de réserve,
+  le matériau est réputé accepté.</strong></td></tr>
+<tr><td><strong>Où acheter soi-même, où ne pas</strong></td><td><span class="tag t-ok">Oui</span> pour
+  les équipements — cuisine, sanitaires, robinetterie, luminaires. <span class="tag t-bad">Non</span>
+  pour tout ce qui conditionne la garantie de pose : étanchéité, colles, systèmes.</td></tr>
+<tr><td><strong>Casse et manquants</strong></td><td>1–2 % de la valeur stockée, soit 8–18 k€.
+  <strong>Provisionnez-le, ne le découvrez pas.</strong> Réception contradictoire à quai, pas à la pose :
+  un manquant découvert six mois plus tard coûte huit semaines.</td></tr>
+<tr><td><strong>Assurance stock</strong></td><td>Police « biens entreposés sur chantier », ~0,3–0,6 %/an
+  de la valeur, soit 2–5 k€.</td></tr>
+</tbody></table></div>
+
+<h4>Délais de fabrication à commander en M0</h4>
+<div class="scroll"><table>
+<thead><tr><th>Poste</th><th class="n">Fabrication</th></tr></thead>
+<tbody>
+<tr><td>Ascenseur</td><td class="n">12–20 semaines</td></tr>
+<tr><td>Cuisine italienne</td><td class="n">10–16 semaines</td></tr>
+<tr><td>Pierre / marbre sur mesure</td><td class="n">3–6 sem. si dalle en stock ; 8–16 si carrière</td></tr>
+<tr><td>Menuiseries extérieures</td><td class="n">8–14 semaines</td></tr>
+</tbody></table></div>
+<p class="small">Règle : <strong>date limite de décision = date de pose au planning − délai de
+fabrication − transit.</strong> Une cuisine à 14 semaines posée en M+9 doit être décidée en M+5, pas
+en M+8. C'est le seul calcul qui fait tenir un design freeze.</p>
+
+<!-- ============================================ -->
+<h2 id="s14"><span class="num">14</span>Choisir l'entreprise</h2>
+<p class="lede">Ni la grosse — vous serez son cinquième chantier par ordre d'importance. Ni la petite
+de 4–6 personnes — un arrêt maladie et tout s'arrête.</p>
+
+<div class="verdict ok">
+  <div class="lbl">Profil cible</div>
+  <div class="big">15 à 40 personnes en propre, 3 à 6 chantiers par an</div>
+  <div class="qual">Pour qui votre marché de 1,75 M€ représente <strong>30 à 50 % du chiffre d'affaires annuel</strong></div>
+</div>
+
+<p>En dessous de 15 % de son CA, vous n'êtes pas prioritaire et rien ne l'empêche de vous sacrifier.
+Au-dessus de 70 %, vous créez un risque de dépendance et de défaillance qui se retournera contre vous —
+et une défaillance en cours de chantier vous laisse avec un immeuble ouvert et 5 à 8 mois de perte,
+bien au-delà de tout ce que la prime achète.</p>
+
+<h3>Les vérifications gratuites, avant signature</h3>
+<ol>
+  <li><strong>Licence contractant BCA et sa date d'expiration.</strong> Une licence expirée provoque un
+  arrêt de chantier immédiat.</li>
+  <li><strong>Skill Cards de chaque ouvrier nommé.</strong> Obligatoire au 01/01/2027 — exigez que
+  100 % de l'équipe proposée en soit <em>déjà</em> titulaire.</li>
+  <li><strong>Effectif déjà en poste, pas « à recruter ».</strong> Un ressortissant non-UE à recruter
+  = 2–3 mois de single permit + cours pré-départ obligatoire depuis janvier 2026. Une entreprise qui
+  promet de recruter pour votre chantier vous fera attendre un trimestre.</li>
+  <li><strong>Comptes déposés au Registre des sociétés (MBR) sur 3 ans.</strong> <span class="tag t-ok">Ajouté
+  par la contre-expertise</span> C'est la seule vérification de solvabilité qui existe, elle est publique
+  et personne ne la fait.</li>
+  <li><strong>Journal de paie du mois dernier.</strong> Un refus est disqualifiant.</li>
+  <li><strong>Délais de paiement fournisseurs.</strong> Une entreprise qui paie à 120 jours a un problème
+  de trésorerie qui deviendra votre problème de délai.</li>
+  <li><strong>Deux visites non annoncées sur deux de ses chantiers en cours</strong>, un mardi vers 10h
+  et un vendredi vers 15h. Comptez les gens. Comparez à ce qu'on vous a dit. Photographiez la propreté
+  du chantier et le rangement des matériaux — <strong>c'est le meilleur indicateur avancé de qualité de
+  pilotage qui existe, et il est gratuit.</strong></li>
+  <li><strong>Appelez les clients de ses trois derniers chantiers livrés</strong> et posez une seule
+  question : <em>combien de mois entre l'ordre de service et votre emménagement, et combien avait-on
+  annoncé ?</em> <strong>C'est la meilleure recommandation de tout ce dossier — la seule donnée réelle
+  sur les durées maltaises que quiconque puisse obtenir.</strong></li>
+</ol>
+
+<div class="callout info">
+  <div class="t">Sur la prime de dédicace : la grille n'est pas une donnée</div>
+  <p style="margin-bottom:0">On vous a proposé une grille « &lt; 3 % suspect / 3–6 % signez / 6–10 % cher /
+  &gt; 10 % refusez ». <strong>Le rapport admet lui-même qu'elle est une reconstruction économique et non
+  un prix de marché observé</strong> — tout en la présentant à l'impératif. Une grille de décision sans
+  donnée n'est pas une grille, c'est une opinion typographiée. <strong>Utilisez-la comme aide-mémoire de
+  négociation, jamais comme critère de signature. Votre vraie donnée : faites chiffrer la clause
+  d'effectif séparément par trois entreprises.</strong></p>
+</div>
+
+<!-- ============================================ -->
+<h2 id="s15"><span class="num">15</span>Les questions à envoyer cette semaine</h2>
+<p class="lede">Rédigées en anglais pour partir telles quelles. Les trois premières à l'avocat maltais,
+les deux dernières au perit.</p>
+
+<div class="q"><div class="qn">Question 1 — avocat · Article 1122</div>
+Under Article 1122 of the Civil Code, please confirm the exact statutory text and its effect in my case.
+Specifically: (a) is it correct that the Court may <em>not</em> abate a penalty where the debtor has
+expressly waived the right to abatement, and <em>not</em> where the penalty is stipulated in
+consideration of mere delay? (b) Notwithstanding that text, is there Maltese case law in which the
+Court has abated a delay penalty despite an express waiver, on grounds of equity or good faith — and
+if so, on what facts? (c) Please draft, for a fit-out contract of €1.75m, a liquidated delay-damages
+clause with an express waiver of abatement that gives me the strongest position currently available
+under Maltese law.
+</div>
+
+<div class="q"><div class="qn">Question 2 — avocat · Requalification du prix conditionnel</div>
+I am considering structuring 10–15% of the contract price as a "presence-linked" component: payable
+monthly <em>pro rata</em> to the ratio of man-days actually recorded on site against the contractually
+named workforce, and irrevocably lost where the workforce is short. My question is one of
+characterisation, not drafting: <strong>in your view, would a Maltese court treat this as a conditional
+price or as a penalty clause in substance, and requalify it under Article 1122 regardless of the label
+used?</strong> Please tell me whether any Maltese judgment addresses the requalification of contractual
+stipulations according to their function rather than their <em>nomen iuris</em>. If the position is
+genuinely untested, say so — I need to know whether I am buying certainty or buying litigation.
+</div>
+
+<div class="q"><div class="qn">Question 3 — avocat · Garantie bancaire autonome</div>
+If I take a 10% autonomous first-demand bank guarantee from the contractor: (a) is such a guarantee
+treated as independent of the underlying contract under Maltese law, or can the contractor resist the
+call by raising defences arising from the works contract? (b) <strong>Can the contractor obtain a
+<em>mandat ta' inibizzjoni</em> under Articles 873–877 COCP to restrain the bank from paying, and what
+would he need to show — fraud, or merely a prima facie right?</strong> (c) Please cite any Maltese
+judgment on restraining the call of a first-demand guarantee. My whole security structure depends on
+the answer.
+</div>
+
+<div class="q"><div class="qn">Question 4 — perit · Permis et certificat de conformité <span class="tag t-bad">la plus urgente</span></div>
+The villa was delivered in shell form under an existing development permit. Please confirm in writing:
+(a) whether the finishing works as I intend them fall entirely within the approved plans, or whether
+any element — the lift shaft, any change to internal partitioning, any alteration to openings or
+façade, and the swimming pool — deviates from what was permitted; (b) <strong>whether a PA Compliance
+Certificate has already been issued for the shell, and whether the property already has water and
+electricity meters</strong> — and if not, what exactly must be true at completion for the Compliance
+Certificate to be issued, given that no new water or electricity supply may be provided without it;
+(c) if any deviation exists, whether it is regularisable by DNO or requires a full development
+application, and what that does to the programme.
+</div>
+
+<div class="q"><div class="qn">Question 5 — perit · Durée réelle</div>
+For a 906 m² fit-out on five levels (three above ground, two basements) with a single stair core and a
+single site access: (a) what is your honest expectation of the on-site duration, from order to service
+to snag-free handover, for a contractor with a genuinely dedicated crew of 20–30 and with 100% of
+materials pre-purchased and stored on site? (b) What is your expectation for the <em>same</em>
+contractor working across multiple sites in the normal Maltese way? (c) Please give me the two or three
+sequencing constraints specific to this building that you think a planner working from drawings alone
+would miss. <strong>I have been given a figure of 14–15 months total and I want to know whether you
+would put your name to it.</strong>
+</div>
+
+<div class="callout info">
+  <div class="t">Une sixième question, à vous poser à vous-même</div>
+  <p style="margin-bottom:0">Le coût du retard varie de <strong>8 000 €/mois</strong> selon deux réponses
+  que ni l'un ni l'autre rapport ne vous a demandées : <strong>empruntez-vous, et payez-vous un loyer
+  aujourd'hui ?</strong> Le calculateur du § 07 est fait pour ça. Répondez-y avant de négocier une
+  prime — c'est littéralement le paramètre qui la double ou la divise par deux.</p>
+</div>
+
+<!-- ============================================ -->
+<h2 id="s16"><span class="num">16</span>Journal des erreurs corrigées</h2>
+<p class="lede">Ce que les évaluateurs adversariaux ont démoli, y compris dans ce que je vous avais
+présenté comme acquis. Cette liste est le meilleur guide de méfiance pour les chiffres qui restent.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Affirmation initiale</th><th>Réalité</th></tr></thead>
+<tbody>
+<tr><td>« Plafond de 1 M€ sur les prêts immobiliers maltais »</td>
+  <td><span class="tag t-bad">Réfuté</span> Document précontractuel BOV : « <em>There are no set minimum
+  or maximum amounts for a home loan.</em> » L'affirmation venait de trois sites SEO se recopiant.</td></tr>
+<tr><td>Rachat photovoltaïque : 115 000 € sur 20 ans</td>
+  <td><span class="tag t-bad">Erreur d'un facteur 8</span> Export résidentiel plafonné à 4 800 kWh/an
+  ≈ 720 €/an. Subvention + autoconsommation gagnent.</td></tr>
+<tr><td>Raccordement Enemalta : 5 000–40 000 € et 6–18 mois</td>
+  <td><span class="tag t-bad">Réfuté</span> ≈ <strong>900 €</strong> pour un triphasé ≤ 60 A/phase à
+  moins de 150 m d'un point BT.</td></tr>
+<tr><td>« TVA réduite à 5 % sur la rénovation »</td>
+  <td><span class="tag t-bad">Mauvais pays</span> C'était du droit <strong>chypriote</strong>
+  (VAT Law 95(I)/2000). Malte : 18 %, pas de taux réduit résidentiel.</td></tr>
+<tr><td>Coût de finition 2 505 400 €</td>
+  <td><span class="tag t-bad">Surestimé de ≈ 463 000 €</span> Ratio €/m² uniforme appliqué aux 458 m²
+  de sous-sol. Votre perit avait raison.</td></tr>
+<tr><td>« Coquille saine » du sous-sol à 38 000 €</td>
+  <td><span class="tag t-bad">Sous-estimé de 55–85 %</span> Réel 43–73 k€ HT — station de relevage des
+  eaux usées oubliée.</td></tr>
+<tr><td>Perte de capacité d'emprunt : 204 600 €</td>
+  <td><span class="tag t-bad">Gonflé 2 à 3,5×</span> Maximum défendable ≈ 99 000 €. Retirez-le de votre
+  dossier de négociation.</td></tr>
+<tr><td>Embauche directe de neuf Siciliens</td>
+  <td><span class="tag t-bad">Réfuté</span> Coût réel ≈ 2,25× le salaire de marché, plus votre temps
+  valorisé 75–150 k€. Puis, ci-dessous, réfuté une seconde fois pour une autre raison.</td></tr>
+<tr><td>« Écart de 30 mm de montant » entre systèmes de baies</td>
+  <td><span class="tag t-bad">Faux</span> Écart réel 82 mm — et l'un des deux systèmes comparés était
+  une <em>fenêtre à frappe</em>, pas un coulissant. Erreur de catégorie.</td></tr>
+<tr><td>Coût de l'augmentation de prix : 583 000 €</td>
+  <td><span class="tag t-bad">Erreur arithmétique</span> Mélange de deux bases. Réel : 477–484 k€.</td></tr>
+<tr><td>Grant de 54 000 € « à demander »</td>
+  <td><span class="tag t-bad">Inéligible</span> Exige le <em>style traditionnel maltais typique</em>.
+  Une villa contemporaine de 2022 échoue.</td></tr>
+<tr><td><strong>Inversion juridique Italie / Malte sur les 48 h</strong></td>
+  <td><span class="tag t-bad">Réfuté</span> Le CCNL Edilizia autorise 60 h/semaine sur 4 mois ; les 48 h
+  sont une moyenne extensible à 12 mois ; le noyau dur de la dir. 96/71 est un plancher.
+  <strong>Le temps de travail ne contraint aucun des deux scénarios.</strong></td></tr>
+<tr><td><strong>Article 1122 « permet au juge de réduire la pénalité »</strong></td>
+  <td><span class="tag t-bad">Prémisse inversée</span> Le texte <em>interdit</em> l'abattement pour
+  simple retard ou en cas de renonciation expresse. Toute l'architecture de contournement était inutile
+  — et plus faible que la solution légale.</td></tr>
+<tr><td><strong>Coût du retard 25 300 €/mois</strong></td>
+  <td><span class="tag t-bad">Gonflé de ≈ 40 %</span> ≈ 14 500 €, dont 4 000–8 500 € de cash réel.</td></tr>
+<tr><td><strong>Rendement de la compression 1,0–1,4</strong></td>
+  <td><span class="tag t-bad">Réfuté</span> Réel 0,25–0,5. La compression telle que budgétée détruit
+  120 000 à 270 000 € de valeur financière.</td></tr>
+<tr><td><strong>Répartition 95 % dédicace / 5 % nationalité</strong></td>
+  <td><span class="tag t-bad">Circulaire</span> Non mesuré, incohérent avec son propre tableau (90/10 au
+  recalcul), et les durées comparées sont des postulats, pas des observations.</td></tr>
+<tr><td><strong>Densité 18–28 ouvriers sur 906 m²</strong></td>
+  <td><span class="tag t-bad">Arithmétique incohérente</span> Le ratio annoncé donne 36–60. Corrigé :
+  20–30 en régime, pointe 40. Recommandation juste, démonstration fausse.</td></tr>
+<tr><td>« Salaire net maltais bien meilleur à brut égal »</td>
+  <td><span class="tag t-warn">Le croisement est à 30 000–34 000 €</span> En dessous, l'Italie gagne.</td></tr>
+<tr><td>« Coût de la vie à Valletta 29 % au-dessus de Palerme »</td>
+  <td><span class="tag t-warn">Naxxar n'est pas Sliema</span> Écart réel 5–15 %.</td></tr>
+</tbody></table></div>
+
+<div class="callout warn">
+  <div class="t">Sources contaminées identifiées en cours de dossier</div>
+  <p style="margin-bottom:0"><strong>wisercosts, homeadvisor, angi, houzz</strong> répondent pour l'Ohio,
+  l'Idaho, le Montana, l'Illinois ou New York — en dollars — quand on les interroge sur Malte.
+  <strong>shellformprojects.com</strong> produit des devis assistés par IA sans entité identifiable et
+  est un concurrent commercial, pas une source. <strong>rozie.app</strong> est une plateforme de services
+  de ménage, citée comme référence sur un Legal Notice. <strong>checkyourtraders / verifiedturnkey</strong> :
+  contenu auto-contradictoire. Règle générale : <em>trois sites disant la même chose ne font pas une
+  vérification.</em></p>
+</div>
+
+<!-- ============================================ -->
+<h2 id="s17"><span class="num">17</span>Ce que personne n'a pu vérifier</h2>
+<p class="lede">Honnêteté obligatoire. Voici ce qui reste ouvert, et ce que chaque point changerait.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Point ouvert</th><th>Ce que ça change</th></tr></thead>
+<tbody>
+<tr><td><strong>Le texte officiel de l'art. 1122</strong> du Code civil maltais</td>
+  <td><span class="tag t-bad">Critique</span> C'est le point d'attaque le plus lourd de tout le dossier
+  et il repose sur deux extraits concordants de cabinets, pas sur le Code. <strong>Si la lecture est
+  fausse, l'architecture du « prix conditionnel » reprend du sens.</strong> Trente secondes de
+  vérification pour l'avocat — question 1.</td></tr>
+<tr><td>La <strong>requalification</strong> d'un prix conditionnel en droit maltais</td>
+  <td>Non tranchée, ni par les spécialistes ni par l'adversarial. Aucune jurisprudence maltaise trouvée.
+  L'argument s'appuie sur la doctrine française par analogie de tradition juridique — c'est une inférence,
+  pas une preuve. <strong>L'incertitude elle-même justifie de ne pas en faire l'unique remède.</strong></td></tr>
+<tr><td>Le <strong>blocage judiciaire d'une garantie autonome</strong> à Malte</td>
+  <td>Aucune décision trouvée. La garantie de 10 % (175 k€) est peut-être moins liquide que promis.</td></tr>
+<tr><td>Le contenu sectoriel du <strong>LN 118/2026</strong> <em>Construction (Conditions of Work)
+  Regulation Order</em></td>
+  <td>Existence, numéro et date <span class="tag t-ok">confirmés</span> — Gazette n° 21 635 du 30.04.2026,
+  en vigueur le 30.06.2026, remplaçant les Wage Regulation Orders. <strong>Contenu non obtenu :</strong>
+  semaine normale retenue pour la construction (48, 52 ou 60 h selon les secteurs) et taux de majoration
+  inconnus. Aucune indication qu'il restreigne l'opt-out du S.L. 452.87, mais impossible de l'exclure.
+  Nouveauté confirmée : <strong>le travail du dimanche exige désormais le consentement écrit du salarié.</strong>
+  Impact marginal, le facteur limitant restant les horaires de chantier.</td></tr>
+<tr><td>La <strong>liste MTA</strong> des rues sous interdiction estivale, et si Naxxar / Baħar iċ-Ċagħaq
+  y figure</td>
+  <td>Non obtenue (403). <strong>Sans objet si le programme ne comporte ni démolition ni excavation.
+  Déterminant si la piscine implique une excavation entre le 15 juin et le 30 septembre.</strong>
+  Vérification de dix minutes à faire faire par votre perit.</td></tr>
+<tr><td>Toute <strong>statistique publiée sur la durée réelle des fit-out résidentiels à Malte</strong></td>
+  <td>Elle n'existe pas. Ni les spécialistes ni l'adversarial n'en ont trouvé. Toutes les fourchettes de
+  ce document sont des reconstructions par classes de référence externes. <strong>La seule façon de le
+  savoir est d'appeler les trois derniers clients de chaque entreprise consultée</strong> (§ 14).</td></tr>
+<tr><td>Les <strong>primes de dédicace réellement pratiquées</strong> à Malte</td>
+  <td>Inconnues. La grille 3–6 % est sans fondement empirique. <strong>Faites chiffrer la clause
+  d'effectif séparément par trois entreprises : ce sera votre vraie donnée.</strong></td></tr>
+<tr><td>Si la dérogation <strong>CCNL 60 h / 4 mois</strong> couvre les travaux intérieurs</td>
+  <td>Le texte vise « <em>il personale addetto ai lavori all'aperto</em> » — travaux <em>en plein air</em>.
+  Un fit-out est intérieur, donc la dérogation pourrait ne pas s'appliquer. <strong>Cela affaiblit un des
+  trois arguments contre l'inversion juridique, mais pas la conclusion</strong> — la période de référence
+  extensible à 12 mois et le plafond réel des horaires de chantier maltais suffisent. À faire trancher
+  par un <em>consulente del lavoro</em> italien avant tout détachement.</td></tr>
+<tr><td>Le <strong>délai d'obtention d'une licence contractant BCA</strong> par une entreprise italienne</td>
+  <td>Non nul mais inconnu. Détermine si la voie sicilienne est simplement plus coûteuse ou carrément
+  impraticable dans votre calendrier.</td></tr>
+<tr><td>Les <strong>tarifs Kamra tal-Periti</strong> applicables (Tariff K, DIR 01/18)</td>
+  <td>Pourcentages non obtenus. Les 3 500–4 500 €/mois d'honoraires prolongés sont une estimation.</td></tr>
+</tbody></table></div>
+
+<div class="callout info">
+  <div class="t">Le mot de la fin de l'évaluateur adversarial</div>
+  <p style="margin-bottom:0">« La meilleure recommandation des deux rapports vaut plus que tout ce qui
+  précède, et elle est gratuite : <strong>appelez les trois derniers clients de chaque entreprise que
+  vous consultez et posez une seule question — combien de mois entre l'ordre de service et
+  l'emménagement, et combien avait-on annoncé ?</strong> C'est la seule donnée réelle sur les durées
+  maltaises que quiconque dans ce dossier puisse obtenir. »</p>
+</div>
+
+<footer>
+  <p><strong>Villa MH 3 — dossier consolidé.</strong> Ce document remplace
+  <em>dossier-villa-mh3-malte.html</em>, <em>faisabilite-main-doeuvre-italienne-malte.html</em> et
+  <em>villa-mh3-plan-execution.html</em>, qui restent consultables pour le détail des raisonnements
+  antérieurs — y compris ceux qui ont été corrigés ici.</p>
+  <p>Produit par cinq agents de recherche spécialisés et quatre évaluateurs adversariaux. Aucun document
+  législatif primaire n'a pu être lu : le proxy réseau renvoie 403 sur legislation.mt, bca.gov.mt,
+  pa.org.mt et mta.com.mt. <strong>Rien dans ce document ne remplace l'avis d'un avocat maltais, d'un
+  perit warranté et d'un fiscaliste.</strong> Les cinq questions du § 15 sont là pour ça.</p>
+  <p>29 juillet 2026.</p>
+</footer>
+
+</div>
