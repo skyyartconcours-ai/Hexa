@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Configuration locale (le modèle versionné est config.example.toml)
+server/config.toml
+
+# Modèles Whisper téléchargés
+models/
+.cache/

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Hexa — sous-titres</title>
+<style>
+  :root {
+    --size: 30px;
+    --pad: 32px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: transparent;
+    font-family: "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+    overflow: hidden;
+  }
+  body.solid { background: #0d0d10; }
+
+  #stage {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    justify-content: flex-end; align-items: center;
+    gap: 10px;
+    padding: var(--pad);
+  }
+
+  .line {
+    max-width: min(1100px, 92%);
+    padding: 10px 18px;
+    border-radius: 10px;
+    background: rgba(8, 8, 12, .82);
+    color: #fff;
+    font-size: var(--size);
+    line-height: 1.32;
+    font-weight: 600;
+    text-align: center;
+    text-wrap: balance;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, .8);
+    animation: rise .18s ease-out;
+    transition: opacity .5s ease;
+  }
+  .line.stale { opacity: .45; }
+  .line.leaving { opacity: 0; }
+  .line .src {
+    display: block;
+    margin-top: 5px;
+    font-size: .62em;
+    font-weight: 400;
+    opacity: .62;
+    font-style: italic;
+  }
+  .line .caret {
+    display: inline-block;
+    width: .5em; height: 1em;
+    margin-left: .1em;
+    vertical-align: -.14em;
+    background: currentColor;
+    opacity: .55;
+    animation: blink .9s steps(2, start) infinite;
+  }
+
+  #status {
+    position: absolute; top: 12px; left: 12px;
+    padding: 5px 11px; border-radius: 999px;
+    background: rgba(8, 8, 12, .8); color: #b9b9c6;
+    font-size: 12px; letter-spacing: .02em;
+    transition: opacity .4s ease;
+  }
+  #status.hidden { opacity: 0; }
+  #status .dot {
+    display: inline-block; width: 7px; height: 7px;
+    margin-right: 7px; border-radius: 50%;
+    background: #e0563f; vertical-align: 1px;
+  }
+  #status.live .dot { background: #3fb950; }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="status"><span class="dot"></span><span id="statusText">connexion…</span></div>
+<div id="stage"></div>
+
+<script>
+// Réglages via l'URL : ?solid=1&size=34&keep=7&src=1&ws=ws://127.0.0.1:8765
+const params = new URLSearchParams(location.search);
+const KEEP_MS = (Number(params.get("keep")) || 7) * 1000;
+const MAX_LINES = Number(params.get("lines")) || 3;
+const SHOW_SOURCE = params.get("src") === "1";
+
+if (params.get("solid") === "1") document.body.classList.add("solid");
+if (params.get("size")) document.documentElement.style.setProperty("--size", params.get("size") + "px");
+
+// L'overlay est servi en HTTP sur le port WebSocket + 1.
+const wsUrl = params.get("ws") ||
+  `ws://${location.hostname || "127.0.0.1"}:${(Number(location.port) || 8766) - 1}`;
+
+const stage = document.getElementById("stage");
+const status = document.getElementById("status");
+const statusText = document.getElementById("statusText");
+const lines = new Map();  // id de segment -> état d'affichage
+
+function setStatus(text, live) {
+  statusText.textContent = text;
+  status.classList.toggle("live", !!live);
+  status.classList.remove("hidden");
+  clearTimeout(setStatus.timer);
+  if (live) setStatus.timer = setTimeout(() => status.classList.add("hidden"), 3000);
+}
+
+function trim() {
+  while (stage.children.length > MAX_LINES) {
+    const first = stage.firstElementChild;
+    for (const [id, entry] of lines) if (entry.el === first) lines.delete(id);
+    first.remove();
+  }
+  // Seule la dernière ligne reste en pleine opacité : l'œil va droit dessus.
+  [...stage.children].forEach((el, i, all) =>
+    el.classList.toggle("stale", i !== all.length - 1));
+}
+
+function ensureLine(id) {
+  let entry = lines.get(id);
+  if (entry) return entry;
+
+  const el = document.createElement("div");
+  el.className = "line";
+  const body = document.createElement("span");
+  const caret = document.createElement("i");
+  caret.className = "caret";
+  el.append(body, caret);
+  stage.append(el);
+
+  entry = { el, body, caret, text: "" };
+  lines.set(id, entry);
+  trim();
+  return entry;
+}
+
+function expire(id, delay) {
+  const entry = lines.get(id);
+  if (!entry) return;
+  clearTimeout(entry.timer);
+  entry.timer = setTimeout(() => {
+    entry.el.classList.add("leaving");
+    setTimeout(() => { entry.el.remove(); lines.delete(id); }, 500);
+  }, delay);
+}
+
+function onSegment(msg) {
+  if (msg.state === "transcribed") {
+    const entry = ensureLine(msg.id);
+    entry.original = msg.original;
+    if (!entry.text) entry.body.textContent = "…";
+    return;
+  }
+
+  if (msg.state === "delta") {
+    const entry = ensureLine(msg.id);
+    entry.text += msg.delta;
+    entry.body.textContent = entry.text;
+    return;
+  }
+
+  if (msg.state === "done") {
+    const entry = ensureLine(msg.id);
+    entry.caret.remove();
+    entry.body.textContent = msg.translation;
+    if (SHOW_SOURCE && msg.original && msg.original !== msg.translation) {
+      const src = document.createElement("span");
+      src.className = "src";
+      src.textContent = msg.original;
+      entry.el.append(src);
+    }
+    expire(msg.id, KEEP_MS);
+    return;
+  }
+
+  if (msg.state === "dropped") {
+    const entry = lines.get(msg.id);
+    if (entry) { entry.el.remove(); lines.delete(msg.id); }
+  }
+}
+
+let backoff = 500;
+function connect() {
+  const ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    backoff = 500;
+    ws.send(JSON.stringify({ type: "hello", role: "consumer" }));
+  };
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    if (msg.type === "ready") {
+      setStatus(`${msg.source_lang} → ${msg.target_lang} · ${msg.stt}`, true);
+    } else if (msg.type === "segment") {
+      onSegment(msg);
+    } else if (msg.type === "error") {
+      setStatus("erreur : " + msg.message, false);
+    }
+  };
+
+  ws.onclose = () => {
+    setStatus("serveur injoignable, nouvelle tentative…", false);
+    setTimeout(connect, backoff);
+    backoff = Math.min(backoff * 2, 8000);
+  };
+  ws.onerror = () => ws.close();
+}
+
+connect();
+</script>
+</body>
+</html>

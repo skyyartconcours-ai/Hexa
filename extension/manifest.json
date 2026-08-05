@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Hexa — sous-titres traduits pour Twitch",
+  "version": "0.1.0",
+  "description": "Traduit en quasi-direct ce que dit le streamer, dans un overlay posé sur le lecteur Twitch.",
+  "minimum_chrome_version": "116",
+
+  "permissions": ["tabCapture", "offscreen", "storage", "activeTab", "scripting"],
+  "host_permissions": ["https://www.twitch.tv/*"],
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_title": "Hexa",
+    "default_popup": "popup.html"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://www.twitch.tv/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ]
+}

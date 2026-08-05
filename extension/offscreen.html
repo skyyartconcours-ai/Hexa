@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><title>Hexa — capture audio</title></head>
+<body>
+<!--
+  Document offscreen : c'est le seul contexte de l'extension qui possède un DOM
+  et qui n'est pas mis en veille par Chrome. Toute la capture audio vit ici ;
+  le service worker se contente de l'orchestrer.
+-->
+<script src="offscreen.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Socle — toujours nécessaire.
+websockets>=12
+numpy>=1.24
+
+# VAD de qualité. Si la roue ne s'installe pas sur ta plateforme, Hexa retombe
+# automatiquement sur son détecteur d'énergie interne : rien à faire.
+webrtcvad-wheels>=2.0.14
+
+# Transcription locale (backend "faster-whisper", celui par défaut).
+# À retirer si tu passes uniquement par Groq ou OpenAI.
+faster-whisper>=1.0
+
+# Traduction par Claude (backend "claude", celui par défaut).
+anthropic>=0.69
+
+# Backends distants : Groq, OpenAI, DeepL.
+httpx>=0.27

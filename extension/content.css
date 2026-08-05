@@ -1,0 +1,87 @@
+/* Overlay Hexa. Rien ici ne doit intercepter la souris : les contrôles du
+   lecteur Twitch passent en dessous et restent cliquables. */
+
+.hexa-root {
+  --hexa-size: 28px;
+  position: absolute;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  font-family: "Inter", "Roobert", "Segoe UI", Roboto, system-ui, sans-serif;
+}
+
+.hexa-stage {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Au-dessus de la barre de contrôle du lecteur, pas dessous. */
+  bottom: 9%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4%;
+}
+
+.hexa-line {
+  max-width: 90%;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(8, 8, 12, 0.82);
+  color: #fff;
+  font-size: var(--hexa-size);
+  line-height: 1.3;
+  font-weight: 600;
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  animation: hexa-rise 0.18s ease-out;
+  transition: opacity 0.5s ease;
+}
+
+.hexa-line--stale { opacity: 0.45; }
+.hexa-line--leaving { opacity: 0; }
+
+.hexa-src {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.62em;
+  font-weight: 400;
+  font-style: italic;
+  opacity: 0.62;
+}
+
+.hexa-caret {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 0.1em;
+  vertical-align: -0.14em;
+  background: currentColor;
+  opacity: 0.55;
+  animation: hexa-blink 0.9s steps(2, start) infinite;
+}
+
+.hexa-status {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(8, 8, 12, 0.8);
+  color: #c8c8d4;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  transition: opacity 0.4s ease;
+}
+
+.hexa-status--ok { color: #7ee08f; }
+.hexa-hidden { opacity: 0; }
+
+@keyframes hexa-rise {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@keyframes hexa-blink {
+  50% { opacity: 0; }
+}

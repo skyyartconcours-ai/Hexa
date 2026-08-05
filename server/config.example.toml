@@ -1,0 +1,58 @@
+# Copie ce fichier en config.toml et adapte-le.
+# Les clés d'API se mettent dans l'environnement, pas ici.
+
+[server]
+host = "127.0.0.1"
+port = 8765
+# L'overlay autonome est servi en HTTP sur port + 1 (8766 par défaut).
+
+[audio]
+# "auto" : webrtcvad s'il est installé, sinon le détecteur d'énergie interne.
+vad = "auto"
+vad_aggressiveness = 2
+
+# Le levier principal sur la latence. Plus bas = sous-titres plus rapides mais
+# phrases hachées ; plus haut = phrases entières mais plus de retard.
+silence_ms = 550
+
+# Coupe forcée pour les streamers qui ne respirent jamais.
+max_segment_ms = 8000
+min_segment_ms = 320
+pre_roll_ms = 240
+
+[stt]
+# "faster-whisper" (local) | "groq" | "openai" | "mock"
+backend = "faster-whisper"
+
+# CPU : "small" est le bon compromis en italien. GPU : "large-v3".
+# Avec le backend groq : "whisper-large-v3-turbo".
+model = "small"
+language = "it"
+device = "auto"          # "cpu", "cuda", ou "auto"
+compute_type = "auto"    # ex. "int8" sur CPU, "float16" sur GPU
+beam_size = 1            # 1 = décodage glouton, le plus rapide
+
+[translate]
+# "claude" | "deepl" | "none"
+backend = "claude"
+source_lang = "it"
+target_lang = "fr"
+
+model = "claude-opus-5"
+max_tokens = 400
+effort = "low"           # low | medium | high — "low" pour du sous-titre
+
+# "adaptive" (recommandé) ou "disabled".
+# "disabled" retire la latence de réflexion mais peut faire fuiter des balises
+# internes dans la sortie ; Hexa les filtre, mais la sortie reste moins fiable.
+thinking = "adaptive"
+
+# Mode rapide Claude : jusqu'à ~2,5x plus de tokens/s, tarif premium.
+fast_mode = false
+
+# Repli automatique si les classificateurs déclinent un segment.
+server_side_fallback = true
+
+# Segments précédents envoyés comme contexte : c'est ce qui permet de résoudre
+# les pronoms et de garder le fil d'une vanne d'un segment à l'autre.
+context_segments = 3
