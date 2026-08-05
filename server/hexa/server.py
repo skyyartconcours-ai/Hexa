@@ -125,12 +125,25 @@ class Pipeline:
             )
         return changed
 
-    def submit(self, segment: Segment) -> None:
+    async def submit(self, segment: Segment, *, batch: bool = False) -> None:
+        """Met un segment en file d'attente.
+
+        Deux régimes, parce que les priorités sont opposées :
+
+        - direct (`batch=False`) : la fraîcheur prime. Si le pipeline prend du
+          retard, on jette le segment le plus ancien plutôt que d'afficher des
+          sous-titres de plus en plus décalés.
+        - rattrapage (`batch=True`) : l'exhaustivité prime. On bloque, ce qui
+          fait remonter la contre-pression jusqu'à la source (socket, puis
+          ffmpeg) et évite de perdre la moitié d'un replay.
+        """
+        if batch:
+            await self._queue.put((segment, time.monotonic()))
+            return
+
         try:
             self._queue.put_nowait((segment, time.monotonic()))
         except asyncio.QueueFull:
-            # Le pipeline est en retard sur la parole. Mieux vaut perdre un segment
-            # ancien que d'afficher des sous-titres de plus en plus décalés.
             try:
                 dropped, _ = self._queue.get_nowait()
                 log.warning("Pipeline saturé, segment %d abandonné.", dropped.index)
@@ -227,6 +240,7 @@ class HexaServer:
         # Tout le monde reçoit les sous-titres ; seuls certains envoient de l'audio.
         self._hub.add(ws)
         segmenter: Segmenter | None = None
+        batch = False
         try:
             await ws.send(
                 json.dumps(
@@ -245,7 +259,7 @@ class HexaServer:
                     if segmenter is None:
                         segmenter = Segmenter(self._cfg.audio)
                     for segment in segmenter.push(message):
-                        self._pipeline.submit(segment)
+                        await self._pipeline.submit(segment, batch=batch)
                     continue
 
                 try:
@@ -255,6 +269,10 @@ class HexaServer:
 
                 kind = payload.get("type")
                 if kind == "hello":
+                    # "batch" : source plus rapide que le temps réel (replay tiré
+                    # par streamlink). On préfère alors ralentir la source plutôt
+                    # que de perdre des segments.
+                    batch = payload.get("mode") == "batch"
                     if self._pipeline.retarget(
                         payload.get("source_lang"), payload.get("target_lang")
                     ):
@@ -269,13 +287,13 @@ class HexaServer:
                         )
                 elif kind == "flush" and segmenter is not None:
                     if segment := segmenter.flush():
-                        self._pipeline.submit(segment)
+                        await self._pipeline.submit(segment, batch=batch)
         except websockets.exceptions.ConnectionClosed:
             pass
         finally:
             self._hub.discard(ws)
             if segmenter is not None and (segment := segmenter.flush()):
-                self._pipeline.submit(segment)
+                await self._pipeline.submit(segment, batch=batch)
 
 
 def _start_http(cfg: Config) -> ThreadingHTTPServer:

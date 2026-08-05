@@ -155,11 +155,88 @@ async def test_roundtrip() -> None:
     print(f"   ok — {len(events)} événements, latence {done['latency_ms']} ms")
 
 
+class SlowStt:
+    """STT artificiellement lent, pour saturer volontairement le pipeline."""
+
+    name = "slow-mock"
+
+    async def transcribe(self, pcm: bytes) -> str:
+        await asyncio.sleep(0.1)
+        return "ok"
+
+
+async def _drain(mode: str, bursts: int) -> int:
+    """Envoie `bursts` phrases d'un coup et compte celles qui ressortent.
+
+    Une source plus rapide que le temps réel — un replay tiré par streamlink —
+    remplit la file bien plus vite que le pipeline ne la vide. En mode "batch",
+    la contre-pression doit tout préserver ; en mode "realtime", on jette
+    volontairement pour ne pas dériver.
+    """
+    port = PORT + (2 if mode == "batch" else 4)
+    cfg = Config()
+    cfg.server.port = port
+    cfg.server.http_port = port + 1
+    cfg.audio.vad = "energy"
+    cfg.stt.backend = "mock"
+    cfg.translate.backend = "none"
+
+    server = HexaServer(cfg)
+    server._pipeline.stt = SlowStt()
+    task = asyncio.create_task(server.serve())
+    await asyncio.sleep(0.4)
+
+    done = 0
+    try:
+        async with websockets.connect(f"ws://127.0.0.1:{port}") as ws:
+            await ws.recv()
+            await ws.send(json.dumps({"type": "hello", "role": "producer", "mode": mode}))
+
+            audio = b"".join(tone(400) + silence(700) for _ in range(bursts))
+            for offset in range(0, len(audio), FRAME_BYTES * 8):
+                await ws.send(audio[offset : offset + FRAME_BYTES * 8])
+            await ws.send(json.dumps({"type": "flush"}))
+
+            deadline = asyncio.get_running_loop().time() + 20
+            while asyncio.get_running_loop().time() < deadline:
+                try:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=2.0)
+                except asyncio.TimeoutError:
+                    break
+                msg = json.loads(raw)
+                if msg.get("type") == "segment" and msg["state"] in ("done", "dropped"):
+                    done += 1
+                    if done >= bursts:
+                        break
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+    return done
+
+
+async def test_backpressure() -> None:
+    print("→ contre-pression (replay plus rapide que le temps réel)")
+    bursts = 15
+
+    delivered = await _drain("batch", bursts)
+    assert delivered == bursts, f"mode batch : {delivered}/{bursts} segments seulement"
+
+    dropped_run = await _drain("realtime", bursts)
+    assert dropped_run < bursts, (
+        f"mode realtime : {dropped_run}/{bursts} — la file aurait dû déborder"
+    )
+    print(f"   ok — batch {delivered}/{bursts} conservés, realtime {dropped_run}/{bursts}")
+
+
 def main() -> int:
     test_segmenter()
     test_wav()
     test_hallucination_filter()
     asyncio.run(test_roundtrip())
+    asyncio.run(test_backpressure())
     print("\nTout est vert.")
     return 0
 

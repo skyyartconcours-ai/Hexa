@@ -99,6 +99,11 @@ Au premier démarrage avec `faster-whisper`, le modèle se télécharge
 2. **Charger l'extension non empaquetée** → choisis le dossier `extension/`
 3. Ouvre un live Twitch, clique sur l'icône Hexa, règle les langues, **Démarrer**
 
+L'extension marche à l'identique sur un **replay** (`twitch.tv/videos/…`) : elle
+capte l'audio de l'onglet, peu importe qu'il soit en direct ou non. Et sur un
+replay tu peux mettre en pause, revenir en arrière, mettre un plus gros modèle —
+la contrainte de latence disparaît.
+
 Chrome 116 minimum. Fonctionne aussi sur Edge, Brave, Opera et tout ce qui est
 basé sur Chromium. Pas sur Firefox — l'API `tabCapture` de MV3 n'y existe pas
 sous cette forme.
@@ -196,17 +201,35 @@ http://127.0.0.1:8766/?size=34&keep=8&lines=3&src=1&solid=1
 | `solid=1` | fond opaque (fenêtre séparée) plutôt que transparent (OBS) |
 
 Pour alimenter cet overlay **sans extension du tout**, le serveur peut tirer le
-flux lui-même :
+flux lui-même — live comme replay :
 
 ```bash
 pip install streamlink          # ffmpeg doit aussi être dans le PATH
-python -m hexa.pull --channel nomdelachaine
+
+python -m hexa.pull --channel nomdelachaine                     # live
+python -m hexa.pull --channel https://twitch.tv/videos/123456   # replay
 ```
 
 ⚠️ Dans ce mode, l'audio analysé n'est **pas** synchronisé avec ce que tu
 entends : ton lecteur Twitch et `streamlink` bufferisent chacun de leur côté, et
 le décalage varie. C'est acceptable pour du contenu passif, pas pour suivre une
 conversation. Si la synchro compte, reste sur l'extension.
+
+### Transcrire un replay entier, plus vite que sa durée
+
+```bash
+python -m hexa.pull --channel https://twitch.tv/videos/123456 --no-realtime
+```
+
+Par défaut, `hexa.pull` cadence l'envoi à 1x. C'est indispensable sur un replay,
+que `streamlink` télécharge sinon à pleine vitesse : sans cadençage, une heure
+d'audio arriverait en quelques secondes et le pipeline en jetterait la plus
+grande partie.
+
+`--no-realtime` lève le cadençage et bascule le serveur en mode rattrapage : au
+lieu de jeter les segments en trop, il applique de la contre-pression jusqu'à
+`ffmpeg`, qui ralentit. Rien n'est perdu, ça va juste aussi vite que ta machine
+le permet. Utile pour dépouiller un replay entier, inutile pour le regarder.
 
 ---
 
