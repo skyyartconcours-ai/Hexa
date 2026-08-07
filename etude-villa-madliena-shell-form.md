@@ -11,11 +11,28 @@
 |---|---|
 | Localisation | Madliena (limites Swieqi / Naxxar), Malte |
 | Terrain | 500 m² |
-| Surface bâtie | 900 m², répartie sur plusieurs niveaux (sous-sols, RDC, étages) |
-| Ratio d'emprise | 1,8 (900 m² bâtis pour 500 m² de parcelle) |
+| Surface bâtie totale | 900 m² |
+| — dont niveau haut avec vue mer | **148 m²** |
+| — dont niveaux intermédiaires | **≈ 402 m²** (à qualifier) |
+| — dont sous-sol B2 | **350 m²** |
+| Ratio d'emprise | 1,8 |
 | Acquisition en shell form | 3 300 000 € (terrain inclus) |
 | Budget travaux annoncé | 1 200 000 € |
 | Devise | EUR |
+
+---
+
+## Avertissement — révision majeure
+
+La répartition réelle des surfaces change complètement la valorisation de ce bien par rapport à une hypothèse de surfaces homogènes.
+
+**Le chiffre de 900 m² est trompeur.** Sur ces 900 m² :
+
+- **148 m² seulement** portent la prime de Madliena — la vue mer.
+- **350 m² sont en sous-sol B2**, c'est-à-dire le niveau le moins valorisable de tout bien immobilier : pas de lumière naturelle, usage garage, technique, rangements.
+- **402 m² restants** sont de statut indéterminé, et c'est aujourd'hui la variable la plus lourde du modèle.
+
+Un « prix moyen au m² » appliqué aux 900 m² n'a plus de sens ici. Il faut valoriser niveau par niveau.
 
 ---
 
@@ -30,120 +47,31 @@
 | **Total acquisition** | **3 510 000 €** |
 
 > À Malte la commission d'agence est payée par le **vendeur** (5 % + 18 % de TVA en agence ouverte, 3,5 % + TVA en exclusivité). Côté acheteur : 0 €.
-> Le stamp duty se règle en deux fois — 20 % à la signature du *konvenju* (promesse de vente), 80 % à l'acte définitif.
+> Le stamp duty se règle en deux fois — 20 % au *konvenju*, 80 % à l'acte définitif.
 
 ---
 
-## B. Le prix d'entrée est-il correct ? — Oui
+## B. Valorisation niveau par niveau
 
-C'est le point le plus important de cette étude, et il est favorable.
+C'est le cœur de l'étude. La valeur d'un m² à Madliena varie d'un facteur 6 selon son niveau.
 
-**3 300 000 € pour 900 m² de coque = 3 667 €/m².**
+| Niveau | Surface | Nature | €/m² prudent | €/m² central | €/m² haut |
+|---|---:|---|---:|---:|---:|
+| Niveau haut, vue mer | 148 m² | Prime absolue | 6 500 € | 8 000 € | 9 000 € |
+| Niveaux intermédiaires | 402 m² | Habitable, éclairé, sans vue | 3 800 € | 5 000 € | 6 000 € |
+| Sous-sol B2 | 350 m² | Garage, technique, annexes | 1 000 € | 1 400 € | 1 800 € |
 
-Le marché de Madliena **fini** se situe entre 4 500 et 7 500 €/m². Sur un milieu de fourchette à 6 000 €/m², la décote implicite de votre coque est de **39 %**.
+### Valeur de sortie qui en résulte
 
-| | €/m² | Décote vs fini |
-|---|---:|---:|
-| Bien fini, milieu de fourchette Madliena | 6 000 € | — |
-| Décote normale d'une coque | 3 600 – 4 500 € | 25 à 40 % |
-| **Votre prix d'achat** | **3 667 €** | **39 %** |
+| Scénario | 148 m² prime | 402 m² intermédiaire | 350 m² B2 | **Total affiché** |
+|---|---:|---:|---:|---:|
+| Prudent | 962 000 € | 1 527 600 € | 350 000 € | **2 840 000 €** |
+| **Central** | **1 184 000 €** | **2 010 000 €** | **490 000 €** | **3 684 000 €** |
+| Haut | 1 332 000 € | 2 412 000 € | 630 000 € | **4 374 000 €** |
 
-**Vous achetez la coque au prix du marché, dans le haut de la fourchette de décote normale.** Il n'y a pas de gras à récupérer sur le prix d'achat — mais pas de surpaiement non plus.
+### Vérification par les comparables
 
-> Réserve : ce calcul traite les 900 m² comme homogènes. Or une part importante (garages, locaux techniques, caves, salle de sport) se situe en sous-sol et vaut nettement moins au m² que le hors-sol. Voir la section E.
-
----
-
-## C. Les travaux : 1,2 M€ suffisent-ils pour 900 m² ?
-
-**Non, pas au standard qu'exige une villa à 5 M€ à Madliena. Il manque environ 300 000 €.**
-
-1 200 000 € sur 900 m² représente **1 333 €/m²**. C'est un budget de belle facture, mais pas de finition ultra-haut de gamme.
-
-### Ce que coûte réellement finir 900 m² à ce niveau
-
-**Postes proportionnels à la surface** — en distinguant hors-sol et sous-sol, qui ne se finissent pas au même prix :
-
-| Poste | €/m² | 600 m² hors-sol | 300 m² sous-sol (450 €/m²) |
-|---|---:|---:|---:|
-| Plâtrerie, chapes, étanchéité | 120 | 72 000 € | |
-| Sols et murs (pierre, grès cérame grand format) | 250 | 150 000 € | |
-| Menuiseries extérieures (grandes baies) | 200 | 120 000 € | |
-| Menuiseries intérieures, dressings sur mesure | 150 | 90 000 € | |
-| Électricité et domotique | 183 | 110 000 € | |
-| Plomberie, CVC gainable, eau chaude | 200 | 120 000 € | |
-| Peinture et finitions | 75 | 45 000 € | |
-| **Sous-total** | | **707 000 €** | **135 000 €** |
-
-**Postes forfaitaires :**
-
-| Poste | Montant |
-|---|---:|
-| Cuisine et arrière-cuisine | 110 000 € |
-| Salles de bains (× 6) | 175 000 € |
-| Ascenseur (plusieurs niveaux) | 45 000 € |
-| Piscine, local technique, plages | 110 000 € |
-| Extérieurs et paysagisme (parcelle réduite) | 60 000 € |
-| Photovoltaïque, pompe à chaleur, réserve d'eau | 45 000 € |
-| Honoraires (perit, architecte d'intérieur, pilotage) ≈ 7 % | 120 000 € |
-| **Sous-total** | **665 000 €** |
-
-| | Montant | €/m² |
-|---|---:|---:|
-| **Coût réaliste de finition** | **1 507 000 €** | **1 674 €** |
-| Budget annoncé | 1 200 000 € | 1 333 € |
-| **Écart** | **− 307 000 €** | |
-
-### Les repères du marché maltais
-
-| Référence | Fourchette |
-|---|---|
-| Finitions standard (sols, salles de bains, portes) | 250 – 450 €/m² |
-| Construction résidentielle complète, standard | 900 – 1 500 €/m² |
-| Construction complète, haut de gamme | 1 500 – 2 000+ €/m² |
-| **Finition seule en spécification luxe (déduit)** | **700 – 1 200 €/m²** |
-
-### Peut-on quand même tenir 1,2 M€ ?
-
-Oui, à trois conditions strictes :
-
-1. **Finir le sous-sol pour ce qu'il est** — garage, technique, rangements à 400-500 €/m², pas à 1 200 €/m².
-2. **Rester sur des matériaux de belle qualité sans exotisme** — grès cérame grand format plutôt que marbre veiné assorti, pas de pierre de taille intérieure.
-3. **Renoncer à la domotique intégrale** et aux motorisations généralisées.
-
-C'est un arbitrage défendable, mais il faut le décider maintenant et le tenir. Le scénario « optimiste » de cette étude suppose que vous y parvenez.
-
----
-
-## D. Aléas, portage et prix de revient final
-
-Un chantier de finition de 900 m² à Malte demande réalistement **20 à 26 mois** — la pénurie de main-d'œuvre qualifiée et les délais de permis de travail pour la main-d'œuvre étrangère sont les deux goulots documentés du secteur. Hypothèse retenue : 22 mois, avec 10 à 15 % d'aléas et un portage sur 2 M€ empruntés à environ 4,5 %.
-
-> Point favorable : Malte n'a **pas de taxe foncière annuelle**. Hors financement, le coût de détention est quasi nul.
-
-| | Optimiste | Central | Dérapage |
-|---|---:|---:|---:|
-| Acquisition + frais | 3 510 000 € | 3 510 000 € | 3 510 000 € |
-| Travaux | 1 200 000 € | 1 500 000 € | 1 650 000 € |
-| Aléas | 0 € | 150 000 € | 250 000 € |
-| Portage + assurances | 20 000 € | 185 000 € | 240 000 € |
-| Mobilier (si vendue meublée) | 0 € | 0 € | 220 000 € |
-| **Prix de revient** | **4 730 000 €** | **5 345 000 €** | **5 870 000 €** |
-| **€/m² bâti** | 5 256 € | 5 939 € | 6 522 € |
-
-### Réponse à la première question
-
-**La villa revient entre 4,73 M€ (budget travaux tenu) et 5,35 M€ (finition au standard du marché), soit 5 250 à 5 950 €/m².**
-
-L'addition simple 3,3 + 1,2 = 4,5 M€ oublie 230 000 € de droits et frais d'acquisition, 150 000 € d'aléas et 185 000 € de portage.
-
----
-
-## E. Valeur de sortie
-
-### Comparables Madliena, prix affichés 2026
-
-| Bien | Prix affiché |
+| Bien Madliena | Prix affiché |
 |---|---:|
 | Villa | 2 700 000 € |
 | Villa jumelée, finition impeccable | 2 800 000 € |
@@ -151,122 +79,175 @@ L'addition simple 3,3 + 1,2 = 4,5 M€ oublie 230 000 € de droits et frais d'a
 | Villa détachée finie, terrain 1 200 m² | 3 600 000 € |
 | Villa | 3 815 000 € |
 | Villa | 3 850 000 € |
-| **Villa neuve détachée, à flanc de colline, vue mer** | **4 950 000 €** |
+| Villa neuve détachée, à flanc de colline, vue mer | 4 950 000 € |
 
-Prix au m² à Madliena : **4 500 à 7 500 €/m²**, davantage sur les biens d'exception.
+Les deux méthodes convergent. Votre produit — gros volume, vue limitée à un seul niveau, parcelle réduite, mais neuf — se positionne dans le milieu du peloton, autour de **3,7 M€**, et non près du haut.
 
-### Deux méthodes d'estimation
+**Fourchette retenue : 2,8 à 4,4 M€ affiché, environ 3,7 M€ en central. Soit 2,6 à 4,2 M€ réalisé** (ratio prix de vente / prix affiché de 93 à 97 %).
 
-**Méthode 1 — décomposition hors-sol / sous-sol.** Le sous-sol ne se valorise pas au tarif du hors-sol : comptez 40 à 45 % du prix.
+> Repère : le comparable détaché fini à 3,6 M€ dispose de 1 200 m² de terrain. Un acheteur qui hésite entre ce bien et le vôtre compare 1 200 m² de jardin à 350 m² de sous-sol.
 
-| Scénario | 600 m² hors-sol | 300 m² sous-sol | Total |
-|---|---:|---:|---:|
-| Prudent | 5 500 €/m² → 3 300 000 € | 2 400 €/m² → 720 000 € | 4 020 000 € |
-| Central | 6 500 €/m² → 3 900 000 € | 2 900 €/m² → 870 000 € | 4 770 000 € |
-| Haut | 7 500 €/m² → 4 500 000 € | 3 400 €/m² → 1 020 000 € | 5 520 000 € |
+---
 
-**Méthode 2 — par comparables.** Votre produit est plus grand et plus neuf que le comparable le plus cher de la localité (4,95 M€), mais sans terrain.
+## C. La conséquence : la coque est payée au prix du bien fini
 
-| Scénario | Prix affiché | Prix réalisé (93 – 97 %) |
+C'est le constat central de cette étude.
+
+| | Montant |
+|---|---:|
+| Valeur du bien **fini**, scénario central | 3 684 000 € |
+| Prix demandé pour la **coque** | 3 300 000 € |
+| **Écart** | **384 000 €** |
+
+**On vous demande 90 % de la valeur du produit achevé pour une coque** — à laquelle il faut encore ajouter 1,2 à 1,45 M€ de travaux.
+
+La décote normale d'une coque par rapport au fini est de 25 à 40 %. Appliquée ici :
+
+| Base | Valeur finie | Coque au juste prix (60 – 75 %) |
 |---|---:|---:|
-| Prudent | 4 600 000 € | 4 300 000 € |
-| Central | 5 000 000 € | 4 750 000 € |
-| Haut — vue mer, position de crête | 5 400 000 € | 5 100 000 € |
+| Scénario prudent | 2 840 000 € | 1 700 000 – 2 130 000 € |
+| Scénario central | 3 684 000 € | 2 210 000 – 2 760 000 € |
+| Scénario haut | 4 374 000 € | 2 620 000 – 3 280 000 € |
 
-Les deux méthodes convergent raisonnablement. **Fourchette retenue : 4,6 à 5,4 M€ affiché, environ 5,0 M€ en central ; soit 4,3 à 5,1 M€ réalisé.**
+Même dans le scénario le plus favorable, le prix demandé se situe à la limite haute de ce qui serait justifiable — et ce scénario suppose que les 402 m² intermédiaires soient de la belle surface habitable éclairée.
 
-### La vraie contrainte : 900 m² bâtis sur 500 m² de terrain
+### Correction par rapport à l'analyse précédente
 
-C'est désormais le point faible de l'opération, et il faut le regarder en face.
+L'itération précédente concluait que la coque était au prix du marché, sur la base d'un calcul à 3 667 €/m² appliqué uniformément aux 900 m². **Cette conclusion était fondée sur une hypothèse de surfaces homogènes qui s'avère fausse.** Avec 148 m² de prime et 350 m² de B2, la moyenne au m² n'a pas de sens : la coque est nettement surpayée.
 
-Un ratio d'emprise de **1,8** signifie plusieurs niveaux et des sous-sols importants. Il ne reste quasiment pas de jardin — une cour, des terrasses, éventuellement une piscine sur dalle.
+---
 
-Or à Madliena, au-dessus de 4,5 M€, l'acheteur paie d'abord **le terrain, la vue et l'intimité**. Le comparable détaché fini à 3,6 M€ repose sur 1 200 m² de parcelle. Un volume de 900 m² sans jardin est un produit atypique : il élargit peu le vivier d'acheteurs et se valorise mal au m².
+## D. Les travaux : budget révisé
 
-**À vérifier impérativement avant de signer :**
+Bonne nouvelle relative — le sous-sol B2 se finit à bas coût, ce qui allège le budget par rapport à une hypothèse de surfaces homogènes.
 
-- Le bien est-il détaché, jumelé, ou en bande dans un développement type Madliena Ridge ?
-- Combien de m² exactement en sous-sol, et à quel usage ?
-- Y a-t-il une vraie vue mer, et depuis quels niveaux ?
-- Le permis (PA) autorise-t-il bien les 900 m² et les niveaux prévus ? Qu'est-ce qui est déjà construit ?
-- Quelle surface extérieure utilisable, et la piscine est-elle possible en pleine terre ?
+| Zone | Surface | €/m² | Total |
+|---|---:|---:|---:|
+| Niveau haut (spec prime, grandes baies, vue) | 148 m² | 1 400 € | 207 200 € |
+| Niveaux intermédiaires | 402 m² | 1 100 € | 442 200 € |
+| Sous-sol B2 (garage, technique, rangements) | 350 m² | 400 € | 140 000 € |
+| **Sous-total proportionnel** | | | **789 400 €** |
+
+**Postes forfaitaires :**
+
+| Poste | Montant |
+|---|---:|
+| Cuisine et arrière-cuisine | 110 000 € |
+| Salles de bains (× 6) | 175 000 € |
+| Ascenseur (desserte de plusieurs niveaux, dont 2 sous-sols) | 45 000 € |
+| Piscine, local technique, plages | 110 000 € |
+| Extérieurs et paysagisme (parcelle réduite) | 60 000 € |
+| Photovoltaïque, pompe à chaleur, réserve d'eau | 45 000 € |
+| Honoraires (perit, architecte d'intérieur, pilotage) | 120 000 € |
+| **Sous-total forfaitaire** | **665 000 €** |
+
+| | Montant |
+|---|---:|
+| **Coût réaliste de finition** | **1 454 400 €** |
+| Budget annoncé | 1 200 000 € |
+| **Écart** | **− 254 000 €** |
+
+Le budget de 1,2 M€ est **atteignable** si le B2 reste en finition brute (garage, technique) et si les niveaux intermédiaires restent sur des matériaux de belle qualité sans exotisme. C'est le scénario « optimiste » ci-dessous.
+
+### Repères du marché maltais, 2026
+
+| Référence | Fourchette |
+|---|---|
+| Finitions standard (sols, salles de bains, portes) | 250 – 450 €/m² |
+| Construction résidentielle complète, standard | 900 – 1 500 €/m² |
+| Construction complète, haut de gamme | 1 500 – 2 000+ €/m² |
+| Finition seule en spécification luxe (déduit) | 700 – 1 200 €/m² |
+
+---
+
+## E. Prix de revient
+
+Chantier réaliste : **20 à 26 mois** (retenu : 22), pénurie de main-d'œuvre qualifiée et délais de permis de travail étant les deux goulots documentés du secteur maltais. Portage sur 2 M€ empruntés à environ 4,5 %.
+
+> Malte n'a **pas de taxe foncière annuelle** : hors financement, le coût de détention est quasi nul.
+
+| | Optimiste | Central | Dérapage |
+|---|---:|---:|---:|
+| Acquisition + frais | 3 510 000 € | 3 510 000 € | 3 510 000 € |
+| Travaux | 1 200 000 € | 1 455 000 € | 1 600 000 € |
+| Aléas | 0 € | 145 000 € | 240 000 € |
+| Portage + assurances | 20 000 € | 185 000 € | 240 000 € |
+| **Prix de revient** | **4 730 000 €** | **5 295 000 €** | **5 590 000 €** |
+
+### Réponse à la première question
+
+**La villa revient entre 4,73 M€ et 5,59 M€, avec un scénario central à 5,30 M€.**
 
 ---
 
 ## F. Frais de sortie et fiscalité
 
-| Poste | Taux | Sur une vente à 5 M€ |
-|---|---|---:|
-| Commission d'agence — exclusivité (3,5 % + 18 % TVA) | 4,13 % | 206 500 € |
-| Commission d'agence — agence ouverte (5 % + 18 % TVA) | 5,90 % | 295 000 € |
-| Impôt sur le transfert (*final withholding tax*), revente sous 5 ans | 5 % | 250 000 € |
-| Impôt sur le transfert, revente au-delà de 5 ans | 8 % | 400 000 € |
+| Poste | Taux |
+|---|---|
+| Commission d'agence — exclusivité (3,5 % + 18 % TVA) | 4,13 % |
+| Commission d'agence — agence ouverte (5 % + 18 % TVA) | 5,90 % |
+| Impôt sur le transfert (*final withholding tax*), revente sous 5 ans | 5 % |
+| Impôt sur le transfert, revente au-delà de 5 ans | 8 % |
+
+**Frais de sortie cumulés retenus : 9,13 %** (mandat exclusif + impôt de transfert à 5 %).
 
 ### Deux avertissements fiscaux majeurs
 
-**1. L'impôt maltais sur le transfert porte sur le prix de vente BRUT, pas sur la plus-value.** Vous payez 5 % même en vendant à perte. C'est la spécificité qui détruit les marges des opérations d'achat-revente à Malte, et elle est presque toujours sous-estimée.
+**1. L'impôt maltais sur le transfert porte sur le prix de vente BRUT, pas sur la plus-value.** Vous payez 5 % même en vendant à perte. Sur une vente à 3,7 M€ en perte de 1,6 M€, l'impôt reste de 185 000 €.
 
-**2. Risque de requalification.** Acheter une coque, la finir et la revendre peut être requalifié par l'administration maltaise en **activité commerciale de promotion**. L'imposition bascule alors sur le bénéfice au taux société de 35 %, avec application éventuelle du système de remboursement selon la structure de détention. L'écart avec les 5 % du régime de transfert se chiffre en centaines de milliers d'euros.
-
-> **À faire confirmer par écrit par un notaire ou un fiscaliste maltais AVANT la signature du konvenju.**
+**2. Risque de requalification.** Acheter une coque, la finir et la revendre peut être requalifié en **activité commerciale de promotion**, imposée sur le bénéfice au taux société de 35 %. À faire confirmer par écrit par un notaire ou un fiscaliste maltais **avant la signature du konvenju**.
 
 ---
 
-## G. Compte de résultat et point mort
-
-Frais de sortie cumulés : **9,13 %** du prix de vente (mandat exclusif 4,13 % + impôt de transfert 5 %).
+## G. Compte de résultat
 
 | Scénario de coût | Prix de revient | Point mort à la revente |
 |---|---:|---:|
-| **Optimiste** (travaux tenus à 1,2 M€) | 4 730 000 € | **5 205 000 €** |
-| **Central** (finition au standard, 1,5 M€) | 5 345 000 € | **5 882 000 €** |
-| **Dérapage** | 5 870 000 € | **6 460 000 €** |
+| Optimiste | 4 730 000 € | **5 205 000 €** |
+| Central | 5 295 000 € | **5 827 000 €** |
+| Dérapage | 5 590 000 € | **6 152 000 €** |
 
-### Résultat net selon le prix de vente
+**Rappel : la sortie réaliste se situe entre 2,8 et 4,4 M€.** Le point mort le plus bas (5,21 M€) dépasse de 810 000 € le haut de la fourchette de sortie.
 
-**Sur le prix de revient optimiste (4 730 000 €) :**
+### Résultat net — sur le prix de revient optimiste (4 730 000 €)
 
-| Prix de vente | Commission | Impôt transfert | Net vendeur | Résultat |
-|---:|---:|---:|---:|---:|
-| 4 600 000 € | 189 980 € | 230 000 € | 4 180 020 € | **− 549 980 €** |
-| 5 000 000 € | 206 500 € | 250 000 € | 4 543 500 € | **− 186 500 €** |
-| **5 205 000 €** | 214 967 € | 260 250 € | 4 729 783 € | **≈ 0 € (point mort)** |
-| 5 400 000 € | 223 020 € | 270 000 € | 4 906 980 € | **+ 176 980 €** |
+| Prix de vente réalisé | Net vendeur | Résultat |
+|---:|---:|---:|
+| 2 600 000 € | 2 362 620 € | **− 2 367 380 €** |
+| 3 500 000 € | 3 180 450 € | **− 1 549 550 €** |
+| 4 200 000 € | 3 816 540 € | **− 913 460 €** |
 
-**Sur le prix de revient central (5 345 000 €) :**
+### Résultat net — sur le prix de revient central (5 295 000 €)
 
-| Prix de vente | Commission | Impôt transfert | Net vendeur | Résultat |
-|---:|---:|---:|---:|---:|
-| 4 600 000 € | 189 980 € | 230 000 € | 4 180 020 € | **− 1 164 980 €** |
-| 5 000 000 € | 206 500 € | 250 000 € | 4 543 500 € | **− 801 500 €** |
-| 5 400 000 € | 223 020 € | 270 000 € | 4 906 980 € | **− 438 020 €** |
-| **5 882 000 €** | 242 927 € | 294 100 € | 5 344 973 € | **≈ 0 € (point mort)** |
+| Prix de vente réalisé | Net vendeur | Résultat |
+|---:|---:|---:|
+| 3 500 000 € | 3 180 450 € | **− 2 114 550 €** |
+| 4 200 000 € | 3 816 540 € | **− 1 478 460 €** |
+
+**Aucun scénario n'est rentable. La perte va de 913 000 € dans le meilleur cas absolu à plus de 2,3 M€ dans le pire.**
 
 ---
 
-## H. Diagnostic
+## H. Ce que vaut réellement cette coque
 
-**Le risque a changé de nature par rapport à une hypothèse de 600 m².** À 900 m², la coque n'est pas surpayée : à 3 667 €/m², elle est au prix du marché. Le problème s'est déplacé sur deux autres fronts.
+Question inversée : à quel prix faudrait-il acheter la coque pour que l'opération soit à l'équilibre ?
 
-**1. Le budget travaux est sous-évalué d'environ 300 000 €** par rapport au standard qu'exige une villa à 5 M€ à Madliena. Il est tenable, mais seulement avec une discipline de spécification décidée dès maintenant — notamment en finissant les sous-sols pour ce qu'ils sont.
+En posant S = prix de la coque, les coûts hors acquisition étant de 1 760 000 € (travaux 1 455 000 + aléas 145 000 + portage 150 000 + divers 10 000) et les frais d'acquisition représentant 6,2 % de S :
 
-**2. Les 500 m² de terrain plafonnent la sortie.** 900 m² bâtis sans jardin, dans une localité où l'acheteur paie d'abord le foncier et la vue, c'est un produit atypique dont la valorisation au m² sera pénalisée.
+| Hypothèse de sortie (réalisé) | Net vendeur | **Prix maximum payable pour la coque** |
+|---:|---:|---:|
+| 3 500 000 € (central) | 3 180 450 € | **1 340 000 €** |
+| 4 200 000 € (haut) | 3 816 540 € | **1 935 000 €** |
 
-### Le résultat en une ligne
+**La coque vaut entre 1,3 et 1,9 M€ pour que l'opération tienne debout. On vous en demande 3,3 M€.**
 
-| Scénario | Prix de revient | Point mort | Sortie attendue | Résultat |
-|---|---:|---:|---:|---:|
-| Optimiste + sortie haute | 4 730 000 € | 5 205 000 € | 5 400 000 € | **+ 177 000 €** |
-| Optimiste + sortie centrale | 4 730 000 € | 5 205 000 € | 5 000 000 € | **− 187 000 €** |
-| Central + sortie centrale | 5 345 000 € | 5 882 000 € | 5 000 000 € | **− 802 000 €** |
-
-**L'opération n'est rentable que dans un seul scénario : budget travaux tenu à 1,2 M€ ET vente à 5,4 M€** — c'est-à-dire au-dessus du plus haut prix jamais affiché à Madliena (4,95 M€). C'est possible pour un produit de 900 m² neuf avec vue mer, mais c'est un pari, et la marge est de 177 000 € sur un engagement de 4,7 M€ — soit 3,7 % sur deux ans.
+L'écart est de 1,4 à 2,0 M€. Aucun affinement raisonnable des hypothèses ne le comble.
 
 ---
 
 ## I. Y a-t-il des acheteurs sur cette tranche de prix ?
 
-**Oui, mais très peu — et le vivier s'est nettement rétréci depuis 2025.**
+Cette question devient secondaire — l'opération est déjà perdante bien avant d'atteindre le problème de liquidité. Mais pour être complet :
 
 ### Le marché maltais en chiffres
 
@@ -275,32 +256,30 @@ Frais de sortie cumulés : **9,13 %** du prix de vente (mandat exclusif 4,13 % +
 | Transactions résidentielles 2025 | 13 339 (+ 5,9 % sur un an) |
 | Valeur totale 2025 | 3,97 Md€ (+ 12,4 %) |
 | Transaction moyenne | ≈ 297 000 € |
-| Indice des prix RPPI, T4 2025 | + 6,1 % sur un an, 5e trimestre consécutif de hausse |
+| Indice des prix RPPI, T4 2025 | + 6,1 % sur un an |
 | Permis AIP délivrés à des non-UE en 2025 | 741 |
-| **Ventes estimées au-dessus de 4 M€, île entière** | **~10 à 25 par an** |
-| **Ventes estimées au-dessus de 5,4 M€** | **une poignée par an** |
+| Ventes estimées au-dessus de 4 M€, île entière | ~10 à 25 par an |
 
-> Ces deux dernières lignes sont des estimations d'ordre de grandeur : le NSO maltais ne publie pas de ventilation des transactions par tranche de prix. Elles sont cohérentes avec une transaction moyenne de 297 000 € sur 13 339 ventes.
+> Cette dernière ligne est une estimation d'ordre de grandeur : le NSO maltais ne publie pas de ventilation par tranche de prix.
 
-C'est le point critique : **le seul scénario rentable vous demande de vendre à 5,4 M€, dans un segment où il se conclut peut-être deux à huit ventes par an sur toute l'île.**
+**Bonne nouvelle relative :** à 3,7 M€, votre bien se situe dans une tranche nettement plus liquide qu'à 5 M€. Les comparables de Madliena entre 3,5 et 3,9 M€ sont nombreux, ce qui indique un segment actif. Le problème n'est pas de trouver un acheteur — c'est que le prix qu'il paiera ne couvre pas votre prix de revient.
 
 ### Ce qui joue en votre faveur
 
-- Malte : **pas de taxe foncière annuelle**, pas d'impôt sur la fortune, régime fiscal attractif, pays anglophone, UE et Schengen.
+- Malte : pas de taxe foncière annuelle, pas d'impôt sur la fortune, régime fiscal attractif, pays anglophone, UE et Schengen.
 - Le **MPRP** (résidence permanente par investissement) reste en vigueur.
-- Le segment luxe surperforme le marché général ; KPMG relève une demande soutenue sur les villas au-dessus de 2 M€, portée par une offre limitée.
-- Madliena est l'une des trois ou quatre adresses les plus prestigieuses de l'île, et le foncier y est saturé.
-- **900 m² neufs est une rareté à Malte.** Le volume est un argument réel pour une grande famille ou un acheteur cherchant du logement de réception.
+- Madliena est l'une des adresses les plus prestigieuses de l'île, au foncier saturé.
+- Un grand volume avec garage important intéresse une clientèle familiale ou de collectionneurs automobiles.
 
 ### Ce qui joue contre vous
 
-**1. Le passeport doré est mort.** La Cour de justice de l'Union européenne a invalidé le programme maltais de citoyenneté par investissement le **29 avril 2025**. Ce dispositif avait généré 1,4 Md€ depuis 2015 et constituait le principal moteur de la demande ultra-haut de gamme. Ce flux d'acheteurs a disparu.
+**1. Le passeport doré est mort.** La CJUE a invalidé le programme maltais de citoyenneté par investissement le **29 avril 2025**. Il avait généré 1,4 Md€ depuis 2015 et portait la demande ultra-haut de gamme.
 
-**2. Madliena n'est pas une Special Designated Area.** Un acheteur non-UE — ou un ressortissant UE non résident à Malte depuis 5 ans — doit obtenir un **permis AIP**, se trouve limité à **un seul bien**, doit l'occuper comme résidence et **ne peut pas le mettre en location**. Les acheteurs investisseurs sont mécaniquement exclus : votre acheteur doit être un occupant.
+**2. Madliena n'est pas une Special Designated Area.** Un acheteur non-UE — ou UE non résident depuis 5 ans — doit obtenir un **permis AIP**, se limite à **un seul bien**, doit l'occuper comme résidence et **ne peut pas le louer**. Les investisseurs sont mécaniquement exclus.
 
-**3. Le premier vivier étranger ne vous concerne pas.** Sur les 741 permis AIP de 2025, **46,4 % sont allés à des ressortissants chinois** (344), suivis des Indiens, Britanniques, Américains (38, le double de 2024) et Turcs. Or le profil HNW asiatique cible explicitement les **appartements de luxe clés en main** de Portomaso ou Mercury Towers — pas les villas de Madliena.
+**3. Le premier vivier étranger ne vous concerne pas.** Sur les 741 permis AIP de 2025, **46,4 % sont allés à des ressortissants chinois** (344), puis Indiens, Britanniques, Américains (38) et Turcs — un profil qui cible les appartements clés en main de Portomaso ou Mercury Towers.
 
-**4. Il reste un vivier étroit :** familles maltaises fortunées, expatriés UE installés de longue date (iGaming, finance, shipping, crypto), Italiens et Britanniques résidents. Un marché local, relationnel, qui fonctionne au réseau et à la réputation bien plus qu'au portail d'annonces.
+**4. Le produit est atypique.** 350 m² de B2 et 148 m² de vue, c'est un ratio inhabituel. Les acheteurs de Madliena cherchent du jardin et de la vue, pas du volume enterré.
 
 ### Délais de vente
 
@@ -308,56 +287,60 @@ C'est le point critique : **le seul scénario rentable vous demande de vendre à
 |---|---|
 | Médiane nationale, segments tendus | ~4 semaines |
 | Médiane nationale, biens surévalués ou mal situés | 3 à 4 mois |
-| **Villa à 5 – 5,4 M€ à Madliena, estimation réaliste** | **12 à 30 mois** |
+| Villa à 3,5 – 4 M€ à Madliena (estimation) | 6 à 15 mois |
 | Ratio prix de vente / prix affiché | 93 à 97 % |
 | Écart type entre prix affiché et prix réalisé | 10 à 20 % (médiane ~16 %) |
-
-Plus le prix monte, plus l'écart entre affiché et réalisé se creuse — les comparables se raréfient et les acheteurs disposent d'un pouvoir de négociation croissant.
 
 ---
 
 ## J. Recommandations
 
-**1. Ne pas se battre sur le prix de la coque.** À 3 667 €/m², il est correct. Négocier plutôt les **conditions** : échelonnement des paiements, garanties structurelles, délai de libération, prise en charge des raccordements.
+**1. Ne pas acheter à 3,3 M€.** L'opération perd entre 913 000 € et 2,3 M€ selon les scénarios. Il n'existe aucune combinaison réaliste de budget travaux et de prix de sortie qui la rende rentable.
 
-**2. Refaire le budget travaux avant de signer.** 1,2 M€ sur 900 m² suppose une discipline de spécification qu'il faut acter maintenant : sous-sols finis à 400-500 €/m², matériaux de belle qualité sans exotisme, pas de domotique intégrale. **Obtenir trois devis d'entreprises maltaises sur le programme complet** — c'est le poste où se joue la rentabilité.
+**2. Si le bien vous intéresse malgré tout, poser une offre entre 1,7 et 1,9 M€** — le haut de cette fourchette suppose déjà que les 402 m² intermédiaires soient de la belle surface habitable et que la vue du niveau haut soit exceptionnelle. Une offre à 3,3 M€, ou même à 2,5 M€, se solde par une perte.
 
-**3. Vérifier le produit physique** (voir la liste en section E) : nature du bien, répartition hors-sol / sous-sol, vue mer réelle, permis PA, surface extérieure utilisable. Un sous-sol de 400 m² au lieu de 300 m² déplace la valeur de sortie de plusieurs centaines de milliers d'euros.
+**3. Qualifier les 402 m² intermédiaires avant toute offre.** C'est 45 % de la surface et la variable la plus lourde du modèle :
 
-**4. Décider du positionnement de sortie dès maintenant.** Viser 5,4 M€ impose un niveau de finition, une identité architecturale et un plan de commercialisation cohérents dès le premier jour de chantier. On ne rattrape pas un positionnement haut de gamme en fin de parcours.
+| Statut réel des 402 m² | €/m² | Impact sur la sortie |
+|---|---:|---:|
+| Hors-sol avec vue partielle | 6 000 € | 4 374 000 € |
+| Hors-sol éclairé, sans vue | 5 000 € | 3 684 000 € |
+| Semi-enterré, éclairage limité (B1) | 2 800 € | 2 800 000 € |
 
-**5. Verrouiller la fiscalité avant le konvenju.** Confirmation écrite d'un notaire maltais que l'opération relève du *final withholding tax* à 5 %, et non d'une requalification commerciale à 35 %.
+Un B1 semi-enterré au lieu d'un niveau hors-sol fait perdre près de 900 000 € de valeur de sortie.
 
-**6. Signer un mandat exclusif** (4,13 % TVA comprise) plutôt qu'une agence ouverte (5,90 %) : environ 90 000 € d'économie sur une vente à 5 M€.
+**4. Vérifier au permis (PA) :** cotes de niveau de chaque plateau, hauteurs sous plafond, surfaces d'ouverture et d'éclairement naturel, usage autorisé du B2 (garage seul ou pièces habitables ?), et si une extension hors-sol reste possible.
 
-**7. Préparer l'option location.** 900 m² à Madliena se loue de l'ordre de **12 000 à 18 000 €/mois**, soit 144 000 à 216 000 €/an — un rendement brut de 2,7 à 4,0 % sur un prix de revient de 5,3 M€. Avec un indice des prix qui progresse de ≈ 6 % par an et un coût de détention quasi nul (pas de taxe foncière), conserver deux à trois ans peut rapporter davantage que vendre à perte. **Impossible en revanche si le bien a été acquis sous permis AIP.**
+**5. Faire expertiser la vue.** 148 m² de vue mer, c'est peu : il faut savoir depuis quelles pièces, sur quelle amplitude, et si elle est protégée par le plan d'urbanisme ou constructible par un voisin.
 
-**8. Envisager une sortie alternative :** revendre la coque en l'état avec un contrat de finition adossé, ou vendre sur plans avant achèvement — pour ne pas immobiliser 1,5 M€ de travaux sur un marché de quelques ventes par an.
+**6. Verrouiller la fiscalité avant tout engagement** — régime du *final withholding tax* à 5 % contre requalification commerciale à 35 %.
+
+**7. Si vous êtes déjà engagé (konvenju signé),** faire chiffrer trois devis maltais sur un programme de finition à 1,1 – 1,2 M€ maximum, viser une sortie à 4,2 M€ et préparer l'option location : 900 m² à Madliena se loue de l'ordre de 12 000 à 18 000 €/mois, soit 2,7 à 4,0 % brut. Avec un indice des prix à + 6 % par an et un coût de détention quasi nul, conserver cinq à sept ans permet de résorber une partie de la perte. **Impossible si le bien a été acquis sous permis AIP.**
 
 ---
 
 ## Verdict
 
-> À 900 m² bâtis, **la coque à 3,3 M€ est au prix du marché** — 3 667 €/m², soit une décote de 39 % sur le fini, dans la fourchette normale. Ce n'est plus là qu'est le problème.
+> Les 900 m² sont trompeurs. **148 m² seulement portent la vue, et 350 m² sont en sous-sol B2** — le niveau le moins valorisable qui soit. Valorisé niveau par niveau, le bien **fini** vaut entre 2,8 et 4,4 M€, avec un central à 3,7 M€, ce que confirment les comparables de Madliena.
 >
-> La villa revient entre **4,73 M€** (budget travaux tenu) et **5,35 M€** (finition au standard du marché), et doit se vendre entre **5,2 et 5,9 M€** pour rentrer dans ses frais.
+> **On vous demande 3,3 M€ pour la coque, soit 90 % de la valeur du produit achevé.** À laquelle il faut encore ajouter 1,2 à 1,45 M€ de travaux.
 >
-> La sortie réaliste se situe entre 4,6 et 5,4 M€ affiché. **Un seul scénario est rentable : tenir les travaux à 1,2 M€ et vendre à 5,4 M€, pour une marge de 177 000 € — soit 3,7 % sur deux ans.** Tous les autres scénarios sont en perte.
+> Le prix de revient atterrit entre 4,73 et 5,59 M€, pour un point mort entre 5,21 et 6,15 M€ — très au-dessus du haut de la fourchette de sortie. **La perte va de 913 000 € dans le meilleur cas absolu à plus de 2,3 M€.**
 >
-> Les acheteurs existent, mais au-dessus de 5 M€ il se conclut peut-être deux à huit ventes par an sur toute l'île. **Le rapport rendement / risque de cette opération est défavorable : 3,7 % de marge dans le meilleur des cas, pour un engagement de 4,7 M€ sur deux ans, sur un marché de quelques acheteurs.**
+> Pour que l'opération tienne, **la coque devrait s'acheter entre 1,3 et 1,9 M€**. L'écart avec le prix demandé est de 1,4 à 2,0 M€.
+>
+> **Recommandation : ne pas acheter à ce prix.**
 
 ---
 
 ## Limites de l'étude
 
-Cette analyse repose sur des données publiques et doit être complétée par des expertises locales avant toute décision :
-
-- Les comparables cités sont des **prix affichés** relevés sur des portails et sites d'agences, et non des prix de vente enregistrés. Le prix réalisé est typiquement inférieur de 10 à 20 %.
-- Les estimations de volume de ventes au-dessus de 4 M€ et 5,4 M€ sont des **ordres de grandeur déduits**, le NSO maltais ne publiant pas de ventilation par tranche de prix.
-- La répartition 600 m² hors-sol / 300 m² sous-sol est une **hypothèse de travail**. Elle doit être remplacée par les surfaces réelles du permis : c'est la variable la plus sensible de tout le modèle de sortie.
-- La décomposition des travaux est un **modèle de coûts**, pas un devis. Elle doit être confrontée à au moins trois offres d'entreprises maltaises.
-- Le traitement fiscal (5 % de *final withholding tax* contre 35 % en cas de requalification commerciale) **doit être confirmé par un notaire ou un fiscaliste maltais** au vu de la structure de détention retenue.
-- Aucune visite du bien, du terrain, de la vue ni des permis n'a été effectuée. Une vue mer d'exception ou une position de crête peut déplacer la valeur de sortie de manière significative.
+- Les comparables cités sont des **prix affichés** relevés sur des portails et sites d'agences, non des prix de vente enregistrés. Le prix réalisé est typiquement inférieur de 10 à 20 %.
+- Le statut des **402 m² intermédiaires reste indéterminé**. C'est l'hypothèse la plus lourde du modèle et elle doit être remplacée par les cotes réelles du permis. Voir le tableau de sensibilité en recommandation 3.
+- L'estimation de 10 à 25 ventes annuelles au-dessus de 4 M€ est un **ordre de grandeur déduit** : le NSO maltais ne publie pas de ventilation par tranche de prix.
+- La décomposition des travaux est un **modèle de coûts, pas un devis**. Elle doit être confrontée à au moins trois offres d'entreprises maltaises.
+- Le traitement fiscal (5 % contre 35 % en cas de requalification commerciale) **doit être confirmé par un professionnel maltais**.
+- Aucune visite du bien, du terrain, de la vue ni des permis n'a été effectuée.
 
 ---
 
