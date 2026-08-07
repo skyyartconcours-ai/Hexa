@@ -205,6 +205,6 @@ la façon la plus fiable de compléter et vérifier la liste ci-dessus.
 
 ---
 
-*Recensement établi le 7 août 2026. 80 biens identifiés — 63 en shell form / advanced shell form,
-17 neufs finis ou fraîchement finis. Données issues de l'indexation des portails maltais ;
-prix et disponibilités à confirmer auprès de chaque agence.*
+*Recensement établi le 7 août 2026. 80 biens identifiés — 60 en shell form / advanced shell form,
+15 neufs finis ou fraîchement finis, 5 dont l'état de finition reste à confirmer. Données issues
+de l'indexation des portails maltais ; prix et disponibilités à confirmer auprès de chaque agence.*
