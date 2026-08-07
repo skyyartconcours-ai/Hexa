@@ -9,6 +9,8 @@
 
 | Paramètre | Valeur |
 |---|---|
+| Programme | **New Heights** — 4 villas lancées en shell form |
+| Typologie | **Semi-détachée (jumelée)** |
 | Localisation | Madliena (limites Swieqi / Naxxar), Malte |
 | Terrain | 500 m² |
 | Surface bâtie totale | 900 m² |
@@ -83,9 +85,48 @@ C'est le cœur de l'étude. La valeur d'un m² à Madliena varie d'un facteur 6 
 
 Les deux méthodes convergent. Votre produit — gros volume, vue limitée à un seul niveau, parcelle réduite, mais neuf — se positionne dans le milieu du peloton, autour de **3,7 M€**, et non près du haut.
 
-**Fourchette retenue : 2,8 à 4,4 M€ affiché, environ 3,7 M€ en central. Soit 2,6 à 4,2 M€ réalisé** (ratio prix de vente / prix affiché de 93 à 97 %).
-
 > Repère : le comparable détaché fini à 3,6 M€ dispose de 1 200 m² de terrain. Un acheteur qui hésite entre ce bien et le vôtre compare 1 200 m² de jardin à 350 m² de sous-sol.
+
+### Le facteur décisif : le bien est jumelé, pas détaché
+
+Le programme **New Heights** commercialise quatre villas **semi-détachées** en shell form, sur des parcelles de 500 m², avec un sous-sol comprenant un grand garage, un flatlet et une salle de jeux.
+
+Cette typologie plafonne la valeur de sortie. Le classement des comparables de Madliena par typologie est sans ambiguïté :
+
+| Bien | Typologie | Prix affiché |
+|---|---|---:|
+| Villa 4 chambres / 5 salles de bains | **Jumelée** | 2 300 000 € |
+| High Ridge — 4 ch / 4 sdb, neuve, communauté fermée face mer | **Jumelée / groupée** | 2 700 000 € |
+| Villa finition impeccable, sur les hauteurs | **Jumelée** | 2 800 000 € |
+| Villa détachée finie, terrain 1 200 m² | Détachée | 3 600 000 € |
+| Villa | Détachée | 3 850 000 € |
+| Villa neuve à flanc de colline, vue mer | Détachée | 4 950 000 € |
+
+**Le marché du jumelé fini à Madliena plafonne autour de 2,8 M€.** Votre bien est nettement plus grand (900 m² bruts contre 350 à 500 m² pour ces comparables), ce qui justifie une prime de volume de l'ordre de 700 000 à 1 100 000 € — mais le statut jumelé vous ferme définitivement le haut du marché, occupé exclusivement par des villas détachées.
+
+**Fourchette révisée : 3,2 à 4,0 M€ affiché, environ 3,6 M€ en central. Soit 3,0 à 3,8 M€ réalisé** (ratio prix de vente / prix affiché de 93 à 97 %).
+
+Le scénario haut à 4,37 M€ de la grille par niveau devient improbable : il supposerait implicitement une villa détachée.
+
+---
+
+## B bis. « J'ai vu des biens finis à 4,5 M€ vraiment nuls »
+
+C'est une objection légitime, et elle a trois réponses.
+
+**1. Un prix affiché n'est pas un prix de vente.** À Malte, l'écart médian entre le prix demandé et le prix réellement acté est de **16 %**, et il se creuse en haut de marché où les comparables sont rares. Un bien médiocre affiché à 4,5 M€ se vend à 3,6 – 3,8 M€ après dix-huit mois de négociation — ou ne se vend pas du tout.
+
+**2. Vous regardez les invendus.** Ce que l'on voit sur les portails, c'est du stock qui ne s'écoule pas. Les biens correctement positionnés partent en quatre semaines dans les segments tendus et n'apparaissent jamais dans une veille. Le stock durablement visible à 4,5 M€ est donc, par construction, composé en majorité de biens surévalués. C'est un biais de sélection, pas un indicateur de marché.
+
+**3. Malte n'a pas de taxe foncière annuelle.** Un vendeur surévalué ne supporte aucun coût de portage : il peut tenir son prix pendant des années sans la moindre pression. C'est la raison structurelle pour laquelle les portails maltais sont saturés de biens médiocres et chers. Cela ne signifie pas que le marché se traite à ces niveaux.
+
+> **Ce même mécanisme explique le refus de votre offre à 3,2 M€.** Quatre unités, aucun coût de détention, du foncier à Madliena : le promoteur n'a aucune raison de céder. Son refus ne dit rien sur la valeur du bien — il dit seulement qu'il n'est pas pressé.
+
+### Comment trancher définitivement
+
+Toute cette étude repose sur des **prix affichés**, faute d'accès public aux prix de vente. Les prix réellement transactés sont enregistrés au **Public Registry** maltais.
+
+Un **perit** (architecte-expert maltais) ou un notaire peut extraire les prix actés sur les villas jumelées de Madliena et High Ridge des vingt-quatre derniers mois. Cela coûte quelques centaines d'euros et tranche la question de manière définitive — c'est de loin le meilleur investissement à faire avant toute décision.
 
 ---
 
@@ -95,19 +136,19 @@ C'est le constat central de cette étude.
 
 | | Montant |
 |---|---:|
-| Valeur du bien **fini**, scénario central | 3 684 000 € |
+| Valeur du bien **fini**, scénario central | 3 600 000 € |
 | Prix demandé pour la **coque** | 3 300 000 € |
-| **Écart** | **384 000 €** |
+| **Écart** | **300 000 €** |
 
-**On vous demande 90 % de la valeur du produit achevé pour une coque** — à laquelle il faut encore ajouter 1,2 à 1,45 M€ de travaux.
+**On vous demande 92 % de la valeur du produit achevé pour une coque** — à laquelle il faut encore ajouter 1,2 à 1,45 M€ de travaux.
 
 La décote normale d'une coque par rapport au fini est de 25 à 40 %. Appliquée ici :
 
 | Base | Valeur finie | Coque au juste prix (60 – 75 %) |
 |---|---:|---:|
-| Scénario prudent | 2 840 000 € | 1 700 000 – 2 130 000 € |
-| Scénario central | 3 684 000 € | 2 210 000 – 2 760 000 € |
-| Scénario haut | 4 374 000 € | 2 620 000 – 3 280 000 € |
+| Scénario prudent | 3 200 000 € | 1 920 000 – 2 400 000 € |
+| Scénario central | 3 600 000 € | 2 160 000 – 2 700 000 € |
+| Scénario haut | 4 000 000 € | 2 400 000 – 3 000 000 € |
 
 Même dans le scénario le plus favorable, le prix demandé se situe à la limite haute de ce qui serait justifiable — et ce scénario suppose que les 402 m² intermédiaires soient de la belle surface habitable éclairée.
 
@@ -213,18 +254,18 @@ Chantier réaliste : **20 à 26 mois** (retenu : 22), pénurie de main-d'œuvre 
 
 | Prix de vente réalisé | Net vendeur | Résultat |
 |---:|---:|---:|
-| 2 600 000 € | 2 362 620 € | **− 2 367 380 €** |
-| 3 500 000 € | 3 180 450 € | **− 1 549 550 €** |
-| 4 200 000 € | 3 816 540 € | **− 913 460 €** |
+| 3 000 000 € | 2 726 100 € | **− 2 003 900 €** |
+| 3 420 000 € (central) | 3 107 754 € | **− 1 622 246 €** |
+| 3 800 000 € (haut) | 3 453 060 € | **− 1 276 940 €** |
 
 ### Résultat net — sur le prix de revient central (5 295 000 €)
 
 | Prix de vente réalisé | Net vendeur | Résultat |
 |---:|---:|---:|
-| 3 500 000 € | 3 180 450 € | **− 2 114 550 €** |
-| 4 200 000 € | 3 816 540 € | **− 1 478 460 €** |
+| 3 420 000 € | 3 107 754 € | **− 2 187 246 €** |
+| 3 800 000 € | 3 453 060 € | **− 1 841 940 €** |
 
-**Aucun scénario n'est rentable. La perte va de 913 000 € dans le meilleur cas absolu à plus de 2,3 M€ dans le pire.**
+**Aucun scénario n'est rentable. La perte va de 1 277 000 € dans le meilleur cas absolu à plus de 2,19 M€.**
 
 ---
 
@@ -236,12 +277,20 @@ En posant S = prix de la coque, les coûts hors acquisition étant de 1 760 000 
 
 | Hypothèse de sortie (réalisé) | Net vendeur | **Prix maximum payable pour la coque** |
 |---:|---:|---:|
-| 3 500 000 € (central) | 3 180 450 € | **1 340 000 €** |
-| 4 200 000 € (haut) | 3 816 540 € | **1 935 000 €** |
+| 3 420 000 € (central) | 3 107 754 € | **1 270 000 €** |
+| 3 800 000 € (haut) | 3 453 060 € | **1 595 000 €** |
 
-**La coque vaut entre 1,3 et 1,9 M€ pour que l'opération tienne debout. On vous en demande 3,3 M€.**
+**La coque vaut entre 1,27 et 1,60 M€ pour que l'opération tienne debout. On vous en demande 3,3 M€.**
 
-L'écart est de 1,4 à 2,0 M€. Aucun affinement raisonnable des hypothèses ne le comble.
+L'écart est de 1,7 à 2,0 M€. Aucun affinement raisonnable des hypothèses ne le comble.
+
+### Ce que signifie le refus de votre offre à 3,2 M€
+
+Rien sur la valeur du bien.
+
+Un rabais de 100 000 € représente 3 % du prix demandé, face à un écart de 1,7 à 2,0 M€ entre ce prix et ce que l'opération peut supporter. **Même acceptée, votre offre à 3,2 M€ vous aurait fait perdre entre 1,18 et 2,09 M€.**
+
+Le refus vous a donc été favorable. Et il s'explique par la structure du marché maltais, pas par la valeur : quatre unités, aucune taxe foncière annuelle, donc aucun coût de portage pour le promoteur. Il peut tenir son prix des années. Ce n'est pas un signal pour remonter votre offre — c'est le signal que ce bien n'est pas disponible à un prix qui fonctionne pour vous.
 
 ---
 
@@ -295,9 +344,11 @@ Cette question devient secondaire — l'opération est déjà perdante bien avan
 
 ## J. Recommandations
 
-**1. Ne pas acheter à 3,3 M€.** L'opération perd entre 913 000 € et 2,3 M€ selon les scénarios. Il n'existe aucune combinaison réaliste de budget travaux et de prix de sortie qui la rende rentable.
+**1. Ne pas acheter à 3,3 M€.** L'opération perd entre 1,28 M€ et 2,19 M€ selon les scénarios. Il n'existe aucune combinaison réaliste de budget travaux et de prix de sortie qui la rende rentable. Ne pas remonter l'offre après le refus des 3,2 M€.
 
-**2. Si le bien vous intéresse malgré tout, poser une offre entre 1,7 et 1,9 M€** — le haut de cette fourchette suppose déjà que les 402 m² intermédiaires soient de la belle surface habitable et que la vue du niveau haut soit exceptionnelle. Une offre à 3,3 M€, ou même à 2,5 M€, se solde par une perte.
+**2. Si le bien vous intéresse malgré tout, poser une offre entre 1,5 et 1,6 M€** — le haut de cette fourchette suppose déjà que les 402 m² intermédiaires soient de la belle surface habitable et que la vue du niveau haut soit exceptionnelle. Une offre à 2,5 M€ se solde encore par une perte de l'ordre de 500 000 €.
+
+**2 bis. Demander depuis combien de temps les quatre unités New Heights sont commercialisées, et combien sont vendues.** Si les autres ne partent pas, le promoteur reviendra vers vous — et sa position de négociation se dégradera avec le temps, pas la vôtre.
 
 **3. Qualifier les 402 m² intermédiaires avant toute offre.** C'est 45 % de la surface et la variable la plus lourde du modèle :
 
@@ -321,15 +372,17 @@ Un B1 semi-enterré au lieu d'un niveau hors-sol fait perdre près de 900 000 �
 
 ## Verdict
 
-> Les 900 m² sont trompeurs. **148 m² seulement portent la vue, et 350 m² sont en sous-sol B2** — le niveau le moins valorisable qui soit. Valorisé niveau par niveau, le bien **fini** vaut entre 2,8 et 4,4 M€, avec un central à 3,7 M€, ce que confirment les comparables de Madliena.
+> Les 900 m² sont trompeurs. **148 m² seulement portent la vue, et 350 m² sont en sous-sol B2** — le niveau le moins valorisable qui soit. S'y ajoute le facteur décisif : le programme **New Heights commercialise des villas jumelées**, et le marché du jumelé fini à Madliena plafonne autour de 2,8 M€, le haut de marché étant occupé exclusivement par des villas détachées.
 >
-> **On vous demande 3,3 M€ pour la coque, soit 90 % de la valeur du produit achevé.** À laquelle il faut encore ajouter 1,2 à 1,45 M€ de travaux.
+> Valorisé correctement, le bien **fini** vaut entre 3,2 et 4,0 M€, avec un central à 3,6 M€.
 >
-> Le prix de revient atterrit entre 4,73 et 5,59 M€, pour un point mort entre 5,21 et 6,15 M€ — très au-dessus du haut de la fourchette de sortie. **La perte va de 913 000 € dans le meilleur cas absolu à plus de 2,3 M€.**
+> **On vous demande 3,3 M€ pour la coque, soit 92 % de la valeur du produit achevé.** À laquelle il faut encore ajouter 1,2 à 1,45 M€ de travaux.
 >
-> Pour que l'opération tienne, **la coque devrait s'acheter entre 1,3 et 1,9 M€**. L'écart avec le prix demandé est de 1,4 à 2,0 M€.
+> Le prix de revient atterrit entre 4,73 et 5,59 M€, pour un point mort entre 5,21 et 6,15 M€ — sans aucun recouvrement avec la fourchette de sortie. **La perte va de 1,28 M€ dans le meilleur cas absolu à plus de 2,19 M€.**
 >
-> **Recommandation : ne pas acheter à ce prix.**
+> Pour que l'opération tienne, **la coque devrait s'acheter entre 1,27 et 1,60 M€**. L'écart avec le prix demandé est de 1,7 à 2,0 M€.
+>
+> **Recommandation : ne pas acheter à ce prix. Le refus de votre offre à 3,2 M€ vous a été favorable.**
 
 ---
 
@@ -354,6 +407,9 @@ Un B1 semi-enterré au lieu d'un niveau hors-sol fait perdre près de 900 000 �
 - [Buying Property in Malta: Hidden Costs to Budget for in 2026](https://elzanproperties.com/buying-property-malta-hidden-costs-2026/)
 - [Malta Property Market 2026 — Days on Market and Sale-to-Ask Ratios](https://stpropertiesmalta.com/projects/malta-property-market-2026-analysis-price-trends-days-on-market-and-sale-to-ask-ratios/)
 - [Housing Prices in Malta 2026 — Investropa](https://investropa.com/blogs/news/malta-housing-prices)
+- [Madliena Shell form Semi-detached Villa — Perry Malta](https://www.perry.com.mt/malta-property/sales/madliena/SV600230/)
+- [Villas For Sale in Madliena — PropertyMarket.com.mt](https://www.propertymarket.com.mt/for-sale/villas-in-madliena/)
+- [Villas For Sale in High Ridge — PropertyMarket.com.mt](https://www.propertymarket.com.mt/for-sale/villas-in-high-ridge/)
 - [Villas for Sale in Madliena — Malta Sotheby's International Realty](https://www.maltasothebysrealty.com/property-for-sale/property-type/villas/in/madliena)
 - [Properties for sale in Madliena — Christie's Real Estate Malta](https://christiesrealestatemalta.com/properties-for-sale-in-madliena-malta)
 - [Buying Property in Malta by non-residents: AIP Permit — Chetcuti Cauchi](https://www.ccmalta.com/publications/buying-property-in-malta-aip-permit)
