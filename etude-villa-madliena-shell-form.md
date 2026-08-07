@@ -122,11 +122,60 @@ C'est une objection légitime, et elle a trois réponses.
 
 > **Ce même mécanisme explique le refus de votre offre à 3,2 M€.** Quatre unités, aucun coût de détention, du foncier à Madliena : le promoteur n'a aucune raison de céder. Son refus ne dit rien sur la valeur du bien — il dit seulement qu'il n'est pas pressé.
 
-### Comment trancher définitivement
+### Comment connaître les vrais prix
 
-Toute cette étude repose sur des **prix affichés**, faute d'accès public aux prix de vente. Les prix réellement transactés sont enregistrés au **Public Registry** maltais.
+Toute cette étude repose sur des **prix affichés**. Mes 3,6 M€ sont une sortie de modèle, pas un fait vérifié. Voici comment obtenir les prix réellement actés — classé par coût et par pouvoir de décision.
 
-Un **perit** (architecte-expert maltais) ou un notaire peut extraire les prix actés sur les villas jumelées de Madliena et High Ridge des vingt-quatre derniers mois. Cela coûte quelques centaines d'euros et tranche la question de manière définitive — c'est de loin le meilleur investissement à faire avant toute décision.
+#### 1. Le Property Price Registry — gratuit pour vous
+
+C'est la réponse principale, et elle est récente : le **Property Price Registry** a été lancé en **janvier 2026** par la Property Malta Foundation avec le Ministère de la Justice et de la Réforme du secteur de la construction, développé par **PwC Malta**.
+
+| Caractéristique | Détail |
+|---|---|
+| Adresse | `ppr.propertymalta.org` |
+| Contenu | Prix de **contrats réellement enregistrés**, pas des annonces |
+| Profondeur | Depuis le **1er janvier 2018** |
+| Granularité de recherche | Localité, sous-localité / hameau, **niveau rue**, ou zone |
+| Champs disponibles | Type de bien, **surface en m²**, région, localité |
+| Mise à jour | Tous les six mois |
+| **Coût pour un particulier** | **Gratuit** — un citoyen qui envisage d'acheter un bien peut demander l'information directement à Property Malta |
+| Coût pour les professionnels | Abonnement payant (banques, agences, sociétés) |
+
+**Ce qu'il faut demander précisément :** toutes les transactions de villas et villas jumelées à **Madliena** et **High Ridge** depuis 2018, avec surface en m² et date. Puis calculer le prix au m² acté et le comparer aux prix affichés de cette étude.
+
+C'est ce document qui tranchera la question — pas mon modèle.
+
+#### 2. Une valuation par un perit — à partir de 250 €
+
+Un **perit** (architecte warranté maltais) produit un rapport d'évaluation **tamponné et signé**, utilisable officiellement en négociation, devant une banque ou en justice. Les cabinets d'évaluation maintiennent des **bases de comparables internes** continuellement mises à jour.
+
+Intérêt spécifique ici : un rapport signé posé sur la table du promoteur a un poids qu'une discussion n'a pas.
+
+#### 3. Une valuation bancaire — 150 à 300 €
+
+Si vous déposez une demande de financement, l'expert du panel de la banque réalise une évaluation indépendante. C'est le contrôle le moins cher, et **la banque n'a aucun intérêt à surévaluer** — elle prête contre ce bien.
+
+#### 4. Public Registry et Land Registry — redevance modique
+
+Toutes les transactions immobilières sont enregistrées au **Public Registry** et, le cas échéant, au **Land Registry**. Ces registres sont **ouverts à l'inspection publique** ; la demande se fait en ligne avec un formulaire et une petite redevance.
+
+> **Limite importante :** pour rechercher le propriétaire d'un bien, il faut disposer des **données personnelles du propriétaire actuel ou d'un précédent propriétaire**. Une recherche par simple adresse est donc difficile. Ce canal sert surtout à **vérifier un acte dont vous connaissez déjà les parties** — pas à explorer un marché.
+
+#### 5. Interroger directement le promoteur — gratuit
+
+Trois questions, à poser par écrit :
+
+- Combien des **quatre unités New Heights** sont vendues à ce jour ?
+- À quel prix, et sur quel type d'unité ?
+- Depuis combien de temps le programme est-il commercialisé ?
+
+Demandez les **références d'acte** des unités vendues : elles sont vérifiables au Public Registry. Un promoteur qui refuse de les communiquer vous donne déjà une information.
+
+### Ce que ça peut changer
+
+Soyez clair sur le statut de mes chiffres : **si le Property Price Registry montre des villas jumelées de Madliena actées à 4 M€ et plus, mon analyse est à revoir et l'opération redevient discutable.** Si au contraire les actes tournent autour de 2,5 à 3 M€, la conclusion de cette étude est confirmée et durcie.
+
+Coût de la vérification : zéro euro pour le PPR, 250 € pour un rapport de perit. Face à un engagement de 3,3 M€, c'est le meilleur rapport information / prix de tout ce dossier.
 
 ---
 
@@ -407,6 +456,13 @@ Un B1 semi-enterré au lieu d'un niveau hors-sol fait perdre près de 900 000 �
 - [Buying Property in Malta: Hidden Costs to Budget for in 2026](https://elzanproperties.com/buying-property-malta-hidden-costs-2026/)
 - [Malta Property Market 2026 — Days on Market and Sale-to-Ask Ratios](https://stpropertiesmalta.com/projects/malta-property-market-2026-analysis-price-trends-days-on-market-and-sale-to-ask-ratios/)
 - [Housing Prices in Malta 2026 — Investropa](https://investropa.com/blogs/news/malta-housing-prices)
+- [Property Price Registry — Property Malta / PwC Malta](https://ppr.propertymalta.org/)
+- [Property Price Register launched on the initiative of Property Malta](https://propertymalta.org/propertypriceregister/)
+- [Malta launches new property price registry based on contract data — BusinessNow.mt](https://businessnow.mt/malta-launches-new-property-price-registry-based-on-contract-data/)
+- [Property Price Registry tool developed by PwC Malta](https://www.pwc.com/mt/en/pwc-malta-press-room/property-price-registry-tool.html)
+- [Architect Valuation Report Malta — VALUR.MT](https://valur.mt/services/malta-property-valuation)
+- [Land Registry Malta](https://landsregistry.mt/en/)
+- [Public Registry — Identità](https://identita.gov.mt/public-registry-main-page/)
 - [Madliena Shell form Semi-detached Villa — Perry Malta](https://www.perry.com.mt/malta-property/sales/madliena/SV600230/)
 - [Villas For Sale in Madliena — PropertyMarket.com.mt](https://www.propertymarket.com.mt/for-sale/villas-in-madliena/)
 - [Villas For Sale in High Ridge — PropertyMarket.com.mt](https://www.propertymarket.com.mt/for-sale/villas-in-high-ridge/)
