@@ -1,159 +1,166 @@
 # Villas à vendre à Malte & Gozo — Shell form (gros œuvre) ou fraîchement finies
 
-**Date de recherche : 7 août 2026**
+**Date de recherche : 7 août 2026 — 86 biens recensés**
 
 Recensement de toutes les villas identifiables sur le marché maltais vendues **en shell form**
-(livrées au gros œuvre / brut de décoffrage, à finir par l'acquéreur) ou **fraîchement finies**
-(construction neuve livrée finie / prête à emménager).
+(livrées au gros œuvre / brut, à finir par l'acquéreur) ou **fraîchement finies** (construction
+neuve livrée finie / prête à emménager).
 
-> ⚠️ **Note de méthode — à lire avant de contacter les agences.**
-> L'accès direct aux portails immobiliers étant bloqué depuis cet environnement, toutes les données
-> ci-dessous proviennent d'index de moteur de recherche (titres, extraits et résumés de fiches).
-> Les **prix, surfaces et dates de livraison doivent être re-vérifiés sur la fiche d'origine** :
-> certaines annonces datent de plusieurs mois, quelques biens peuvent être vendus ou retirés, et
-> certains prix sont indicatifs. Chaque ligne porte le lien direct vers la fiche pour vérification.
+| | |
+|---|---|
+| Biens recensés | **86** |
+| En shell form (dont 1 advanced shell) | **60** |
+| Neufs finis ou fraîchement finis | **17** |
+| État de finition à confirmer | **9** |
+| Fourchette des prix publiés | **360 000 € – 11 000 000 €** |
 
----
+## Comment lire la colonne « Lien »
 
-## 1. Nord — Mellieħa & Santa Maria Estate
+> **`fiche →`** mène à la page du bien lui-même. **50 biens** sur 86 en disposent.
+>
+> **`liste →`** mène à la page de résultats du portail où le bien a été relevé — il faut l'y
+> repérer par sa localité, son prix, sa surface ou sa référence, indiquées dans la colonne « Bien ».
+> **36 biens** sont dans ce cas : le moteur de recherche a indexé le contenu de la fiche sans
+> exposer son URL propre, et l'accès direct aux portails est bloqué depuis l'environnement de
+> recherche, ce qui empêche de la retrouver automatiquement.
 
-Le pôle n°1 du shell form haut de gamme à Malte. Santa Maria Estate est un lotissement de villas
-détachées sur grands terrains, avec vue mer (Għadira / L-Aħrax).
-
-| # | Bien | Localité | État | Surface / terrain | Prix | Source |
-|---|------|----------|------|-------------------|------|--------|
-| 1 | Villa détachée, vue mer imprenable, projet neuf | Santa Maria Estate, Mellieħa | Shell form — livraison T1 2026 | Terrain 1 tumolo (~1 124 m²), jardin en terrasses | Sur demande | [JamesEdition 14695273](https://www.jamesedition.com/real_estate/mellieha-malta/mellieha-shell-form-villa-14695273) |
-| 2 | Villas de luxe, 3 ch. doubles en-suite, piscine, jardin, garage | Santa Maria Estate, Mellieħa | Shell form — achèvement annoncé fin 2025 | 1 000+ m² habitables | **2 750 000 €** | [Malta Property Hunt / Bernards 026913](https://maltapropertyhunt.com/mellieha/villa/bernards-026913) |
-| 3 | Villa détachée | Mellieħa | Shell form — construite fin nov. 2025 | n.c. | **2 850 000 €** | [RE/MAX 240471004-403](https://remax-malta.com/listings/for-sale/north/mellieha/villa-detached/240471004-403) |
-| 4 | Villa jumelée 3 chambres | Santa Maria Estate | Shell form | n.c. | **2 400 000 €** | [Christie's 007516](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa/santa-maria-estate/3-bed-villa/007516) |
-| 5 | Villa 4 ch. / 4 sdb | Santa Maria Estate | Shell form | n.c. | **1 400 000 €** | [Christie's — Santa Maria Estate](https://christiesrealestatemalta.com/residential/property-for-sale/malta/in/santa-maria-estate) |
-| 6 | Villa jumelée 4 ch. / 6 sdb, 1 garage | Mellieħa | Shell form | 500 m² | **1 400 000 – 1 500 000 €** | [Homes In Malta — Shell Form](https://homesinmalta.com/feature/shell-form/) |
-| 7 | Villa | Mellieħa | Shell form | n.c. | **1 450 000 €** | [Christie's — villas](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa) |
-| 8 | Villa détachée | Mellieħa | Shell form | n.c. | Sur demande | [Perry DV600211](https://www.perry.com.mt/malta-property/sales/mellieha/DV600211/) |
-| 9 | Villa neuve détachée, terrain 1 023 m² | Santa Maria Estate | Shell form, personnalisation totale | Terrain 1 023 m² | n.c. | [PropertyMarket — villas Mellieħa](https://www.propertymarket.com.mt/for-sale/villas-in-mellieha/) |
-| 10 | Villa détachée, option finition possible | Mellieħa | Shell form + option « finie » | n.c. | n.c. | [Simon Mamo — villas Malte](https://www.simonmamo.com/villas-for-sale-in-malta/) |
-| 11 | Villas détachées | Mellieħa | Shell form | n.c. | ~2,9 M€ (annoncé 3 202 254 $) | [Malta Homes — Shell Form](https://malta-homes.com/property-feature/shell-form/) |
-| 12 | Villa détachée | Mellieħa | Shell form | n.c. | n.c. | [RE/MAX 240171030-493](https://remax-malta.com/listings/for-sale/north/mellieha/villa-detached/240171030-493) |
-
-**Repère de marché Santa Maria Estate :** villas détachées de **1,7 M€ à 11 M€** ; **1 500 à 4 250 €/m²**
-selon la parcelle ([Arcus Estates](https://arcusestates.com/en/property-for-sale/malta/sda/santa-maria-estate)).
+> ⚠️ **Avertissement général.** Les données proviennent de l'indexation des portails maltais, pas
+> d'une lecture directe des fiches. **Prix, surfaces et dates de livraison sont à re-confirmer** :
+> certaines annonces ont plusieurs mois, plusieurs annonçaient une livraison « fin 2025 » ou
+> « T1 2026 » — échéances désormais passées — et quelques biens peuvent être vendus ou retirés.
 
 ---
 
-## 2. Madliena / High Ridge / Swieqi / Ibraġġ — le haut de gamme
+## Les biens
 
-| # | Bien | Localité | État | Surface / terrain | Prix | Source |
-|---|------|----------|------|-------------------|------|--------|
-| 13 | Villa jumelée (lot de 4 villas neuves) — sous-sol : grand garage, flatlet, salle de jeux | Madliena | Shell form | Terrains 500 m² | **3 200 000 €** | [Perry SV600230](https://www.perry.com.mt/malta-property/sales/madliena/SV600230/) |
-| 14 | Villa jumelée (même programme) | Madliena | Shell form | Terrain 500 m² | n.c. | [Perry SV600242](https://www.perry.com.mt/malta-property/sales/madliena/SV600242/) |
-| 15 | Villa jumelée (même programme) | High Ridge, Madliena | Shell form | Terrain 500 m² | n.c. | [Perry SV600168](https://www.perry.com.mt/malta-property/sales/high-ridge-madliena/SV600168/) |
-| 16 | Villa jumelée | Ibraġġ | Shell form | n.c. | **3 400 000 €** | [Christie's — Ibraġġ](https://christiesrealestatemalta.com/residential/property-for-sale/malta/in/ibragg) |
-| 17 | Villa avec piscine et jardin | High Ridge, Swieqi / Madliena | Shell form | Terrain 500 m² | ~2,05 M€ (annoncé 2 212 467 $) | [Malta Homes — Shell Form](https://malta-homes.com/property-feature/shell-form/) |
-| 18 | Villa entièrement détachée 3 ch., vues campagne + mer, grand extérieur avec piscine/deck | Madliena | Shell form, **option finition à coût convenu** | Terrain 906 m² | n.c. | [PropertyMarket — villas Madliena](https://www.propertymarket.com.mt/for-sale/villas-in-madliena/) |
-| 19 | Villa moderne sur plan | Madliena | Shell form + option finition | Terrain 536 m² | n.c. | [Just Properties — Madliena](https://www.justproperties.com.mt/properties/madliena-villa-sale-2/) |
-| 20 | Villa 4 ch. / 5 sdb, piscine, grand jardin & terrasse (construite 2023) | Victoria Gardens, Ibraġġ (Triq il-Pinta) | Shell form | 690 m² bâtis / 530 m² terrain | **1 800 000 €** | [Homes In Malta 21126](https://homesinmalta.com/property/victoria-gardens-villa-in-shell-form-21126/) |
-| 21 | Villa détachée | Victoria Gardens, Swieqi | à confirmer | n.c. | n.c. | [RE/MAX 240311001-731](https://remax-malta.com/listings/for-sale/sliema-and-st-julians-surroundings/victoria-gardens/villa-detached/240311001-731) |
-| 22 | Villa | Victoria Gardens, Swieqi | à confirmer | n.c. | n.c. | [Real Agents SVIL7393](https://realagents.com.mt/property/svil7393) |
-| 23 | Villa détachée | Ta' l-Ibraġġ | à confirmer | n.c. | n.c. | [RE/MAX 240351050-165](https://remax-malta.com/listings/240351050-165/brochure) |
+### Mellieħa & Nord
+
+| État | Bien | Localité | Surface / terrain | Prix | Lien |
+|---|---|---|---|---|---|
+| Shell form | Villa neuve entièrement détachée — 3 ch. en-suite, séjour ouvert 45 m², sous-sol 200 m² (gym, salle de jeux), piscine 60 m², vues Għadira Bay et L-Aħrax <br><sub>Réf. Christie's 006725 · jardin en terrasses · livraison annoncée T1 2026</sub> | Santa Maria Estate, Mellieħa | Terrain ~1 124 m² (1 tumolo) | **1 450 000 €** | [fiche → JamesEdition](https://www.jamesedition.com/real_estate/mellieha-malta/mellieha-shell-form-villa-14695273) <br>[fiche → Million Euro Listings](https://millioneurolistings.com/properties/mellieha-shell-form-villa-6/) |
+| Shell form | Villas de luxe — 3 ch. doubles en-suite, piscine, jardin, garage <br><sub>Achèvement annoncé fin 2025</sub> | Santa Maria Estate, Mellieħa | 1 000+ m² habitables | **2 750 000 €** | [fiche → Bernards 026913](https://maltapropertyhunt.com/mellieha/villa/bernards-026913) |
+| Shell form | Villa détachée <br><sub>Gros œuvre achevé fin nov. 2025</sub> | Mellieħa | — | **2 850 000 €** | [fiche → RE/MAX 240471004-403](https://remax-malta.com/listings/for-sale/north/mellieha/villa-detached/240471004-403) |
+| Shell form | Villa jumelée 3 chambres | Santa Maria Estate | — | **2 400 000 €** | [fiche → Christie's 007516](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa/santa-maria-estate/3-bed-villa/007516) |
+| Shell form | Villas détachées | Mellieħa | — | **≈ 2 950 000 €** | [liste → Malta Homes — filtre Shell Form](https://malta-homes.com/property-feature/shell-form/) |
+| Shell form | Villa 4 ch. / 4 sdb <br><sub>Repérer par le prix sur la page Santa Maria Estate</sub> | Santa Maria Estate | — | **1 400 000 €** | [liste → Christie's — Santa Maria Estate](https://christiesrealestatemalta.com/residential/property-for-sale/malta/in/santa-maria-estate) |
+| Shell form | Villa jumelée 4 ch. / 6 sdb, 1 garage <br><sub>Repérer par la surface (500 m²)</sub> | Mellieħa | 500 m² | **1,40 – 1,50 M€** | [liste → Homes In Malta — filtre Shell Form](https://homesinmalta.com/feature/shell-form/) |
+| Shell form | Villa neuve détachée <br><sub>Personnalisation intégrale</sub> | Santa Maria Estate | Terrain 1 023 m² | Prix non publié | [liste → PropertyMarket — villas Mellieħa](https://www.propertymarket.com.mt/for-sale/villas-in-mellieha/) |
+| Shell form | Villa détachée — option finition | Mellieħa | — | Prix non publié | [liste → Simon Mamo — villas Malte](https://www.simonmamo.com/villas-for-sale-in-malta/) |
+| Shell form | Villa détachée | Mellieħa | — | Prix non publié | [fiche → Perry DV600211](https://www.perry.com.mt/malta-property/sales/mellieha/DV600211/) |
+| Shell form | Villa détachée | Mellieħa | — | Prix non publié | [fiche → RE/MAX 240171030-493](https://remax-malta.com/listings/for-sale/north/mellieha/villa-detached/240171030-493) |
+| Fini | Ensemble de 4 villas jumelées neuves — 4 ch., finitions contemporaines, vue mer et falaises <br><sub>Prix pour l'ensemble</sub> | Santa Maria Estate, Mellieħa | — | **11 000 000 €** | [liste → RE/MAX — listings](https://remax-malta.com/listings) |
+| Fini | Villa neuve détachée — piscine à débordement zero-edge, grand espace de réception <br><sub>Vendue entièrement finie</sub> | Santa Maria Estate, Mellieħa | — | **2 950 000 €** | [fiche → RE/MAX 240171030-335](https://remax-malta.com/listings/for-sale/north/mellieha/villa-detached/240171030-335) |
+| Fini | Villa détachée finie, 4 chambres | Santa Maria Estate | — | Prix non publié | [fiche → Christie's 005891](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa/santa-maria-estate/4-bed-villa/005891) |
+
+### Madliena · Swieqi · Ibraġġ
+
+| État | Bien | Localité | Surface / terrain | Prix | Lien |
+|---|---|---|---|---|---|
+| Shell form | Villa jumelée — sous-sol : grand garage, flatlet, salle de jeux <br><sub>Programme de 4 villas</sub> | Madliena | Terrain 500 m² | **3 200 000 €** | [fiche → Perry SV600230](https://www.perry.com.mt/malta-property/sales/madliena/SV600230/) |
+| Shell form | Villa jumelée — même programme | Madliena | Terrain 500 m² | Prix non publié | [fiche → Perry SV600242](https://www.perry.com.mt/malta-property/sales/madliena/SV600242/) |
+| Shell form | Villa jumelée — même programme | High Ridge, Madliena | Terrain 500 m² | Prix non publié | [fiche → Perry SV600168](https://www.perry.com.mt/malta-property/sales/high-ridge-madliena/SV600168/) |
+| Shell form | Villa jumelée <br><sub>Programme du promoteur ICI</sub> | Ibraġġ | — | **3 400 000 €** | [fiche → ICI — villa jumelée Ibraġġ](https://ici.com.mt/semi-detached-villa-in-ibragg/) <br>[liste → Christie's — Ibraġġ](https://christiesrealestatemalta.com/residential/property-for-sale/malta/in/ibragg) |
+| Shell form | Villa avec piscine et jardin <br><sub>Repérer par le terrain (500 m²)</sub> | High Ridge, Swieqi | Terrain 500 m² | **≈ 2 050 000 €** | [liste → Malta Homes — filtre Shell Form](https://malta-homes.com/property-feature/shell-form/) |
+| Shell form | Villa 4 ch. / 5 sdb, piscine, grand jardin et terrasse <br><sub>Construite en 2023 — Triq il-Pinta</sub> | Victoria Gardens, Ibraġġ | 690 m² bâtis · terrain 530 m² | **1 800 000 €** | [fiche → Homes In Malta 21126](https://homesinmalta.com/property/victoria-gardens-villa-in-shell-form-21126/) |
+| Shell form | Villa entièrement détachée 3 ch. — vues campagne et mer, piscine et deck <br><sub>Option finition à coût pré-convenu</sub> | Madliena | Terrain 906 m² | Prix non publié | [liste → PropertyMarket — villas Madliena](https://www.propertymarket.com.mt/for-sale/villas-in-madliena/) |
+| Shell form | Villa moderne vendue sur plan <br><sub>Option finition</sub> | Madliena | Terrain 536 m² | Prix non publié | [fiche → Just Properties](https://www.justproperties.com.mt/properties/madliena-villa-sale-2/) |
+| Fini | Villa d'architecte détachée, 3 ch. / 4 sdb, garage | Madliena | 700+ m² dont 485 m² intérieur | Sur demande | [fiche → Christie's 007994](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa/madliena/3-bed-villa/007994) |
+| Fini | Villa détachée finie | High Ridge, Madliena | — | Prix non publié | [fiche → Perry DV01375](https://www.perry.com.mt/malta-property/sales/high-ridge-madliena/DV01375/) |
+| Fini | Bungalow détaché fini | High Ridge, Madliena | — | Prix non publié | [fiche → Perry BD600056](https://www.perry.com.mt/malta-property/sales/high-ridge-madliena/BD600056/) |
+| Fini | Villa détachée | Madliena | — | Prix non publié | [fiche → Perry DV01241](https://www.perry.com.mt/malta-property/sales/madliena/DV01241/) |
+| Fini | Villa meublée 4 chambres | Madliena | — | Prix non publié | [fiche → Christie's 005015](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa/madliena/4-bed-villa/005015) |
+| Fini | Villa détachée finie, 4 chambres | Ibraġġ | — | Prix non publié | [fiche → Christie's 000250](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa/ibragg/4-bed-villa/000250) |
+| Fini | Villa jumelée « Ready Built » | Madliena | — | Prix non publié | [fiche → Just Properties](https://www.justproperties.com.mt/properties/madliena-villa-sale/) |
+| Fini | Villa par Excel Homes | Victoria Gardens | — | Prix non publié | [fiche → RealEstates.mt](https://www.realestates.mt/malta/for-sale/villas/victoria-gardens/villa-in-victoria-gardens-by-excel-homes/) |
+| À vérifier | Villa exclusive 5 chambres <br><sub>État de finition à confirmer</sub> | Ibraġġ | — | **3 600 000 €** | [fiche → Christie's 007726](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa/ibragg/5-bed-villa/007726) |
+| À vérifier | Villa détachée <br><sub>État de finition à confirmer</sub> | Victoria Gardens, Swieqi | — | Prix non publié | [fiche → RE/MAX 240311001-731](https://remax-malta.com/listings/for-sale/sliema-and-st-julians-surroundings/victoria-gardens/villa-detached/240311001-731) |
+| À vérifier | Villa <br><sub>État de finition à confirmer</sub> | Victoria Gardens, Swieqi | — | Prix non publié | [fiche → Real Agents SVIL7393](https://realagents.com.mt/property/svil7393) |
+| À vérifier | Villa détachée <br><sub>État de finition à confirmer</sub> | Ta' l-Ibraġġ | — | Prix non publié | [fiche → RE/MAX 240351050-165](https://remax-malta.com/listings/240351050-165/brochure) |
+
+### Centre
+
+| État | Bien | Localité | Surface / terrain | Prix | Lien |
+|---|---|---|---|---|---|
+| Shell form | Arakati Villas — villa n°2 : garage 3/4 voitures, salle de jeux, studio, piscine privée, ch. principale en-suite + dressing <br><sub>Achèvement 2026</sub> | San Pawl tat-Tarġa | 476 m² | **1 850 000 €** | [fiche → ICI — Arakati Villas](https://ici.com.mt/arakati-villas/) |
+| Shell form | Arakati Villas — villa n°1 | San Pawl tat-Tarġa | 285 m² | ~~Vendue~~ | [fiche → ICI — Arakati Villas](https://ici.com.mt/arakati-villas/) |
+| Shell form | 2 villas jumelées | San Pawl tat-Tarġa | 280 m² chacune | **1 590 000 €** | [fiche → ICI — villas San Pawl tat-Tarġa](https://ici.com.mt/villas-in-san-pawl-tat-targa/) |
+| Shell form | 2 villas | San Pawl tat-Tarġa | — | **1 200 000 € / unité** | [liste → ICI — ventes](https://ici.com.mt/category/real-estate/property-sale/) |
+| Shell form | Villa jumelée 4 ch. / 5 sdb, 3 garages <br><sub>Repérer par la surface (238 m²)</sub> | San Pawl tat-Tarġa | 238 m² | **1,375 – 1,40 M€** | [liste → PropertyMarket — jumelées San Pawl](https://www.propertymarket.com.mt/for-sale/semi-detached-villas-in-san-pawl-tat-targa/) <br>[liste → Homes In Malta — filtre Shell Form](https://homesinmalta.com/feature/shell-form/) |
+| Shell form | Villa avec piscine et zones extérieures multiples <br><sub>Freehold + airspace inclus</sub> | San Pawl tat-Tarġa | 624 m² intérieur + 552 m² extérieur | Prix non publié | [liste → Simon Mamo — villas Malte](https://www.simonmamo.com/villas-for-sale-in-malta/) |
+| Shell form | Villa jumelée | Attard | Emprise 250 m² | **1 200 000 €** | [fiche → RE/MAX 240291010-896](https://remax-malta.com/listings/for-sale/central/attard/villa-semi-detached/240291010-896) |
+| Shell form | Villa jumelée d'angle — jardin latéral et arrière, place pour piscine | Attard | ~241 m² · 94 m² par niveau | Prix non publié | [liste → PropertyMarket — villas Attard](https://www.propertymarket.com.mt/for-sale/villas-in-attard/) |
+| Shell form | Villa jumelée 4 ch. — séjour ouvert, grand jardin et piscine | Lija | Terrain 256 m² | Prix non publié | [liste → PropertyMarket — villas Lija](https://www.propertymarket.com.mt/for-sale/villas-in-lija/) |
+| Shell form | Villa jumelée sur 3 niveaux, ascenseur interne | Lija | Terrain 265 m² | Prix non publié | [liste → PropertyMarket — villas Lija](https://www.propertymarket.com.mt/for-sale/villas-in-lija/) |
+| Shell form | Villa jumelée sur 3 niveaux, ascenseur <br><sub>En construction</sub> | Lija | Terrain 250 m² | Prix non publié | [liste → PropertyMarket — villas Lija](https://www.propertymarket.com.mt/for-sale/villas-in-lija/) |
+| Shell form | Villa jumelée 5 ch. / 5 sdb, garage <br><sub>Repérer par la surface (320 m²)</sub> | Kappara | 320 m² | **1 500 000 €** | [liste → Homes In Malta — Kappara](https://homesinmalta.com/city/kappara/) |
+| Shell form | Villa détachée 3 ch. / 4 sdb, 2 garages | San Gwann | 250 m² | **1 300 000 €** | [fiche → Perry DV600218](https://www.perry.com.mt/malta-property/sales/san-gwann/DV600218/) <br>[liste → Homes In Malta — filtre Shell Form](https://homesinmalta.com/feature/shell-form/) |
+| Shell form | Villa jumelée | Santa Venera | — | **890 000 €** | [fiche → Frank Salt 914346](https://franksalt.com.mt/property/914346/) |
+| Fini | Villas neuves en résidence fermée — jardins, grande piscine et deck, sous-sols, garages avec car-ports, 3 ch. doubles en-suite <br><sub>Livrées avec finitions extérieures : crépi, menuiseries, paysagement</sub> | Magħtab | — | **1 356 800 €** | [fiche → JMC 25270](https://maltapropertyhunt.com/maghtab/villa/jmc-25270) <br>[fiche → ICI — Maghtab Villas](https://ici.com.mt/maghtab-villas/) |
+| Fini | Villa de luxe entièrement détachée avec piscine privée | Attard | ~387 m² | **1 870 000 €** | [fiche → Excel 24247](https://maltapropertyhunt.com/attard/villa/excel-24247) |
+| Fini | Villa jumelée récemment construite — piscine et deck, coin repas, BBQ, aire de jeux <br><sub>Vendue meublée, prête à emménager</sub> | Attard | ~130 m² d'extérieur | Prix non publié | [liste → PropertyMarket — villas Attard](https://www.propertymarket.com.mt/for-sale/villas-in-attard/) |
+| Fini | Villa meublée 4 ch. / 4 sdb, garage <br><sub>Réf. Christie's 004269</sub> | Baħar iċ-Ċagħaq | — | **3 500 000 €** | [liste → Christie's — Baħar iċ-Ċagħaq](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa/in/bahar-ic-caghaq) |
+| Fini | Villa jumelée de luxe 4 ch. en-suite — cour intérieure, piscine 53 m², sous-sol (spa, salle de jeux, cinéma) <br><sub>Réf. Christie's 006646 · zone UCA</sub> | Żebbuġ | — | **1 950 000 €** | [fiche → Henley & Partners](https://www.henleyglobal.com/residence-investment/malta/real-estate/zebbug-semi-detached-villa) <br>[liste → Christie's — Żebbuġ](https://christiesrealestatemalta.com/residential/property-for-sale/malta/in/zebbug) |
+| À vérifier | Villa <br><sub>État de finition à confirmer</sub> | San Pawl tat-Tarġa, Naxxar | — | Prix non publié | [fiche → Alliance SVLL111123850](https://alliance.mt/property/villa-san-pawl-tat-targa-naxxar-svll111123850/) |
+| À vérifier | Résidence 5 chambres <br><sub>État de finition à confirmer</sub> | San Pawl tat-Tarġa | — | Prix non publié | [fiche → Christie's 007708](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa/san-pawl-tat-targa/5-bed-villa/007708) |
+| À vérifier | Villa jumelée <br><sub>État de finition à confirmer</sub> | San Gwann | — | Prix non publié | [fiche → RE/MAX 240171029-540](https://remax-malta.com/listings/for-sale/sliema-and-st-julians-surroundings/san-gwann/villa-semi-detached/240171029-540) |
+| À vérifier | Villa jumelée <br><sub>État de finition à confirmer</sub> | Żebbuġ | — | Prix non publié | [fiche → RE/MAX 240461016-81](https://remax-malta.com/listings/for-sale/central/zebbug/villa-semi-detached/240461016-81) |
+| À vérifier | Bungalow <br><sub>État de finition à confirmer</sub> | Baħar iċ-Ċagħaq | — | Prix non publié | [fiche → Homes of Quality 911960](https://www.homesofquality.com.mt/en/property-for-sale-malta/911960/bahar-ic-caghaq-bungalow) |
+
+### Campagne & Ouest
+
+| État | Bien | Localité | Surface / terrain | Prix | Lien |
+|---|---|---|---|---|---|
+| Shell form | Villa jumelée — grand garage en sous-sol, salle de sport, salle de jeux, piscine privée | Tal-Virtù, Rabat | Terrain 340 m² | **1 700 000 €** | [fiche → Property Malta P000252077](https://maltapropertyhunt.com/rabat/villa/propertymalta-P000252077) <br>[fiche → MaltaProperty 52206](https://www.maltaproperty.com/en/forsale/webshop/52206/malta-property-new-villa-with-pool-in-tal-virtu-rabat-for-sale.htm) |
+| Shell form | Villa jumelée 3 ch. / 3 sdb, garage, grand jardin <br><sub>Repérer par la surface (350 m²)</sub> | Rabat | 350 m² | **1 920 000 €** | [liste → Homes In Malta — filtre Shell Form](https://homesinmalta.com/feature/shell-form/) |
+| Shell form | Villa entièrement détachée en pleine campagne, intimité totale | Périphérie de Rabat | Terrain 2 640 m² | Prix non publié | [liste → Just Properties — Shell Form](https://www.justproperties.com.mt/amenity/shell-form/) |
+| Shell form | Villa / bungalow 4 ch. / 4 sdb — sous-sol complet, salle de jeux, deck et piscine 71 m² | Bidnija | 160 m² bâtis · 500 m² total | **1 965 000 €** | [fiche → Elite SPLS142782](https://maltapropertyhunt.com/bidnija/bungalow/elite-spls142782) |
+| Shell form | Villa jumelée — vendue en terrain nu ou construite en shell form | Bidnija | — | Prix non publié | [fiche → Mark Micallef](https://www.mark-micallef.com/property/bidnija-villa-semi-detached/) |
+| Shell form | Villas contemporaines de campagne, vues panoramiques | Bidnija | — | Prix non publié | [liste → PropertyMarket — Bidnija](https://www.propertymarket.com.mt/for-sale/bidnija/) |
+| Shell form | Bungalow détaché sur crête, vue sur vallée | Bidnija / campagne centrale | — | Prix non publié | [liste → PropertyMarket — villas](https://www.propertymarket.com.mt/for-sale/villas/) |
+| Shell form | Villa | Mġarr | — | Sur demande | [liste → Malta Homes — filtre Shell Form](https://malta-homes.com/property-feature/shell-form/) |
+| Shell form | Maison mitoyenne 3 ch. / 2 sdb, garage, piscine sur toit <br><sub>Pas une villa — même logique d'achat</sub> | Dingli | — | **620 000 €** | [fiche → Excel 57913](https://maltapropertyhunt.com/dingli/terraced-house/excel-57913) |
+| Fini | Villa 3 ch. / 2 sdb <br><sub>Repérer par le prix sur la page Rabat</sub> | Rabat | 325 m² | **1 600 000 €** | [liste → Malta Property Hunt — Rabat](https://maltapropertyhunt.com/rabat) |
+
+### Sud & Est
+
+| État | Bien | Localité | Surface / terrain | Prix | Lien |
+|---|---|---|---|---|---|
+| Shell form | Villa jumelée — option finition par le même promoteur | St Julian's | 300 m² | Prix non publié | [liste → PropertyMarket — villas St Julian's](https://www.propertymarket.com.mt/for-sale/villas-in-st-julians/) |
+| Shell form | Villa entièrement détachée, campagne ouverte, intimité totale | Żabbar (périphérie) | — | Prix non publié | [liste → Homes In Malta — filtre Shell Form](https://homesinmalta.com/feature/shell-form/) |
+| Shell form | Ferme (farmhouse) — zone Bidni | Marsascala | — | Prix non publié | [liste → PropertyMarket — villas](https://www.propertymarket.com.mt/for-sale/villas/) |
+
+### Gozo
+
+| État | Bien | Localité | Surface / terrain | Prix | Lien |
+|---|---|---|---|---|---|
+| Shell form | Sélection de villas à construire — piscine incluse, design moderne, jardins privatifs <br><sub>Prix de pré-construction</sub> | Qala | Variables | Prix non publié | [liste → Giovanni Estates — Qala](https://www.giovanniestates.com/index.php/properties/qala) |
+| Shell form | Résidence d'angle sur 4 niveaux — deck et piscine privés | Qala | 346 m² intérieur + 78 m² extérieur | Prix non publié | [liste → Giovanni Estates — Qala](https://www.giovanniestates.com/index.php/properties/qala) |
+| Shell form | Maisons rustiques avec piscine, jardin et garage en sous-sol <br><sub>Prix de pré-construction</sub> | Qala | — | Prix non publié | [liste → Giovanni Estates — Qala](https://www.giovanniestates.com/index.php/properties/qala) |
+| Advanced shell | Villa neuve — finitions en cours, pré-installation domotique <br><sub>Advanced shell form</sub> | Périphérie de Xagħra | Terrain ~580 m² | Prix non publié | [liste → Just Properties — Advanced Shell](https://www.justproperties.com.mt/amenity/advanced-shell-form/) |
+| Shell form | Maisons 4 ch. / 4-5 sdb | Xagħra | — | **725 – 800 k€** | [fiche → JC Properties XR252PT](https://jcpropertiesmalta.com/xr252pt/) |
+| Shell form | House of Character | Xagħra | — | **698 000 €** | [liste → JC Properties](https://jcpropertiesmalta.com/) |
+| Shell form | Maison avec piscine et vues | Xagħra | — | **360 000 €** | [fiche → JC Properties XR170CB](https://jcpropertiesmalta.com/xr170cb/) |
+| Shell form | House of Character 4 chambres | Victoria (Rabat), Gozo | — | Prix non publié | [fiche → Christie's 007806](https://christiesrealestatemalta.com/residential/property-for-sale/malta/house-of-character/victoria-gozo/4-bed-house-of-character/007806) |
+| Shell form | Maison 4 ch. / 3 sdb | Xewkija | — | **390 000 €** | [liste → PropertyMarket — Gozo](https://www.propertymarket.com.mt/gozo/) |
+| Shell form | Maison 3 ch. / 3 sdb | Sannat | — | **390 000 €** | [liste → PropertyMarket — Sannat](https://www.propertymarket.com.mt/for-sale/gozo-sannat/) |
+| Shell form | Maison 3 chambres | Għajnsielem | — | **430 000 €** | [liste → PropertyMarket — Gozo](https://www.propertymarket.com.mt/gozo/) |
+| Shell form | Ferme authentique convertie — arcades, poutres, piscine intérieure, 3 ch. doubles (2 en-suite) | Nadur | — | Prix non publié | [fiche → Giovanni Estates 2649](https://www.giovanniestates.com/index.php/properties/farmhouse-2649) |
+
+### Multi-localités
+
+| État | Bien | Localité | Surface / terrain | Prix | Lien |
+|---|---|---|---|---|---|
+| Shell form | Villas shell 3-4 ch. / 4-5 sdb — inventaire agence <br><sub>432 biens en état shell au catalogue</sub> | Localités variées | — | **730 – 945 k€** | [liste → Future Properties — label Shell](https://futurepropertiesmalta.com/label/shell/) |
+| Shell form | 2 villas jumelées neuves <br><sub>Localité à confirmer</sub> | Malte | — | Prix non publié | [fiche → ERA 5004005-751](https://www.eramalta.com/listingDetails/5004005-751?lan=en-US) |
+| Shell form | 2 villas jumelées <br><sub>Localité à confirmer</sub> | Malte | — | Prix non publié | [fiche → ERA 5004005-879](https://www.eramalta.com/listingDetails/5004005-879?lan=en-US) |
 
 ---
 
-## 3. Centre — Attard, Lija, Naxxar, San Pawl tat-Tarġa, Kappara, San Gwann
-
-| # | Bien | Localité | État | Surface / terrain | Prix | Source |
-|---|------|----------|------|-------------------|------|--------|
-| 24 | Villa jumelée, emprise 250 m² | Attard | Shell form | 250 m² | **1 200 000 €** | [RE/MAX 240291010-896](https://remax-malta.com/listings/for-sale/central/attard/villa-semi-detached/240291010-896) |
-| 25 | Villa jumelée d'angle, jardin latéral + arrière (place pour piscine) | Attard | Shell form | ~241 m² (94 m² / niveau) | n.c. | [PropertyMarket — villas Attard](https://www.propertymarket.com.mt/for-sale/villas-in-attard/) |
-| 26 | Villa jumelée 4 ch., cuisine/salon/SAM ouverts, grand jardin + piscine | Lija | Shell form | Terrain 256 m² | n.c. | [PropertyMarket — villas Lija](https://www.propertymarket.com.mt/for-sale/villas-in-lija/) |
-| 27 | Villa jumelée sur 3 niveaux, ascenseur interne | Lija | Shell form | Terrain 265 m² | n.c. | [PropertyMarket — villas Lija](https://www.propertymarket.com.mt/for-sale/villas-in-lija/) |
-| 28 | Villa jumelée sur 3 niveaux, ascenseur, en construction | Lija | Shell form | Terrain 250 m² | n.c. | [PropertyMarket — villas Lija](https://www.propertymarket.com.mt/for-sale/villas-in-lija/) |
-| 29 | **Arakati Villas — Villa n°2** : garage 3/4 voitures, salle de jeux, studio, piscine privée, ch. principale en-suite + dressing, 2 ch. secondaires en-suite | San Pawl tat-Tarġa | Shell form — achèvement **2026** | 476 m² | **1 850 000 €** | [ICI Malta — Arakati Villas](https://ici.com.mt/arakati-villas/) |
-| 30 | Arakati Villas — Villa n°1 | San Pawl tat-Tarġa | Shell form | 285 m² | **VENDUE** | [ICI Malta](https://ici.com.mt/arakati-villas/) |
-| 31 | 2 villas jumelées | San Pawl tat-Tarġa | Shell form | 280 m² chacune | **1 590 000 €** | [ICI — Villas in San Pawl Tat Targa](https://ici.com.mt/villas-in-san-pawl-tat-targa/) |
-| 32 | 2 villas | San Pawl tat-Tarġa | Shell form | n.c. | **1 200 000 €** / unité | [ICI Malta — Property Sale](https://ici.com.mt/category/real-estate/property-sale/) |
-| 33 | Villa jumelée 4 ch. / 5 sdb, 3 garages | San Pawl tat-Tarġa | Shell form | 238 m² | **1 375 000 – 1 400 000 €** | [Homes In Malta — Shell Form](https://homesinmalta.com/feature/shell-form/) |
-| 34 | Villa avec piscine + zones extérieures multiples, **freehold + airspace** | San Pawl tat-Tarġa | Shell form | 624 m² intérieur + 552 m² extérieur | n.c. | [Simon Mamo](https://www.simonmamo.com/villas-for-sale-in-malta/) |
-| 35 | Villa | San Pawl tat-Tarġa, Naxxar | à confirmer | n.c. | n.c. | [Alliance SVLL111123850](https://alliance.mt/property/villa-san-pawl-tat-targa-naxxar-svll111123850/) · [Real Agents SVIL4066](https://realagents.com.mt/property/svil4066) |
-| 36 | Villa jumelée 5 ch. / 5 sdb, garage | Kappara | Shell form | 320 m² | **1 500 000 €** | [Homes In Malta — Shell Form](https://homesinmalta.com/feature/shell-form/) |
-| 37 | Villa détachée 3 ch. / 4 sdb, 2 garages | San Gwann | Shell form | 250 m² | **1 300 000 €** | [Homes In Malta — Shell Form](https://homesinmalta.com/feature/shell-form/) |
-| 38 | Villa jumelée | Santa Venera | Shell form | n.c. | **890 000 €** | [Frank Salt 914346](https://franksalt.com.mt/property/914346/) |
-| 39 | 2 villas jumelées neuves | Malte (localité à confirmer) | Shell form | n.c. | n.c. | [ERA Malta 5004005-751](https://www.eramalta.com/listingDetails/5004005-751?lan=en-US) |
-| 40 | 2 villas jumelées | Malte (localité à confirmer) | Shell form | n.c. | n.c. | [ERA Malta 5004005-879](https://www.eramalta.com/listingDetails/5004005-879?lan=en-US) |
-
----
-
-## 4. Campagne / Ouest — Rabat, Bidnija, Mġarr, Żabbar, Dingli
-
-| # | Bien | Localité | État | Surface / terrain | Prix | Source |
-|---|------|----------|------|-------------------|------|--------|
-| 41 | Villa jumelée, grand garage en sous-sol, salle de sport, salle de jeux, piscine privée, cuisine/salon/SAM ouverts | Tal-Virtù, Rabat | Shell form | Terrain 340 m² | **1 700 000 €** | [Malta Property Hunt P000252077](https://maltapropertyhunt.com/rabat/villa/propertymalta-P000252077) |
-| 42 | Villa jumelée 3 ch. / 3 sdb, garage | Rabat | Shell form | 350 m² | **1 920 000 €** | [Homes In Malta — Shell Form](https://homesinmalta.com/feature/shell-form/) |
-| 43 | Villa entièrement détachée, pleine campagne, intimité totale | Périphérie de Rabat | Shell form | Terrain **2 640 m²** | n.c. | [Just Properties — Shell Form](https://www.justproperties.com.mt/amenity/shell-form/) |
-| 44 | Villa/bungalow 4 ch. / 4 sdb, sous-sol complet, salle de jeux, deck + piscine 71 m² | Bidnija | Shell form | 160 m² bâtis / 500 m² total | **1 965 000 €** | [Malta Property Hunt SPLS142782](https://maltapropertyhunt.com/bidnija/bungalow/elite-spls142782) |
-| 45 | Villa jumelée — vendue **en terrain nu ou construite en shell form** | Bidnija | Terrain ou shell form | n.c. | n.c. | [Mark Micallef — Bidnija](https://www.mark-micallef.com/property/bidnija-villa-semi-detached/) |
-| 46 | Villas contemporaines de campagne, vues panoramiques | Bidnija | Shell form | n.c. | n.c. | [PropertyMarket — Bidnija](https://www.propertymarket.com.mt/for-sale/bidnija/) |
-| 47 | Bungalow détaché sur crête, vue vallée | Bidnija / campagne centrale | Shell form | n.c. | n.c. | [PropertyMarket — villas](https://www.propertymarket.com.mt/for-sale/villas/) |
-| 48 | Villa | Mġarr | Shell form | n.c. | Sur demande | [Malta Homes — Shell Form](https://malta-homes.com/property-feature/shell-form/) |
-| 49 | Villa entièrement détachée, campagne ouverte, intimité totale | Żabbar (périphérie) | Shell form | n.c. | n.c. | [Homes In Malta — Shell Form](https://homesinmalta.com/feature/shell-form/) |
-| 50 | Maison mitoyenne 3 ch. / 2 sdb + garage, piscine sur toit *(pas une villa, mais même logique d'achat)* | Dingli | Shell form | n.c. | **620 000 €** | [Malta Property Hunt EXCEL-57913](https://maltapropertyhunt.com/dingli/terraced-house/excel-57913) |
-
----
-
-## 5. Sud & Est — St Julian's, Marsascala
-
-| # | Bien | Localité | État | Surface / terrain | Prix | Source |
-|---|------|----------|------|-------------------|------|--------|
-| 51 | Villa jumelée | St Julian's | Shell form, **option finition par le même promoteur** | 300 m² | n.c. | [PropertyMarket — villas St Julian's](https://www.propertymarket.com.mt/for-sale/villas-in-st-julians/) |
-| 52 | Ferme (farmhouse) — zone Bidni | Marsascala | Shell form | n.c. | n.c. | [PropertyMarket — villas](https://www.propertymarket.com.mt/for-sale/villas/) |
-
----
-
-## 6. Gozo — le meilleur rapport prix/surface en shell form
-
-| # | Bien | Localité | État | Surface / terrain | Prix | Source |
-|---|------|----------|------|-------------------|------|--------|
-| 53 | Sélection de villas à construire, piscine incluse, design moderne, jardins privatifs | Qala | Shell form (pré-construction) | Variables | Prix pré-construction | [Giovanni Estates — Qala](https://www.giovanniestates.com/index.php/properties/qala) |
-| 54 | Résidence d'angle sur 4 niveaux, deck + piscine privés | Qala | Shell form | 346 m² intérieur + 78 m² extérieur | n.c. | [Giovanni Estates](https://www.giovanniestates.com/) |
-| 55 | Maisons rustiques avec piscine, jardin, garage en sous-sol | Qala | Shell form, prix pré-construction | n.c. | n.c. | [Giovanni Estates](https://www.giovanniestates.com/) |
-| 56 | Villa neuve, préparation domotique, finitions en cours | Périphérie de Xagħra | **Advanced shell form** | Terrain ~580 m² | n.c. | [Just Properties — Advanced Shell Form](https://www.justproperties.com.mt/amenity/advanced-shell-form/) |
-| 57 | Maisons 4 ch. / 4-5 sdb | Xagħra | Shell form | n.c. | **725 000 – 800 000 €** | [JC Properties XR252PT](https://jcpropertiesmalta.com/xr252pt/) |
-| 58 | House of Character | Xagħra | Shell form | n.c. | **698 000 €** | [JC Properties](https://jcpropertiesmalta.com/) |
-| 59 | Maison avec piscine et vues | Xagħra | Shell form | n.c. | **360 000 €** | [JC Properties XR170CB](https://jcpropertiesmalta.com/xr170cb/) |
-| 60 | Maison 4 ch. / 3 sdb | Xewkija | Shell form | n.c. | **390 000 €** | [PropertyMarket — Gozo](https://www.propertymarket.com.mt/gozo/) |
-| 61 | Maison 3 ch. / 3 sdb | Sannat | Shell form | n.c. | **390 000 €** | [PropertyMarket — Sannat](https://www.propertymarket.com.mt/for-sale/gozo-sannat/) |
-| 62 | Maison 3 ch. | Għajnsielem | Shell form | n.c. | **430 000 €** | [PropertyMarket — Gozo](https://www.propertymarket.com.mt/gozo/) |
-| 63 | Ferme authentique convertie : arcades, poutres, piscine intérieure, 3 ch. doubles (2 en-suite), cour | Nadur | Shell form | n.c. | n.c. | [Giovanni Estates 2649](https://www.giovanniestates.com/index.php/properties/farmhouse-2649) |
-
----
-
-## 7. Fraîchement finies / neuves livrées finies
-
-| # | Bien | Localité | État | Surface | Prix | Source |
-|---|------|----------|------|---------|------|--------|
-| 64 | **Ensemble de 4 villas jumelées neuves**, 4 chambres, finitions contemporaines haut de gamme, vues mer et falaises | Santa Maria Estate, Mellieħa | Neuf **fini** | n.c. | **11 000 000 €** (ensemble) | [RE/MAX Malta](https://remax-malta.com/listings) |
-| 65 | Villa neuve entièrement détachée, grand espace de réception extérieur, **piscine à débordement zero-edge** | Santa Maria Estate, Mellieħa | Neuf, **vendue entièrement finie** | n.c. | **2 950 000 €** | [RE/MAX 240171030-335](https://remax-malta.com/listings/for-sale/north/mellieha/villa-detached/240171030-335) |
-| 66 | **Villas neuves exclusives en résidence fermée (gated community)** : jardins, grande piscine + deck, sous-sols, garages de plain-pied avec car-ports, 3 ch. doubles en-suite. *Livrées avec finitions extérieures (crépi, menuiseries, aménagement paysager)* | Magħtab | Neuf — pré-construction, finitions **extérieures** incluses | n.c. | **1 356 800 €** | [Malta Property Hunt / JMC 25270](https://maltapropertyhunt.com/maghtab/villa/jmc-25270) · [ICI — Maghtab Villas](https://ici.com.mt/maghtab-villas/) |
-| 67 | Villa de luxe entièrement détachée avec piscine privée | Attard | Finie | ~387 m² | **1 870 000 €** | [Malta Property Hunt EXCEL-24247](https://maltapropertyhunt.com/attard/villa/excel-24247) |
-| 68 | Villa jumelée **récemment construite**, très lumineuse — piscine + deck, coin repas, BBQ, aire de jeux (~130 m² extérieur). **Vendue entièrement meublée, prête à emménager** | Attard | Neuve finie + meublée | n.c. | n.c. | [PropertyMarket — villas Attard](https://www.propertymarket.com.mt/for-sale/villas-in-attard/) |
-| 69 | Villa d'architecte détachée d'exception, 3 ch. / 4 sdb, garage | Madliena | Finie | 700+ m² dont 485 m² intérieur + 650 m² extérieur | Sur demande | [Christie's 007994](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa/madliena/3-bed-villa/007994) |
-| 70 | Villa détachée finie | High Ridge, Madliena | Finie | n.c. | n.c. | [Perry DV01375](https://www.perry.com.mt/malta-property/sales/high-ridge-madliena/DV01375/) |
-| 71 | Bungalow détaché fini | High Ridge, Madliena | Fini | n.c. | n.c. | [Perry BD600056](https://www.perry.com.mt/malta-property/sales/high-ridge-madliena/BD600056/) |
-| 72 | Villa détachée | Madliena | Finie | n.c. | n.c. | [Perry DV01241](https://www.perry.com.mt/malta-property/sales/madliena/DV01241/) |
-| 73 | Villa meublée 4 chambres | Madliena | Finie + meublée | n.c. | n.c. | [Christie's 005015](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa/madliena/4-bed-villa/005015) |
-| 74 | Villa meublée | Baħar iċ-Ċagħaq | Finie + meublée | n.c. | **3 500 000 €** | [Christie's — villas](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa) |
-| 75 | Villa jumelée de luxe | Żebbuġ | Finie | n.c. | **1 950 000 €** | [Christie's — villas](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa) |
-| 76 | Villa 3 ch. / 2 sdb | Rabat | Finie | 325 m² | **1 600 000 €** | [Malta Property Hunt — Rabat](https://maltapropertyhunt.com/rabat) |
-| 77 | Villa jumelée « Ready Built » | Madliena | Construite / finie | n.c. | n.c. | [Just Properties — Madliena Ready Built](https://www.justproperties.com.mt/properties/madliena-villa-sale/) |
-| 78 | Villa par Excel Homes | Victoria Gardens | Neuve | n.c. | n.c. | [RealEstates.mt](https://www.realestates.mt/malta/for-sale/villas/victoria-gardens/villa-in-victoria-gardens-by-excel-homes/) |
-| 79 | Villas shell (3-4 ch. / 4-5 sdb) — inventaire agence | Malte, localités variées | Shell | n.c. | **730 000 – 945 000 €** | [Future Properties — Shell](https://futurepropertiesmalta.com/label/shell/) |
-| 80 | Bungalow | Baħar iċ-Ċagħaq | à confirmer | n.c. | n.c. | [Homes of Quality 911960](https://www.homesofquality.com.mt/en/property-for-sale-malta/911960/bahar-ic-caghaq-bungalow) |
-
----
-
-## 8. Pages de recherche à ouvrir directement (filtres « shell form » déjà appliqués)
+## Pages de recherche à ouvrir directement (filtres « shell form » déjà appliqués)
 
 Ces pages sont mises à jour quotidiennement et contiennent l'inventaire complet et actuel — c'est
-la façon la plus fiable de compléter et vérifier la liste ci-dessus.
+la façon la plus fiable de compléter la liste ci-dessus et de retrouver les biens dont seul un
+lien `liste →` est disponible.
 
 **Portails spécialisés shell form**
 - [ShellFormProperties.com](https://shellformproperties.com/) — portail 100 % shell form (appartements, penthouses, villas), Malte + Gozo
@@ -169,12 +176,12 @@ la façon la plus fiable de compléter et vérifier la liste ci-dessus.
 - [Frank Salt — villas](https://franksalt.com.mt/property-types/villas-for-sale-in-malta/)
 - [Christie's Malta — villas](https://christiesrealestatemalta.com/residential/property-for-sale/malta/villa)
 - [Malta Sotheby's — villas](https://www.maltasothebysrealty.com/property-for-sale/property-type/villas)
-- [Perry Estate Agents](https://www.perry.com.mt/properties/) — nomenclature très pratique : `SV` = semi-detached villa, `DV` = detached villa, et l'état (« Shell form » / « Finished » / « Furnished ») figure dans le titre de chaque fiche
+- [Perry Estate Agents](https://www.perry.com.mt/properties/) — nomenclature très pratique : `SV` = semi-detached villa, `DV` = detached villa, `BD` = bungalow, et l'état (« Shell form » / « Finished » / « Furnished ») figure dans le titre de chaque fiche
 - [Simon Mamo — villas Malte](https://www.simonmamo.com/villas-for-sale-in-malta/) · [villas Gozo](https://www.simonmamo.com/villas-for-sale-in-gozo/)
 - [Alliance Real Estate](https://alliance.mt/for-sale/) · [Sara Grech](https://saragrech.com/property/) · [Belair](https://belair.com.mt/) · [Homes of Quality — villas](https://www.homesofquality.com.mt/en/property-for-sale/villas-malta) · [Excel Homes](https://excel.com.mt/) · [Arcus Estates — villas de luxe](https://arcusestates.com/en/luxury-villas-for-sale-in-malta) · [Darna](https://darna.homes/)
 
 **Promoteurs / constructeurs (achat direct, sans agence)**
-- [ICI Malta — ventes](https://ici.com.mt/category/real-estate/property-sale/) — promoteur-constructeur : programmes Arakati Villas (San Pawl tat-Tarġa), Maghtab Villas, Victoria Gardens Villa. Ils construisent **et** finissent : intéressant pour négocier un package shell + finition.
+- [ICI Malta — ventes](https://ici.com.mt/category/real-estate/property-sale/) — promoteur-constructeur : programmes Arakati Villas (San Pawl tat-Tarġa), Maghtab Villas, Victoria Gardens Villa, villa jumelée d'Ibraġġ. Ils construisent **et** finissent : intéressant pour négocier un package shell + finition.
 - [JMC Real Estate — Magħtab](https://jmcrealestate.com.mt/property_location/maghtab/)
 
 **Gozo**
@@ -182,7 +189,7 @@ la façon la plus fiable de compléter et vérifier la liste ci-dessus.
 
 ---
 
-## 9. Lecture du marché
+## Lecture du marché
 
 **Fourchettes de prix constatées (villas shell form)**
 
@@ -197,14 +204,15 @@ la façon la plus fiable de compléter et vérifier la liste ci-dessus.
 **Points à vérifier avant toute offre**
 
 1. **Périmètre exact du « shell form ».** Le terme n'est pas normé à Malte. Selon les promoteurs il inclut ou non : crépi extérieur, menuiseries/fenêtres, chapes, pré-installations électriques et plomberie, piscine creusée. Ex. : les villas de Magħtab sont livrées **avec** finitions extérieures et aménagement paysager, ce qui n'est pas le cas partout. Faire lister le périmètre par écrit dans le contrat.
-2. **Option « finition par le promoteur ».** Plusieurs biens (Madliena n°18, St Julian's n°51, Mellieħa n°10) proposent une finition à coût pré-convenu — souvent plus intéressant que de gérer soi-même les corps de métier depuis l'étranger.
-3. **Dates de livraison à re-confirmer.** Plusieurs annonces annonçaient « fin 2025 » ou « T1 2026 » : ces échéances sont passées ou imminentes à la date de cette recherche. Demander l'état d'avancement réel et la date contractuelle.
+2. **Option « finition par le promoteur ».** Plusieurs biens (Madliena, St Julian's, Mellieħa) proposent une finition à coût pré-convenu — souvent plus intéressant que de gérer soi-même les corps de métier depuis l'étranger.
+3. **Dates de livraison à re-confirmer.** Plusieurs annonces annonçaient « fin 2025 » ou « T1 2026 » : ces échéances sont passées à la date de cette recherche. Demander l'état d'avancement réel et la date contractuelle.
 4. **AIP / SDA.** Un acheteur non-résident UE a besoin d'un permis AIP hors zones SDA. **Santa Maria Estate est une zone SDA** (achat libre, revente et location sans restriction) — d'où la prime de prix. Les autres localités de cette liste ne le sont pas.
-5. **Freehold vs ground rent.** Vérifier systématiquement (la villa de San Pawl tat-Tarġa n°34 est explicitement freehold + airspace, ce n'est pas le cas général).
+5. **Freehold vs ground rent.** Vérifier systématiquement (la villa de San Pawl tat-Tarġa de 624 m² est explicitement freehold + airspace, ce n'est pas le cas général).
 6. **Airspace.** Sa détention conditionne toute extension future ou la construction d'un niveau supplémentaire.
 
 ---
 
-*Recensement établi le 7 août 2026. 80 biens identifiés — 60 en shell form / advanced shell form,
-15 neufs finis ou fraîchement finis, 5 dont l'état de finition reste à confirmer. Données issues
-de l'indexation des portails maltais ; prix et disponibilités à confirmer auprès de chaque agence.*
+*Recensement établi le 7 août 2026. 86 biens — 60 en shell form ou advanced shell form, 17 neufs
+finis ou fraîchement finis, 9 dont l'état de finition reste à confirmer. 50 liens mènent à la fiche
+du bien, 36 à la page de résultats où il a été relevé. Données issues de l'indexation des portails
+maltais ; prix et disponibilités à confirmer auprès de chaque agence.*
