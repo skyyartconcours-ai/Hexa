@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import { config } from '../config.js';
 import { buildProfile, isOptedOut, lastRoastAt, pastRoastsFor, saveRoast } from '../db.js';
 import { log } from '../log.js';
@@ -291,7 +292,9 @@ export class RoastQueue extends EventEmitter {
       user: next.trigger.userName,
       eventType: next.trigger.type,
       text: next.text,
-      audioUrl: next.audioPath ? `/audio/${next.id}.mp3` : null,
+      // L'extension depend du fournisseur de voix : on la derive du fichier
+      // reellement ecrit plutot que de la supposer.
+      audioUrl: next.audioPath ? `/audio/${path.basename(next.audioPath)}` : null,
     });
     this.emit('spoken', next);
     this.broadcast();

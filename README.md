@@ -44,6 +44,7 @@ Twitch EventSub ──► file d'attente ──► Claude ──► filtre sécu
 npm install
 cp .env.example .env      # puis remplis .env
 npm run login             # ouvre le flux Twitch : une URL + un code à taper
+npm run backfill          # importe le chat de tes VODs (voir plus bas)
 npm start
 ```
 
@@ -66,21 +67,51 @@ La régie est sur `http://localhost:4747/control` (à ouvrir sur ton second écr
 
 ## Le point important : l'historique du chat
 
-**Twitch ne fournit aucune API pour lire les messages passés d'un viewer.** Ni les
-tiens, ni ceux des autres. C'est la contrainte structurelle du projet.
+**Twitch ne fournit aucune API pour lire les messages passés d'un viewer, quel
+que soit le niveau de permission du token.** Être le broadcaster ne change rien :
+l'endpoint n'existe pas. Les « messages récents » que tu vois en cliquant sur un
+pseudo dans l'interface Twitch sont une petite fenêtre servie par un endpoint
+interne du site, pas quelque chose d'interrogeable.
 
-Hexa contourne ça en **loggant lui-même** le chat via EventSub, dans une base
-SQLite locale (`data/hexa.db`). Conséquence directe :
+Hexa a donc **deux** sources d'historique, complémentaires.
 
-> **Les premières sessions donneront des vannes basées surtout sur le pseudo.**
-> Laisse tourner `npm start` en fond pendant quelques streams avant ta première
-> session de roast — la qualité des vannes monte avec la quantité d'historique.
+### 1. Le log en direct (automatique)
 
-Ce qui est conservé : `user_id`, pseudo, texte du message, horodatage.
-Ce qui est jeté à l'entrée : commandes (`!…`), messages contenant des liens.
-Rétention : 30 jours par défaut (`CHAT_RETENTION_DAYS`), purge automatique.
-Tout reste sur ta machine, rien n'est envoyé ailleurs que dans le prompt de la
-vanne concernée.
+Dès que `npm start` tourne, chaque message du chat est enregistré dans une base
+SQLite locale (`data/hexa.db`) via EventSub. Ce qui est conservé : `user_id`,
+pseudo, texte, horodatage. Ce qui est jeté à l'entrée : commandes (`!…`) et
+messages contenant des liens. Rétention 30 jours (`CHAT_RETENTION_DAYS`), purge
+automatique. Tout reste sur ta machine.
+
+### 2. L'import de tes VODs (rétroactif) — `npm run backfill`
+
+C'est le seul moyen de récupérer de l'historique **sans attendre**. Le rejeu de
+chat de tes rediffusions contient l'intégralité des messages de chaque stream
+passé ; l'import les verse dans la même base.
+
+```bash
+npm run backfill                  # les 20 dernières VODs
+npm run backfill -- --vods 50     # les 50 dernières
+npm run backfill -- --force       # réimporte celles déjà faites
+```
+
+Les VODs déjà importées sont mémorisées, donc relancer la commande ne compte
+jamais deux fois les mêmes messages. Une poignée de VODs suffit généralement à
+faire passer les vannes du registre « ton pseudo est bizarre » à quelque chose
+qui vise juste.
+
+> ⚠️ **Cet import ne passe pas par l'API officielle.** Il n'y en a pas pour ça. Il
+> utilise l'API GraphQL interne du lecteur web Twitch — celle qu'utilisent tous
+> les outils de téléchargement de chat de VOD. Elle n'est pas documentée et peut
+> changer sans préavis. L'import est donc **manuel et ponctuel**, limité à tes
+> propres VODs (dont le chat est déjà public dans le lecteur), et volontairement
+> lent. S'il casse un jour, le reste de l'outil continue de tourner sur le log en
+> direct.
+
+**Prérequis :** les rediffusions doivent être activées sur ta chaîne. Sans VOD,
+il n'y a rien à importer. Durée de conservation côté Twitch : 60 jours pour les
+partenaires et affiliés, 14 jours sinon — les highlights, eux, sont permanents
+mais ne sont pas des VODs de type `archive` et ne sont pas repris ici.
 
 ---
 
@@ -149,6 +180,28 @@ s'active qu'au-dessus d'un seuil qui dépend du modèle (512 tokens sur Opus 5,
 1024 sur Sonnet 5) — sur Sonnet, le prompt actuel est en dessous du seuil et ne
 sera pas mis en cache.
 
+### Choix de la voix
+
+Le TTS est interchangeable : `TTS_PROVIDER` dans `.env`, rien d'autre à toucher.
+
+| | ElevenLabs | Cartesia Sonic |
+|---|---|---|
+| Jeu d'acteur | la référence, la vanne est *jouée* | bon, plus neutre |
+| Prix à l'usage | le plus cher du marché | environ un ordre de grandeur moins cher |
+| Latence | correcte | nettement plus basse |
+| Français | natif | natif |
+
+Sur ce cas précis, la latence n'est pas un critère : la vanne fait six secondes
+et elle est générée pendant que la précédente passe à l'antenne. **Ce qui compte,
+c'est l'intonation** — une vanne mal jouée tombe à plat, quel que soit le prix au
+caractère. Commence sur ElevenLabs, teste Cartesia avec le bouton « Tester une
+vanne » de la régie, et bascule si tu n'entends pas la différence : l'économie est
+réelle sur une soirée à beaucoup de subs.
+
+Ajouter un autre fournisseur = un fichier d'une trentaine de lignes dans
+`src/tts/` qui implémente l'interface `TtsProvider`, plus une ligne dans le
+registre de `src/tts/index.ts`.
+
 ---
 
 ## Régler le ton
@@ -181,12 +234,16 @@ src/
     login.ts          `npm run login`
     api.ts            appels Helix
     eventsub.ts       WebSocket EventSub (subs, gifts, chat) + reconnexion
+    vod.ts            import du chat des VODs (API interne, voir avertissement)
+    backfill.ts       `npm run backfill`
   roast/
     prompt.ts         prompt système + construction du prompt utilisateur
     generator.ts      appel Claude, sortie structurée
     safety.ts         filtre déterministe
     queue.ts          session, file, cadence, lecture
-  tts/                ElevenLabs
+  tts/
+    provider.ts       interface commune
+    elevenlabs.ts     · cartesia.ts
   server/             API HTTP + WebSocket
 public/               overlay OBS + régie
 ```
@@ -200,23 +257,27 @@ quelle box.
 
 ## État actuel
 
-Testé : base de données et construction de profil, filtre de sécurité (blocklist,
-leetspeak, sévérité, liens, sujets signalés), assemblage du prompt, format exact
-de la requête Anthropic, garde-fou Haiku, serveur HTTP et pages.
+**Testé** : base de données et construction de profil, filtre de sécurité
+(blocklist, leetspeak, sévérité, liens, sujets signalés), assemblage du prompt,
+format exact de la requête Anthropic, garde-fou effort/Haiku, sélection du
+fournisseur TTS et format de requête Cartesia, pagination et filtrage de l'import
+de VODs (contre un serveur simulé), déduplication des VODs, serveur HTTP et pages.
 
-**Pas testé faute d'identifiants dans l'environnement de développement :** l'appel
-réel à l'API Anthropic, l'appel réel à ElevenLabs, et la connexion EventSub à
-Twitch. Ces trois chemins sont écrits d'après les spécifications des API mais
-n'ont pas encore vu de réponse réelle — prévois une session à blanc avant de
-l'utiliser en direct.
+**Pas testé faute d'identifiants dans l'environnement de développement :** les
+appels réseau réels vers Anthropic, ElevenLabs, Cartesia, et Twitch (EventSub
+comme GraphQL). Ces chemins sont écrits d'après les spécifications des API et
+leur format de requête est vérifié, mais aucun n'a encore vu de réponse réelle.
+**Prévois une session à blanc, hors stream, avant le direct.**
 
 ---
 
 ## Limites connues
 
-- **Aucun historique rétroactif.** Twitch ne le permet pas. La qualité des vannes
-  dépend du temps de log accumulé.
+- **L'historique rétroactif dépend de tes VODs.** Pas de rediffusions activées,
+  ou VODs expirées côté Twitch, et il ne reste que le log en direct.
+- **L'import de VODs passe par une API non documentée** et peut casser sans
+  préavis (voir l'avertissement plus haut).
 - **Donateurs anonymes ignorés.** Pas de pseudo, pas d'historique, pas de matière.
 - **Une seule chaîne** par instance.
-- **Le TTS coûte au caractère.** Une session de 30 minutes avec beaucoup de subs
-  peut représenter quelques milliers de caractères ElevenLabs.
+- **Le TTS coûte au caractère.** Une soirée à beaucoup de subs représente
+  quelques milliers de caractères — c'est là que le choix du fournisseur pèse.

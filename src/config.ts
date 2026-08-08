@@ -44,6 +44,11 @@ export const config = {
      * - user:write:chat            : reposter la vanne en chat (optionnel)
      */
     scopes: ['channel:read:subscriptions', 'user:read:chat', 'user:write:chat'],
+    /**
+     * Client-Id du lecteur web Twitch, utilise uniquement par l'import de VODs
+     * (API GraphQL interne, voir src/twitch/vod.ts). Rien a voir avec ton app.
+     */
+    webClientId: str('TWITCH_WEB_CLIENT_ID', 'kimne78kx3ncx6brgo4mv6wki5h1ko'),
   },
 
   anthropic: {
@@ -53,11 +58,19 @@ export const config = {
   },
 
   tts: {
-    provider: str('TTS_PROVIDER', 'none') as 'elevenlabs' | 'none',
+    provider: str('TTS_PROVIDER', 'none'),
     elevenlabs: {
       apiKey: str('ELEVENLABS_API_KEY'),
       voiceId: str('ELEVENLABS_VOICE_ID'),
       modelId: str('ELEVENLABS_MODEL_ID', 'eleven_multilingual_v2'),
+    },
+    cartesia: {
+      apiKey: str('CARTESIA_API_KEY'),
+      voiceId: str('CARTESIA_VOICE_ID'),
+      modelId: str('CARTESIA_MODEL_ID', 'sonic-3'),
+      // L'API Cartesia est versionnee par date : on la fige pour ne pas subir
+      // un changement de schema en plein live.
+      version: str('CARTESIA_VERSION', '2025-11-04'),
     },
   },
 

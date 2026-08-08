@@ -50,6 +50,38 @@ export async function getCurrentUser(): Promise<TwitchUser> {
   return user;
 }
 
+export interface TwitchVideo {
+  id: string;
+  title: string;
+  created_at: string;
+  duration: string;
+}
+
+/** VODs de rediffusion de la chaine, de la plus recente a la plus ancienne. */
+export async function listArchiveVideos(userId: string, limit = 100): Promise<TwitchVideo[]> {
+  const videos: TwitchVideo[] = [];
+  let cursor: string | undefined;
+
+  while (videos.length < limit) {
+    const query: Record<string, string> = {
+      user_id: userId,
+      type: 'archive',
+      first: String(Math.min(100, limit - videos.length)),
+    };
+    if (cursor) query['after'] = cursor;
+
+    const page = await helix<{ data: TwitchVideo[]; pagination: { cursor?: string } }>('/videos', {
+      query,
+    });
+    videos.push(...page.data);
+
+    cursor = page.pagination?.cursor;
+    if (!cursor || page.data.length === 0) break;
+  }
+
+  return videos;
+}
+
 export async function createEventSubSubscription(
   type: string,
   version: string,

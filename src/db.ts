@@ -47,6 +47,14 @@ db.exec(`
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+
+  -- VODs deja importees, pour ne pas compter deux fois les memes messages.
+  CREATE TABLE IF NOT EXISTS backfilled_vods (
+    video_id     TEXT PRIMARY KEY,
+    title        TEXT,
+    imported_at  INTEGER NOT NULL,
+    message_count INTEGER NOT NULL
+  );
 `);
 
 // ── Tokens OAuth ───────────────────────────────────────────────────────────
@@ -82,16 +90,27 @@ const stmtUpsertUser = db.prepare(`
   ON CONFLICT(user_id) DO UPDATE SET
     user_login    = excluded.user_login,
     user_name     = excluded.user_name,
-    last_seen     = excluded.last_seen,
+    -- MIN/MAX plutot qu'affectation directe : l'import de VODs insere des
+    -- messages plus anciens que ce qu'on a deja vu en direct.
+    first_seen    = MIN(users.first_seen, excluded.first_seen),
+    last_seen     = MAX(users.last_seen, excluded.last_seen),
     message_count = users.message_count + 1
 `);
 
-const recordMessageTx = db.transaction(
-  (userId: string, userLogin: string, userName: string, text: string, ts: number) => {
-    stmtInsertMessage.run(userId, userLogin, text, ts);
-    stmtUpsertUser.run({ userId, userLogin, userName, ts });
-  },
-);
+export interface ChatRecord {
+  userId: string;
+  userLogin: string;
+  userName: string;
+  text: string;
+  ts: number;
+}
+
+const recordMessageTx = db.transaction((records: ChatRecord[]) => {
+  for (const record of records) {
+    stmtInsertMessage.run(record.userId, record.userLogin, record.text, record.ts);
+    stmtUpsertUser.run(record);
+  }
+});
 
 export function recordMessage(
   userId: string,
@@ -100,7 +119,34 @@ export function recordMessage(
   text: string,
   ts = Date.now(),
 ): void {
-  recordMessageTx(userId, userLogin, userName, text, ts);
+  recordMessageTx([{ userId, userLogin, userName, text, ts }]);
+}
+
+/** Insertion en lot, pour l'import de VODs (des milliers de lignes). */
+export function recordMessages(records: ChatRecord[]): void {
+  if (records.length) recordMessageTx(records);
+}
+
+// ── Import de VODs ─────────────────────────────────────────────────────────
+
+const stmtMarkVod = db.prepare(
+  `INSERT INTO backfilled_vods (video_id, title, imported_at, message_count)
+   VALUES (?, ?, ?, ?)
+   ON CONFLICT(video_id) DO UPDATE SET
+     imported_at = excluded.imported_at,
+     message_count = excluded.message_count`,
+);
+
+const stmtVodDone = db.prepare<[string], { video_id: string }>(
+  'SELECT video_id FROM backfilled_vods WHERE video_id = ?',
+);
+
+export function isVodImported(videoId: string): boolean {
+  return stmtVodDone.get(videoId) !== undefined;
+}
+
+export function markVodImported(videoId: string, title: string, messageCount: number): void {
+  stmtMarkVod.run(videoId, title, Date.now(), messageCount);
 }
 
 // ── Opt-out ────────────────────────────────────────────────────────────────
