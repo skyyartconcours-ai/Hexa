@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hexa — overlay</title>
+    <link rel="stylesheet" href="/overlay.css" />
+  </head>
+  <body>
+    <!-- Visible uniquement dans un vrai navigateur : OBS autorise l'autoplay,
+         pas Chrome/Firefox tant qu'on n'a pas clique une fois. -->
+    <button id="unlock" class="unlock" hidden>Cliquer pour activer le son</button>
+
+    <div id="card" class="card">
+      <div class="card__glow"></div>
+      <div class="card__head">
+        <div class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+        <span id="badge" class="badge">nouveau sub</span>
+        <span id="user" class="user"></span>
+      </div>
+      <p id="text" class="text"></p>
+    </div>
+
+    <div id="status" class="status">connexion…</div>
+
+    <script src="/overlay.js"></script>
+  </body>
+</html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hexa — régie</title>
+    <link rel="stylesheet" href="/control.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="dot" id="conn"></span>
+        <h1>Hexa</h1>
+        <span class="sub">régie roast</span>
+      </div>
+      <div class="meta" id="meta"></div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <div class="session" id="session">
+          <div class="session__state">
+            <span class="pill" id="pill">hors session</span>
+            <span class="timer" id="timer">—</span>
+          </div>
+          <div class="session__actions">
+            <label class="field">
+              durée
+              <input id="minutes" type="number" min="1" max="240" value="30" />
+              <span>min</span>
+            </label>
+            <button id="start" class="btn btn--go">Lancer la session</button>
+            <button id="stop" class="btn btn--stop" hidden>Arrêter</button>
+          </div>
+        </div>
+
+        <label class="toggle">
+          <input id="autoplay" type="checkbox" />
+          <span></span>
+          <div>
+            <strong>Lecture automatique</strong>
+            <em>Décoché : tu valides chaque vanne avant qu'elle passe à l'antenne.</em>
+          </div>
+        </label>
+      </section>
+
+      <section class="panel">
+        <h2>File d'attente</h2>
+        <div id="queue" class="queue">
+          <p class="empty">Rien pour l'instant.</p>
+        </div>
+      </section>
+
+      <section class="panel panel--split">
+        <div>
+          <h2>Tester une vanne</h2>
+          <form id="test-form" class="test">
+            <input id="test-user" placeholder="pseudo d'un viewer" autocomplete="off" />
+            <button class="btn" type="submit">Générer</button>
+          </form>
+          <p class="hint">
+            Utilise un pseudo qui a déjà parlé dans ton chat pour voir la
+            personnalisation à l'œuvre.
+          </p>
+        </div>
+        <div>
+          <h2>Viewers opt-out</h2>
+          <div id="optout" class="tags"><span class="hint">personne</span></div>
+          <p class="hint">Un viewer tape <code>!noroast</code> en chat pour se retirer, <code>!roastme</code> pour revenir.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="/control.js"></script>
+  </body>
+</html>
