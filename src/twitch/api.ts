@@ -50,6 +50,61 @@ export async function getCurrentUser(): Promise<TwitchUser> {
   return user;
 }
 
+export interface TwitchSubscriber {
+  user_id: string;
+  user_login: string;
+  user_name: string;
+  tier: string;
+  is_gift: boolean;
+  gifter_name: string | null;
+}
+
+/**
+ * Liste complete des abonnes actuels de la chaine.
+ *
+ * API officielle, scope `channel:read:subscriptions` — celui qu'on a deja.
+ * Attention a ce que ca ne donne PAS : ni les messages, ni l'anciennete
+ * d'abonnement. Twitch renvoie qui est abonne, a quel palier, et qui lui a
+ * offert son sub. Rien d'autre.
+ */
+export async function listSubscribers(broadcasterId: string): Promise<TwitchSubscriber[]> {
+  const subscribers: TwitchSubscriber[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const query: Record<string, string> = { broadcaster_id: broadcasterId, first: '100' };
+    if (cursor) query['after'] = cursor;
+
+    const page = await helix<{
+      data: Array<{
+        user_id: string;
+        user_login: string;
+        user_name: string;
+        tier: string;
+        is_gift: boolean;
+        gifter_name?: string;
+      }>;
+      pagination: { cursor?: string };
+    }>('/subscriptions', { query });
+
+    for (const row of page.data) {
+      subscribers.push({
+        user_id: row.user_id,
+        user_login: row.user_login,
+        user_name: row.user_name,
+        tier: row.tier,
+        is_gift: row.is_gift === true,
+        gifter_name: row.gifter_name || null,
+      });
+    }
+
+    cursor = page.pagination?.cursor;
+    if (page.data.length === 0) break;
+  } while (cursor);
+
+  return subscribers;
+}
+
 export interface TwitchVideo {
   id: string;
   title: string;

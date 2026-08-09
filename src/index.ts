@@ -1,11 +1,19 @@
 import { config } from './config.js';
-import { forgetUser, isOptedOut, purgeOldMessages, recordMessage, setOptOut } from './db.js';
+import {
+  forgetUser,
+  isOptedOut,
+  isSubscriber,
+  purgeOldMessages,
+  recordMessage,
+  setOptOut,
+  syncSubscribers,
+} from './db.js';
 import { log } from './log.js';
 import { RoastQueue } from './roast/queue.js';
 import { loadCustomBlocklist, sanitiseChatMessage } from './roast/safety.js';
 import { startServer } from './server/index.js';
 import { clearAudioDir } from './tts/index.js';
-import { getCurrentUser, getUserByLogin, sendChatMessage } from './twitch/api.js';
+import { getCurrentUser, getUserByLogin, listSubscribers, sendChatMessage } from './twitch/api.js';
 import { hasStoredToken } from './twitch/auth.js';
 import { EventSubClient } from './twitch/eventsub.js';
 
@@ -52,6 +60,43 @@ async function main(): Promise<void> {
     });
   }
 
+  /**
+   * Photo des abonnes, via l'API officielle.
+   *
+   * Twitch donne ici QUI est abonne, a quel palier, et qui lui a offert son sub.
+   * Il ne donne NI l'anciennete d'abonnement, NI le moindre message : aucun
+   * endpoint n'expose l'historique de chat, cette liste ne le debloque pas.
+   * Ce qu'elle apporte : de la matiere a vanne des le premier jour, sans
+   * attendre d'avoir loggue quoi que ce soit.
+   */
+  const syncSubs = async (): Promise<void> => {
+    try {
+      const rows = await listSubscribers(channel.id);
+      const result = syncSubscribers(
+        rows.map((row) => ({
+          userId: row.user_id,
+          userLogin: row.user_login,
+          userName: row.user_name,
+          tier: row.tier,
+          isGift: row.is_gift,
+          gifterName: row.gifter_name,
+        })),
+      );
+      log.twitch(
+        `Abonnes synchronises : ${result.total} actifs` +
+          (result.gone ? `, ${result.gone} parti(s) depuis la derniere passe.` : '.'),
+      );
+    } catch (error) {
+      log.warn(
+        'Synchronisation des abonnes impossible :',
+        error instanceof Error ? error.message : error,
+      );
+    }
+  };
+
+  await syncSubs();
+  setInterval(() => void syncSubs(), 30 * 60_000);
+
   const eventsub = new EventSubClient(channel.id);
 
   // Le nom du dernier donateur, pour l'attacher aux receveurs qui arrivent juste apres.
@@ -81,6 +126,11 @@ async function main(): Promise<void> {
     // Quelqu'un qui s'est oppose ne doit plus etre enregistre du tout, pas
     // seulement epargne par les vannes : c'est le meme droit.
     if (isOptedOut(message.userId)) return;
+
+    // Minimisation : seuls les abonnes peuvent declencher une vanne, donc seuls
+    // eux ont une raison d'etre profiles. Sur une grosse chaine ca divise le
+    // volume collecte par un facteur important, sans rien perdre a l'usage.
+    if (config.chat.subscribersOnly && !isSubscriber(message.userId)) return;
 
     const clean = sanitiseChatMessage(message.text);
     if (!clean) return;

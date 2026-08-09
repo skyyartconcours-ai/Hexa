@@ -2,7 +2,14 @@ import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { config } from '../config.js';
-import { buildProfile, isOptedOut, lastRoastAt, pastRoastsFor, saveRoast } from '../db.js';
+import {
+  buildProfile,
+  isOptedOut,
+  lastRoastAt,
+  pastRoastsFor,
+  saveRoast,
+  subscriberFacts,
+} from '../db.js';
 import { log } from '../log.js';
 import { deleteAudio, synthesise } from '../tts/index.js';
 import { RefusedError, generateRoast } from './generator.js';
@@ -230,7 +237,12 @@ export class RoastQueue extends EventEmitter {
       );
       const history = pastRoastsFor(item.trigger.userId);
 
-      const draft = await generateRoast(item.trigger, profile, history);
+      const draft = await generateRoast(
+        item.trigger,
+        profile,
+        history,
+        subscriberFacts(item.trigger.userId),
+      );
       const verdict = checkRoast(draft);
 
       if (!verdict.ok) {

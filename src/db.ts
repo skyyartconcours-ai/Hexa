@@ -48,6 +48,21 @@ db.exec(`
     value TEXT NOT NULL
   );
 
+  -- Liste des abonnes, rafraichie depuis l'API officielle. Ne contient aucun
+  -- message : Twitch n'en expose pas. Sert a deux choses — donner de la matiere
+  -- a vanne des le premier jour (palier, qui a offert le sub), et restreindre
+  -- le log de chat aux seules personnes susceptibles d'etre roastees.
+  CREATE TABLE IF NOT EXISTS subscribers (
+    user_id     TEXT PRIMARY KEY,
+    user_login  TEXT NOT NULL,
+    user_name   TEXT NOT NULL,
+    tier        TEXT,
+    is_gift     INTEGER NOT NULL DEFAULT 0,
+    gifter_name TEXT,
+    first_seen  INTEGER NOT NULL,
+    last_seen   INTEGER NOT NULL
+  );
+
   -- VODs deja importees, pour ne pas compter deux fois les memes messages.
   CREATE TABLE IF NOT EXISTS backfilled_vods (
     video_id     TEXT PRIMARY KEY,
@@ -180,6 +195,77 @@ export function isOptedOut(userId: string): boolean {
 
 export function listOptedOut(): string[] {
   return stmtListOptedOut.all().map((row) => row.user_name);
+}
+
+// ── Abonnes ────────────────────────────────────────────────────────────────
+
+export interface SubscriberRow {
+  userId: string;
+  userLogin: string;
+  userName: string;
+  tier: string;
+  isGift: boolean;
+  gifterName: string | null;
+}
+
+const stmtUpsertSub = db.prepare(`
+  INSERT INTO subscribers (user_id, user_login, user_name, tier, is_gift, gifter_name, first_seen, last_seen)
+  VALUES (@userId, @userLogin, @userName, @tier, @isGift, @gifterName, @now, @now)
+  ON CONFLICT(user_id) DO UPDATE SET
+    user_login  = excluded.user_login,
+    user_name   = excluded.user_name,
+    tier        = excluded.tier,
+    is_gift     = excluded.is_gift,
+    gifter_name = excluded.gifter_name,
+    last_seen   = excluded.last_seen
+`);
+
+/** Remplace la photo des abonnes. Les partis sont retires. */
+const syncSubsTx = db.transaction((rows: SubscriberRow[], now: number) => {
+  for (const row of rows) {
+    stmtUpsertSub.run({ ...row, isGift: row.isGift ? 1 : 0, now });
+  }
+  // Ceux qui n'ont pas ete revus dans cette passe ne sont plus abonnes.
+  return db.prepare('DELETE FROM subscribers WHERE last_seen < ?').run(now).changes;
+});
+
+export function syncSubscribers(rows: SubscriberRow[]): { total: number; gone: number } {
+  const gone = syncSubsTx(rows, Date.now());
+  return { total: rows.length, gone };
+}
+
+const stmtSub = db.prepare<[string], {
+  tier: string | null;
+  is_gift: number;
+  gifter_name: string | null;
+  first_seen: number;
+}>('SELECT tier, is_gift, gifter_name, first_seen FROM subscribers WHERE user_id = ?');
+
+export interface SubscriberFacts {
+  tier: string | null;
+  isGift: boolean;
+  gifterName: string | null;
+  /** Depuis combien de jours on le voit dans la liste des abonnes. */
+  knownAsSubForDays: number;
+}
+
+export function subscriberFacts(userId: string): SubscriberFacts | null {
+  const row = stmtSub.get(userId);
+  if (!row) return null;
+  return {
+    tier: row.tier,
+    isGift: row.is_gift === 1,
+    gifterName: row.gifter_name,
+    knownAsSubForDays: Math.max(0, Math.floor((Date.now() - row.first_seen) / 86_400_000)),
+  };
+}
+
+export function isSubscriber(userId: string): boolean {
+  return stmtSub.get(userId) !== undefined;
+}
+
+export function subscriberCount(): number {
+  return db.prepare<[], { n: number }>('SELECT COUNT(*) AS n FROM subscribers').get()?.n ?? 0;
 }
 
 // ── Profil ─────────────────────────────────────────────────────────────────

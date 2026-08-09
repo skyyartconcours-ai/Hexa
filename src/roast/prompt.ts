@@ -1,4 +1,5 @@
 import { DELIVERIES } from '../tts/provider.js';
+import type { SubscriberFacts } from '../db.js';
 import type { RoastTrigger, UserProfile } from '../types.js';
 
 /**
@@ -111,6 +112,7 @@ export function buildUserPrompt(
   trigger: RoastTrigger,
   profile: UserProfile,
   pastRoasts: string[],
+  facts: SubscriberFacts | null = null,
 ): string {
   const blocks = [
     `<pseudo>${trigger.userName}</pseudo>`,
@@ -121,6 +123,18 @@ export function buildUserPrompt(
     blocks.push(
       `<message_du_viewer>Il/elle a accompagne son resub de ce message : "${trigger.message.slice(0, 300)}"</message_du_viewer>`,
     );
+  }
+
+  if (facts) {
+    const lines: string[] = [];
+    if (facts.tier) lines.push(`Palier : ${TIER_LABEL[facts.tier] ?? facts.tier}`);
+    if (facts.isGift && facts.gifterName) {
+      lines.push(`Son abonnement lui a ete OFFERT par ${facts.gifterName}`);
+    } else if (facts.isGift) {
+      lines.push('Son abonnement lui a ete offert par quelqu\'un');
+    }
+    lines.push(`Present dans la liste des abonnes depuis ${facts.knownAsSubForDays} jour(s) au moins`);
+    blocks.push(`<abonnement>\n${lines.join('\n')}\n</abonnement>`);
   }
 
   blocks.push(`<profil_chat>\n${describeProfile(profile)}\n</profil_chat>`);

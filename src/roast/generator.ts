@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
+import type { SubscriberFacts } from '../db.js';
 import { log } from '../log.js';
 import { isDelivery } from '../tts/provider.js';
 import { ROAST_SCHEMA, SYSTEM_PROMPT, buildUserPrompt } from './prompt.js';
@@ -20,6 +21,7 @@ export async function generateRoast(
   trigger: RoastTrigger,
   profile: UserProfile,
   pastRoasts: string[],
+  facts: SubscriberFacts | null = null,
 ): Promise<RoastDraft> {
   const outputConfig: Record<string, unknown> = {
     format: { type: 'json_schema', schema: ROAST_SCHEMA },
@@ -39,7 +41,7 @@ export async function generateRoast(
       { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
     ],
     output_config: outputConfig,
-    messages: [{ role: 'user', content: buildUserPrompt(trigger, profile, pastRoasts) }],
+    messages: [{ role: 'user', content: buildUserPrompt(trigger, profile, pastRoasts, facts) }],
   } as unknown as Anthropic.MessageCreateParamsNonStreaming;
 
   const response = await client.messages.create(params);

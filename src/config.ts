@@ -108,6 +108,9 @@ export const config = {
   chat: {
     retentionDays: int('CHAT_RETENTION_DAYS', 30),
     profileSampleSize: int('PROFILE_SAMPLE_SIZE', 25),
+    // Ne logger que les abonnes : ce sont les seuls qui peuvent declencher une
+    // vanne, donc les seuls qu'on a une raison de profiler.
+    subscribersOnly: bool('LOG_SUBSCRIBERS_ONLY', true),
   },
 
   echoInChat: bool('ECHO_IN_CHAT', false),
