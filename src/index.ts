@@ -3,6 +3,7 @@ import {
   forgetUser,
   isOptedOut,
   isSubscriber,
+  noteSubMonths,
   purgeOldMessages,
   recordMessage,
   setOptOut,
@@ -141,8 +142,15 @@ async function main(): Promise<void> {
     if (config.chat.subscribersOnly && !isSubscriber(message.userId)) return;
 
     const clean = sanitiseChatMessage(message.text);
-    if (!clean) return;
-    recordMessage(message.userId, message.userLogin, message.userName, clean);
+    if (!clean) {
+      // Message jete (emote seule, lien, commande) mais badge exploitable :
+      // on garde l'anciennete, qui vaut souvent plus qu'un message de plus.
+      if (message.subMonths !== null) {
+        noteSubMonths(message.userId, message.userLogin, message.userName, message.subMonths);
+      }
+      return;
+    }
+    recordMessage(message.userId, message.userLogin, message.userName, clean, message.subMonths);
   });
 
   eventsub.on('sub', (trigger) => {

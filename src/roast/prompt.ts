@@ -125,17 +125,23 @@ export function buildUserPrompt(
     );
   }
 
-  if (facts) {
-    // Uniquement ce que Twitch donne vraiment. Pas d'anciennete : on ne l'a pas.
-    const lines: string[] = [];
-    if (facts.tier) lines.push(`Palier : ${TIER_LABEL[facts.tier] ?? facts.tier}`);
-    if (facts.isGift && facts.gifterName) {
-      lines.push(`Son abonnement lui a ete OFFERT par ${facts.gifterName}`);
-    } else if (facts.isGift) {
-      lines.push('Son abonnement lui a ete offert par quelqu\'un');
-    }
-    blocks.push(`<abonnement>\n${lines.join('\n')}\n</abonnement>`);
+  // Uniquement ce que Twitch donne vraiment : palier et donateur viennent de la
+  // liste des abonnes, l'anciennete du badge attache a ses messages. Rien n'est
+  // deduit ni estime — le prompt interdit au modele d'inventer des faits, il
+  // serait absurde de lui en fournir.
+  const subLines: string[] = [];
+  if (facts?.tier) subLines.push(`Palier : ${TIER_LABEL[facts.tier] ?? facts.tier}`);
+  if (facts?.isGift && facts.gifterName) {
+    subLines.push(`Son abonnement lui a ete OFFERT par ${facts.gifterName}`);
+  } else if (facts?.isGift) {
+    subLines.push("Son abonnement lui a ete offert par quelqu'un");
   }
+  // Sur un resub, l'evenement porte le chiffre exact du moment : il prime sur
+  // le badge, qui date du dernier message.
+  if (profile.subMonths && !trigger.cumulativeMonths) {
+    subLines.push(`Abonne depuis ${profile.subMonths} mois`);
+  }
+  if (subLines.length) blocks.push(`<abonnement>\n${subLines.join('\n')}\n</abonnement>`);
 
   blocks.push(`<profil_chat>\n${describeProfile(profile)}\n</profil_chat>`);
 

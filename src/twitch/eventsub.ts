@@ -20,6 +20,35 @@ export interface ChatMessageEvent {
   userLogin: string;
   userName: string;
   text: string;
+  /**
+   * Mois d'abonnement lus dans le badge, `null` si la personne n'affiche pas
+   * de badge d'abonne. Contrairement au reste, ce n'est pas une deduction :
+   * c'est le chiffre exact, envoye par Twitch avec chaque message.
+   */
+  subMonths: number | null;
+}
+
+/**
+ * Twitch joint a chaque message la liste des badges affiches, et le badge
+ * "subscriber" porte dans son champ `info` le nombre EXACT de mois
+ * d'abonnement.
+ *
+ * C'est la seule source officielle et gratuite d'anciennete : aucun endpoint
+ * Helix ne l'expose, la liste des abonnes ne la contient pas, et l'evenement
+ * de resub ne la donne qu'au moment precis du resub. Ici, un seul message
+ * suffit — et il n'y a rien a scraper, la donnee arrive deja dans le payload.
+ *
+ * Le badge "founder", porte par les premiers abonnes de la chaine, remplace
+ * "subscriber" et transporte la meme information.
+ */
+function readSubMonths(raw: unknown): number | null {
+  if (!Array.isArray(raw)) return null;
+  for (const badge of raw as Array<{ set_id?: string; info?: string }>) {
+    if (badge?.set_id !== 'subscriber' && badge?.set_id !== 'founder') continue;
+    const months = Number.parseInt(badge.info ?? '', 10);
+    if (Number.isFinite(months) && months > 0) return months;
+  }
+  return null;
 }
 
 /**
@@ -202,6 +231,7 @@ export class EventSubClient extends EventEmitter {
           userLogin: str('chatter_user_login'),
           userName: str('chatter_user_name'),
           text: nested?.text ?? '',
+          subMonths: readSubMonths(event['badges']),
         };
         if (chat.userId && chat.text) this.emit('chat', chat);
         break;

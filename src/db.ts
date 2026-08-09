@@ -78,6 +78,16 @@ db.exec(`
   );
 `);
 
+// Colonnes ajoutees apres coup : SQLite ne connait pas ALTER TABLE ... IF NOT
+// EXISTS, il faut donc regarder ce qui est deja la avant de l'ajouter.
+{
+  const columns = new Set((db.pragma('table_info(users)') as Array<{ name: string }>).map((c) => c.name));
+  // Anciennete d'abonnement lue dans le badge du dernier message (voir
+  // readSubMonths dans twitch/eventsub.ts), et date de cette lecture.
+  if (!columns.has('sub_months')) db.exec('ALTER TABLE users ADD COLUMN sub_months INTEGER');
+  if (!columns.has('sub_months_at')) db.exec('ALTER TABLE users ADD COLUMN sub_months_at INTEGER');
+}
+
 // ── Tokens OAuth ───────────────────────────────────────────────────────────
 
 const stmtGetToken = db.prepare<[string], { value: string }>('SELECT value FROM tokens WHERE key = ?');
@@ -105,9 +115,17 @@ const stmtInsertMessage = db.prepare(
   'INSERT INTO messages (user_id, user_login, text, ts) VALUES (?, ?, ?, ?)',
 );
 
+/**
+ * `@subMonthsKnown` distingue deux situations que `NULL` seul confondrait :
+ * "on a regarde le badge et il n'y en a pas" (message en direct d'un
+ * non-abonne) et "on ne sait pas" (import de VOD). Sans ce drapeau, le
+ * deuxieme cas effacerait l'anciennete apprise dans le premier.
+ */
 const stmtUpsertUser = db.prepare(`
-  INSERT INTO users (user_id, user_login, user_name, first_seen, last_seen, message_count)
-  VALUES (@userId, @userLogin, @userName, @ts, @ts, 1)
+  INSERT INTO users (user_id, user_login, user_name, first_seen, last_seen, message_count,
+                     sub_months, sub_months_at)
+  VALUES (@userId, @userLogin, @userName, @ts, @ts, 1,
+          @subMonths, CASE WHEN @subMonthsKnown = 1 THEN @ts END)
   ON CONFLICT(user_id) DO UPDATE SET
     user_login    = excluded.user_login,
     user_name     = excluded.user_name,
@@ -115,7 +133,9 @@ const stmtUpsertUser = db.prepare(`
     -- messages plus anciens que ce qu'on a deja vu en direct.
     first_seen    = MIN(users.first_seen, excluded.first_seen),
     last_seen     = MAX(users.last_seen, excluded.last_seen),
-    message_count = users.message_count + 1
+    message_count = users.message_count + 1,
+    sub_months    = CASE WHEN @subMonthsKnown = 1 THEN @subMonths ELSE users.sub_months END,
+    sub_months_at = CASE WHEN @subMonthsKnown = 1 THEN @ts ELSE users.sub_months_at END
 `);
 
 export interface ChatRecord {
@@ -124,12 +144,21 @@ export interface ChatRecord {
   userName: string;
   text: string;
   ts: number;
+  /**
+   * Mois d'abonnement lus sur le badge. `number` ou `null` quand le badge a
+   * ete regarde, `undefined` quand on n'en sait rien (import de VOD).
+   */
+  subMonths?: number | null;
 }
 
 const recordMessageTx = db.transaction((records: ChatRecord[]) => {
   for (const record of records) {
     stmtInsertMessage.run(record.userId, record.userLogin, record.text, record.ts);
-    stmtUpsertUser.run(record);
+    stmtUpsertUser.run({
+      ...record,
+      subMonths: record.subMonths ?? null,
+      subMonthsKnown: record.subMonths === undefined ? 0 : 1,
+    });
   }
 });
 
@@ -138,9 +167,41 @@ export function recordMessage(
   userLogin: string,
   userName: string,
   text: string,
+  subMonths: number | null = null,
   ts = Date.now(),
 ): void {
-  recordMessageTx([{ userId, userLogin, userName, text, ts }]);
+  recordMessageTx([{ userId, userLogin, userName, text, ts, subMonths }]);
+}
+
+const stmtNoteSubMonths = db.prepare(`
+  INSERT INTO users (user_id, user_login, user_name, first_seen, last_seen, message_count,
+                     sub_months, sub_months_at)
+  VALUES (@userId, @userLogin, @userName, @ts, @ts, 0, @subMonths, @ts)
+  ON CONFLICT(user_id) DO UPDATE SET
+    user_login    = excluded.user_login,
+    user_name     = excluded.user_name,
+    last_seen     = MAX(users.last_seen, excluded.last_seen),
+    sub_months    = excluded.sub_months,
+    sub_months_at = excluded.sub_months_at
+`);
+
+/**
+ * Enregistre la seule anciennete, sans le message.
+ *
+ * Sert au cas qui compte le plus : l'abonne discret, celui qui ne poste que
+ * des emotes, des liens ou des commandes. Le sanitiseur jette ces messages,
+ * mais leur badge, lui, dit depuis combien de temps la personne est abonnee.
+ * Autant garder le chiffre et rien d'autre — c'est aussi la donnee la moins
+ * intrusive du lot.
+ */
+export function noteSubMonths(
+  userId: string,
+  userLogin: string,
+  userName: string,
+  subMonths: number,
+): void {
+  if (isBlockedFromCollection(userId)) return;
+  stmtNoteSubMonths.run({ userId, userLogin, userName, subMonths, ts: Date.now() });
 }
 
 /** Insertion en lot, pour l'import de VODs (des milliers de lignes). */
@@ -317,7 +378,10 @@ const stmtUser = db.prepare<[string], {
   user_name: string;
   first_seen: number;
   message_count: number;
-}>('SELECT user_id, user_login, user_name, first_seen, message_count FROM users WHERE user_id = ?');
+  sub_months: number | null;
+}>(
+  'SELECT user_id, user_login, user_name, first_seen, message_count, sub_months FROM users WHERE user_id = ?',
+);
 
 const stmtRecentMessages = db.prepare<[string, number], { text: string; ts: number }>(
   'SELECT text, ts FROM messages WHERE user_id = ? ORDER BY ts DESC LIMIT ?',
@@ -377,6 +441,9 @@ export function buildProfile(
     userLogin: user?.user_login ?? fallbackLogin,
     userName: user?.user_name ?? fallbackName,
     messageCount: user?.message_count ?? 0,
+    // Contrairement a `daysKnown`, qui ne dit que depuis quand NOUS l'observons,
+    // celui-ci vient de Twitch et vaut pour toute la vie de l'abonnement.
+    subMonths: user?.sub_months ?? null,
     daysKnown: Math.max(0, Math.floor((Date.now() - firstSeen) / 86_400_000)),
     avgMessageLength: stats.length ? Math.round(totalLength / stats.length) : 0,
     signatureWords,

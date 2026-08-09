@@ -32,6 +32,11 @@ export interface UserProfile {
   userLogin: string;
   userName: string;
   messageCount: number;
+  /**
+   * Mois d'abonnement, lus sur le badge du dernier message. Seule anciennete
+   * fiable dont on dispose : Twitch l'envoie, on ne la deduit pas.
+   */
+  subMonths: number | null;
   daysKnown: number;
   avgMessageLength: number;
   /** Mots qui reviennent le plus souvent chez cette personne. */

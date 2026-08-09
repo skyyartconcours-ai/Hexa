@@ -88,7 +88,9 @@ l'endpoint n'existe pas. Les « messages récents » que tu vois en cliquant sur
 pseudo dans l'interface Twitch sont une petite fenêtre servie par un endpoint
 interne du site, pas quelque chose d'interrogeable.
 
-Hexa a donc **deux** sources d'historique, complémentaires.
+Hexa a donc **deux** sources de messages, complémentaires — plus une troisième
+donnée, qui n'est pas du chat mais qui vaut souvent mieux (voir
+« L'ancienneté d'abonnement » plus bas).
 
 ### 1. Le log en direct (automatique)
 
@@ -127,6 +129,31 @@ qui vise juste.
 il n'y a rien à importer. Durée de conservation côté Twitch : 60 jours pour les
 partenaires et affiliés, 14 jours sinon — les highlights, eux, sont permanents
 mais ne sont pas des VODs de type `archive` et ne sont pas repris ici.
+
+### L'ancienneté d'abonnement (gratuite, officielle, immédiate)
+
+Ce n'est pas du chat, et c'est justement l'intérêt. **Twitch attache à chaque
+message la liste des badges affichés, et le badge d'abonné porte le nombre exact
+de mois d'abonnement** (champ `badges[].info` de `channel.chat.message`, `founder`
+compris). Hexa le lit et le range à côté du profil.
+
+Concrètement : **dès qu'un abonné écrit un seul message dans ton chat, tu sais
+depuis combien de mois il est abonné.** Pas une estimation, le chiffre. C'est la
+seule source d'ancienneté qui existe — aucun endpoint Helix ne l'expose, la liste
+des abonnés ne la contient pas, et l'événement de resub ne la donne qu'au moment
+précis du resub. Aucun scraping, aucune extension, rien à installer.
+
+Deux détails qui comptent :
+
+- Si le message est jeté par le filtre d'entrée (emote seule, lien, commande),
+  l'ancienneté est quand même conservée — sans le message. C'est le cas de
+  l'abonné discret, celui sur qui on n'a rien d'autre.
+- Si la personne se désabonne, le badge disparaît de son message suivant et la
+  valeur est effacée. L'import de VODs, lui, ne sait pas lire les badges : il ne
+  peut donc ni écrire ni écraser cette donnée.
+
+Sur un resub, c'est l'événement qui prime : son chiffre est exact à la seconde,
+là où le badge date du dernier message de la personne.
 
 ---
 
