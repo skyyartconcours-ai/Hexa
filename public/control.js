@@ -9,6 +9,8 @@
     minutes: $('minutes'),
     start: $('start'),
     stop: $('stop'),
+    skip: $('skip'),
+    health: $('health'),
     autoplay: $('autoplay'),
     queue: $('queue'),
     testForm: $('test-form'),
@@ -61,6 +63,7 @@
     els.conn.classList.toggle('is-live', session.active);
     els.start.hidden = session.active;
     els.stop.hidden = !session.active;
+    els.skip.hidden = !session.active;
     els.autoplay.checked = Boolean(session.autoPlay);
     renderTimer();
   }
@@ -189,12 +192,37 @@
 
   // ── Données ──────────────────────────────────────────────────────────
 
+  // Les deux pannes les plus probables sont invisibles : l'overlay pas branché
+  // dans OBS, et les souscriptions Twitch qui ont échoué au démarrage.
+  function renderHealth({ overlays, degraded }) {
+    const problems = [];
+    if (degraded && degraded.length) {
+      problems.push(
+        `Twitch : ${degraded.length} souscription(s) en échec (${degraded.join(', ')}). ` +
+          'Aucun sub ne sera détecté — relance npm run login puis npm start.',
+      );
+    }
+    if (!overlays) {
+      problems.push(
+        "Aucun overlay connecté : ajoute la source navigateur dans OBS sur /overlay, " +
+          'sinon les vannes partent dans le vide.',
+      );
+    }
+    els.health.hidden = problems.length === 0;
+    els.health.textContent = problems.join('  •  ');
+  }
+
   async function refreshFull() {
-    const state = await api('/api/state');
-    session = state.session;
-    renderSession();
-    renderQueue(state.queue);
-    renderSide(state);
+    try {
+      const state = await api('/api/state');
+      session = state.session;
+      renderSession();
+      renderQueue(state.queue);
+      renderSide(state);
+    } catch {
+      els.health.hidden = false;
+      els.health.textContent = 'Serveur injoignable — les données affichées sont périmées.';
+    }
   }
 
   function connect() {
@@ -206,6 +234,10 @@
       try {
         payload = JSON.parse(event.data);
       } catch {
+        return;
+      }
+      if (payload.type === 'health') {
+        renderHealth(payload);
         return;
       }
       if (payload.type !== 'state') return;
@@ -223,6 +255,7 @@
     api('/api/session/start', { minutes: Number(els.minutes.value) || 30 }),
   );
   els.stop.addEventListener('click', () => api('/api/session/stop', {}));
+  els.skip.addEventListener('click', () => api('/api/roast/skip', {}));
   els.autoplay.addEventListener('change', () =>
     api('/api/session/autoplay', { value: els.autoplay.checked }),
   );

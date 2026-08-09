@@ -101,6 +101,16 @@ main {
   gap: 18px;
 }
 
+.health {
+  background: rgba(255, 92, 92, 0.12);
+  border: 1px solid var(--stop);
+  color: #ffd2d2;
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);

@@ -92,6 +92,12 @@ export const config = {
     maxQueue: int('MAX_QUEUE', 40),
     maxSeverity: int('MAX_SEVERITY', 3),
     userCooldownMs: int('USER_COOLDOWN_MINUTES', 20) * 60_000,
+    // Au-dela, une vanne validee n'est plus reliee au sub qui l'a declenchee :
+    // on la jette plutot que de laisser la file se saturer.
+    pendingTtlMs: int('PENDING_TTL_SECONDS', 180) * 1000,
+    // Un hype train peut faire partir 40 generations en parallele : sans
+    // plafond, on prend un 429 et on perd toutes les vannes du pic.
+    maxConcurrent: int('MAX_CONCURRENT_GENERATIONS', 3),
   },
 
   gifts: {

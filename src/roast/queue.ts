@@ -31,6 +31,10 @@ export class RoastQueue extends EventEmitter {
 
   private giftBudget = { remaining: config.gifts.recipientsMax, resetAt: 0 };
 
+  /** Plafond de generations simultanees (voir acquireSlot). */
+  private running = 0;
+  private waiting: Array<() => void> = [];
+
   // ── Session ──────────────────────────────────────────────────────────────
 
   start(minutes = config.session.defaultMinutes): SessionState {
@@ -51,13 +55,49 @@ export class RoastQueue extends EventEmitter {
     return this.session;
   }
 
+  /**
+   * Arret reel : coupe la vanne en cours ET vide la file.
+   * Avant, `stop()` ne faisait que baisser un drapeau que la boucle de lecture
+   * ne regardait pas — la regie affichait "hors session" pendant que la voix
+   * continuait de chambrer les viewers. C'est le seul coupe-circuit du produit,
+   * il doit couper.
+   */
   stop(reason = 'manuel'): SessionState {
     if (this.sessionTimer) clearTimeout(this.sessionTimer);
     this.sessionTimer = null;
     this.session = { ...this.session, active: false, endsAt: null };
-    log.info(`Session de roast terminee (${reason}).`);
+
+    if (this.nowPlaying) {
+      this.emitSafely('cut', { id: this.nowPlaying });
+      this.finishPlayback(this.nowPlaying);
+    }
+
+    let dropped = 0;
+    for (const item of [...this.items.values()]) {
+      if (item.status === 'played' || item.status === 'rejected') continue;
+      deleteAudio(item.audioPath);
+      this.items.delete(item.id);
+      dropped += 1;
+    }
+
+    log.info(
+      `Session de roast terminee (${reason})` +
+        (dropped ? ` — ${dropped} vanne(s) en attente jetee(s).` : '.'),
+    );
     this.broadcast();
     return this.session;
+  }
+
+  /** Un auditeur qui leve ne doit jamais figer la machine. */
+  private emitSafely(event: string, payload: unknown): void {
+    try {
+      this.emit(event, payload);
+    } catch (error) {
+      log.error(
+        `Auditeur "${event}" en erreur :`,
+        error instanceof Error ? error.message : error,
+      );
+    }
   }
 
   setAutoPlay(value: boolean): void {
@@ -78,6 +118,13 @@ export class RoastQueue extends EventEmitter {
 
   /** Point d'entree unique pour tout evenement d'abonnement. */
   submit(trigger: RoastTrigger, opts: { force?: boolean } = {}): string | null {
+    // L'opt-out n'est jamais contournable, meme par le bouton de test : un
+    // droit d'opposition qu'un chemin de code peut ignorer n'est pas un droit.
+    if (isOptedOut(trigger.userId)) {
+      log.info(`Ignore ${trigger.userName} : viewer opt-out (!noroast)`);
+      return null;
+    }
+
     if (!opts.force) {
       const rejection = this.shouldSkip(trigger);
       if (rejection) {
@@ -106,24 +153,23 @@ export class RoastQueue extends EventEmitter {
     return id;
   }
 
+  /** Elements qui occupent reellement une place : les termines ne comptent pas. */
+  private pendingCount(): number {
+    let count = 0;
+    for (const item of this.items.values()) {
+      if (item.status !== 'played' && item.status !== 'rejected' && item.status !== 'failed') {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
   private shouldSkip(trigger: RoastTrigger): string | null {
     if (!this.session.active) return 'session inactive';
-    if (this.items.size >= config.session.maxQueue) return 'file pleine';
-
-    if (trigger.type === 'gift_recipient') {
-      if (config.gifts.recipients === 'none') return 'receveurs de gift desactives';
-      const now = Date.now();
-      if (now > this.giftBudget.resetAt) {
-        this.giftBudget = { remaining: config.gifts.recipientsMax, resetAt: now + GIFT_WINDOW_MS };
-      }
-      if (this.giftBudget.remaining <= 0) return 'quota de receveurs de gift atteint';
-      this.giftBudget.remaining -= 1;
-    }
+    if (this.pendingCount() >= config.session.maxQueue) return 'file pleine';
 
     // Un donateur anonyme n'a ni pseudo ni historique : rien a roaster.
     if (trigger.anonymous) return 'donateur anonyme';
-
-    if (isOptedOut(trigger.userId)) return 'viewer opt-out (!noroast)';
 
     const previous = lastRoastAt(trigger.userId);
     if (previous && Date.now() - previous < config.session.userCooldownMs) {
@@ -141,12 +187,41 @@ export class RoastQueue extends EventEmitter {
       }
     }
 
+    // Le quota de gift est decremente EN DERNIER : sinon un receveur opt-out ou
+    // en cooldown brule un slot sans produire de vanne, et on se retrouve avec
+    // zero receveur roaste sur une vague de cent.
+    if (trigger.type === 'gift_recipient') {
+      if (config.gifts.recipients === 'none') return 'receveurs de gift desactives';
+      const now = Date.now();
+      if (now > this.giftBudget.resetAt) {
+        this.giftBudget = { remaining: config.gifts.recipientsMax, resetAt: now + GIFT_WINDOW_MS };
+      }
+      if (this.giftBudget.remaining <= 0) return 'quota de receveurs de gift atteint';
+      this.giftBudget.remaining -= 1;
+    }
+
     return null;
   }
 
   // ── Preparation (LLM + TTS) ──────────────────────────────────────────────
 
+  /** Semaphore simple : borne le nombre de generations simultanees. */
+  private async acquireSlot(): Promise<void> {
+    if (this.running < config.session.maxConcurrent) {
+      this.running += 1;
+      return;
+    }
+    await new Promise<void>((resolve) => this.waiting.push(resolve));
+    this.running += 1;
+  }
+
+  private releaseSlot(): void {
+    this.running -= 1;
+    this.waiting.shift()?.();
+  }
+
   private async prepare(item: QueuedRoast): Promise<void> {
+    await this.acquireSlot();
     try {
       const profile = buildProfile(
         item.trigger.userId,
@@ -203,6 +278,8 @@ export class RoastQueue extends EventEmitter {
             : String(error);
       this.fail(item, message);
       log.error(`Generation impossible pour ${item.trigger.userName} :`, message);
+    } finally {
+      this.releaseSlot();
     }
   }
 
@@ -211,6 +288,18 @@ export class RoastQueue extends EventEmitter {
     item.error = reason;
     deleteAudio(item.audioPath);
     item.audioPath = null;
+    // On trace meme les echecs : sinon le cooldown ne voit rien et le viewer
+    // peut etre reciblé dans la seconde qui suit.
+    saveRoast({
+      id: item.id,
+      userId: item.trigger.userId,
+      userName: item.trigger.userName,
+      eventType: item.trigger.type,
+      text: item.text || `(rejetee : ${reason})`,
+      severity: item.severity,
+      status: 'failed',
+      createdAt: item.createdAt,
+    });
     this.broadcast();
     // On garde la ligne 20 s pour que le streamer voie ce qui a ete filtre.
     setTimeout(() => {
@@ -278,8 +367,13 @@ export class RoastQueue extends EventEmitter {
   }
 
   private pump(): void {
+    // Sans ce test, arreter la session ne faisait rien : la file continuait de
+    // partir a l'antenne.
+    if (!this.session.active) return;
     if (this.nowPlaying) return;
     if (Date.now() - this.lastPlayedAt < config.session.minIntervalMs) return;
+
+    this.expirePending();
 
     const next = this.getQueue().find((item) => item.status === 'approved' && item.text);
     if (!next) return;
@@ -291,7 +385,11 @@ export class RoastQueue extends EventEmitter {
 
     log.roast(`▶ ${next.trigger.userName} : ${next.text}`);
 
-    this.emit('play', {
+    // Le filet de securite est arme AVANT les emissions : si un auditeur leve,
+    // la vanne doit quand meme finir par se debloquer.
+    this.playbackTimer = setTimeout(() => this.finishPlayback(next.id), PLAYBACK_TIMEOUT_MS);
+
+    this.emitSafely('play', {
       id: next.id,
       user: next.trigger.userName,
       eventType: next.trigger.type,
@@ -300,10 +398,38 @@ export class RoastQueue extends EventEmitter {
       // reellement ecrit plutot que de la supposer.
       audioUrl: next.audioPath ? `/audio/${path.basename(next.audioPath)}` : null,
     });
-    this.emit('spoken', next);
+    this.emitSafely('spoken', next);
     this.broadcast();
+  }
 
-    this.playbackTimer = setTimeout(() => this.finishPlayback(next.id), PLAYBACK_TIMEOUT_MS);
+  /**
+   * Une vanne validee mais jamais diffusee perime : passe un certain delai,
+   * elle n'est de toute facon plus reliee au sub qui l'a declenchee, et elle
+   * occupe une place dans la file jusqu'a la saturer.
+   */
+  private expirePending(): void {
+    const cutoff = Date.now() - config.session.pendingTtlMs;
+    let expired = 0;
+    for (const item of [...this.items.values()]) {
+      if (item.status !== 'pending' && item.status !== 'approved') continue;
+      if (item.createdAt > cutoff) continue;
+      deleteAudio(item.audioPath);
+      this.items.delete(item.id);
+      expired += 1;
+    }
+    if (expired) {
+      log.info(`${expired} vanne(s) perimee(s) retiree(s) de la file.`);
+      this.broadcast();
+    }
+  }
+
+  /** Debloque manuellement une vanne coincee (bouton de la regie). */
+  skipCurrent(): boolean {
+    if (!this.nowPlaying) return false;
+    log.warn('Deblocage manuel de la vanne en cours.');
+    this.emitSafely('cut', { id: this.nowPlaying });
+    this.finishPlayback(this.nowPlaying);
+    return true;
   }
 
   /** Appele par l'overlay quand l'audio est termine. */
@@ -359,4 +485,6 @@ export interface RoastQueue {
   ): this;
   on(event: 'state', listener: (payload: { session: SessionState; queue: QueuedRoast[] }) => void): this;
   on(event: 'spoken', listener: (item: QueuedRoast) => void): this;
+  /** Coupe immediatement la vanne en cours cote overlay. */
+  on(event: 'cut', listener: (payload: { id: string }) => void): this;
 }

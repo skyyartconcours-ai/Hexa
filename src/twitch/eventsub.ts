@@ -37,6 +37,8 @@ export class EventSubClient extends EventEmitter {
   private keepaliveMs = 30_000;
   private closing = false;
   private reconnectDelayMs = 1000;
+  /** Vrai entre un session_reconnect et le welcome de la nouvelle session. */
+  private resuming = false;
 
   constructor(private readonly broadcasterId: string) {
     super();
@@ -73,6 +75,11 @@ export class EventSubClient extends EventEmitter {
     socket.on('error', (error) => log.error('EventSub :', error.message));
 
     socket.on('close', (code) => {
+      // Sans ce test, la fermeture volontaire de l'ancienne socket apres un
+      // session_reconnect declenchait une TROISIEME connexion : deux sockets
+      // vivantes, chaque message de chat enregistre deux fois, et le plafond
+      // de 3 connexions Twitch atteint au bout de quelques maintenances.
+      if (socket !== this.socket) return;
       this.clearKeepalive();
       if (this.closing) return;
       log.warn(`EventSub ferme (code ${code}). Reconnexion dans ${this.reconnectDelayMs} ms.`);
@@ -91,6 +98,14 @@ export class EventSubClient extends EventEmitter {
         this.reconnectDelayMs = 1000;
         this.keepaliveMs = (session.keepalive_timeout_seconds ?? 30) * 1000;
         this.resetKeepalive();
+        // Twitch transfere les souscriptions sur la session de reconnexion :
+        // les rejouer ne produirait que des 409 en pleine emission.
+        if (this.resuming) {
+          this.resuming = false;
+          log.twitch('Reconnexion etablie, souscriptions conservees.');
+          this.emit('ready');
+          break;
+        }
         await this.subscribeAll(session.id);
         break;
       }
@@ -104,10 +119,16 @@ export class EventSubClient extends EventEmitter {
         if (!nextUrl) return;
         log.twitch('Twitch demande une reconnexion, bascule sur la nouvelle URL.');
         const old = this.socket;
+        this.resuming = true;
         this.connect(nextUrl);
         // On garde brievement l'ancienne socket : Twitch envoie encore des
         // evenements dessus jusqu'a ce que la nouvelle recoive son welcome.
-        setTimeout(() => old?.close(), 10_000);
+        // On coupe ses ecouteurs avant de la fermer, sinon elle relance une
+        // reconnexion de son cote.
+        setTimeout(() => {
+          old?.removeAllListeners();
+          old?.close();
+        }, 10_000);
         break;
       }
 
@@ -142,11 +163,13 @@ export class EventSubClient extends EventEmitter {
       ['channel.chat.message', '1', chatCondition],
     ];
 
+    const failed: string[] = [];
     for (const [type, version, cond] of wanted) {
       try {
         await createEventSubSubscription(type, version, cond, sessionId);
         log.twitch(`Abonne a ${type}`);
       } catch (error) {
+        failed.push(type);
         log.error(
           `Souscription ${type} refusee :`,
           error instanceof Error ? error.message : error,
@@ -154,6 +177,13 @@ export class EventSubClient extends EventEmitter {
       }
     }
 
+    // Avant, "ready" partait meme avec 0 souscription sur 4 : l'outil affichait
+    // "En ecoute" alors qu'il ne recevrait jamais rien, et le streamer ne le
+    // decouvrait qu'en constatant qu'aucun sub ne declenchait de vanne.
+    if (failed.length) {
+      this.emit('degraded', failed);
+      return;
+    }
     this.emit('ready');
   }
 
@@ -248,7 +278,10 @@ export interface EventSubClient {
   on(event: 'chat', listener: (message: ChatMessageEvent) => void): this;
   on(event: 'sub', listener: (trigger: RoastTrigger) => void): this;
   on(event: 'ready', listener: () => void): this;
+  /** Au moins une souscription a echoue : l'outil ne recevra pas tout. */
+  on(event: 'degraded', listener: (failed: string[]) => void): this;
   emit(event: 'chat', message: ChatMessageEvent): boolean;
   emit(event: 'sub', trigger: RoastTrigger): boolean;
   emit(event: 'ready'): boolean;
+  emit(event: 'degraded', failed: string[]): boolean;
 }

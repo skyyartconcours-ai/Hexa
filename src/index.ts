@@ -1,5 +1,5 @@
 import { config } from './config.js';
-import { purgeOldMessages, recordMessage, setOptOut } from './db.js';
+import { forgetUser, isOptedOut, purgeOldMessages, recordMessage, setOptOut } from './db.js';
 import { log } from './log.js';
 import { RoastQueue } from './roast/queue.js';
 import { loadCustomBlocklist, sanitiseChatMessage } from './roast/safety.js';
@@ -11,6 +11,7 @@ import { EventSubClient } from './twitch/eventsub.js';
 
 const OPT_OUT_COMMAND = '!noroast';
 const OPT_IN_COMMAND = '!roastme';
+const FORGET_COMMAND = '!forgetme';
 
 async function main(): Promise<void> {
   if (!hasStoredToken()) {
@@ -41,7 +42,7 @@ async function main(): Promise<void> {
 
   const queue = new RoastQueue();
   queue.run();
-  startServer(queue);
+  const { setDegraded } = startServer(queue);
 
   if (config.echoInChat) {
     queue.on('spoken', (item) => {
@@ -70,6 +71,16 @@ async function main(): Promise<void> {
       log.info(`${message.userName} accepte de nouveau les roasts.`);
       return;
     }
+    if (lower === FORGET_COMMAND) {
+      queue.purgeUser(message.userId);
+      const removed = forgetUser(message.userId);
+      log.info(`${message.userName} : ${removed} ligne(s) effacee(s) a sa demande.`);
+      return;
+    }
+
+    // Quelqu'un qui s'est oppose ne doit plus etre enregistre du tout, pas
+    // seulement epargne par les vannes : c'est le meme droit.
+    if (isOptedOut(message.userId)) return;
 
     const clean = sanitiseChatMessage(message.text);
     if (!clean) return;
@@ -86,7 +97,19 @@ async function main(): Promise<void> {
     queue.submit(trigger);
   });
 
-  eventsub.on('ready', () => log.ok('En ecoute. Ouvre le panneau de controle pour lancer une session.'));
+  eventsub.on('ready', () => {
+    setDegraded([]);
+    log.ok('En ecoute. Ouvre le panneau de controle pour lancer une session.');
+  });
+
+  eventsub.on('degraded', (failed) => {
+    setDegraded(failed);
+    log.error(
+      `NE PAS LANCER DE SESSION : ${failed.length} souscription(s) Twitch ont echoue ` +
+        `(${failed.join(', ')}). Relance \`npm run login\` puis \`npm start\`.`,
+    );
+  });
+
   eventsub.start();
 
   const shutdown = (): void => {

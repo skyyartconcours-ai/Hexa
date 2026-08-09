@@ -21,6 +21,7 @@
   let socket = null;
   let audioUnlocked = false;
   let current = null;
+  let currentAudio = null;
 
   function setStatus(message, transient = false) {
     statusEl.textContent = message;
@@ -32,7 +33,12 @@
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
     socket = new WebSocket(`${protocol}://${location.host}/ws`);
 
-    socket.addEventListener('open', () => setStatus('hexa connecté', true));
+    socket.addEventListener('open', () => {
+      // On s'identifie : seuls les overlays ont le droit de déclarer une vanne
+      // terminée, sinon un onglet de régie ouvert coupe l'audio d'OBS.
+      socket.send(JSON.stringify({ type: 'hello_overlay' }));
+      setStatus('hexa connecté', true);
+    });
     socket.addEventListener('close', () => {
       setStatus('déconnecté — nouvelle tentative…');
       setTimeout(connect, 2000);
@@ -45,12 +51,26 @@
         return;
       }
       if (payload.type === 'play') play(payload);
+      // Coupure demandée depuis la régie : on arrête net.
+      if (payload.type === 'cut') cut();
     });
+  }
+
+  function cut() {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.src = '';
+      currentAudio = null;
+    }
+    current = null;
+    card.classList.remove('is-visible');
+    setStatus('coupé', true);
   }
 
   function done(id) {
     if (!current || current.id !== id) return;
     current = null;
+    currentAudio = null;
     card.classList.remove('is-visible');
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: 'ended', id }));
@@ -58,6 +78,13 @@
   }
 
   function play(payload) {
+    // Deux vannes ne doivent jamais se superposer : si l'une tourne encore
+    // (double overlay, 'ended' prématuré), on la coupe avant de démarrer.
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.src = '';
+      currentAudio = null;
+    }
     current = payload;
 
     badgeEl.textContent = BADGES[payload.eventType] ?? 'sub';
@@ -71,6 +98,7 @@
     }
 
     const audio = new Audio(payload.audioUrl);
+    currentAudio = audio;
     audio.addEventListener('ended', () => setTimeout(() => done(payload.id), OUTRO_MS));
     audio.addEventListener('error', () => {
       setStatus('audio illisible', true);

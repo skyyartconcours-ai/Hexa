@@ -17,6 +17,8 @@
     </header>
 
     <main>
+      <div id="health" class="health" hidden></div>
+
       <section class="panel">
         <div class="session" id="session">
           <div class="session__state">
@@ -30,7 +32,8 @@
               <span>min</span>
             </label>
             <button id="start" class="btn btn--go">Lancer la session</button>
-            <button id="stop" class="btn btn--stop" hidden>Arrêter</button>
+            <button id="skip" class="btn" hidden title="Coupe la vanne en cours et passe à la suivante">Couper</button>
+            <button id="stop" class="btn btn--stop" hidden>Tout arrêter</button>
           </div>
         </div>
 

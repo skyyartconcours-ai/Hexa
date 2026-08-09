@@ -47,10 +47,22 @@ async function main(): Promise<void> {
   }
 
   log.info(`${videos.length} VOD(s) trouvee(s) sur ${channel.display_name}.`);
-  const before = chatStats();
 
+  // La purge tourne a chaque `npm start`. Importer des messages plus vieux que
+  // la fenetre de retention revient a les detruire au prochain demarrage — en
+  // laissant la VOD marquee "importee", donc sans possibilite de la reprendre.
+  // On les ecarte a l'entree plutot que de les perdre en silence.
+  const cutoff = Date.now() - config.chat.retentionDays * 86_400_000;
+  log.info(
+    `Retention : ${config.chat.retentionDays} jours. Les messages anterieurs au ` +
+      `${new Date(cutoff).toLocaleDateString('fr-FR')} sont ignores ` +
+      '(augmente CHAT_RETENTION_DAYS pour remonter plus loin).',
+  );
+
+  const before = chatStats();
   let imported = 0;
   let skipped = 0;
+  let tooOld = 0;
 
   for (const [index, video] of videos.entries()) {
     const position = `[${index + 1}/${videos.length}]`;
@@ -66,8 +78,13 @@ async function main(): Promise<void> {
     try {
       let count = 0;
       await fetchVodChat(video.id, (records) => {
-        recordMessages(records);
-        count += records.length;
+        const keep = records.filter((record) => {
+          if (record.ts >= cutoff) return true;
+          tooOld += 1;
+          return false;
+        });
+        recordMessages(keep);
+        count += keep.length;
         process.stdout.write('.');
       });
       markVodImported(video.id, video.title, count);
@@ -87,6 +104,12 @@ async function main(): Promise<void> {
     `Import termine : ${imported} VOD(s) importee(s), ${skipped} deja faite(s). ` +
       `+${after.messages - before.messages} messages, +${after.users - before.users} viewers.`,
   );
+  if (tooOld > 0) {
+    log.warn(
+      `${tooOld} message(s) ecarte(s) car anterieur(s) a la fenetre de retention. ` +
+        'Augmente CHAT_RETENTION_DAYS AVANT de relancer avec --force pour les recuperer.',
+    );
+  }
   if (skipped > 0) {
     log.info('Utilise `--force` pour reimporter une VOD deja traitee.');
   }

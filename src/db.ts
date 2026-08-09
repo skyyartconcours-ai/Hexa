@@ -306,14 +306,60 @@ export function lastRoastAt(userId: string): number | null {
 
 // ── Retention ──────────────────────────────────────────────────────────────
 
-const stmtPurge = db.prepare('DELETE FROM messages WHERE ts < ?');
+const stmtPurgeMessages = db.prepare('DELETE FROM messages WHERE ts < ?');
+const stmtPurgeRoasts = db.prepare('DELETE FROM roast_history WHERE created_at < ?');
+// Un viewer dont il ne reste plus rien n'a pas a rester fiche — sauf s'il s'est
+// oppose, auquel cas on garde la ligne : c'est elle qui porte son opposition.
+const stmtPurgeUsers = db.prepare(`
+  DELETE FROM users
+  WHERE opted_out = 0
+    AND last_seen < ?
+    AND user_id NOT IN (SELECT DISTINCT user_id FROM messages)
+`);
+// Le compteur doit refleter ce qui reste en base, sinon il derive a la hausse
+// et finit par mentir au prompt.
+const stmtResyncCounts = db.prepare(`
+  UPDATE users
+  SET message_count = (SELECT COUNT(*) FROM messages WHERE messages.user_id = users.user_id)
+`);
+
+const purgeTx = db.transaction((cutoff: number) => ({
+  messages: stmtPurgeMessages.run(cutoff).changes,
+  roasts: stmtPurgeRoasts.run(cutoff).changes,
+  users: (stmtResyncCounts.run(), stmtPurgeUsers.run(cutoff).changes),
+}));
 
 export function purgeOldMessages(): void {
   const cutoff = Date.now() - config.chat.retentionDays * 86_400_000;
-  const result = stmtPurge.run(cutoff);
-  if (result.changes > 0) {
-    log.info(`Purge historique : ${result.changes} messages de plus de ${config.chat.retentionDays} jours supprimes.`);
+  const result = purgeTx(cutoff);
+  if (result.messages || result.roasts || result.users) {
+    log.info(
+      `Purge (> ${config.chat.retentionDays} j) : ${result.messages} message(s), ` +
+        `${result.roasts} vanne(s) archivee(s), ${result.users} profil(s) vide(s).`,
+    );
   }
+}
+
+/** Droit a l'effacement : `!forgetme`. Retire tout ce qui concerne la personne. */
+const forgetTx = db.transaction((userId: string) => {
+  const messages = db.prepare('DELETE FROM messages WHERE user_id = ?').run(userId).changes;
+  const roasts = db.prepare('DELETE FROM roast_history WHERE user_id = ?').run(userId).changes;
+  const users = db.prepare('DELETE FROM users WHERE user_id = ?').run(userId).changes;
+  return messages + roasts + users;
+});
+
+export function forgetUser(userId: string): number {
+  return forgetTx(userId);
+}
+
+/** Resolution d'un pseudo vers son user_id reel, pour le bouton de test. */
+const stmtUserByLogin = db.prepare<[string], { user_id: string; user_name: string }>(
+  'SELECT user_id, user_name FROM users WHERE user_login = ?',
+);
+
+export function findUserByLogin(login: string): { userId: string; userName: string } | null {
+  const row = stmtUserByLogin.get(login.toLowerCase());
+  return row ? { userId: row.user_id, userName: row.user_name } : null;
 }
 
 export function chatStats(): { messages: number; users: number } {
