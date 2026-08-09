@@ -61,8 +61,22 @@ Ajoute une **Source navigateur** :
 - Largeur / hauteur : la taille de ton canvas (1920 × 1080)
 - ✅ *Arrêter la source quand elle n'est pas visible* : **décoché**
 - ✅ *Rafraîchir le navigateur quand la scène devient active* : **décoché**
+- ✅ *Contrôler l'audio via OBS* : **coché** ← indispensable
+
+**Le son ne part pas tout seul.** Sans « Contrôler l'audio via OBS », le son de la
+source navigateur sort sur ton bureau et n'arrive au stream que si tu captures
+l'audio du bureau — avec le jeu et Discord par-dessus. Une fois la case cochée,
+la source apparaît dans ta table de mixage. Fais ensuite un clic droit dessus →
+*Propriétés audio avancées* → colonne **Monitoring audio** → choisis
+**« Monitoring et sortie »** pour l'entendre toi aussi dans ton casque.
+
+Vérifie avant le live : lance une vanne de test depuis la régie et regarde le
+vu-mètre de la source bouger dans la table de mixage. Si l'aiguille ne bouge pas,
+les viewers n'entendront rien.
 
 La régie est sur `http://localhost:4747/control` (à ouvrir sur ton second écran).
+Le serveur n'écoute que sur ta machine — les deux adresses ne sont pas
+accessibles depuis le réseau.
 
 ---
 
