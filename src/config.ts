@@ -64,6 +64,13 @@ export const config = {
       voiceId: str('ELEVENLABS_VOICE_ID'),
       modelId: str('ELEVENLABS_MODEL_ID', 'eleven_multilingual_v2'),
     },
+    fishaudio: {
+      apiKey: str('FISHAUDIO_API_KEY'),
+      // Le "reference_id" de la voix chez Fish Audio.
+      voiceId: str('FISHAUDIO_VOICE_ID'),
+      modelId: str('FISHAUDIO_MODEL_ID', 's2.1-pro'),
+      speed: Number.parseFloat(str('FISHAUDIO_SPEED', '1.0')) || 1.0,
+    },
     cartesia: {
       apiKey: str('CARTESIA_API_KEY'),
       voiceId: str('CARTESIA_VOICE_ID'),

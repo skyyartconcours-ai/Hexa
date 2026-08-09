@@ -18,6 +18,7 @@ const ENDPOINT = 'https://api.cartesia.ai/tts/bytes';
 export const cartesiaProvider: TtsProvider = {
   name: 'cartesia',
   extension: 'mp3',
+  supportsInlineDirections: false,
 
   async synthesise(text: string): Promise<Buffer> {
     const { apiKey, voiceId, modelId, version } = config.tts.cartesia;

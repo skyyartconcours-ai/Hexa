@@ -1,3 +1,5 @@
+import type { Delivery } from './tts/provider.js';
+
 export type RoastEventType = 'sub' | 'resub' | 'gift' | 'gift_recipient';
 
 /** Ce qui declenche une vanne : un evenement d'abonnement normalise. */
@@ -46,6 +48,8 @@ export interface RoastDraft {
   angle: string;
   severity: number;
   forbidden_topics_touched: string[];
+  /** Didascalie de jeu, transmise aux TTS qui la comprennent. */
+  delivery?: Delivery;
 }
 
 export type RoastStatus = 'pending' | 'approved' | 'playing' | 'played' | 'rejected' | 'failed';
@@ -57,6 +61,7 @@ export interface QueuedRoast {
   text: string;
   angle: string;
   severity: number;
+  delivery: Delivery | null;
   audioPath: string | null;
   createdAt: number;
   playedAt: number | null;

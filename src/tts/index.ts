@@ -4,13 +4,16 @@ import { AUDIO_DIR, config } from '../config.js';
 import { log } from '../log.js';
 import { cartesiaProvider } from './cartesia.js';
 import { elevenLabsProvider } from './elevenlabs.js';
-import type { TtsProvider } from './provider.js';
+import { fishAudioProvider } from './fishaudio.js';
+import type { Delivery, TtsProvider } from './provider.js';
 
-export type { TtsProvider } from './provider.js';
+export { DELIVERIES, isDelivery } from './provider.js';
+export type { Delivery, TtsProvider } from './provider.js';
 
 fs.mkdirSync(AUDIO_DIR, { recursive: true });
 
 const PROVIDERS: Record<string, TtsProvider> = {
+  fishaudio: fishAudioProvider,
   elevenlabs: elevenLabsProvider,
   cartesia: cartesiaProvider,
 };
@@ -30,14 +33,26 @@ export function activeProvider(): TtsProvider | null {
 
 /**
  * Genere le fichier audio d'une vanne.
+ *
+ * `direction` est une didascalie de jeu ("deadpan", "laughing"...). Elle n'est
+ * transmise qu'aux fournisseurs qui la comprennent : ailleurs elle est retiree,
+ * sinon la voix annonce "crochet laughing crochet" en plein live.
+ *
  * Retourne le chemin du fichier, ou null si le TTS est desactive (texte seul).
  */
-export async function synthesise(id: string, text: string): Promise<string | null> {
+export async function synthesise(
+  id: string,
+  text: string,
+  direction?: Delivery,
+): Promise<string | null> {
   const provider = activeProvider();
   if (!provider) return null;
 
+  const spoken =
+    direction && provider.supportsInlineDirections ? `[${direction}] ${text}` : text;
+
   const started = Date.now();
-  const audio = await provider.synthesise(text);
+  const audio = await provider.synthesise(spoken);
   const filePath = path.join(AUDIO_DIR, `${id}.${provider.extension}`);
   await fs.promises.writeFile(filePath, audio);
 

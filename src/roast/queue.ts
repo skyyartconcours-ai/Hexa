@@ -94,6 +94,7 @@ export class RoastQueue extends EventEmitter {
       text: '',
       angle: '',
       severity: 0,
+      delivery: null,
       audioPath: null,
       createdAt: Date.now(),
       playedAt: null,
@@ -167,8 +168,11 @@ export class RoastQueue extends EventEmitter {
       item.text = draft.roast;
       item.angle = draft.angle;
       item.severity = draft.severity;
+      item.delivery = draft.delivery ?? null;
 
-      item.audioPath = await synthesise(item.id, draft.roast);
+      // Le texte affiche a l'overlay reste propre : la didascalie ne part
+      // qu'au TTS, et seulement s'il sait l'interpreter.
+      item.audioPath = await synthesise(item.id, draft.roast, draft.delivery);
 
       // La session a pu se terminer pendant la generation.
       if (!this.session.active) {

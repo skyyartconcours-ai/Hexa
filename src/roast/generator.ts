@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 import { log } from '../log.js';
+import { isDelivery } from '../tts/provider.js';
 import { ROAST_SCHEMA, SYSTEM_PROMPT, buildUserPrompt } from './prompt.js';
 import type { RoastDraft, RoastTrigger, UserProfile } from '../types.js';
 
@@ -67,10 +68,13 @@ export async function generateRoast(
   draft.forbidden_topics_touched ??= [];
   draft.angle ??= '';
   draft.roast = draft.roast.replace(/^["«»\s]+|["«»\s]+$/g, '');
+  // Une didascalie hors liste serait lue a voix haute par le TTS : on la jette
+  // plutot que de la transmettre.
+  if (!isDelivery(draft.delivery)) delete draft.delivery;
 
   const usage = response.usage;
   log.roast(
-    `Vanne generee pour ${trigger.userName} (severite ${draft.severity}, ` +
+    `Vanne generee pour ${trigger.userName} (${draft.delivery ?? 'neutre'}, severite ${draft.severity}, ` +
       `${usage.input_tokens} in / ${usage.output_tokens} out, ` +
       `${usage.cache_read_input_tokens ?? 0} lus en cache)`,
   );

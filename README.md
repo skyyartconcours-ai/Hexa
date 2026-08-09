@@ -36,7 +36,8 @@ Twitch EventSub ──► file d'attente ──► Claude ──► filtre sécu
   → *Type de client* : **Public** (obligatoire, c'est ce qui autorise le login sans mot de passe)
   → *OAuth Redirect URL* : `http://localhost:3000` (le formulaire l'exige, on ne s'en sert pas)
 - une **clé API Anthropic** : https://console.anthropic.com
-- une **clé ElevenLabs** + un `voice_id` français (optionnel — sans ça, mode texte seul)
+- une **clé TTS** : Fish Audio par défaut, ou ElevenLabs / Cartesia
+  (optionnel — sans clé, l'outil tourne en mode texte seul)
 
 ### 2. Mise en route
 
@@ -184,19 +185,37 @@ sera pas mis en cache.
 
 Le TTS est interchangeable : `TTS_PROVIDER` dans `.env`, rien d'autre à toucher.
 
-| | ElevenLabs | Cartesia Sonic |
-|---|---|---|
-| Jeu d'acteur | la référence, la vanne est *jouée* | bon, plus neutre |
-| Prix à l'usage | le plus cher du marché | environ un ordre de grandeur moins cher |
-| Latence | correcte | nettement plus basse |
-| Français | natif | natif |
+| | **Fish Audio** (défaut) | ElevenLabs | Cartesia |
+|---|---|---|---|
+| Prix / 1M caractères | ~15 $ | 120–165 $ | ~15 $ |
+| Jeu d'acteur | didascalies en ligne | la référence historique | correct, plus neutre |
+| Latence | ~70 ms | 250–300 ms | ~100 ms |
+| Clonage de voix | 5 s d'audio | oui | oui |
 
-Sur ce cas précis, la latence n'est pas un critère : la vanne fait six secondes
-et elle est générée pendant que la précédente passe à l'antenne. **Ce qui compte,
-c'est l'intonation** — une vanne mal jouée tombe à plat, quel que soit le prix au
-caractère. Commence sur ElevenLabs, teste Cartesia avec le bouton « Tester une
-vanne » de la régie, et bascule si tu n'entends pas la différence : l'économie est
-réelle sur une soirée à beaucoup de subs.
+**Fish Audio S2.1 Pro est le choix par défaut**, pour une raison qui n'est pas le
+prix : c'est le seul des trois à accepter des **didascalies de jeu en ligne**.
+Le modèle qui écrit la vanne choisit aussi comment elle doit être dite —
+pince-sans-rire, en riant, faussement grave — et la voix la joue. Une vanne
+absurde dite *deadpan* et la même dite sur un ton enjoué ne font pas du tout le
+même effet ; c'est le levier le plus rentable sur ce produit.
+
+Les six tons possibles sont dans `DELIVERIES` (`src/tts/provider.ts`). La liste
+est volontairement fermée : une didascalie inventée par le modèle serait lue à
+voix haute à l'antenne, donc tout ce qui sort de la liste est jeté. Le filtre de
+sécurité rejette aussi toute vanne dont le *texte* contient des crochets ou des
+`*astérisques*`, pour la même raison. Le ton choisi s'affiche dans la régie.
+
+Sur les autres fournisseurs, la didascalie est silencieusement retirée : la vanne
+est simplement dite au naturel, rien ne casse.
+
+**La latence n'est pas un critère ici**, contrairement à ce que vendent la
+plupart de ces API : la vanne fait six secondes et elle est générée pendant que
+la précédente passe à l'antenne. Ce qui compte, c'est l'intonation.
+
+Sur la facturation Fish Audio : elle se fait à l'**octet UTF-8**, pas au
+caractère. Plusieurs comparatifs en déduisent que le français coûte le double —
+c'est faux. Mesuré sur un échantillon de vannes réelles : **+3,4 %**, parce que
+les accents représentent quelques pourcents des caractères, pas la moitié.
 
 Ajouter un autre fournisseur = un fichier d'une trentaine de lignes dans
 `src/tts/` qui implémente l'interface `TtsProvider`, plus une ligne dans le
@@ -242,8 +261,8 @@ src/
     safety.ts         filtre déterministe
     queue.ts          session, file, cadence, lecture
   tts/
-    provider.ts       interface commune
-    elevenlabs.ts     · cartesia.ts
+    provider.ts       interface commune + liste fermée des didascalies
+    fishaudio.ts      · elevenlabs.ts · cartesia.ts
   server/             API HTTP + WebSocket
 public/               overlay OBS + régie
 ```
@@ -260,13 +279,16 @@ quelle box.
 **Testé** : base de données et construction de profil, filtre de sécurité
 (blocklist, leetspeak, sévérité, liens, sujets signalés), assemblage du prompt,
 format exact de la requête Anthropic, garde-fou effort/Haiku, sélection du
-fournisseur TTS et format de requête Cartesia, pagination et filtrage de l'import
-de VODs (contre un serveur simulé), déduplication des VODs, serveur HTTP et pages.
+fournisseur TTS, format de requête Fish Audio et Cartesia, acheminement des
+didascalies (transmises à Fish Audio, retirées ailleurs) et rejet de celles qui
+fuiraient dans le texte, pagination et filtrage de l'import de VODs, déduplication
+des VODs, serveur HTTP et pages.
 
 **Pas testé faute d'identifiants dans l'environnement de développement :** les
-appels réseau réels vers Anthropic, ElevenLabs, Cartesia, et Twitch (EventSub
-comme GraphQL). Ces chemins sont écrits d'après les spécifications des API et
-leur format de requête est vérifié, mais aucun n'a encore vu de réponse réelle.
+appels réseau réels vers Anthropic, Fish Audio, ElevenLabs, Cartesia, et Twitch
+(EventSub comme GraphQL). Ces chemins sont écrits d'après les spécifications des
+API et leur format de requête est vérifié contre des serveurs simulés, mais aucun
+n'a encore vu de réponse réelle.
 **Prévois une session à blanc, hors stream, avant le direct.**
 
 ---

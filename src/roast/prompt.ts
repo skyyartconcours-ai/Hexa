@@ -1,3 +1,4 @@
+import { DELIVERIES } from '../tts/provider.js';
 import type { RoastTrigger, UserProfile } from '../types.js';
 
 /**
@@ -34,6 +35,9 @@ Si tu n'as aucune matiere, fais une vanne sur le pseudo seul. N'invente JAMAIS u
 - La chute doit rechauffer : ca pique au milieu, ca fait sourire a la fin.
 - Ne commence jamais par "Ah", "Alors", "Tiens", "Eh bien".
 - Pas de texte a lire a voix haute qui ne soit pas la vanne elle-meme.
+- N'ecris AUCUNE didascalie dans le champ "roast" : pas de crochets, pas de
+  parentheses de jeu, pas d'indication de ton. Le ton se choisit uniquement
+  dans le champ "delivery" prevu pour ca.
 
 # Auto-controle
 Tu notes ta propre vanne de 1 a 5 :
@@ -154,7 +158,16 @@ export const ROAST_SCHEMA = {
       items: { type: 'string' },
       description: 'Sujets interdits effleures par la vanne. Doit rester vide.',
     },
+    delivery: {
+      type: 'string',
+      enum: [...DELIVERIES],
+      description:
+        'Comment la voix doit dire la vanne. deadpan = pince-sans-rire, ' +
+        'amused = amuse, laughing = en riant, mock serious = faussement grave, ' +
+        'warm = chaleureux, excited = enthousiaste. Choisis ce qui sert la chute : ' +
+        'une vanne absurde gagne souvent a etre dite deadpan.',
+    },
   },
-  required: ['roast', 'angle', 'severity', 'forbidden_topics_touched'],
+  required: ['roast', 'angle', 'severity', 'forbidden_topics_touched', 'delivery'],
   additionalProperties: false,
 } as const;

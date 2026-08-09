@@ -23,6 +23,17 @@
     gift_recipient: 'sub offert',
   };
 
+  // Ton demandé au TTS. Uniquement interprété par les fournisseurs qui gèrent
+  // les didascalies en ligne — sinon la vanne est dite au naturel.
+  const DELIVERY_LABELS = {
+    deadpan: '🗿 pince-sans-rire',
+    amused: '🙂 amusé',
+    laughing: '😂 en riant',
+    'mock serious': '🎩 faussement grave',
+    warm: '🤗 chaleureux',
+    excited: '⚡ enthousiaste',
+  };
+
   const STATUS_LABELS = {
     pending: 'en attente',
     approved: 'validée',
@@ -104,6 +115,13 @@
       status.className = item.status === 'failed' ? 'tag tag--err' : 'tag';
       status.textContent = STATUS_LABELS[item.status] ?? item.status;
       head.append(status);
+
+      if (item.delivery) {
+        const delivery = document.createElement('span');
+        delivery.className = 'tag';
+        delivery.textContent = DELIVERY_LABELS[item.delivery] ?? item.delivery;
+        head.append(delivery);
+      }
 
       if (item.angle) {
         const angle = document.createElement('span');

@@ -15,6 +15,8 @@ const ENDPOINT = 'https://api.elevenlabs.io/v1/text-to-speech';
 export const elevenLabsProvider: TtsProvider = {
   name: 'elevenlabs',
   extension: 'mp3',
+  // eleven_multilingual_v2 lirait "[laughing]" a voix haute.
+  supportsInlineDirections: false,
 
   async synthesise(text: string): Promise<Buffer> {
     const { apiKey, voiceId, modelId } = config.tts.elevenlabs;
