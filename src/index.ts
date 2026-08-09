@@ -82,10 +82,17 @@ async function main(): Promise<void> {
           gifterName: row.gifter_name,
         })),
       );
-      log.twitch(
-        `Abonnes synchronises : ${result.total} actifs` +
-          (result.gone ? `, ${result.gone} parti(s) depuis la derniere passe.` : '.'),
-      );
+      if (result.suspicious) {
+        log.warn(
+          `Liste des abonnes anormalement courte (${result.total}) : reponse Twitch ` +
+            'probablement tronquee. Aucun abonne retire par securite.',
+        );
+      } else {
+        log.twitch(
+          `Abonnes synchronises : ${result.total} actifs` +
+            (result.gone ? `, ${result.gone} parti(s) depuis la derniere passe.` : '.'),
+        );
+      }
     } catch (error) {
       log.warn(
         'Synchronisation des abonnes impossible :',
@@ -127,9 +134,10 @@ async function main(): Promise<void> {
     // seulement epargne par les vannes : c'est le meme droit.
     if (isOptedOut(message.userId)) return;
 
-    // Minimisation : seuls les abonnes peuvent declencher une vanne, donc seuls
-    // eux ont une raison d'etre profiles. Sur une grosse chaine ca divise le
-    // volume collecte par un facteur important, sans rien perdre a l'usage.
+    // Desactive par defaut, et il faut savoir pourquoi avant de l'activer :
+    // voir le commentaire de `subscribersOnly` dans config.ts. Filtrer sur les
+    // abonnes supprime la matiere sur les NOUVEAUX abonnes, qui sont la cible
+    // principale — au moment ou ils parlaient, ils n'etaient pas encore abonnes.
     if (config.chat.subscribersOnly && !isSubscriber(message.userId)) return;
 
     const clean = sanitiseChatMessage(message.text);

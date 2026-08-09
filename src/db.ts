@@ -50,8 +50,7 @@ db.exec(`
 
   -- Liste des abonnes, rafraichie depuis l'API officielle. Ne contient aucun
   -- message : Twitch n'en expose pas. Sert a deux choses — donner de la matiere
-  -- a vanne des le premier jour (palier, qui a offert le sub), et restreindre
-  -- le log de chat aux seules personnes susceptibles d'etre roastees.
+  -- a vanne des le premier jour : palier, et surtout qui a offert le sub.
   CREATE TABLE IF NOT EXISTS subscribers (
     user_id     TEXT PRIMARY KEY,
     user_login  TEXT NOT NULL,
@@ -61,6 +60,13 @@ db.exec(`
     gifter_name TEXT,
     first_seen  INTEGER NOT NULL,
     last_seen   INTEGER NOT NULL
+  );
+
+  -- Personnes ayant demande l'effacement. Cette liste survit a tout : sans
+  -- elle, un reimport de VODs avec --force reinjecterait leurs messages.
+  CREATE TABLE IF NOT EXISTS forgotten (
+    user_id TEXT PRIMARY KEY,
+    at      INTEGER NOT NULL
   );
 
   -- VODs deja importees, pour ne pas compter deux fois les memes messages.
@@ -138,8 +144,20 @@ export function recordMessage(
 }
 
 /** Insertion en lot, pour l'import de VODs (des milliers de lignes). */
+const stmtIsBlocked = db.prepare<[string, string], { user_id: string }>(
+  `SELECT user_id FROM forgotten WHERE user_id = ?
+   UNION SELECT user_id FROM users WHERE user_id = ? AND opted_out = 1`,
+);
+
+/** Opposition ou effacement demande : on ne reimporte jamais cette personne. */
+export function isBlockedFromCollection(userId: string): boolean {
+  return stmtIsBlocked.get(userId, userId) !== undefined;
+}
+
+/** Insertion en lot, pour l'import de VODs (des milliers de lignes). */
 export function recordMessages(records: ChatRecord[]): void {
-  if (records.length) recordMessageTx(records);
+  const allowed = records.filter((record) => !isBlockedFromCollection(record.userId));
+  if (allowed.length) recordMessageTx(allowed);
 }
 
 // ── Import de VODs ─────────────────────────────────────────────────────────
@@ -221,17 +239,29 @@ const stmtUpsertSub = db.prepare(`
 `);
 
 /** Remplace la photo des abonnes. Les partis sont retires. */
-const syncSubsTx = db.transaction((rows: SubscriberRow[], now: number) => {
+const syncSubsTx = db.transaction((rows: SubscriberRow[], now: number, prune: boolean) => {
   for (const row of rows) {
     stmtUpsertSub.run({ ...row, isGift: row.isGift ? 1 : 0, now });
   }
+  if (!prune) return 0;
   // Ceux qui n'ont pas ete revus dans cette passe ne sont plus abonnes.
   return db.prepare('DELETE FROM subscribers WHERE last_seen < ?').run(now).changes;
 });
 
-export function syncSubscribers(rows: SubscriberRow[]): { total: number; gone: number } {
-  const gone = syncSubsTx(rows, Date.now());
-  return { total: rows.length, gone };
+/**
+ * `listSubscribers` s'arrete sur une page vide sans distinguer "fin de liste"
+ * de "reponse degradee". Une seule pagination tronquee suffirait donc a effacer
+ * la majorite de la table. On refuse d'elaguer sur une chute suspecte.
+ */
+export function syncSubscribers(rows: SubscriberRow[]): {
+  total: number;
+  gone: number;
+  suspicious: boolean;
+} {
+  const before = subscriberCount();
+  const suspicious = before > 50 && rows.length < before * 0.5;
+  const gone = syncSubsTx(rows, Date.now(), !suspicious);
+  return { total: rows.length, gone, suspicious };
 }
 
 const stmtSub = db.prepare<[string], {
@@ -245,19 +275,22 @@ export interface SubscriberFacts {
   tier: string | null;
   isGift: boolean;
   gifterName: string | null;
-  /** Depuis combien de jours on le voit dans la liste des abonnes. */
-  knownAsSubForDays: number;
 }
 
+/**
+ * Ce que Twitch donne reellement sur un abonne : palier, sub offert ou non, et
+ * par qui. Rien d'autre.
+ *
+ * Il n'y a deliberement PAS d'anciennete ici. La table connait la date a
+ * laquelle l'outil a vu cette personne pour la premiere fois — ce n'est pas sa
+ * date d'abonnement. Exposer ce chiffre revenait a affirmer au modele qu'un
+ * abonne de quatre ans venait d'arriver, et le prompt lui interdit d'inventer
+ * des faits sans pouvoir se defendre de ceux qu'on lui fournit.
+ */
 export function subscriberFacts(userId: string): SubscriberFacts | null {
   const row = stmtSub.get(userId);
   if (!row) return null;
-  return {
-    tier: row.tier,
-    isGift: row.is_gift === 1,
-    gifterName: row.gifter_name,
-    knownAsSubForDays: Math.max(0, Math.floor((Date.now() - row.first_seen) / 86_400_000)),
-  };
+  return { tier: row.tier, isGift: row.is_gift === 1, gifterName: row.gifter_name };
 }
 
 export function isSubscriber(userId: string): boolean {
@@ -409,7 +442,11 @@ const stmtResyncCounts = db.prepare(`
   SET message_count = (SELECT COUNT(*) FROM messages WHERE messages.user_id = users.user_id)
 `);
 
+// Les abonnes qui ne le sont plus depuis longtemps n'ont plus a etre fiches.
+const stmtPurgeSubs = db.prepare('DELETE FROM subscribers WHERE last_seen < ?');
+
 const purgeTx = db.transaction((cutoff: number) => ({
+  subs: stmtPurgeSubs.run(cutoff).changes,
   messages: stmtPurgeMessages.run(cutoff).changes,
   roasts: stmtPurgeRoasts.run(cutoff).changes,
   users: (stmtResyncCounts.run(), stmtPurgeUsers.run(cutoff).changes),
@@ -418,20 +455,43 @@ const purgeTx = db.transaction((cutoff: number) => ({
 export function purgeOldMessages(): void {
   const cutoff = Date.now() - config.chat.retentionDays * 86_400_000;
   const result = purgeTx(cutoff);
-  if (result.messages || result.roasts || result.users) {
+  if (result.messages || result.roasts || result.users || result.subs) {
     log.info(
       `Purge (> ${config.chat.retentionDays} j) : ${result.messages} message(s), ` +
-        `${result.roasts} vanne(s) archivee(s), ${result.users} profil(s) vide(s).`,
+        `${result.roasts} vanne(s) archivee(s), ${result.users} profil(s) vide(s), ` +
+        `${result.subs} ancien(s) abonne(s).`,
     );
   }
 }
 
-/** Droit a l'effacement : `!forgetme`. Retire tout ce qui concerne la personne. */
+/**
+ * Droit a l'effacement : `!forgetme`. Retire tout ce qui concerne la personne,
+ * y compris sa ligne dans la liste des abonnes.
+ *
+ * Une seule chose survit, et volontairement : si la personne s'etait aussi
+ * opposee via !noroast, on garde une ligne vide portant ce seul drapeau. Sans
+ * ca, effacer ses donnees effacerait son opposition, et son message suivant la
+ * recreerait comme si elle n'avait jamais rien demande.
+ */
 const forgetTx = db.transaction((userId: string) => {
-  const messages = db.prepare('DELETE FROM messages WHERE user_id = ?').run(userId).changes;
-  const roasts = db.prepare('DELETE FROM roast_history WHERE user_id = ?').run(userId).changes;
-  const users = db.prepare('DELETE FROM users WHERE user_id = ?').run(userId).changes;
-  return messages + roasts + users;
+  const wasOptedOut = stmtIsOptedOut.get(userId)?.opted_out === 1;
+
+  let removed = db.prepare('DELETE FROM messages WHERE user_id = ?').run(userId).changes;
+  removed += db.prepare('DELETE FROM roast_history WHERE user_id = ?').run(userId).changes;
+  removed += db.prepare('DELETE FROM subscribers WHERE user_id = ?').run(userId).changes;
+  removed += db.prepare('DELETE FROM users WHERE user_id = ?').run(userId).changes;
+
+  if (wasOptedOut) {
+    db.prepare(
+      `INSERT INTO users (user_id, user_login, user_name, first_seen, last_seen, message_count, opted_out)
+       VALUES (?, '', '', ?, ?, 0, 1)`,
+    ).run(userId, Date.now(), Date.now());
+  }
+
+  // La personne est aussi inscrite comme effacee, pour que le backfill ne la
+  // ressuscite pas au prochain import.
+  db.prepare('INSERT OR IGNORE INTO forgotten (user_id, at) VALUES (?, ?)').run(userId, Date.now());
+  return removed;
 });
 
 export function forgetUser(userId: string): number {

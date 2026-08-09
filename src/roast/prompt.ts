@@ -126,6 +126,7 @@ export function buildUserPrompt(
   }
 
   if (facts) {
+    // Uniquement ce que Twitch donne vraiment. Pas d'anciennete : on ne l'a pas.
     const lines: string[] = [];
     if (facts.tier) lines.push(`Palier : ${TIER_LABEL[facts.tier] ?? facts.tier}`);
     if (facts.isGift && facts.gifterName) {
@@ -133,7 +134,6 @@ export function buildUserPrompt(
     } else if (facts.isGift) {
       lines.push('Son abonnement lui a ete offert par quelqu\'un');
     }
-    lines.push(`Present dans la liste des abonnes depuis ${facts.knownAsSubForDays} jour(s) au moins`);
     blocks.push(`<abonnement>\n${lines.join('\n')}\n</abonnement>`);
   }
 

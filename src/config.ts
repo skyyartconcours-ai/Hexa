@@ -108,9 +108,20 @@ export const config = {
   chat: {
     retentionDays: int('CHAT_RETENTION_DAYS', 30),
     profileSampleSize: int('PROFILE_SAMPLE_SIZE', 25),
-    // Ne logger que les abonnes : ce sont les seuls qui peuvent declencher une
-    // vanne, donc les seuls qu'on a une raison de profiler.
-    subscribersOnly: bool('LOG_SUBSCRIBERS_ONLY', true),
+    /**
+     * PIEGE — laisser a false.
+     *
+     * L'idee parait bonne : ne profiler que les abonnes, puisque ce sont les
+     * seuls qui peuvent declencher une vanne. Elle est autodestructrice. Le
+     * declencheur numero un est le NOUVEL abonnement : au moment ou cette
+     * personne parlait dans le chat, elle n'etait justement pas encore abonnee,
+     * donc rien n'a ete enregistre sur elle. On supprime la matiere sur
+     * exactement la cible qu'on veut viser, et il ne reste que les resubs.
+     *
+     * La minimisation reelle passe par ne pas conserver le texte des messages,
+     * pas par trier les personnes.
+     */
+    subscribersOnly: bool('LOG_SUBSCRIBERS_ONLY', false),
   },
 
   echoInChat: bool('ECHO_IN_CHAT', false),
