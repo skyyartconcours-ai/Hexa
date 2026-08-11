@@ -1,0 +1,506 @@
+/* ============================================================
+   Hexa — styles de base + contrat de thème
+   Les 8 thèmes redéfinissent ces tokens sous [data-theme='…']
+   (vague design). Le thème par défaut est « neon-nuit ».
+   ============================================================ */
+
+:root {
+  --font-ui: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --glass-bg: rgba(10, 14, 26, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-blur: 18px;
+  --text-1: rgba(255, 255, 255, 0.92);
+  --text-2: rgba(255, 255, 255, 0.6);
+  --radius-ui: 20px;
+  --radius-btn: 12px;
+  --shadow-ui:
+    0 12px 42px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --logo-a: #00e5ff;
+  --logo-b: #b026ff;
+  --wall-1: #0b0f1c;
+  --wall-2: #0e1224;
+  --wall-3: #120b26;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root,
+.app {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  /* transparent : en mode overlay Electron, on voit l'écran à travers */
+  background: transparent;
+  overflow: hidden;
+  font-family: var(--font-ui);
+  color: var(--text-1);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* ---------- scène de dessin ---------- */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  cursor: none;
+  touch-action: none;
+}
+
+.stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* curseur personnalisé : montre taille et couleur réelles (brief §9.5) */
+.cursor-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--d, 12px);
+  height: var(--d, 12px);
+  border-radius: 50%;
+  background: var(--c, #fff);
+  box-shadow:
+    0 0 10px var(--c, #fff),
+    0 0 30px color-mix(in srgb, var(--c, #fff) 55%, transparent);
+  pointer-events: none;
+  z-index: 30;
+  transition:
+    width 0.15s ease,
+    height 0.15s ease;
+}
+
+.cursor-dot[data-tool='eraser'] {
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.25);
+}
+
+.cursor-dot[data-tool='highlight'] {
+  border-radius: 4px;
+  opacity: 0.85;
+}
+
+.cursor-dot.is-grab {
+  background: transparent;
+  border: 1.5px solid var(--c, #fff);
+  transform-origin: center;
+  scale: 1.6;
+}
+
+/* ---------- fond d'écran de la démo navigateur ---------- */
+
+.demo .wallpaper {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    radial-gradient(1100px 750px at 18% 8%, var(--wall-2) 0%, transparent 62%),
+    radial-gradient(950px 700px at 86% 88%, var(--wall-3) 0%, transparent 58%),
+    linear-gradient(160deg, var(--wall-1) 0%, var(--wall-2) 52%, var(--wall-3) 100%);
+  background-size:
+    30px 30px,
+    auto,
+    auto,
+    auto;
+}
+
+.demo .wallpaper::before,
+.demo .wallpaper::after {
+  content: '';
+  position: absolute;
+  width: 46vmax;
+  height: 46vmax;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.demo .wallpaper::before {
+  left: -12vmax;
+  top: -14vmax;
+  background: radial-gradient(circle, var(--logo-a), transparent 65%);
+  animation: floatA 22s ease-in-out infinite alternate;
+}
+
+.demo .wallpaper::after {
+  right: -14vmax;
+  bottom: -16vmax;
+  background: radial-gradient(circle, var(--logo-b), transparent 65%);
+  animation: floatB 26s ease-in-out infinite alternate;
+}
+
+@keyframes floatA {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(6vmax, 4vmax);
+  }
+}
+
+@keyframes floatB {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(-5vmax, -6vmax);
+  }
+}
+
+.hint-card {
+  position: absolute;
+  top: 26px;
+  right: 26px;
+  width: 320px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-ui);
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.55;
+  animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hint-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-1);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.hexa-mark {
+  width: 12px;
+  height: 13px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: linear-gradient(135deg, var(--logo-a), var(--logo-b));
+}
+
+.hint-card ul {
+  margin-top: 8px;
+  padding-left: 16px;
+  display: grid;
+  gap: 3px;
+}
+
+.hint-card b {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+/* ---------- barre d'outils flottante ---------- */
+
+.toolbar {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-ui);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.35);
+  box-shadow: var(--shadow-ui);
+  z-index: 50;
+  cursor: default;
+  animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.brand {
+  display: grid;
+  place-items: center;
+  padding: 0 4px 0 2px;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--logo-a) 40%, transparent));
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sep {
+  width: 1px;
+  height: 26px;
+  background: var(--glass-border);
+}
+
+.tbtn {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-btn);
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  transition:
+    color 0.16s ease,
+    background 0.16s ease,
+    transform 0.16s ease,
+    filter 0.16s ease;
+}
+
+.tbtn:hover {
+  color: var(--text-1);
+  background: rgba(255, 255, 255, 0.07);
+  transform: translateY(-1px);
+}
+
+.tbtn:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.tbtn.active {
+  color: var(--accent, var(--logo-a));
+  background: color-mix(in srgb, var(--accent, var(--logo-a)) 14%, transparent);
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent, var(--logo-a)) 70%, transparent));
+}
+
+.tbtn.danger:hover {
+  color: #ff5a6a;
+  background: rgba(255, 90, 106, 0.12);
+}
+
+.tbtn.chip {
+  width: auto;
+  padding: 0 10px;
+  gap: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.chip-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* pastilles de couleur hexagonales — la signature Hexa */
+.swatches {
+  gap: 7px;
+  padding: 0 2px;
+}
+
+.swatch {
+  width: 22px;
+  height: 25px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: var(--c);
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.swatch:hover {
+  transform: scale(1.14);
+}
+
+.swatch.active {
+  transform: scale(1.22);
+  filter: drop-shadow(0 0 7px var(--c));
+}
+
+/* taille du pinceau */
+.size-group {
+  gap: 10px;
+  padding: 0 6px;
+}
+
+.size-dot {
+  border-radius: 50%;
+  flex: none;
+  box-shadow: 0 0 8px currentColor;
+  transition:
+    width 0.15s ease,
+    height 0.15s ease;
+}
+
+.size-group input[type='range'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 90px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  outline: none;
+}
+
+.size-group input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent, #fff) 80%, transparent);
+  cursor: pointer;
+}
+
+.size-group input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent, #fff) 80%, transparent);
+  cursor: pointer;
+}
+
+/* ---------- liseré du mode dessin (brief §9.7) ---------- */
+
+.edge-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--logo-a) 38%, transparent),
+    inset 0 0 26px -8px color-mix(in srgb, var(--logo-a) 45%, transparent);
+  animation: edgeIn 0.35s ease;
+}
+
+@keyframes edgeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- indicateur discret de changement d'outil (brief §9.6) ---------- */
+
+.tool-indicator {
+  position: fixed;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  color: var(--text-1);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  z-index: 60;
+  pointer-events: none;
+  animation: popfade 0.85s ease forwards;
+}
+
+@keyframes popfade {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px) scale(0.94);
+  }
+  14% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------- panneau réglages (stub — remplacé par la vague design) ---------- */
+
+.settings-stub {
+  position: fixed;
+  right: 26px;
+  bottom: 96px;
+  width: 300px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-ui);
+  color: var(--text-2);
+  font-size: 12.5px;
+  z-index: 70;
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-1);
+  margin-bottom: 6px;
+}
+
+.settings-head .tbtn {
+  width: 28px;
+  height: 28px;
+}
+
+/* ---------- états globaux ---------- */
+
+/* mode traversant : l'UI s'efface, les clics vont au jeu */
+body.passthrough .toolbar,
+body.passthrough .hint-card,
+body.passthrough .settings-stub,
+body.passthrough .tool-indicator {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+body.passthrough .stage {
+  cursor: default;
+}
+
+/* le curseur custom disparaît au-dessus de l'UI */
+body.over-ui .cursor-dot {
+  opacity: 0 !important;
+}
