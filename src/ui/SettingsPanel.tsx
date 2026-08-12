@@ -190,7 +190,11 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
     }
     const onDown = (e: PointerEvent) => {
       const el = panelRef.current
-      if (el && e.target instanceof Node && !el.contains(e.target)) onClose()
+      if (!el || !(e.target instanceof Node) || el.contains(e.target)) return
+      // la barre d'outils garde la main : sinon le bouton « Réglages »
+      // fermerait puis rouvrirait le panneau dans le même geste
+      if (e.target instanceof Element && e.target.closest('.toolbar')) return
+      onClose()
     }
     window.addEventListener('keydown', onKey)
     // capture : on ferme avant que le moteur ne prenne le clic pour un trait
