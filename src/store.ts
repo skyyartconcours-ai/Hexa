@@ -98,8 +98,19 @@ export interface UiState extends ObsSettings {
   keymapPresetChosen: boolean
   /** remaps utilisateur par-dessus le preset — null = raccourci retiré */
   keymapOverrides: Partial<Record<KeymapAction, string | string[] | null>>
-  /** raccourcis confisqués au système (actifs même quand le jeu a le focus) */
+  /**
+   * Raccourcis CONFISQUÉS au système entier (actifs même sans le focus).
+   *
+   * DÉSACTIVÉ PAR DÉFAUT, et ce n'est pas un détail : RegisterHotKey de Windows
+   * est exclusif. Tant que Hexa tenait Ctrl+E et Ctrl+H, plus aucune autre
+   * application ne les recevait — impossible de mettre en pause sur YouTube ou
+   * dans VLC en commentant une vidéo. F8 et la touche panique restent globaux
+   * en permanence (ALWAYS_GLOBAL) : ce sont les seuls indispensables.
+   */
   globalShortcutsOn: boolean
+  /** true dès que l'utilisateur a lui-même touché à l'interrupteur ci-dessus :
+   *  son choix prime alors sur toute migration future. */
+  globalShortcutsChosen: boolean
   /** profil d'usage courant (Analyse LoL, Masterclass, Coaching live, Discret…) */
   profileId: string
   /** profils créés par l'utilisateur depuis l'état courant */
@@ -182,7 +193,8 @@ export const useUiStore = create<UiState>()(
       keymapPreset: DEFAULT_PRESET,
       keymapPresetChosen: false,
       keymapOverrides: {},
-      globalShortcutsOn: true,
+      globalShortcutsOn: false,
+      globalShortcutsChosen: false,
       profileId: DEFAULT_PROFILE_ID,
       customProfiles: [],
       gridMode: 'off',
@@ -229,7 +241,8 @@ export const useUiStore = create<UiState>()(
           return { keymapOverrides: next }
         }),
       resetAllBindings: () => set({ keymapOverrides: {} }),
-      setGlobalShortcuts: (globalShortcutsOn) => set({ globalShortcutsOn }),
+      setGlobalShortcuts: (globalShortcutsOn) =>
+        set({ globalShortcutsOn, globalShortcutsChosen: true }),
 
       // ---- profils d'usage (src/profiles.ts) ----
       applyProfile: (id) =>
@@ -310,6 +323,7 @@ export const useUiStore = create<UiState>()(
         keymapPresetChosen: s.keymapPresetChosen,
         keymapOverrides: s.keymapOverrides,
         globalShortcutsOn: s.globalShortcutsOn,
+        globalShortcutsChosen: s.globalShortcutsChosen,
         profileId: s.profileId,
         customProfiles: s.customProfiles,
         gridMode: s.gridMode,
@@ -346,6 +360,12 @@ export const useUiStore = create<UiState>()(
       merge: (persisted, current) => {
         const merged = { ...current, ...((persisted ?? {}) as Partial<UiState>) }
         if (merged.keymapPresetChosen !== true) merged.keymapPreset = DEFAULT_PRESET
+        // Les premières versions confisquaient les raccourcis au système entier,
+        // ce qui privait YouTube et VLC de Ctrl+E et Ctrl+H. On rend les touches
+        // une bonne fois aux installations existantes ; si l'utilisateur
+        // réactive l'option ensuite, son choix est marqué et jamais réécrasé.
+        const p = (persisted ?? {}) as Partial<UiState> & { globalShortcutsChosen?: boolean }
+        if (p.globalShortcutsChosen !== true) merged.globalShortcutsOn = false
         return merged
       },
       /** Conservé pour les futures versions : sans lui, zustand jetterait l'état. */
