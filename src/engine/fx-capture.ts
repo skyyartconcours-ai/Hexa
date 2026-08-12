@@ -710,8 +710,9 @@ export class FxLayer {
       }
     }
 
-    if (this.tool === 'blur' && e.button === 0) {
-      // croix de suppression d'un masque existant
+    // Suppression d'un masque par sa croix : valable avec l'outil flou ET avec
+    // la gomme, où c'est le geste que tout le monde tente en premier.
+    if ((this.tool === 'blur' || this.tool === 'eraser') && e.button === 0) {
       const del = this.maskCloseAt(e.clientX, e.clientY)
       if (del) {
         this.masks = this.masks.filter((m) => m !== del)
@@ -721,7 +722,10 @@ export class FxLayer {
         this.wake()
         return
       }
-      // sinon : on trace un nouveau masque
+    }
+
+    if (this.tool === 'blur' && e.button === 0) {
+      // on trace un nouveau masque
       this.drawingMask = {
         id: this.maskSeq++,
         x: e.clientX,
@@ -1116,8 +1120,11 @@ export class FxLayer {
       ctx.restore()
     }
 
-    // poignées d'édition : seulement quand l'outil masque est choisi
-    if (this.tool === 'blur') this.paintMaskHandles()
+    // Poignées d'édition. Elles apparaissent avec l'outil masque, mais AUSSI
+    // avec la gomme : « comment j'efface un masque ? » est la première question
+    // que se pose l'utilisateur, et chercher la croix en repassant par l'outil
+    // flou n'est devinable par personne.
+    if (this.tool === 'blur' || this.tool === 'eraser') this.paintMaskHandles()
   }
 
   private paintMaskHandles(): void {

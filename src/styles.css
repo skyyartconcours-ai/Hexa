@@ -525,6 +525,14 @@ body.passthrough .stage {
   cursor: default;
 }
 
+/* Mode traversant : il ne doit RIEN rester à l'écran. Le curseur personnalisé
+   est peint par le moteur (pas par React) : sans cette règle, sa pastille de
+   couleur restait visible et suivait la souris pendant qu'on jouait. */
+body.passthrough .cursor-dot {
+  opacity: 0 !important;
+  transition: opacity 0.18s ease;
+}
+
 /* le curseur custom disparaît au-dessus de l'UI */
 body.over-ui .cursor-dot {
   opacity: 0 !important;
