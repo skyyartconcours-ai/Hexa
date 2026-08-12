@@ -46,6 +46,7 @@ padding:1.1rem 1.25rem;margin:1rem 0}
 .tag{font-size:.72rem;padding:.15rem .5rem;border-radius:6px;
 background:var(--bg);border:1px solid var(--line);color:var(--muted)}
 .tag.consensus{color:var(--ok);border-color:var(--ok)}
+.tag.disputed{color:var(--warm);border-color:var(--warm)}
 .sect{margin:.9rem 0 0}
 .sect>h4{margin:0 0 .4rem;font-size:.78rem;text-transform:uppercase;
 letter-spacing:.06em;color:var(--muted)}
@@ -126,7 +127,7 @@ def render(out: Path, title: str = "Cours fusionné") -> Path:
         f'<div class="stat"><b>{stats["n_lessons"]}</b>leçons</div>',
         f'<div class="stat"><b>{stats["n_claims"]}</b>affirmations sourcées</div>',
         f'<div class="stat"><b>{stats["n_consensus_lessons"]}</b>en consensus</div>',
-        f'<div class="stat"><b>{stats["n_debates"]}</b>débats</div>',
+        f'<div class="stat"><b>{stats.get("n_disputed_lessons", 0)}</b>en débat</div>',
         "</div>",
         '<div class="controls">',
         '<input type="search" id="q" placeholder="Rechercher une notion, un mot, un coach…">',
@@ -160,7 +161,10 @@ def render(out: Path, title: str = "Cours fusionné") -> Path:
             parts.append('<div class="meta">')
             parts.append(f'<span class="tag">{esc(lesson["subdomain_label"])}</span>')
             parts.append(f'<span class="tag">niveau {lesson["level"]}</span>')
-            if lesson["consensus"]:
+            if lesson["disputed"]:
+                parts.append(f'<span class="tag disputed">débat · '
+                             f'{esc(" vs ".join(lesson["debate_coaches"]))}</span>')
+            elif lesson["consensus"]:
                 parts.append(f'<span class="tag consensus">consensus · {esc(" + ".join(lesson["coaches"]))}</span>')
             else:
                 parts.append(f'<span class="tag">{esc(lesson["coaches"][0])}</span>')

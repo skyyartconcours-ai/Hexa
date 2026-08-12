@@ -71,6 +71,19 @@ def assemble(out: Path, min_claims: int = 1) -> dict:
             for claim in members:
                 unique_contrib[claim["coach"]].append(claim)
 
+        debates = [
+            {
+                "reasons": conflict["reasons"],
+                "context_dependent": conflict["likely_context_dependent"],
+                "positions": [
+                    {"coach": s["coach"], "statement": s["statement"],
+                     "conditions": s["conditions"], "anchors": s["anchors"]}
+                    for s in (conflict["a"], conflict["b"])
+                ],
+            }
+            for conflict in conflicts_by_concept.get(concept["concept_id"], [])
+        ]
+
         modules[domain]["lessons"].append({
             "concept_id": concept["concept_id"],
             "title": concept["title"],
@@ -79,7 +92,13 @@ def assemble(out: Path, min_claims: int = 1) -> dict:
             "level": concept["level"],
             "order": concept["order"],
             "coaches": coaches,
-            "consensus": len(coaches) > 1,
+            # Plusieurs coachs sur un sujet ne veut pas dire qu'ils s'accordent.
+            # Étiqueter « consensus » une leçon où deux coachs s'opposent affirme
+            # exactement le contraire de ce que dit le corpus.
+            "multi_source": len(coaches) > 1,
+            "consensus": len(coaches) > 1 and not debates,
+            "disputed": bool(debates),
+            "debate_coaches": _debate_coaches(coaches, debates),
             "n_claims": len(members),
             "sections": [
                 {
@@ -89,18 +108,7 @@ def assemble(out: Path, min_claims: int = 1) -> dict:
                 }
                 for t in SECTION_ORDER if by_type.get(t)
             ],
-            "debates": [
-                {
-                    "reasons": conflict["reasons"],
-                    "context_dependent": conflict["likely_context_dependent"],
-                    "positions": [
-                        {"coach": s["coach"], "statement": s["statement"],
-                         "conditions": s["conditions"], "anchors": s["anchors"]}
-                        for s in (conflict["a"], conflict["b"])
-                    ],
-                }
-                for conflict in conflicts_by_concept.get(concept["concept_id"], [])
-            ],
+            "debates": debates,
             "sources": sorted({
                 (c["coach"], c["lesson"], anchor)
                 for c in members for anchor in c["anchors"]
@@ -123,17 +131,42 @@ def assemble(out: Path, min_claims: int = 1) -> dict:
             "n_consensus_lessons": sum(
                 1 for m in ordered for l in m["lessons"] if l["consensus"]
             ),
+            "n_disputed_lessons": sum(
+                1 for m in ordered for l in m["lessons"] if l["disputed"]
+            ),
         },
     }
     write_json(out / "course.json", course)
     _write_markdown(out, course)
 
     stats = course["stats"]
+    n_multi = sum(1 for m in ordered for l in m["lessons"] if l["multi_source"])
     print(f"\n  {stats['n_modules']} modules, {stats['n_lessons']} leçons")
-    print(f"  {stats['n_consensus_lessons']} leçons adossées à plusieurs coachs")
-    print(f"  {stats['n_debates']} débats intégrés")
+    print(f"  {n_multi} leçons alimentées par plusieurs coachs, "
+          f"dont {stats['n_consensus_lessons']} sans désaccord")
+    print(f"  {stats['n_disputed_lessons']} leçons portent un débat "
+          f"({stats['n_debates']} désaccords au total)")
     print(f"  -> {out / 'course.json'} et {out / 'cours'}/")
     return course
+
+
+def _badge(lesson: dict) -> str:
+    if lesson["disputed"]:
+        return f"débat · {' vs '.join(lesson['debate_coaches'])}"
+    if lesson["consensus"]:
+        return f"consensus · {' + '.join(lesson['coaches'])}"
+    return f"apport de {lesson['coaches'][0]}"
+
+
+def _debate_coaches(coaches: list[str], debates: list[dict]) -> list[str]:
+    """Parties au débat, qui ne sont pas forcément les coachs de la leçon : une
+    position adverse peut venir d'une notion voisine du même sous-domaine."""
+    names = list(coaches)
+    for debate in debates:
+        for position in debate["positions"]:
+            if position["coach"] not in names:
+                names.append(position["coach"])
+    return names
 
 
 def _render_claim(claim: dict) -> dict:
@@ -174,7 +207,7 @@ def _write_markdown(out: Path, course: dict) -> None:
             badge = " · ".join(filter(None, [
                 lesson["subdomain_label"],
                 f"niveau {lesson['level']}",
-                "consensus" if lesson["consensus"] else f"apport de {lesson['coaches'][0]}",
+                _badge(lesson),
             ]))
             lines.append(f"_{badge}_")
             lines.append("")
