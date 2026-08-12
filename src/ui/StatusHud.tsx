@@ -102,10 +102,12 @@ export function StatusHud({ passthrough }: StatusHudProps) {
       return
     }
 
+    // Aucun message au changement de mode dessin/traversant. Il était capturé
+    // par OBS et partait dans le direct, ce que l'utilisateur refuse — et il
+    // était de toute façon redondant : en mode traversant la barre, le curseur
+    // et le liseré disparaissent déjà, ce qui se voit immédiatement.
     if (passthrough !== p.passthrough) {
-      if (passthrough)
-        show('Souris rendue au jeu — Hexa laisse passer tes clics', keyOf('mode.draw'), 'game')
-      else show('Mode dessin', undefined, 'draw')
+      // rien à dire
     } else if (toolbarVisible !== p.toolbarVisible) {
       if (!toolbarVisible) show('Barre d’outils masquée', keyOf('ui.toolbar'))
       else show('Barre d’outils affichée')

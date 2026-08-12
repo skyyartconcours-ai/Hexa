@@ -230,9 +230,12 @@ button {
 
 .toolbar {
   position: fixed;
-  left: 50%;
-  bottom: 26px;
-  transform: translateX(-50%);
+  /* La POSITION est calculée en JavaScript (src/ui/toolbar-dock.ts) : bord
+     d'ancrage + proportion le long de ce bord + taille réelle de la barre,
+     toujours bornée à l'écran. Un `left`/`bottom` figé ici ne servirait qu'à
+     produire un premier rendu au mauvais endroit, le temps d'une image. */
+  left: 0;
+  top: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -262,14 +265,17 @@ button {
   animation: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* L'animation d'entrée finit sur `transform: none` — c'est-à-dire exactement la
+   valeur que porte la barre en régime établi. Sans ça, la dernière image de
+   l'animation ferait sauter la barre d'un cran. */
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(16px);
+    transform: scale(0.97);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: none;
   }
 }
 
@@ -583,7 +589,9 @@ body.over-ui .cursor-dot {
 }
 
 .hexa-text-field {
-  min-width: 190px;
+  /* la largeur est posée en JavaScript d'après le jumeau invisible ci-dessous ;
+     ce minimum ne sert qu'à garder une cible cliquable quand le champ est vide */
+  min-width: 12px;
   border: none;
   outline: none;
   background: none;
@@ -599,6 +607,20 @@ body.over-ui .cursor-dot {
   color: var(--text-2);
   font-weight: 500;
   opacity: 0.7;
+}
+
+/* Jumeau invisible : il porte le même texte dans la même fonte et sert
+   uniquement à mesurer la largeur exacte à donner au champ. */
+.hexa-text-ghost {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  visibility: hidden;
+  white-space: pre;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  pointer-events: none;
 }
 
 /* le curseur devient un point d'ancrage fin pour les outils posés au clic */
@@ -825,5 +847,413 @@ body.passthrough .fx-toast {
   .fx-badge,
   .fx-toast {
     transition: none;
+  }
+}
+
+/* ================================================================== *
+ * Barre d'outils : orientation, ancrage, rappel des raccourcis (§S4)
+ *
+ * Trois principes :
+ *  · le VERTICAL n'est pas de l'horizontal pivoté. Les groupes deviennent des
+ *    grilles de deux colonnes, les séparateurs se couchent, le curseur
+ *    d'épaisseur passe en compact — sinon la barre ferait deux fois la hauteur
+ *    d'un écran 1080p et le dernier outil serait inatteignable ;
+ *  · toutes les règles d'orientation sont en `.toolbar.vertical …` (trois
+ *    classes) : elles passent DEVANT les personnalisations de thème, écrites
+ *    en `[data-theme='x'] .tbtn` (deux). Les huit thèmes restent donc justes
+ *    sans qu'aucun n'ait à connaître l'orientation ;
+ *  · rien ne tourne en permanence. Les seules animations sont des transitions
+ *    déclenchées par un geste, et elles s'éteignent seules.
+ * ================================================================== */
+
+.toolbar {
+  /* Taille des boutons EN VERTICAL : les thèmes la fixent en horizontal, on la
+     reprend en main quand la barre est debout pour tenir en hauteur. */
+  --tb-size: 34px;
+  --tb-icon: 18px;
+  transition:
+    width 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.18s ease;
+}
+
+/* ---- poignée de préhension + bascule d'orientation ---- */
+
+.tb-handle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.brand.grip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  /* La barre se saisit ICI, et ça doit se voir sans un mot d'explication. */
+  cursor: grab;
+  touch-action: none;
+  border-radius: var(--radius-btn);
+  padding: 3px 4px;
+  transition: background 0.16s ease;
+}
+
+.brand.grip:hover {
+  background: var(--hover-bg, rgba(255, 255, 255, 0.07));
+}
+
+.toolbar.dragging .brand.grip {
+  cursor: grabbing;
+  background: color-mix(in srgb, var(--accent, var(--logo-a)) 18%, transparent);
+}
+
+.grip-dots {
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  opacity: 0.45;
+  transition: opacity 0.16s ease;
+}
+
+.brand.grip:hover .grip-dots {
+  opacity: 1;
+}
+
+.tbtn.tb-orient {
+  width: 26px;
+  height: 26px;
+  opacity: 0.7;
+}
+
+.tbtn.tb-orient:hover {
+  opacity: 1;
+}
+
+.toolbar.dragging {
+  /* Pendant le déplacement la barre suit la souris au pixel : toute transition
+     de position se traduirait par un retard élastique désagréable. */
+  transition: none;
+  cursor: grabbing;
+  box-shadow: var(--shadow-ui), 0 22px 60px -22px rgba(0, 0, 0, 0.75);
+}
+
+/* ---- orientation verticale ---- */
+
+.toolbar.vertical {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: max-content;
+  max-width: none;
+  /* Repli de dernier recours : sur un écran court (ou un thème aux gros
+     boutons), la barre défile à l'intérieur plutôt que de sortir du cadre. */
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  row-gap: 7px;
+  column-gap: 0;
+  padding: 9px 8px;
+}
+
+.toolbar.vertical::-webkit-scrollbar {
+  width: 6px;
+}
+
+.toolbar.vertical::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--glass-border);
+}
+
+.toolbar.vertical .tb-handle {
+  flex-direction: column;
+  gap: 3px;
+  padding-bottom: 2px;
+}
+
+.toolbar.vertical .brand.grip {
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 6px 3px;
+}
+
+/* Deux colonnes : seize outils en une colonne, c'est 700 px de haut. */
+.toolbar.vertical .group {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar.vertical .tbtn {
+  width: var(--tb-size);
+  height: var(--tb-size);
+}
+
+.toolbar.vertical .tbtn svg {
+  width: var(--tb-icon);
+  height: var(--tb-icon);
+}
+
+/* Un bouton seul sur sa ligne (fondu, gel…) reste centré au lieu de coller
+   à gauche : la colonne resterait visiblement bancale. */
+.toolbar.vertical .group > *:only-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.toolbar.vertical .tbtn.chip {
+  width: 100%;
+  justify-content: center;
+  padding: 0 6px;
+  gap: 4px;
+}
+
+/* Le séparateur se couche : c'est le signe le plus lisible que la barre a
+   changé d'axe. */
+.toolbar.vertical .sep {
+  width: 30px;
+  height: 1px;
+  min-height: 1px;
+  align-self: center;
+}
+
+.toolbar.vertical .swatches {
+  grid-template-columns: repeat(2, auto);
+  gap: 5px 8px;
+  padding: 1px 0;
+}
+
+.swatch-cell {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+/* La septième pastille, seule sur sa ligne, est centrée sous les six autres. */
+.toolbar.vertical .swatches > .swatch-cell:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+
+.toolbar.vertical .size-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 2px 0;
+}
+
+.toolbar.vertical .size-group input[type='range'] {
+  width: calc(var(--tb-size) * 2 + 4px);
+}
+
+.toolbar.vertical .vol-group input[type='range'] {
+  width: calc(var(--tb-size) * 2 + 4px);
+}
+
+/* Écran court : on resserre plutôt que de faire défiler. */
+@media (max-height: 1000px) {
+  .toolbar {
+    --tb-size: 31px;
+    --tb-icon: 17px;
+  }
+
+  .toolbar.vertical {
+    row-gap: 5px;
+    padding: 7px 7px;
+  }
+
+  .toolbar.vertical .swatch {
+    transform: scale(0.86);
+  }
+}
+
+@media (max-height: 820px) {
+  .toolbar {
+    --tb-size: 28px;
+    --tb-icon: 15px;
+  }
+
+  .toolbar.vertical {
+    row-gap: 4px;
+  }
+}
+
+/* ---- rappel des raccourcis, touche Fin maintenue ---- */
+
+.tb-hint {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: hintIn 0.18s ease both;
+}
+
+@keyframes hintIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.tb-hint-key {
+  color: var(--accent, var(--logo-a));
+  opacity: 0.95;
+}
+
+.tb-hint-name {
+  color: var(--text-1);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* En HORIZONTAL la barre est compacte : seule la touche s'affiche, en pastille
+   sous l'icône. Le nom serait illisible à cette largeur — l'info-bulle le dit
+   déjà. La barre s'élargit en douceur (180 ms) pendant l'affichage. */
+.toolbar.horizontal .tb-hint-name {
+  display: none;
+}
+
+.toolbar.horizontal.hints .tbtn {
+  flex-direction: column;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: auto;
+  min-height: 44px;
+  min-width: 42px;
+  width: auto;
+  padding: 4px 5px;
+}
+
+.toolbar.horizontal.hints .tb-hint {
+  font-size: 9.5px;
+}
+
+.toolbar.horizontal.hints .swatch-cell {
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* En VERTICAL il y a la place : « Pinceau (Ctrl + Maj + 3) » en toutes lettres
+   à côté de l'icône. On garde les deux colonnes — passer à une seule ferait
+   déborder la barre par le bas. */
+.toolbar.vertical.hints .group {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 5px;
+}
+
+.toolbar.vertical.hints .tbtn {
+  width: 100%;
+  min-width: 0;
+  height: var(--tb-size);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  padding: 0 6px;
+}
+
+.toolbar.vertical.hints .tbtn svg {
+  flex: none;
+}
+
+.toolbar.vertical.hints .tb-hint {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.toolbar.vertical.hints .swatches {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.toolbar.vertical.hints .sep {
+  width: 100%;
+}
+
+/* ---- aperçu d'ancrage pendant le déplacement ---- */
+
+.dock-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  pointer-events: none;
+  animation: hintIn 0.14s ease both;
+}
+
+.dock-preview-edge {
+  position: absolute;
+  border-radius: 999px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--accent, var(--logo-a)),
+    transparent
+  );
+  box-shadow: 0 0 26px 4px color-mix(in srgb, var(--accent, var(--logo-a)) 55%, transparent);
+  opacity: 0.9;
+}
+
+.dock-preview-word {
+  position: absolute;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-1);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-ui);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.dock-preview-word.edge-left {
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.dock-preview-word.edge-right {
+  right: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.dock-preview-word.edge-top {
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.dock-preview-word.edge-bottom {
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbar,
+  .tb-hint,
+  .dock-preview {
+    transition: none;
+    animation: none;
   }
 }

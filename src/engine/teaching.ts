@@ -420,7 +420,22 @@ export function openTextInput(
   input.placeholder = 'Texte…'
   input.style.fontSize = `${o.fontSize}px`
   wrap.appendChild(input)
+
+  // Le champ épouse son contenu : une boîte large et vide au milieu de l'écran
+  // pendant un live, c'est laid et ça masque le jeu. Un jumeau invisible porte
+  // le même texte dans la même fonte, et sa largeur devient celle du champ.
+  const ghost = document.createElement('span')
+  ghost.className = 'hexa-text-ghost'
+  ghost.style.fontSize = `${o.fontSize}px`
+  wrap.appendChild(ghost)
+  const fit = () => {
+    ghost.textContent = input.value || input.placeholder
+    input.style.width = `${Math.ceil(ghost.getBoundingClientRect().width) + 2}px`
+  }
+  input.addEventListener('input', fit)
+
   stage.appendChild(wrap)
+  fit()
 
   let closed = false
   const close = (commit: boolean) => {
