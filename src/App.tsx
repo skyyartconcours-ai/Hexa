@@ -401,6 +401,21 @@ export default function App() {
     })
   }, [])
 
+  /**
+   * Filet de sécurité de la roue (§8.2).
+   *
+   * La roue est dessinée par la couche INTERFACE, mais le geste qui la ferme
+   * (le relâché du clic droit) a lieu dans la couche encre : si ce relâché se
+   * perd — alt-tab en plein geste, écran débranché — la roue resterait ouverte
+   * à l'écran, et la touche panique elle-même ne la retirerait pas : elle
+   * s'adresse au moteur, qui vit dans l'autre fenêtre. « Tout effacer » doit
+   * TOUT effacer, roue comprise.
+   */
+  useEffect(() => {
+    if (!porteInterface || !coucheSeparee) return
+    return bridge.on('panic-clear', () => setRadial(null))
+  }, [])
+
   // Mode dessin : dans la couche interface, le moteur n'est pas là pour
   // l'écouter. Elle l'apprend directement du processus principal — c'est ce qui
   // fait disparaître le curseur personnalisé quand la souris repart au jeu.
@@ -618,8 +633,10 @@ export default function App() {
   // Raccourcis GLOBAUX (application Electron) : la mémoire musculaire d'Epic
   // Pen doit fonctionner PAR-DESSUS le jeu, donc même quand Hexa n'a pas le
   // focus. Ctrl+Maj+2 curseur · 3 stylo · 4 surligneur · 5 gomme · 6 annuler ·
-  // Ctrl+E tout effacer · Ctrl+H barre. Ils sont réenregistrés à chaud à chaque
-  // changement de clavier : on ne demande JAMAIS de relancer l'application.
+  // 7/8 épaisseur, plus F8 et la touche panique. Ctrl+E et Ctrl+H, eux, restent
+  // volontairement LOCAUX (NEVER_GLOBAL, src/keymap.ts) : ils appartiennent au
+  // navigateur et à VLC. Tout est réenregistré à chaud à chaque changement de
+  // clavier : on ne demande JAMAIS de relancer l'application.
   // ---------------------------------------------------------------
   useGlobalShortcuts({
     preset: keymapPreset,

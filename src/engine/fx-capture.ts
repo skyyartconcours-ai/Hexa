@@ -46,10 +46,74 @@
  *     produit. On assume donc : la zone est illisible dès la première image,
  *     et le devient encore plus ensuite. C'est le bon sens du masquage.
  */
-import { bridge } from '../bridge'
+import { bridge, isElectron } from '../bridge'
 import type { ToolId } from './types'
 
 const TAU = Math.PI * 2
+
+/* ------------------------------------------------------------------ *
+ * PEAU DU THÈME (§ thèmes)
+ *
+ * Cette couche est peinte au CANVAS : ni classe ni variable CSS ne
+ * l'atteignent. Elle gardait donc le nickel-néon du thème par défaut dans les
+ * huit peaux — plaque bleu nuit et texte blanc au milieu d'un Glacier ou d'un
+ * Sakura, où c'est un corps étranger. On relit ici les mêmes tokens que le
+ * reste de l'interface, UNE fois par changement de thème (jamais par image).
+ * ------------------------------------------------------------------ */
+
+interface Peau {
+  /** fond des plaques et pastilles (opaque, teinté par le thème) */
+  panneau: [number, number, number]
+  /** couleur de texte du thème */
+  texte: [number, number, number]
+  /** rayon des pastilles, borné : 0 sur les thèmes à angles droits */
+  rayon: number
+}
+
+const PEAU_DEFAUT: Peau = { panneau: [12, 16, 28], texte: [255, 255, 255], rayon: 11 }
+let peauVue = ' '
+let peau: Peau = PEAU_DEFAUT
+
+function lireCanal(v: string, repli: [number, number, number]): [number, number, number] {
+  const m = v.trim().match(/-?[\d.]+/g)
+  if (m && m.length >= 3) return [Number(m[0]), Number(m[1]), Number(m[2])]
+  const h = v.trim().match(/^#([0-9a-f]{6})$/i)
+  if (h) {
+    const n = parseInt(h[1], 16)
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+  }
+  return repli
+}
+
+/** Peau du thème actif. Relue seulement quand `data-theme` change. */
+function skin(): Peau {
+  if (typeof document === 'undefined') return peau
+  const t = document.documentElement.dataset.theme ?? ''
+  if (t === peauVue) return peau
+  peauVue = t
+  const s = getComputedStyle(document.documentElement)
+  const rayon = parseFloat(s.getPropertyValue('--chip-radius')) || 0
+  peau = {
+    // `--wall-1` est la couleur de fond que le thème revendique : c'est elle qui
+    // dit si l'on travaille sur du sombre ou sur du clair.
+    panneau: lireCanal(s.getPropertyValue('--wall-1'), PEAU_DEFAUT.panneau),
+    texte: lireCanal(s.getPropertyValue('--text-1'), PEAU_DEFAUT.texte),
+    rayon: Math.max(0, Math.min(11, rayon)),
+  }
+  return peau
+}
+
+/** Fond de plaque du thème, à l'opacité demandée. */
+function fondPanneau(a: number): string {
+  const [r, g, b] = skin().panneau
+  return `rgba(${r},${g},${b},${a})`
+}
+
+/** Couleur de texte du thème, à l'opacité demandée. */
+function encrePanneau(a: number): string {
+  const [r, g, b] = skin().texte
+  return `rgba(${r},${g},${b},${a})`
+}
 
 /** Rayon du disque de la loupe, en pixels CSS (§6 : disque de 400 px). */
 const MAG_R = 200
@@ -1008,7 +1072,7 @@ export class FxLayer {
     const x = this.compareX * this.w
     const y = this.h / 2
     ctx.save()
-    ctx.strokeStyle = 'rgba(255,255,255,0.9)'
+    ctx.strokeStyle = encrePanneau(0.9)
     ctx.lineWidth = 2
     ctx.shadowColor = 'rgba(0,0,0,0.6)'
     ctx.shadowBlur = 10
@@ -1018,7 +1082,7 @@ export class FxLayer {
     ctx.stroke()
     ctx.shadowBlur = 22
     ctx.shadowColor = this.accent
-    ctx.fillStyle = 'rgba(12,16,28,0.92)'
+    ctx.fillStyle = fondPanneau(0.92)
     ctx.beginPath()
     ctx.arc(x, y, 22, 0, TAU)
     ctx.fill()
@@ -1026,7 +1090,7 @@ export class FxLayer {
     ctx.lineWidth = 2.5
     ctx.stroke()
     ctx.shadowBlur = 0
-    ctx.strokeStyle = 'rgba(255,255,255,0.95)'
+    ctx.strokeStyle = encrePanneau(0.95)
     ctx.lineWidth = 2
     for (const s of [-1, 1]) {
       ctx.beginPath()
@@ -1047,10 +1111,10 @@ export class FxLayer {
     ] as [string, number][]) {
       const wl = ctx.measureText(mot).width + 18
       const cx = x + dir * (30 + wl / 2)
-      roundRect(ctx, cx - wl / 2, y - 11, wl, 22, 11)
-      ctx.fillStyle = 'rgba(8,11,20,0.82)'
+      roundRect(ctx, cx - wl / 2, y - 11, wl, 22, skin().rayon)
+      ctx.fillStyle = fondPanneau(0.86)
       ctx.fill()
-      ctx.fillStyle = 'rgba(255,255,255,0.92)'
+      ctx.fillStyle = encrePanneau(0.94)
       ctx.fillText(mot, cx, y)
     }
     ctx.restore()
@@ -1102,11 +1166,11 @@ export class FxLayer {
         // Aucun flux : plaque dépolie honnête. On ne PEUT pas flouter le
         // bureau sans le lire (voir le piège n°1 en tête de fichier).
         const g = ctx.createLinearGradient(m.x, m.y, m.x, m.y + m.h)
-        g.addColorStop(0, 'rgba(22,27,44,0.94)')
-        g.addColorStop(1, 'rgba(12,16,28,0.97)')
+        g.addColorStop(0, fondPanneau(0.94))
+        g.addColorStop(1, fondPanneau(0.98))
         ctx.fillStyle = g
         ctx.fillRect(m.x, m.y, m.w, m.h)
-        ctx.fillStyle = 'rgba(255,255,255,0.055)'
+        ctx.fillStyle = encrePanneau(0.055)
         for (let i = -m.h; i < m.w; i += 14) {
           ctx.fillRect(m.x + i, m.y, 6, m.h)
         }
@@ -1116,8 +1180,8 @@ export class FxLayer {
       // cadre de la plaque
       ctx.save()
       ctx.globalAlpha = grow
-      roundRect(ctx, m.x + 0.5, m.y + 0.5, m.w - 1, m.h - 1, 12)
-      ctx.strokeStyle = 'rgba(255,255,255,0.22)'
+      roundRect(ctx, m.x + 0.5, m.y + 0.5, m.w - 1, m.h - 1, skin().rayon)
+      ctx.strokeStyle = encrePanneau(0.22)
       ctx.lineWidth = 1
       ctx.stroke()
       ctx.restore()
@@ -1136,7 +1200,7 @@ export class FxLayer {
     ctx.font = '600 11px ui-sans-serif, system-ui, "Segoe UI", sans-serif'
     ctx.textBaseline = 'middle'
     for (const m of this.masks) {
-      roundRect(ctx, m.x + 0.5, m.y + 0.5, m.w - 1, m.h - 1, 12)
+      roundRect(ctx, m.x + 0.5, m.y + 0.5, m.w - 1, m.h - 1, skin().rayon)
       ctx.strokeStyle = this.accent
       ctx.globalAlpha = 0.75
       ctx.lineWidth = 1.5
@@ -1148,7 +1212,7 @@ export class FxLayer {
       const cy = m.y + MASK_X_R
       ctx.beginPath()
       ctx.arc(cx, cy, MASK_X_R, 0, TAU)
-      ctx.fillStyle = 'rgba(12,16,28,0.9)'
+      ctx.fillStyle = fondPanneau(0.9)
       ctx.fill()
       ctx.strokeStyle = 'rgba(255,120,140,0.95)'
       ctx.lineWidth = 1.5
@@ -1162,7 +1226,7 @@ export class FxLayer {
       ctx.lineWidth = 2
       ctx.stroke()
       ctx.textAlign = 'left'
-      ctx.fillStyle = 'rgba(255,255,255,0.62)'
+      ctx.fillStyle = encrePanneau(0.62)
       ctx.fillText('clic droit : déplacer', m.x + 8, m.y + m.h - 12)
     }
     ctx.restore()
@@ -1221,43 +1285,81 @@ export class FxLayer {
     ctx.shadowOffsetY = 10
     ctx.beginPath()
     ctx.arc(cx, cy, MAG_R, 0, TAU)
-    ctx.fillStyle = 'rgba(9,12,22,0.92)'
+    ctx.fillStyle = fondPanneau(0.92)
     ctx.fill()
     ctx.restore()
 
     if (src && scale) {
+      const sx = (this.px - half) * scale.x
+      const sy = (this.py - half) * scale.y
+      const sw = srcSide * scale.x
+      const sh = srcSide * scale.y
       ctx.save()
       ctx.beginPath()
       ctx.arc(cx, cy, MAG_R - 2, 0, TAU)
       ctx.clip()
-      // §6 : la SOURCE suit le curseur au pixel, sans le moindre lissage.
-      ctx.imageSmoothingEnabled = false
+      // LISSAGE : à ×1,7 le plus-proche-voisin duplique une colonne sur deux
+      // et transforme une minimap en escalier. Une loupe optique interpole ;
+      // au-delà de ×5 on le coupe, parce que le streamer veut alors voir LE
+      // pixel (une pointe de sort, un pixel de HP) et non une bouillie douce.
+      const brut = this.magZoom >= 5
+      ctx.imageSmoothingEnabled = !brut
+      if (!brut) ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(src, sx, sy, sw, sh, cx - MAG_R, cy - MAG_R, MAG_R * 2, MAG_R * 2)
+      ctx.restore()
+
+      // §6.4 — DÉFORMATION OPTIQUE. Sur les 10 derniers pour cent du rayon, une
+      // vraie lentille grossit un peu plus fort : sans ça le contenu est coupé
+      // net au bord et le disque a l'air d'un trou découpé aux ciseaux. On
+      // repeint juste l'anneau extérieur, agrandi de 5 %, en fondu.
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(cx, cy, MAG_R - 2, 0, TAU)
+      ctx.arc(cx, cy, MAG_R * 0.9, 0, TAU, true)
+      ctx.clip()
+      ctx.globalAlpha = 0.85
+      ctx.imageSmoothingEnabled = true
+      const k = 1.05
       ctx.drawImage(
         src,
-        (this.px - half) * scale.x,
-        (this.py - half) * scale.y,
-        srcSide * scale.x,
-        srcSide * scale.y,
-        cx - MAG_R,
-        cy - MAG_R,
-        MAG_R * 2,
-        MAG_R * 2,
+        sx,
+        sy,
+        sw,
+        sh,
+        cx - MAG_R * k,
+        cy - MAG_R * k,
+        MAG_R * 2 * k,
+        MAG_R * 2 * k,
       )
       ctx.restore()
-    } else {
+    } else if (!isElectron) {
+      // Le message d'AUTORISATION n'existe que dans la démo navigateur :
+      // l'overlay Electron, lui, n'a rien à demander à personne. Il s'affichait
+      // pourtant dans l'application, en gros, sur un disque noir, pendant les
+      // ~200 ms que met le flux à s'ouvrir — le premier plan de l'outil
+      // pédagogique numéro un était un message d'erreur.
       ctx.save()
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.font = '500 14px ui-sans-serif, system-ui, "Segoe UI", sans-serif'
-      ctx.fillStyle = 'rgba(255,255,255,0.55)'
-      // Deux situations très différentes, et l'utilisateur doit savoir
-      // laquelle : le flux arrive, ou il attend qu'on l'autorise (démo
-      // navigateur — l'application overlay, elle, n'a rien à demander).
+      ctx.fillStyle = encrePanneau(0.55)
       ctx.fillText(
         this.feed.live ? 'Lecture de l’écran…' : 'Clique pour autoriser la lecture de l’écran',
         cx,
         cy,
       )
+      ctx.restore()
+    } else {
+      // Dans l'application : pas un mot, juste un verre encore vide qui
+      // s'anime — le flux arrive dans la fraction de seconde qui suit.
+      ctx.save()
+      const g = ctx.createRadialGradient(cx - MAG_R * 0.3, cy - MAG_R * 0.3, 0, cx, cy, MAG_R)
+      g.addColorStop(0, encrePanneau(0.1))
+      g.addColorStop(1, encrePanneau(0.02))
+      ctx.fillStyle = g
+      ctx.beginPath()
+      ctx.arc(cx, cy, MAG_R - 2, 0, TAU)
+      ctx.fill()
       ctx.restore()
     }
 
@@ -1275,7 +1377,7 @@ export class FxLayer {
     ctx.beginPath()
     ctx.arc(cx, cy, MAG_R + 5, 0, TAU)
     ctx.lineWidth = 1
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)'
+    ctx.strokeStyle = encrePanneau(0.35)
     ctx.stroke()
     ctx.restore()
 
@@ -1286,10 +1388,10 @@ export class FxLayer {
     ctx.textBaseline = 'middle'
     const label = `×${this.magZoom.toFixed(1)}${this.magPinned ? '  ·  figée (V)' : ''}`
     const wLab = ctx.measureText(label).width + 20
-    roundRect(ctx, cx - wLab / 2, cy + MAG_R - 30, wLab, 22, 11)
-    ctx.fillStyle = 'rgba(8,11,20,0.78)'
+    roundRect(ctx, cx - wLab / 2, cy + MAG_R - 30, wLab, 22, skin().rayon)
+    ctx.fillStyle = fondPanneau(0.82)
     ctx.fill()
-    ctx.fillStyle = 'rgba(255,255,255,0.88)'
+    ctx.fillStyle = encrePanneau(0.9)
     ctx.fillText(label, cx, cy + MAG_R - 19)
     ctx.restore()
 

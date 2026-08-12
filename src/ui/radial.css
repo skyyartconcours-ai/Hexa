@@ -191,8 +191,12 @@
   opacity: 0.95;
 }
 
+/* ⚠️ Le `#fff` d'origine rendait l'icône visée INVISIBLE sur les thèmes clairs
+   (blanc mélangé d'accent, posé sur une lame elle-même blanchie) : on visait un
+   secteur sans plus voir ce qu'on visait. La teinte vient de l'accent, la
+   profondeur du texte du thème — lisible dans les huit. */
 .ricon.is-on {
-  color: color-mix(in srgb, var(--accent) 45%, #fff);
+  color: color-mix(in srgb, var(--accent) 55%, var(--text-1));
   opacity: 1;
   transform: scale(1.3);
   filter: drop-shadow(0 0 9px color-mix(in srgb, var(--accent) 85%, transparent));

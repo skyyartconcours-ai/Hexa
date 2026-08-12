@@ -218,8 +218,13 @@ export function ShortcutsSheet({ onClose, onEdit }: ShortcutsSheetProps) {
               .
             </p>
             <p>
-              Les lignes marquées <span className="shs-flag" data-global="1">hors focus</span> sont
-              enregistrées auprès de Windows : elles fonctionnent pendant que le jeu a le focus.
+              Un bouton de Stream Deck vaut exactement un appui clavier : la même règle s’applique
+              donc. Les lignes marquées{' '}
+              <span className="shs-flag" data-global="1">
+                hors focus
+              </span>{' '}
+              sont enregistrées auprès de Windows et fonctionnent pendant que le jeu a le focus ;
+              les autres attendent que Hexa l’ait, c’est-à-dire le mode dessin.
               {!isElectron && ' (Uniquement dans l’application installée, pas dans la démo navigateur.)'}
             </p>
           </section>

@@ -67,7 +67,7 @@ const STEPS: Step[] = [
   {
     id: 'souris',
     title: 'Le clic droit fait deux choses',
-    text: 'Sur une annotation, il l’attrape : tu la fais glisser où tu veux. Dans le vide, maintiens-le une demi-seconde : la roue des outils et des couleurs éclot sous ton curseur — tu glisses, tu relâches, c’est choisi. Plus jamais besoin de viser un coin de l’écran.',
+    text: 'Sur une annotation, il l’attrape : tu la fais glisser où tu veux. Dans le vide, maintiens-le un quart de seconde : la roue des outils et des couleurs éclot sous ton curseur — tu glisses, tu relâches, c’est choisi. Relâche au centre et rien n’est pris. Plus jamais besoin de viser un coin de l’écran.',
     cue: 'Fais un clic droit',
   },
   {

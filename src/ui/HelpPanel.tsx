@@ -453,6 +453,15 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
         </p>
       </div>
       <div className="hlp-sos-item">
+        <h4>Je n’arrive pas à dessiner sous la barre d’outils</h4>
+        <p>
+          Normal : la barre reçoit les clics avant l’écran. Deux solutions —{' '}
+          <Kbd combo={key('ui.toolbar')} /> la masque le temps du geste (la pastille d’état continue
+          d’afficher ton outil), ou tu <b>attrapes sa poignée</b> (l’hexagone, en haut) et tu la
+          poses sur un autre bord : elle s’y aimante et change d’orientation toute seule.
+        </p>
+      </div>
+      <div className="hlp-sos-item">
         <h4>Je ne peux plus cliquer dans mon jeu</h4>
         <p>
           Le mode dessin est actif : tes clics vont à Hexa. <Kbd combo={key('mode.cursor')} /> rend la
@@ -465,6 +474,18 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
         <p>
           Vérifie le mode : en mode jeu, les clics traversent Hexa. Choisir un outil (
           <Kbd combo={key('tool.pen')} />) rebascule automatiquement en dessin.
+        </p>
+      </div>
+      <div className="hlp-sos-item">
+        <h4>Une touche ne répond pas pendant que je joue</h4>
+        <p>
+          Les lignes marquées <b>même en jeu</b> dans l’onglet <b>Raccourcis</b> sont les seules
+          réservées auprès de Windows. Les autres — toutes les touches à une seule lettre, plus{' '}
+          <Kbd combo={key('edit.clear')} /> et <Kbd combo={key('ui.toolbar')} /> — n’arrivent à Hexa
+          que lorsqu’il a le focus, donc en mode dessin : Windows ne sait pas partager un raccourci,
+          et Hexa refuse de voler ceux dont ton navigateur et VLC se servent.
+          <br />
+          Pour tout effacer sans quitter ta partie : <Kbd combo={key('app.panic')} />.
         </p>
       </div>
       <div className="hlp-sos-item">

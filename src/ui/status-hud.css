@@ -15,9 +15,9 @@
   align-items: center;
   gap: 9px;
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: var(--chip-radius, 999px);
   background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--shadow-ui);
@@ -49,7 +49,8 @@
 .hx-status-dot {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  /* ronde partout, sauf là où le thème a renoncé aux arrondis */
+  border-radius: clamp(0px, var(--chip-radius, 999px), 50%);
   box-shadow: 0 0 10px currentColor;
 }
 
@@ -76,8 +77,8 @@
 .hx-status kbd,
 .hx-toast kbd {
   padding: 2px 7px;
-  border-radius: 6px;
-  border: 1px solid var(--glass-border);
+  border-radius: clamp(0px, var(--chip-radius, 999px), 6px);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: color-mix(in srgb, var(--text-1) 10%, transparent);
   color: var(--text-1);
   font-family: inherit;
@@ -97,9 +98,9 @@
   align-items: center;
   gap: 12px;
   padding: 9px 16px;
-  border-radius: 999px;
+  border-radius: var(--chip-radius, 999px);
   background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--shadow-ui);

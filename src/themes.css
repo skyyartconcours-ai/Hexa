@@ -178,9 +178,11 @@
    la profondeur du texte ; l'anneau, lui, reste franchement accentué. */
 [data-theme='glacier'] .tbtn.active {
   filter: none;
-  color: color-mix(in srgb, var(--accent, var(--logo-a)) 42%, var(--text-1));
-  background: color-mix(in srgb, var(--accent, var(--logo-a)) 15%, #fff);
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent, var(--logo-a)) 72%, #7b8ea3);
+  color: color-mix(in srgb, var(--accent, var(--logo-a)) 24%, var(--text-1));
+  /* la pastille active se TEINTE au lieu de rester blanche : sur un thème
+     clair, c'est le seul moyen de détacher franchement le glyphe */
+  background: color-mix(in srgb, var(--accent, var(--logo-a)) 22%, #c7d6ea);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent, var(--logo-a)) 72%, #5c7b9c);
 }
 
 /* sur fond clair, une pastille blanche doit rester visible : on la détoure
@@ -251,6 +253,10 @@
   --track-bg: rgba(255, 255, 255, 0.14);
   --thumb: #ffffff;
   --swatch-clip: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  /* le prisme : facettes coupées, pastilles longues */
+  --border-w: 1px;
+  --chip-radius: 999px;
+  --panel-pad: 16px;
 }
 
 /* l'anneau irisé : un dégradé conique masqué en contour pur */
@@ -415,6 +421,10 @@
   --track-bg: rgba(125, 255, 155, 0.2);
   --thumb: #7dff9b;
   --swatch-clip: inset(0);
+  /* terminal : AUCUN arrondi nulle part, trait sec de 1 px */
+  --border-w: 1px;
+  --chip-radius: 0px;
+  --panel-pad: 11px;
 }
 
 [data-theme='phosphore'] .toolbar,
@@ -566,6 +576,10 @@
   --track-bg: rgba(255, 134, 179, 0.24);
   --thumb: #ffffff;
   --swatch-clip: inset(0 round 9px);
+  /* pastel : contours doux mais épais, tout respire */
+  --border-w: 1.5px;
+  --chip-radius: 999px;
+  --panel-pad: 18px;
 }
 
 [data-theme='sakura'] .toolbar {
@@ -588,10 +602,10 @@
    mesurait 1,45:1. On garde la teinte, on rend la lisibilité. */
 [data-theme='sakura'] .tbtn.active {
   filter: none;
-  color: color-mix(in srgb, var(--accent, var(--logo-a)) 40%, var(--text-1));
-  background: color-mix(in srgb, var(--accent, var(--logo-a)) 26%, #fff);
+  color: color-mix(in srgb, var(--accent, var(--logo-a)) 22%, var(--text-1));
+  background: color-mix(in srgb, var(--accent, var(--logo-a)) 26%, #ffc9de);
   box-shadow:
-    inset 0 0 0 2px color-mix(in srgb, var(--accent, var(--logo-a)) 70%, #c98aa6),
+    inset 0 0 0 2px color-mix(in srgb, var(--accent, var(--logo-a)) 70%, #b9718f),
     0 10px 18px -8px color-mix(in srgb, var(--accent, var(--logo-a)) 75%, transparent);
 }
 
@@ -669,6 +683,10 @@
   --track-bg: rgba(232, 196, 106, 0.2);
   --thumb: #e8c46a;
   --swatch-clip: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  /* reliure : filets fins, angles nets de 4 px, colonnes serrées */
+  --border-w: 1.5px;
+  --chip-radius: 4px;
+  --panel-pad: 15px;
 }
 
 /* le filet doré intérieur, signature des reliures */
@@ -801,6 +819,10 @@
   --track-bg: var(--ink);
   --thumb: #ff2e63;
   --swatch-clip: none;
+  /* dessin animé : contour d'encre de 3 px, angles francs */
+  --border-w: 3px;
+  --chip-radius: 8px;
+  --panel-pad: 13px;
 }
 
 [data-theme='toon'] .toolbar,
@@ -955,6 +977,10 @@
   --track-bg: rgba(255, 255, 255, 0.14);
   --thumb: #9aa3ad;
   --swatch-clip: inset(0 round 3px);
+  /* furtif : tout est plus petit, plus serré, presque sans contour */
+  --border-w: 1px;
+  --chip-radius: 5px;
+  --panel-pad: 9px;
 }
 
 [data-theme='stealth'] .toolbar {
@@ -1104,9 +1130,202 @@
 
 [data-theme='toon'] .kme-sheet,
 [data-theme='toon'] .hx-settings,
-[data-theme='toon'] .settings-stub {
+[data-theme='toon'] .settings-stub,
+[data-theme='toon'] .shs,
+[data-theme='toon'] .replay-bar,
+[data-theme='toon'] .sw-card,
+[data-theme='toon'] .hx-status,
+[data-theme='toon'] .hx-toast {
   border: 3px solid var(--ink);
   box-shadow: 7px 7px 0 var(--ink);
+}
+
+[data-theme='phosphore'] .shs,
+[data-theme='phosphore'] .replay-bar,
+[data-theme='phosphore'] .sw-card,
+[data-theme='phosphore'] .hx-status,
+[data-theme='phosphore'] .hx-toast,
+[data-theme='toon'] .shs,
+[data-theme='toon'] .replay-bar,
+[data-theme='toon'] .sw-card,
+[data-theme='toon'] .hx-status,
+[data-theme='toon'] .hx-toast {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ============================================================
+   MENU RADIAL — la roue prend la peau du thème (§8.2)
+
+   « La fonctionnalité d'ergonomie numéro un » gardait ses lames arrondies et
+   son halo doux dans les huit thèmes, y compris dans celui qui annonce des
+   angles droits (Phosphore, `--radius-ui: 0`) et dans celui qui n'a que des
+   filets d'or (Royal). Une roue est faite de SVG : ni rayon ni bordure CSS ne
+   l'atteignent — seuls `stroke`, `stroke-linejoin` et `filter` le peuvent.
+   C'est ce que font les blocs ci-dessous, thème par thème.
+   ============================================================ */
+
+/* — Phosphore : console cathodique. Aucun arrondi, aucun halo, tout est net. */
+[data-theme='phosphore'] .radial-aura {
+  border-radius: 0;
+  mask: none;
+  -webkit-mask: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(2, 12, 6, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(125, 255, 155, 0.4);
+}
+
+[data-theme='phosphore'] .sect-tool,
+[data-theme='phosphore'] .sect-color {
+  stroke-linejoin: miter;
+}
+
+[data-theme='phosphore'] .sect-tool.is-on,
+[data-theme='phosphore'] .sect-color.is-on,
+[data-theme='phosphore'] .ricon.is-on {
+  filter: none;
+}
+
+[data-theme='phosphore'] .radial-label {
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+[data-theme='phosphore'] .radial-label::before {
+  content: '> ';
+  color: var(--logo-a);
+}
+
+/* — Toon : encre épaisse et ombre dure décalée, comme une case de BD. */
+[data-theme='toon'] .radial-aura {
+  mask: none;
+  -webkit-mask: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: #fffdf3;
+  border: 3px solid var(--ink);
+  box-shadow: 7px 7px 0 var(--ink);
+}
+
+[data-theme='toon'] .sect-tool {
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
+[data-theme='toon'] .sect-color {
+  stroke: var(--ink);
+  stroke-width: 3;
+  opacity: 1;
+}
+
+[data-theme='toon'] .sect-tool.is-on,
+[data-theme='toon'] .sect-color.is-on {
+  filter: none;
+  stroke: var(--ink);
+}
+
+[data-theme='toon'] .rim {
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
+[data-theme='toon'] .radial-label {
+  border-radius: 10px;
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+/* — Royal : filets d'or fins, petites capitales, aucune fluorescence. */
+[data-theme='royal'] .radial-aura {
+  mask: radial-gradient(circle, #000 66%, transparent 76%);
+  -webkit-mask: radial-gradient(circle, #000 66%, transparent 76%);
+  box-shadow:
+    var(--shadow-ui),
+    inset 0 0 0 1px rgba(232, 196, 106, 0.42);
+}
+
+[data-theme='royal'] .rim {
+  stroke: rgba(232, 196, 106, 0.6);
+  stroke-width: 1.4;
+}
+
+[data-theme='royal'] .sect-tool {
+  stroke-width: 1.2;
+}
+
+[data-theme='royal'] .radial-label {
+  border-radius: 4px;
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+}
+
+/* — Glacier : lumière du jour. Les halos deviennent des ombres portées. */
+[data-theme='glacier'] .radial-aura {
+  background: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.72) 0%, transparent 66%);
+  box-shadow: 0 24px 50px -22px rgba(24, 62, 116, 0.45);
+}
+
+[data-theme='glacier'] .sect-tool.is-on {
+  filter: drop-shadow(0 6px 12px color-mix(in srgb, var(--accent) 45%, transparent));
+}
+
+[data-theme='glacier'] .sect-color.is-on {
+  filter: drop-shadow(0 5px 10px color-mix(in srgb, var(--c) 55%, transparent));
+}
+
+/* — Sakura : pétales. Tout est plus rond, plus doux, jamais nerveux. */
+[data-theme='sakura'] .radial-aura {
+  box-shadow:
+    0 26px 54px -20px rgba(255, 120, 170, 0.55),
+    0 6px 18px -8px rgba(183, 156, 255, 0.35);
+}
+
+[data-theme='sakura'] .sect-color {
+  stroke-width: 4.5;
+}
+
+[data-theme='sakura'] .sect-tool {
+  stroke-width: 2.4;
+}
+
+/* — Stealth : la roue s'excuse d'être là. Aucun halo, contours minimaux. */
+[data-theme='stealth'] .radial-aura {
+  background: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme='stealth'] .sect-tool {
+  stroke-width: 1;
+}
+
+[data-theme='stealth'] .sect-tool.is-on,
+[data-theme='stealth'] .sect-color.is-on,
+[data-theme='stealth'] .ricon.is-on {
+  filter: none;
+}
+
+[data-theme='stealth'] .radial-label {
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+/* — Holo iris : le prisme se retrouve jusque dans le moyeu. */
+[data-theme='holo-iris'] .rim {
+  stroke: rgba(255, 95, 210, 0.4);
+  stroke-width: 1.4;
+}
+
+[data-theme='holo-iris'] .radial-aura {
+  background: radial-gradient(
+    circle at 50% 42%,
+    rgba(255, 95, 210, 0.16) 0%,
+    rgba(92, 225, 255, 0.08) 45%,
+    transparent 66%
+  );
 }
 
 /* ============================================================

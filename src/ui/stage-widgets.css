@@ -32,7 +32,7 @@
   pointer-events: auto;
   color: var(--text-1);
   background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   border-radius: var(--radius-card);
   backdrop-filter: blur(var(--glass-blur));
   box-shadow: var(--shadow-ui);
@@ -67,7 +67,7 @@
   width: 22px;
   height: 22px;
   padding: 0;
-  border-radius: 7px;
+  border-radius: clamp(0px, var(--chip-radius, 999px), 7px);
   color: var(--text-2);
   opacity: 0;
   transition:
@@ -187,8 +187,8 @@
   font-size: 11px;
   font-weight: 600;
   color: var(--text-2);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--chip-radius, 999px);
+  background: color-mix(in srgb, var(--text-1) 7%, transparent);
   transition:
     background 0.15s ease,
     color 0.15s ease;
@@ -221,8 +221,8 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--text-1);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: clamp(0px, var(--chip-radius, 999px), 9px);
+  background: color-mix(in srgb, var(--text-1) 8%, transparent);
   transition:
     background 0.15s ease,
     transform 0.12s ease;

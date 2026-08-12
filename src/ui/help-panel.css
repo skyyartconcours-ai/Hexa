@@ -27,7 +27,7 @@
   flex-direction: column;
   border-radius: var(--radius-ui);
   background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
   box-shadow: var(--shadow-ui);
@@ -64,7 +64,7 @@
   align-items: center;
   gap: 12px;
   padding: 16px 18px 12px;
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: var(--border-w, 1px) solid var(--glass-border);
 }
 
 .hlp-mark {
@@ -100,7 +100,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: transparent;
   color: var(--text-2);
   font-size: 13px;
@@ -125,7 +125,7 @@
 }
 
 .hlp-tab {
-  border: 1px solid transparent;
+  border: var(--border-w, 1px) solid transparent;
   background: transparent;
   color: var(--text-2);
   font-family: inherit;
@@ -177,7 +177,7 @@
 
 .hlp-scroll::-webkit-scrollbar-thumb {
   background: var(--track-bg);
-  border-radius: 999px;
+  border-radius: var(--chip-radius, 999px);
   border: 3px solid transparent;
   background-clip: content-box;
 }
@@ -194,7 +194,7 @@
   position: relative;
   padding: 14px 15px 13px;
   border-radius: var(--radius-card);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: color-mix(in srgb, var(--text-1) 4%, transparent);
 }
 
@@ -270,7 +270,7 @@
   display: inline-block;
   padding: 3px 8px;
   border-radius: 7px;
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: color-mix(in srgb, var(--text-1) 9%, transparent);
   color: var(--text-1);
   font-family: inherit;
@@ -289,7 +289,7 @@
 .hlp-gesture {
   display: inline-block;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: var(--chip-radius, 999px);
   border: 1px dashed color-mix(in srgb, var(--logo-a) 45%, transparent);
   color: var(--text-1);
   font-size: 11.5px;
@@ -311,7 +311,7 @@
   padding: 10px 12px;
   margin-bottom: 12px;
   border-radius: var(--radius-card);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: color-mix(in srgb, var(--text-1) 4%, transparent);
 }
 
@@ -323,7 +323,7 @@
 }
 
 .hlp-btn {
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: transparent;
   color: var(--text-1);
   font-family: inherit;
@@ -380,7 +380,7 @@
   align-items: baseline;
   gap: 10px;
   padding: 4px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--text-1) 6%, transparent);
+  border-bottom: var(--border-w, 1px) solid color-mix(in srgb, var(--text-1) 6%, transparent);
 }
 
 .hlp-line dt {
@@ -402,13 +402,13 @@
   display: inline-block;
   margin-left: 6px;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--chip-radius, 999px);
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-2);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   vertical-align: 1px;
 }
 
@@ -446,7 +446,7 @@
   padding: 12px 14px;
   margin-bottom: 14px;
   border-radius: var(--radius-card);
-  border: 1px solid color-mix(in srgb, var(--logo-b) 45%, transparent);
+  border: var(--border-w, 1px) solid color-mix(in srgb, var(--logo-b) 45%, transparent);
   background: color-mix(in srgb, var(--logo-b) 11%, transparent);
   font-size: 12.8px;
   line-height: 1.6;
@@ -472,7 +472,7 @@
 .hlp-sos-item {
   padding: 12px 14px;
   border-radius: var(--radius-card);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: color-mix(in srgb, var(--text-1) 4%, transparent);
 }
 

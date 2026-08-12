@@ -27,7 +27,7 @@
   transform: translate(-50%, -50%);
   border-radius: var(--radius-ui);
   background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
   box-shadow: var(--shadow-ui);
@@ -45,7 +45,7 @@
   align-items: center;
   gap: 12px;
   padding: 16px 18px;
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: var(--border-w, 1px) solid var(--glass-border);
 }
 
 .hx-top-mark {
@@ -76,7 +76,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: transparent;
   color: var(--text-2);
   font-size: 13px;
@@ -117,7 +117,7 @@
 
 .hx-sec {
   padding: 16px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--glass-border) 70%, transparent);
+  border-bottom: var(--border-w, 1px) solid color-mix(in srgb, var(--glass-border) 70%, transparent);
 }
 
 .hx-sec:last-child {
@@ -155,7 +155,7 @@
   padding: 8px;
   text-align: left;
   border-radius: var(--radius-btn);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: color-mix(in srgb, var(--text-1) 4%, transparent);
   color: var(--text-1);
   font-family: inherit;
@@ -185,7 +185,7 @@
   height: 58px;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--text-1) 10%, transparent);
+  border: var(--border-w, 1px) solid color-mix(in srgb, var(--text-1) 10%, transparent);
 }
 
 /* le « trait » de démonstration : un coup de pinceau aux couleurs du thème */
@@ -304,7 +304,7 @@
   width: 100%;
   padding: 9px 12px;
   border-radius: var(--radius-btn);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: color-mix(in srgb, var(--text-1) 4%, transparent);
   color: var(--text-1);
   font-family: inherit;
@@ -345,7 +345,7 @@
   height: 22px;
   border-radius: 99px;
   background: color-mix(in srgb, var(--text-1) 12%, transparent);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   transition:
     background 240ms ease,
     box-shadow 240ms ease;
@@ -378,15 +378,15 @@
   display: flex;
   gap: 3px;
   padding: 3px;
-  border-radius: 999px;
+  border-radius: var(--chip-radius, 999px);
   background: color-mix(in srgb, var(--text-1) 6%, transparent);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
 }
 
 .hx-seg-item {
   padding: 6px 13px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--chip-radius, 999px);
   background: transparent;
   color: var(--text-2);
   font: 600 12px/1 var(--font-ui);
@@ -475,7 +475,7 @@
 .hx-btn {
   padding: 9px 14px;
   border-radius: var(--radius-btn);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: color-mix(in srgb, var(--text-1) 5%, transparent);
   color: var(--text-1);
   font: 600 12px/1 var(--font-ui);
@@ -518,7 +518,7 @@
 .hx-input {
   padding: 8px 10px;
   border-radius: var(--radius-btn);
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   background: color-mix(in srgb, var(--text-1) 5%, transparent);
   color: var(--text-1);
   font: 500 12px/1.2 var(--font-ui);
@@ -609,7 +609,7 @@
   padding: 2px 8px;
   border-radius: 99px;
   font-size: 10.5px;
-  border: 1px solid var(--glass-border);
+  border: var(--border-w, 1px) solid var(--glass-border);
   color: var(--text-2);
 }
 
@@ -634,7 +634,7 @@
 
 .hx-flash {
   padding: 11px 18px;
-  border-top: 1px solid var(--glass-border);
+  border-top: var(--border-w, 1px) solid var(--glass-border);
   font-size: 12px;
   line-height: 1.5;
   color: var(--text-1);

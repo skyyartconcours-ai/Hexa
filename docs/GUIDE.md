@@ -64,7 +64,7 @@ tout sous la main gauche :
 | Texte | **T** | Avant / après | **U** |
 | Numéroteur (1, 2, 3…) | **N** | Couleurs 1 à 7 | **1** … **7** |
 | Règle de mesure | **M** | Durée avant effacement | **D** |
-| Masque flou | **B** | Formes intelligentes | **W** |
+| Tampon d'image | **I** | Formes intelligentes | **W** |
 | Coller une image | **Ctrl + V** | Guides magnétiques | **G** |
 | Gomme | **E** | Écriture à la main | **J** |
 | | | Tout effacer | **C** |
@@ -126,7 +126,9 @@ une carte). La **molette** la redimensionne.
 ### Les couleurs et l'épaisseur
 
 Sept couleurs, touches **1** à **7** : cyan, rose, violet, vert, jaune, orange, blanc.
-Elles sont aussi dans la barre d'outils, en bas de l'écran.
+Elles sont aussi dans la barre d'outils, qui démarre à **gauche de l'écran**, à la verticale.
+Tu peux l'attraper par sa poignée (l'hexagone, tout en haut) et la poser contre n'importe quel
+bord : elle s'y aimante et se retourne toute seule.
 
 L'épaisseur : la **molette de la souris** l'augmente et la diminue en direct, sans quitter ton
 dessin. Au clavier, **Ctrl + Maj + 7** et **Ctrl + Maj + 8**.
@@ -167,8 +169,8 @@ Tes traits restent tant que tu ne dis pas le contraire. Pour repartir de zéro :
 **Où le voir, où le changer.** La barre d'outils porte une pastille qui affiche en clair `2s`,
 `4s`, `8s` ou `∞` : **clique dessus** et elle passe au réglage suivant, exactement comme la touche
 **D**. Elle s'allume quand tu es sur ∞, pour que le tableau persistant ne soit jamais une surprise.
-Et si tu as masqué la barre, la petite pastille d'état en haut de l'écran continue d'afficher le
-réglage en cours.
+Et si tu as masqué la barre, la petite pastille d'état en bas de l'écran continue d'afficher le
+réglage en cours — outil, couleur, épaisseur et fondu.
 
 ---
 

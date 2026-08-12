@@ -139,8 +139,12 @@ export async function etatDeDepart(win, patch = {}) {
           keymapPresetChosen: true,
           keymapOverrides: {},
           // les raccourcis système sont confisqués à l'OS : sous Xvfb ça n'a
-          // aucun sens et ça pollue le journal
+          // aucun sens, ça pollue le journal, et deux campagnes lancées en
+          // parallèle se voleraient les combinaisons. `globalShortcutsChosen`
+          // est indispensable : sans lui, le store applique le défaut du
+          // moment (actif) et ce `false` serait ignoré.
           globalShortcutsOn: false,
+          globalShortcutsChosen: true,
           ...p,
         },
         version: 2,

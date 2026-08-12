@@ -1581,9 +1581,24 @@ if (actif('performance')) {
     await win.mouse.move(20, 20)
     await win.waitForTimeout(5000)
     const n = await win.evaluate(() => window.__hexaFrames)
+    // Le compteur rAF ne voit PAS les animations CSS (elles ne passent pas par
+    // requestAnimationFrame) : une barre qui brûle 30 % de processeur laisserait
+    // ce test vert. On regarde donc aussi ce qui tourne réellement.
+    const anims = await win.evaluate(() =>
+      document
+        .getAnimations()
+        .filter((a) => a.playState === 'running')
+        .filter((a) => {
+          const it = a.effect?.getComputedTiming?.().iterations
+          return it === Infinity || it > 500
+        })
+        .map((a) => `${a.animationName || 'anim'}${a.effect?.pseudoElement || ''}`),
+    )
     return {
-      statut: n === 0 ? OK : KO,
-      detail: `${n} image(s) demandée(s) en 5 s (attendu 0 — Epic Pen, lui, compose en permanence)`,
+      statut: n === 0 && anims.length === 0 ? OK : KO,
+      detail: `${n} image(s) demandée(s) en 5 s (attendu 0 — Epic Pen, lui, compose en permanence)${
+        anims.length ? ` · animations perpétuelles : ${anims.join(', ')}` : ' · aucune animation perpétuelle'
+      }`,
     }
   })
 
@@ -1646,23 +1661,73 @@ if (actif('performance')) {
     }
   })
 
-  await rapport.test(win, 'perf-anim-css', 'Aucune animation CSS perpétuelle dans le thème par défaut', async () => {
-    const anims = await win.evaluate(() => {
+  /**
+   * ⚠️ CE TEST EST LE FILET DE LA RÈGLE « 0 % DE PROCESSEUR AU REPOS ».
+   *
+   * Il a déjà été aveugle une fois, et ça a coûté un thème entier : la version
+   * précédente faisait `getComputedStyle(el)` SANS argument de pseudo-élément et
+   * ne regardait que le thème par défaut. Or l'anneau irisé de « Holo iris » est
+   * porté par `.toolbar::before` — invisible à cette méthode. Résultat : le test
+   * affichait FONCTIONNE pendant que la barre re-rastérisait un dégradé conique
+   * 60 fois par seconde, en permanence, écran vide (60 recalculs de style par
+   * seconde, ~5 % de processeur mesurés).
+   *
+   * Deux règles depuis :
+   *   1. `document.getAnimations()` — la seule API qui voit les pseudo-éléments,
+   *      les animations Web Animations et l'état réel (`running` / `paused`) ;
+   *   2. les HUIT thèmes sont essayés, dans la fenêtre qui porte la barre.
+   * Un compteur de `requestAnimationFrame` ne peut RIEN voir de tout ça : une
+   * animation CSS ne passe pas par rAF.
+   */
+  await rapport.test(win, 'perf-anim-css', 'Aucune animation perpétuelle, dans AUCUN des 8 thèmes', async () => {
+    let cible = win
+    for (const w of app.windows()) {
+      try {
+        if (await w.evaluate(() => !!document.querySelector('.toolbar'))) {
+          cible = w
+          break
+        }
+      } catch {
+        /* fenêtre non scriptable : on passe */
+      }
+    }
+    const themes = [
+      'neon-nuit',
+      'glacier',
+      'holo-iris',
+      'phosphore',
+      'sakura',
+      'royal',
+      'toon',
+      'stealth',
+    ]
+    const fautifs = await cible.evaluate(async (liste) => {
+      const dormir = (ms) => new Promise((r) => setTimeout(r, ms))
+      const initial = document.documentElement.dataset.theme
       const out = []
-      for (const el of document.querySelectorAll('*')) {
-        const s = getComputedStyle(el)
-        if (s.animationName !== 'none' && s.animationIterationCount === 'infinite') {
-          out.push(`${el.className || el.tagName} : ${s.animationName}`)
+      for (const t of liste) {
+        document.documentElement.dataset.theme = t
+        // deux images pour que le style soit recalculé et l'animation démarrée
+        await dormir(120)
+        for (const a of document.getAnimations()) {
+          if (a.playState !== 'running') continue
+          const it = a.effect?.getComputedTiming?.().iterations
+          if (it !== Infinity && !(it > 500)) continue
+          const e = a.effect?.target
+          const nom = e ? e.className || e.tagName || '?' : '?'
+          out.push(`${t} · ${a.animationName || 'anim'} @ ${nom}${a.effect?.pseudoElement || ''}`)
         }
       }
+      if (initial) document.documentElement.dataset.theme = initial
+      else delete document.documentElement.dataset.theme
       return out
-    })
+    }, themes)
     return {
-      statut: anims.length === 0 ? OK : KO,
+      statut: fautifs.length === 0 ? OK : KO,
       detail:
-        anims.length === 0
-          ? 'aucun élément visible n’anime en boucle (le compositeur reste au repos)'
-          : `animations perpétuelles : ${anims.join(' | ')}`,
+        fautifs.length === 0
+          ? 'les 8 thèmes essayés (pseudo-éléments compris) : rien ne tourne en boucle, le compositeur reste au repos'
+          : `animations perpétuelles : ${fautifs.join(' | ')}`,
     }
   })
 }

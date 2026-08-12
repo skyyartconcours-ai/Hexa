@@ -140,8 +140,11 @@ Deux précisions honnêtes sur le mode **Stream seul** :
 
 - la **barre d'outils** d'Hexa, elle, reste sur ton écran (c'est ta télécommande). Si tu captures
   aussi ton écran, masque-la avec **Ctrl+H** ;
-- la loupe, le projecteur et le gel lisent ce qu'il y a *sur ton écran* : ce ne sont pas des
-  annotations, ils ne partent pas dans la source navigateur.
+- le laser, le ping, le projecteur, la loupe et le gel d'image sont peints **sur ton écran** et ne
+  partent pas dans la source navigateur : ce ne sont pas des annotations posées, ce sont des
+  effets éphémères. En **Stream seul**, un laser ne sera donc vu ni par toi ni par tes
+  spectateurs — pour désigner quelque chose dans ce mode, utilise une flèche ou une ellipse,
+  qui sont, elles, de vraies annotations.
 
 ⚠️ En **Stream seul**, tes annotations n'existent **que** dans la source navigateur.
 Si aucune n'est connectée, la pastille en bas à droite de ton écran passe en orange et affiche
