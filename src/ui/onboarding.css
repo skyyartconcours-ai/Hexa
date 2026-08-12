@@ -1,0 +1,635 @@
+/* ============================================================
+   Hexa — séquence de découverte (premier lancement)
+   Tout est bâti sur les tokens de thème : la carte prend
+   automatiquement la silhouette des 8 designs.
+   ============================================================ */
+
+.onb-root {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  justify-content: center;
+  padding-top: 4.5vh;
+  z-index: 80;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.onb-card {
+  position: relative;
+  pointer-events: auto;
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  padding: 20px 22px 14px;
+  border-radius: var(--radius-ui);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  box-shadow: var(--shadow-ui);
+  color: var(--text-1);
+  cursor: default;
+  animation: onbIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition:
+    width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s ease;
+}
+
+.onb-card.is-wide {
+  width: 640px;
+}
+
+.onb-card.is-ok {
+  box-shadow:
+    var(--shadow-ui),
+    0 0 0 1.5px color-mix(in srgb, var(--logo-a) 55%, transparent);
+}
+
+.onb-card.is-out {
+  animation: onbOut 0.4s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes onbIn {
+  from {
+    opacity: 0;
+    transform: translateY(-22px) scale(0.93);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes onbOut {
+  to {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.96);
+  }
+}
+
+/* ---------- en-tête ---------- */
+
+.onb-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.onb-glyph {
+  flex: none;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-btn);
+  color: var(--logo-a);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--logo-a) 24%, transparent),
+    color-mix(in srgb, var(--logo-b) 18%, transparent)
+  );
+  box-shadow: inset 0 0 0 1px var(--glass-border);
+}
+
+.onb-svg {
+  width: 34px;
+  height: 34px;
+  overflow: visible;
+}
+
+.onb-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.onb-title {
+  margin-top: 3px;
+  font-size: 17.5px;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  color: var(--text-1);
+}
+
+.onb-text {
+  margin-top: 12px;
+  font-size: 12.8px;
+  line-height: 1.62;
+  color: var(--text-2);
+}
+
+.onb-skip {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 12px;
+  color: var(--text-2);
+  opacity: 0.7;
+  transition:
+    background 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.onb-skip:hover {
+  opacity: 1;
+  background: var(--hover-bg);
+}
+
+/* ---------- pied : progression, consigne, action ---------- */
+
+.onb-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.onb-rail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.onb-pip {
+  width: 9px;
+  height: 10px;
+  clip-path: var(--swatch-clip, polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%));
+  background: var(--text-2);
+  opacity: 0.32;
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.3s ease,
+    background 0.3s ease;
+}
+
+.onb-pip.is-done {
+  background: var(--logo-a);
+  opacity: 0.75;
+}
+
+.onb-pip.is-now {
+  background: var(--logo-a);
+  opacity: 1;
+  transform: scale(1.35);
+}
+
+.onb-cue {
+  flex: 1;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+  transition: color 0.2s ease;
+}
+
+.onb-card.is-ok .onb-cue {
+  color: color-mix(in srgb, var(--logo-a) 75%, var(--text-1));
+}
+
+.onb-next {
+  flex: none;
+  padding: 7px 13px;
+  border-radius: var(--radius-btn);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.onb-next:hover {
+  color: var(--text-1);
+  background: var(--hover-bg);
+  transform: translateY(-1px);
+}
+
+.onb-next.is-primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--logo-a), var(--logo-b));
+  box-shadow: 0 8px 20px -10px var(--logo-a);
+}
+
+.onb-next.is-primary:hover {
+  filter: brightness(1.08);
+}
+
+/* ---------- validation du geste : la petite fanfare ---------- */
+
+.onb-check {
+  position: absolute;
+  left: 22px;
+  top: 20px;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-btn);
+  color: #fff;
+  background: linear-gradient(145deg, var(--logo-a), var(--logo-b));
+  opacity: 0;
+  transform: scale(0.5);
+  pointer-events: none;
+}
+
+.onb-check svg {
+  width: 28px;
+  height: 28px;
+}
+
+.onb-card.is-ok .onb-check {
+  animation: onbCheck 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes onbCheck {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-12deg);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.08) rotate(0deg);
+  }
+  75% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+/* ---------- pictogrammes animés ---------- */
+
+.onb-draw {
+  stroke-dasharray: 62;
+  animation: onbDraw 2.8s ease-in-out infinite;
+}
+
+@keyframes onbDraw {
+  0% {
+    stroke-dashoffset: 62;
+  }
+  45%,
+  70% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -62;
+  }
+}
+
+.onb-slide {
+  animation: onbSlide 2.6s ease-in-out infinite;
+}
+
+@keyframes onbSlide {
+  0%,
+  100% {
+    transform: translate(-6px, 2px);
+  }
+  50% {
+    transform: translate(0, -2px);
+  }
+}
+
+.onb-fadey path {
+  animation: onbFadey 2.6s ease-in-out infinite;
+}
+
+.onb-fadey path:nth-child(2) {
+  animation-delay: 0.25s;
+}
+
+.onb-fadey path:nth-child(3) {
+  animation-delay: 0.5s;
+}
+
+@keyframes onbFadey {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.12;
+  }
+}
+
+.onb-spin {
+  transform-origin: 18px 18px;
+  animation: onbSpin 11s linear infinite;
+}
+
+@keyframes onbSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.onb-pulse {
+  transform-origin: 18px 18px;
+  animation: onbPulse 3.2s ease-in-out infinite;
+}
+
+@keyframes onbPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+/* ---------- galerie des 8 thèmes (découverte ET réglages) ---------- */
+
+.theme-gallery-head {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  margin-bottom: 2px;
+}
+
+.onb-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.onb-prev {
+  display: grid;
+  gap: 6px;
+  padding: 6px 6px 7px;
+  border-radius: calc(var(--radius-btn) + 2px);
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.onb-prev:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--pa) 70%, transparent);
+}
+
+.onb-prev.is-on {
+  border-color: var(--pa);
+  box-shadow:
+    0 0 0 1px var(--pa),
+    0 10px 24px -14px var(--pa);
+}
+
+.onb-prev-scene {
+  position: relative;
+  height: 48px;
+  border-radius: 9px;
+  overflow: hidden;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 7px;
+  background: linear-gradient(150deg, var(--w1), var(--w2) 55%, var(--w3));
+}
+
+.onb-prev-scene::before,
+.onb-prev-scene::after {
+  content: '';
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  filter: blur(10px);
+  opacity: 0.55;
+}
+
+.onb-prev-scene::before {
+  left: -14px;
+  top: -16px;
+  background: var(--pa);
+}
+
+.onb-prev-scene::after {
+  right: -16px;
+  bottom: -18px;
+  background: var(--pb);
+}
+
+/* la mini barre d'outils : c'est elle qui raconte la silhouette du thème */
+.onb-prev-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 64%;
+  height: 14px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.onb-prev-bar i {
+  width: 5px;
+  height: 5px;
+  border-radius: 1.5px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.onb-prev-bar i:first-child {
+  background: var(--pa);
+}
+
+.onb-prev[data-t='neon-nuit'] .onb-prev-bar {
+  border-radius: 7px;
+  box-shadow: 0 0 10px -2px var(--pa);
+}
+
+.onb-prev[data-t='glacier'] .onb-prev-bar {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(20, 50, 90, 0.14);
+}
+
+.onb-prev[data-t='glacier'] .onb-prev-bar i {
+  background: rgba(20, 50, 90, 0.4);
+  border-radius: 50%;
+}
+
+.onb-prev[data-t='holo-iris'] .onb-prev-bar {
+  border-radius: 9px;
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(#150a26, #150a26) padding-box,
+    linear-gradient(90deg, #ff5fd2, #b06bff, #5ce1ff) border-box;
+}
+
+.onb-prev[data-t='phosphore'] .onb-prev-bar {
+  border-radius: 0;
+  background: rgba(2, 12, 6, 0.92);
+  border-color: rgba(125, 255, 155, 0.5);
+}
+
+.onb-prev[data-t='phosphore'] .onb-prev-bar i {
+  border-radius: 0;
+  background: rgba(125, 255, 155, 0.7);
+}
+
+.onb-prev[data-t='sakura'] .onb-prev-bar {
+  border-radius: 999px;
+  height: 15px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid rgba(255, 134, 179, 0.45);
+  box-shadow: 0 4px 8px -3px rgba(255, 120, 170, 0.9);
+}
+
+.onb-prev[data-t='sakura'] .onb-prev-bar i {
+  border-radius: 50%;
+  background: rgba(183, 156, 255, 0.75);
+}
+
+.onb-prev[data-t='royal'] .onb-prev-bar {
+  border-radius: 3px;
+  background: rgba(6, 14, 30, 0.9);
+  border-color: rgba(232, 196, 106, 0.55);
+}
+
+.onb-prev[data-t='royal'] .onb-prev-bar i {
+  border-radius: 1px;
+  background: rgba(232, 196, 106, 0.6);
+}
+
+.onb-prev[data-t='toon'] .onb-prev-bar {
+  border-radius: 6px;
+  background: #fffdf3;
+  border: 2px solid #14110d;
+  box-shadow: 3px 3px 0 #14110d;
+}
+
+.onb-prev[data-t='toon'] .onb-prev-bar i {
+  border-radius: 50%;
+  background: #14110d;
+}
+
+.onb-prev[data-t='toon'] .onb-prev-bar i:first-child {
+  background: var(--pa);
+  box-shadow: 0 0 0 1.5px #14110d;
+}
+
+.onb-prev[data-t='stealth'] .onb-prev-bar {
+  width: 48%;
+  height: 11px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.08);
+  opacity: 0.6;
+}
+
+.onb-prev-name {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: center;
+  color: var(--text-2);
+}
+
+.onb-prev.is-on .onb-prev-name {
+  color: var(--text-1);
+  font-weight: 700;
+}
+
+.onb-tagline {
+  margin-top: 10px;
+  min-height: 2.6em;
+  font-size: 11.5px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--text-2);
+  opacity: 0.9;
+}
+
+/* ---------- accords par thème ---------- */
+
+/* sur fonds clairs et vifs, le bouton principal reprend l'encre du thème */
+[data-theme='toon'] .onb-next.is-primary {
+  color: var(--ink);
+  border: 2.5px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+/* sur un fond d'accent clair (vert phosphore, or royal), l'encre repasse en sombre */
+[data-theme='phosphore'] .onb-next.is-primary,
+[data-theme='phosphore'] .onb-check {
+  color: #04120a;
+}
+
+[data-theme='royal'] .onb-next.is-primary,
+[data-theme='royal'] .onb-check {
+  color: #0a1428;
+  font-weight: 700;
+}
+
+[data-theme='toon'] .onb-check {
+  color: var(--ink);
+}
+
+[data-theme='phosphore'] .onb-title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 15.5px;
+}
+
+[data-theme='royal'] .onb-title {
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+  font-size: 19px;
+}
+
+[data-theme='toon'] .onb-title {
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+[data-theme='stealth'] .onb-card {
+  width: 400px;
+  padding: 14px 16px 10px;
+}
+
+[data-theme='stealth'] .onb-card.is-wide {
+  width: 560px;
+}
+
+/* ---------- états globaux ---------- */
+
+body.passthrough .onb-root {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onb-card,
+  .onb-draw,
+  .onb-slide,
+  .onb-fadey path,
+  .onb-spin,
+  .onb-pulse {
+    animation: none;
+  }
+}

@@ -5,18 +5,39 @@ import type {
   SessionExport,
   Stroke,
   StrokePoint,
+  ToolId,
 } from './types'
 import { clamp, dist, easeInQuad, pointToSegment, rgba, whiteMix } from './geometry'
 import { renderEmber, renderStroke } from './render'
 import { OneEuro } from './oneEuro'
+import { hitShape, renderMorph, resample, shapeOutline, squarify, alignLoop } from './shapes'
+import type { MorphAnim, Pt } from './shapes'
+import { recognize } from './recognizer'
+import { GuideOverlay, buildAnchors, snapPoint } from './guides'
+import type { Anchor } from './guides'
+import {
+  BADGE_ANIM,
+  BADGE_LINK_ANIM,
+  badgeRadius,
+  imageFromClipboard,
+  openTextInput,
+  setImageInvalidate,
+  textBox,
+  textSizeOf,
+} from './teaching'
 
 const LASER_TTL = 450
 const DISSOLVE_MIN = 420
 const SNAP_RAD = (15 * Math.PI) / 180
+/** durée du morph entre le tracé brut et la forme parfaite (§4.1.5) */
+const MORPH_MS = 150
+const MORPH_SAMPLES = 72
 
-/** outils qui démarrent un tracé au clic gauche (les autres vagues en ajouteront) */
+/** outils qui démarrent un tracé au clic gauche */
 const FREEHAND_TOOLS = new Set(['pen', 'highlight'])
-const TWO_POINT_TOOLS = new Set(['line', 'arrow'])
+const TWO_POINT_TOOLS = new Set(['line', 'arrow', 'rect', 'ellipse', 'measure'])
+/** outils qui posent une annotation d'un seul clic */
+const CLICK_TOOLS = new Set(['text', 'badge', 'stamp'])
 
 /**
  * Moteur de rendu et d'interaction de Hexa.
@@ -42,6 +63,9 @@ export class HexaEngine {
     size: 6,
     fadeDelay: 4000,
     sparkles: true,
+    smartShapes: true,
+    guides: true,
+    linkBadges: true,
   }
 
   private strokes: Stroke[] = []
@@ -54,6 +78,21 @@ export class HexaEngine {
   private erasing = false
   private pointer = { x: -200, y: -200 }
   private shiftHeld = false
+  private altHeld = false
+
+  /** morphs en cours (hors Stroke : jamais sérialisé) */
+  private morphs = new Map<number, MorphAnim>()
+  /** guides magnétiques : index des points remarquables + calque de rendu */
+  private overlay = new GuideOverlay()
+  private anchors: Anchor[] = []
+  private anchorsDirty = true
+  /** numéroteur */
+  private badgeSeq = 1
+  private lastBadgeId: number | null = null
+  /** éditeur de texte flottant en cours (fonction de fermeture) */
+  private closeText: (() => void) | null = null
+  /** dernière image collée, prête à être tamponnée */
+  private pendingStamp: { src: string; w: number; h: number } | null = null
 
   private running = false
   private raf = 0
@@ -72,6 +111,14 @@ export class HexaEngine {
    *  sert à la règle §2.5 du brief : masquer la fenêtre quand il n'y a rien */
   onActivity?: (hasContent: boolean) => void
 
+  /**
+   * Miroir de l'état, appelé À CHAQUE IMAGE ACTIVE (donc jamais au repos, la
+   * boucle étant dormante). Sert à l'enregistreur de session (§11) et au miroir
+   * OBS (§10.2). Les tableaux fournis appartiennent au moteur : les lire, ne
+   * jamais les modifier. Les consommateurs s'échantillonnent eux-mêmes.
+   */
+  onMirror?: (strokes: readonly Stroke[], current: Stroke | null) => void
+
   constructor(stage: HTMLElement, staticCv: HTMLCanvasElement, liveCv: HTMLCanvasElement) {
     this.stage = stage
     this.staticCv = staticCv
@@ -87,7 +134,15 @@ export class HexaEngine {
     const up = (e: PointerEvent) => this.onUp(e)
     const menu = (e: Event) => e.preventDefault()
     const resize = () => this.resize()
-    const wheel = (e: WheelEvent) => this.onWheelCb?.(e)
+    const wheel = (e: WheelEvent) => this.onWheel(e)
+    const paste = (e: ClipboardEvent) => this.onPaste(e)
+    window.addEventListener('paste', paste)
+    this.detachFns.push(() => window.removeEventListener('paste', paste))
+    // une image qui finit de charger doit relancer un rendu (jamais de boucle)
+    setImageInvalidate(() => {
+      this.staticDirty = true
+      this.wake()
+    })
     stage.addEventListener('pointerdown', down)
     stage.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
@@ -112,16 +167,23 @@ export class HexaEngine {
   /** la molette est gérée par l'app (taille du pinceau) — seam volontaire */
   onWheelCb?: (e: WheelEvent) => void
 
+  /** le moteur demande un changement d'outil (collage d'image → tampon) */
+  onRequestTool?: (tool: ToolId) => void
+
   destroy(): void {
     for (const fn of this.detachFns) fn()
     cancelAnimationFrame(this.raf)
     if (this.wakeTimer) clearTimeout(this.wakeTimer)
+    this.closeText?.()
+    setImageInvalidate(null)
     this.cursor.remove()
   }
 
   setOptions(patch: Partial<EngineOptions>): void {
     const prevFade = this.opts.fadeDelay
+    const prevTool = this.opts.tool
     this.opts = { ...this.opts, ...patch }
+    if (this.opts.tool !== prevTool && prevTool === 'text') this.closeText?.()
     if ('fadeDelay' in patch && this.opts.fadeDelay !== prevFade) {
       const now = performance.now()
       for (const s of this.strokes) {
@@ -136,13 +198,29 @@ export class HexaEngine {
   undo(): void {
     for (let i = this.strokes.length - 1; i >= 0; i--) {
       const s = this.strokes[i]
-      if (!s.dying) {
-        this.strokes.splice(i, 1)
-        this.redoStack.push(s)
+      if (s.dying) continue
+      // 1er Ctrl+Z après un redressement : on rend le TRACÉ BRUT (§4.1.5)
+      if (s.raw) {
+        const now = performance.now()
+        this.morphs.delete(s.id)
+        s.points = s.raw
+        s.raw = undefined
+        s.tool = 'pen'
+        s.filled = undefined
+        s.anim = undefined
+        s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
+        this.anchorsDirty = true
         this.staticDirty = true
         this.wake()
         return
       }
+      this.strokes.splice(i, 1)
+      this.redoStack.push(s)
+      if (s.tool === 'badge') this.syncBadgeSeq()
+      this.anchorsDirty = true
+      this.staticDirty = true
+      this.wake()
+      return
     }
   }
 
@@ -151,8 +229,23 @@ export class HexaEngine {
     if (!s) return
     s.dieAt = this.opts.fadeDelay == null ? undefined : performance.now() + this.opts.fadeDelay
     this.strokes.push(s)
+    if (s.tool === 'badge') this.syncBadgeSeq()
+    this.anchorsDirty = true
     this.staticDirty = true
     this.wake()
+  }
+
+  /** le compteur du numéroteur suit toujours la plus grande pastille présente */
+  private syncBadgeSeq(): void {
+    let max = 0
+    let last: number | null = null
+    for (const s of this.strokes) {
+      if (s.tool !== 'badge' || s.dying) continue
+      max = Math.max(max, s.badge ?? 0)
+      last = s.id
+    }
+    this.badgeSeq = max + 1
+    this.lastBadgeId = last
   }
 
   /** touche panique : tout part en dissolution, léger décalage en cascade */
@@ -164,6 +257,9 @@ export class HexaEngine {
       s.dying = { start: now + i * 45, duration: this.dissolveDuration(s), mode: 'dissolve' }
       i++
     }
+    this.badgeSeq = 1
+    this.lastBadgeId = null
+    this.anchorsDirty = true
     this.wake()
   }
 
@@ -184,13 +280,23 @@ export class HexaEngine {
   loadSession(data: SessionExport): void {
     if (data.app !== 'hexa' || !Array.isArray(data.strokes)) return
     const now = performance.now()
-    for (const s of structuredClone(data.strokes)) {
+    const remap = new Map<number, number>()
+    const loaded = structuredClone(data.strokes)
+    for (const s of loaded) {
       s.dying = undefined
       s.anim = undefined
       s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
+      const old = s.id
       s.id = this.idSeq++
+      remap.set(old, s.id)
+    }
+    // les liens du numéroteur pointent vers des ids : on les réécrit
+    for (const s of loaded) {
+      if (s.linkFrom != null) s.linkFrom = remap.get(s.linkFrom)
       this.strokes.push(s)
     }
+    this.syncBadgeSeq()
+    this.anchorsDirty = true
     this.staticDirty = true
     this.emitActivity()
     this.wake()
@@ -212,11 +318,39 @@ export class HexaEngine {
       if (s.dying) continue
       const pad = Math.max(14, s.size * 2)
       const pts = s.points
+      // formes, textes, pastilles et tampons ont leur propre zone de saisie
+      if (s.tool === 'rect' || s.tool === 'ellipse') {
+        if (hitShape(s, x, y, pad)) return s
+        continue
+      }
+      if (s.tool === 'badge') {
+        if (dist(x, y, pts[0].x, pts[0].y) < badgeRadius(s.size) + 4) return s
+        continue
+      }
+      if (s.tool === 'stamp') {
+        const w = (s.w ?? 0) / 2
+        const h = (s.h ?? 0) / 2
+        if (Math.abs(x - pts[0].x) < w && Math.abs(y - pts[0].y) < h) return s
+        continue
+      }
+      if (s.tool === 'text') {
+        const box = textBox(this.sCtx, s)
+        if (x > pts[0].x - 6 && x < pts[0].x + box.w + 6 && Math.abs(y - pts[0].y) < box.h / 2 + 4) {
+          return s
+        }
+        continue
+      }
       if (pts.length === 1) {
         if (dist(x, y, pts[0].x, pts[0].y) < pad) return s
         continue
       }
-      if (s.tool === 'arrow' || s.tool === 'line') {
+      if (s.tool === 'arrow' && pts.length > 2) {
+        for (let j = 0; j < pts.length - 1; j++) {
+          if (pointToSegment(x, y, pts[j].x, pts[j].y, pts[j + 1].x, pts[j + 1].y) < pad) return s
+        }
+        continue
+      }
+      if (s.tool === 'arrow' || s.tool === 'line' || s.tool === 'measure') {
         const a = pts[0]
         const b = pts[pts.length - 1]
         if (pointToSegment(x, y, a.x, a.y, b.x, b.y) < pad) return s
@@ -230,9 +364,12 @@ export class HexaEngine {
   }
 
   private onDown(e: PointerEvent): void {
+    // clic dans l'éditeur de texte flottant : ce n'est pas un geste de dessin
+    if (e.target !== this.stage && !(e.target instanceof HTMLCanvasElement)) return
     const pt = this.toLocal(e)
     this.pointer = pt
     this.shiftHeld = e.shiftKey
+    this.altHeld = e.altKey
     this.stage.setPointerCapture(e.pointerId)
 
     if (e.button === 2) {
@@ -263,12 +400,29 @@ export class HexaEngine {
       this.wake()
       return
     }
+    if (CLICK_TOOLS.has(t)) {
+      this.redoStack = []
+      // les outils posés au clic profitent aussi des guides (alignement,
+      // espacement égal) : c'est ce qui rend une série de pastilles nette
+      const p = this.guidesOn() ? this.snapClick(pt) : pt
+      this.overlay.clear(performance.now())
+      if (t === 'text') this.openText(p)
+      else if (t === 'badge') this.placeBadge(p)
+      else this.placeStamp(p)
+      return
+    }
 
     if (FREEHAND_TOOLS.has(t) || TWO_POINT_TOOLS.has(t)) {
       this.redoStack = []
       this.fx = new OneEuro()
       this.fy = new OneEuro()
       const first: StrokePoint = { ...pt, x: this.fx.filter(pt.x, pt.t), y: this.fy.filter(pt.y, pt.t) }
+      // le point de DÉPART s'accroche aussi aux points remarquables
+      if (TWO_POINT_TOOLS.has(t) && this.guidesOn()) {
+        const snapped = snapPoint(null, first, this.anchorList())
+        first.x = snapped.x
+        first.y = snapped.y
+      }
       this.current = {
         id: this.idSeq++,
         tool: t as Stroke['tool'],
@@ -279,14 +433,133 @@ export class HexaEngine {
         done: false,
         startedAt: pt.t,
       }
-      if (TWO_POINT_TOOLS.has(t)) this.current.points.push({ ...pt })
+      if (TWO_POINT_TOOLS.has(t)) {
+        this.current.points.push({ ...first })
+        // Alt = forme remplie translucide (rect / ellipse)
+        if ((t === 'rect' || t === 'ellipse') && e.altKey) this.current.filled = true
+      }
       this.emitActivity()
       this.wake()
     }
   }
 
+  /* ---------------- outils à un clic ---------------- */
+
+  private openText(pt: StrokePoint): void {
+    this.closeText?.()
+    const color = this.opts.color
+    const size = this.opts.size
+    this.closeText = openTextInput(
+      this.stage,
+      { x: pt.x, y: pt.y, color, fontSize: textSizeOf(size) },
+      (value) => {
+        const now = performance.now()
+        const s: Stroke = {
+          id: this.idSeq++,
+          tool: 'text',
+          color,
+          size,
+          points: [{ x: pt.x, y: pt.y, p: 0.5, t: now }],
+          simulatePressure: false,
+          done: true,
+          startedAt: now,
+          endedAt: now,
+          text: value,
+          anim: { start: now, duration: 260 },
+        }
+        if (this.opts.fadeDelay != null) s.dieAt = now + this.opts.fadeDelay + 260
+        this.strokes.push(s)
+        this.anchorsDirty = true
+        this.staticDirty = true
+        this.emitActivity()
+        this.wake()
+      },
+    )
+  }
+
+  private placeBadge(pt: StrokePoint): void {
+    const now = performance.now()
+    const link = this.opts.linkBadges ? this.lastBadgeId : null
+    const s: Stroke = {
+      id: this.idSeq++,
+      tool: 'badge',
+      color: this.opts.color,
+      size: this.opts.size,
+      points: [{ x: pt.x, y: pt.y, p: 0.5, t: now }],
+      simulatePressure: false,
+      done: true,
+      startedAt: now,
+      endedAt: now,
+      badge: this.badgeSeq,
+      anim: { start: now, duration: link != null ? BADGE_LINK_ANIM : BADGE_ANIM },
+    }
+    if (link != null) s.linkFrom = link
+    if (this.opts.fadeDelay != null) s.dieAt = now + this.opts.fadeDelay + (s.anim?.duration ?? 0)
+    this.strokes.push(s)
+    this.badgeSeq++
+    this.lastBadgeId = s.id
+    this.anchorsDirty = true
+    this.staticDirty = true
+    this.emitActivity()
+    this.wake()
+  }
+
+  private placeStamp(pt: StrokePoint): void {
+    const img = this.pendingStamp
+    if (!img) return
+    const now = performance.now()
+    const s: Stroke = {
+      id: this.idSeq++,
+      tool: 'stamp',
+      color: this.opts.color,
+      size: this.opts.size,
+      points: [{ x: pt.x, y: pt.y, p: 0.5, t: now }],
+      simulatePressure: false,
+      done: true,
+      startedAt: now,
+      endedAt: now,
+      image: img.src,
+      w: img.w,
+      h: img.h,
+      anim: { start: now, duration: 260 },
+    }
+    if (this.opts.fadeDelay != null) s.dieAt = now + this.opts.fadeDelay + 260
+    this.strokes.push(s)
+    this.anchorsDirty = true
+    this.staticDirty = true
+    this.emitActivity()
+    this.wake()
+  }
+
+  /** collage d'une image du presse-papier (§4.10) : bascule sur le tampon */
+  private async onPaste(e: ClipboardEvent): Promise<void> {
+    const img = await imageFromClipboard(e.clipboardData?.items ?? null)
+    if (!img) return
+    this.pendingStamp = img
+    this.onRequestTool?.('stamp')
+  }
+
+  /** molette : redimensionne le tampon survolé, sinon comportement de l'app */
+  private onWheel(e: WheelEvent): void {
+    if (this.opts.tool !== 'eraser') {
+      const s = this.strokeAt(this.pointer.x, this.pointer.y)
+      if (s && s.tool === 'stamp' && s.w && s.h) {
+        e.preventDefault()
+        const k = e.deltaY < 0 ? 1.09 : 1 / 1.09
+        const w = clamp(s.w * k, 48, 1600)
+        s.h = (s.h / s.w) * w
+        s.w = w
+        this.staticDirty = true
+        this.wake()
+        return
+      }
+    }
+    this.onWheelCb?.(e)
+  }
+
   private onMove(e: PointerEvent): void {
     this.shiftHeld = e.shiftKey
+    this.altHeld = e.altKey
     const coalesced = e.getCoalescedEvents?.() ?? []
     const list = coalesced.length > 0 ? coalesced : [e]
     for (const ev of list) {
@@ -300,11 +573,12 @@ export class HexaEngine {
           p.x += dx
           p.y += dy
         }
+        this.anchorsDirty = true
         this.staticDirty = true
       } else if (this.current) {
         const c = this.current
         if (TWO_POINT_TOOLS.has(c.tool)) {
-          c.points[c.points.length - 1] = this.maybeSnap(c.points[0], pt)
+          c.points[c.points.length - 1] = this.resolveTwoPoint(c, pt)
         } else {
           const fpt: StrokePoint = {
             ...pt,
@@ -321,10 +595,29 @@ export class HexaEngine {
         this.eraseAt(pt)
       } else if (this.opts.tool === 'laser') {
         this.pushLaser(pt, (e.buttons & 1) === 1)
+      } else if (CLICK_TOOLS.has(this.opts.tool)) {
+        // aperçu des guides sous le curseur avant même de cliquer
+        if (this.guidesOn()) this.snapClick(pt)
+        else this.overlay.clear(pt.t)
       }
     }
     this.moveCursor()
-    if (this.grabbed || this.current || this.erasing || this.opts.tool === 'laser') this.wake()
+    if (
+      this.grabbed ||
+      this.current ||
+      this.erasing ||
+      this.opts.tool === 'laser' ||
+      CLICK_TOOLS.has(this.opts.tool)
+    ) {
+      this.wake()
+    }
+  }
+
+  /** accroche d'un outil posé au clic + affichage des guides correspondants */
+  private snapClick(pt: StrokePoint): StrokePoint {
+    const res = snapPoint(null, pt, this.anchorList())
+    this.overlay.set(res.guides, performance.now())
+    return { ...pt, x: res.x, y: res.y }
   }
 
   /** accroche aux angles de 15° quand Shift est maintenu (lignes et flèches) */
@@ -336,6 +629,44 @@ export class HexaEngine {
     return { ...pt, x: origin.x + Math.cos(snapped) * len, y: origin.y + Math.sin(snapped) * len }
   }
 
+  /** guides actifs ? (réglage global, et Alt les suspend le temps du geste) */
+  private guidesOn(): boolean {
+    return this.opts.guides && !this.altHeld
+  }
+
+  /** index paresseux des points remarquables — jamais reconstruit pour rien */
+  private anchorList(): Anchor[] {
+    if (this.anchorsDirty) {
+      this.anchors = buildAnchors(this.strokes)
+      this.anchorsDirty = false
+    }
+    return this.anchors
+  }
+
+  /**
+   * Point courant d'une forme à deux points : Shift (carré/cercle ou angles
+   * de 15°) l'emporte, sinon les guides magnétiques prennent la main.
+   */
+  private resolveTwoPoint(c: Stroke, pt: StrokePoint): StrokePoint {
+    const origin = c.points[0]
+    if (this.shiftHeld) {
+      this.overlay.clear(performance.now())
+      if (c.tool === 'rect' || c.tool === 'ellipse') {
+        const sq = squarify(origin, pt)
+        return { ...pt, x: sq.x, y: sq.y }
+      }
+      return this.maybeSnap(origin, pt)
+    }
+    if (!this.guidesOn()) {
+      this.overlay.clear(performance.now())
+      return pt
+    }
+    const boxTool = c.tool === 'rect' || c.tool === 'ellipse'
+    const res = snapPoint(boxTool ? null : origin, pt, this.anchorList())
+    this.overlay.set(res.guides, performance.now())
+    return { ...pt, x: res.x, y: res.y }
+  }
+
   private onUp(_e: PointerEvent): void {
     if (this.grabbed) {
       if (this.opts.fadeDelay != null) {
@@ -343,6 +674,7 @@ export class HexaEngine {
       }
       this.grabbed = null
       this.cursor.classList.remove('is-grab')
+      this.anchorsDirty = true
       this.staticDirty = true
       this.wake()
       return
@@ -354,9 +686,10 @@ export class HexaEngine {
     this.fx = null
     this.fy = null
     const now = performance.now()
+    this.overlay.clear(now)
     c.done = true
     c.endedAt = now
-    if (c.tool === 'arrow' || c.tool === 'line') {
+    if (TWO_POINT_TOOLS.has(c.tool)) {
       const a = c.points[0]
       const b = c.points[c.points.length - 1]
       if (dist(a.x, a.y, b.x, b.y) < 8) {
@@ -365,12 +698,41 @@ export class HexaEngine {
         return // geste trop court : on n'ajoute rien
       }
       if (c.tool === 'arrow') c.anim = { start: now, duration: 300 }
+      else if (c.tool === 'rect' || c.tool === 'ellipse') c.anim = { start: now, duration: 220 }
     }
+    // formes intelligentes : le geste au stylo est redressé (§4.1)
+    if (c.tool === 'pen' && this.opts.smartShapes) this.applySmartShape(c, now)
     if (this.opts.fadeDelay != null) c.dieAt = now + this.opts.fadeDelay + (c.anim?.duration ?? 0)
     this.strokes.push(c)
+    this.anchorsDirty = true
     this.staticDirty = true
     this.emitActivity()
     this.wake()
+  }
+
+  /**
+   * Reconnaît une forme dans le tracé et l'anime vers la version parfaite
+   * en 150 ms (§4.1.5). Le tracé brut est conservé dans `raw` : le premier
+   * Ctrl+Z le rend au lieu de supprimer l'annotation.
+   */
+  private applySmartShape(c: Stroke, now: number): void {
+    const rec = recognize(c.points)
+    if (!rec) return
+    const target: Pt[] = rec.points
+    const from = resample(
+      c.points.map((p) => ({ x: p.x, y: p.y })),
+      MORPH_SAMPLES,
+      rec.closed,
+    )
+    let to = shapeOutline(rec.kind, target, MORPH_SAMPLES)
+    if (rec.closed) to = alignLoop(to, from)
+    this.morphs.set(c.id, { from, to, start: now, duration: MORPH_MS, closed: rec.closed })
+    c.raw = c.points
+    c.tool = rec.kind
+    c.points = target.map((p) => ({ x: p.x, y: p.y, p: 0.5, t: now }))
+    // la pointe de la flèche éclot juste après l'atterrissage du morph
+    c.anim =
+      rec.kind === 'arrow' ? { start: now + MORPH_MS, duration: 260, kind: 'head' } : undefined
   }
 
   private eraseAt(pt: StrokePoint): void {
@@ -465,14 +827,20 @@ export class HexaEngine {
     }
     // purger les traits entièrement dissous
     let purged = false
+    let purgedBadge = false
     for (let i = this.strokes.length - 1; i >= 0; i--) {
-      const d = this.strokes[i].dying
+      const st = this.strokes[i]
+      const d = st.dying
       if (d && now - d.start >= d.duration) {
+        this.morphs.delete(st.id)
+        if (st.tool === 'badge') purgedBadge = true
         this.strokes.splice(i, 1)
         purged = true
       }
     }
     if (purged) {
+      if (purgedBadge) this.syncBadgeSeq()
+      this.anchorsDirty = true
       this.staticDirty = true
       this.emitActivity()
     }
@@ -494,8 +862,15 @@ export class HexaEngine {
 
     const dyingActive = this.strokes.some((s) => s.dying)
     const animActive = this.strokes.some((s) => s.anim && now - s.anim.start < s.anim.duration)
-    if (this.staticDirty || dyingActive || animActive || this.grabbed) this.renderStatic(now)
+    const morphActive = this.morphs.size > 0
+    const guidesActive = this.overlay.active(now)
+    if (this.staticDirty || dyingActive || animActive || morphActive || this.grabbed) {
+      this.renderStatic(now)
+    }
     this.renderLive(now)
+    // miroir : enregistreur de session (§11) et vue OBS (§10.2). Uniquement
+    // pendant que la boucle tourne, donc jamais au repos.
+    this.onMirror?.(this.strokes, this.current)
 
     const busy =
       this.current != null ||
@@ -504,7 +879,9 @@ export class HexaEngine {
       this.particles.length > 0 ||
       this.laser.length > 0 ||
       dyingActive ||
-      animActive
+      animActive ||
+      morphActive ||
+      guidesActive
     if (busy) {
       this.raf = requestAnimationFrame(this.loop)
       return
@@ -529,11 +906,15 @@ export class HexaEngine {
     for (const s of this.strokes) {
       let alpha = 1
       let from = 0
-      const glowBoost = s === this.grabbed ? 1.45 : 1
+      // intensité des effets (réglages) : multiplie le halo, 1 par défaut
+      const glowBoost = (s === this.grabbed ? 1.45 : 1) * (this.opts.effects ?? 1)
+      // seuls les tracés à main levée se consument en comète : les formes,
+      // textes, pastilles et tampons partent en fondu
+      const comet = FREEHAND_TOOLS.has(s.tool)
       if (s.dying) {
         const p = clamp((now - s.dying.start) / s.dying.duration, 0, 1)
         if (p > 0) {
-          if (s.dying.mode === 'pop' || s.tool === 'arrow' || s.tool === 'line') {
+          if (s.dying.mode === 'pop' || !comet) {
             alpha = 1 - p
           } else {
             const n = s.points.length
@@ -542,14 +923,21 @@ export class HexaEngine {
           }
         }
       }
-      renderStroke(ctx, s, { alpha, from, glowBoost, now })
+      // morph en cours : on dessine l'image intermédiaire, pas la forme finale
+      const morph = this.morphs.get(s.id)
+      if (morph) {
+        const mt = clamp((now - morph.start) / morph.duration, 0, 1)
+        renderMorph(ctx, morph, mt, s, alpha)
+        if (mt >= 1) this.morphs.delete(s.id)
+        continue
+      }
+      renderStroke(ctx, s, { alpha, from, glowBoost, now, link: this.linkAnchor(s) })
       if (s.dying && s.dying.mode === 'dissolve') {
         const p = clamp((now - s.dying.start) / s.dying.duration, 0, 1)
         if (p > 0 && p < 1) {
-          const head =
-            s.tool === 'arrow' || s.tool === 'line'
-              ? s.points[s.points.length - 1]
-              : s.points[Math.min(from, s.points.length - 1)]
+          const head = !comet
+            ? s.points[s.points.length - 1]
+            : s.points[Math.min(from, s.points.length - 1)]
           const r = Math.max(6, s.size * (1.7 + Math.sin(now * 0.02) * 0.35))
           renderEmber(ctx, head.x, head.y, r, s.color, 1 - p * 0.4)
         }
@@ -558,9 +946,22 @@ export class HexaEngine {
     this.staticDirty = false
   }
 
+  /** centre de la pastille précédente, pour la flèche de liaison du numéroteur */
+  private linkAnchor(s: Stroke): Pt | null {
+    if (s.tool !== 'badge' || s.linkFrom == null) return null
+    // on garde l'ancre même si la pastille source se dissout : le lien part
+    // en fondu avec elle au lieu de disparaître d'un coup
+    for (const o of this.strokes) {
+      if (o.id === s.linkFrom) return { x: o.points[0].x, y: o.points[0].y }
+    }
+    return null
+  }
+
   private renderLive(now: number): void {
     const ctx = this.lCtx
     ctx.clearRect(0, 0, this.w, this.h)
+    // guides magnétiques : couche LIVE uniquement, jamais dans l'export
+    this.overlay.render(ctx, now, this.opts.color)
     if (this.current) {
       renderStroke(ctx, this.current, { alpha: 1, from: 0, glowBoost: 1, now })
     }

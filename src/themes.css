@@ -1,0 +1,1084 @@
+/* ============================================================
+   Hexa — les 8 peaux visuelles
+   Un bloc [data-theme='…'] par thème (ordre de src/themes.ts).
+   Règle du jeu : ce ne sont PAS des recolorations. Chaque thème
+   change la SILHOUETTE — rayons, bordures, ombres, densité,
+   typographie système, forme des pastilles — pas seulement la teinte.
+   L'accent dynamique (--accent = couleur de dessin) doit continuer
+   de marquer l'outil actif dans les 8.
+   ============================================================ */
+
+/* Angle du dégradé irisé (holo-iris). Enregistré pour être animable. */
+@property --iris-ang {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes hexaIrisSpin {
+  to {
+    --iris-ang: 360deg;
+  }
+}
+
+@keyframes hexaBreathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ============================================================
+   1 · NÉON NUIT — la vitrine : verre dépoli, halos, hexagones
+   ============================================================ */
+
+[data-theme='neon-nuit'] {
+  --font-ui: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --glass-bg: rgba(9, 13, 25, 0.58);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 22px;
+  --text-1: rgba(255, 255, 255, 0.94);
+  --text-2: rgba(255, 255, 255, 0.58);
+  --radius-ui: 22px;
+  --radius-btn: 13px;
+  --radius-card: 18px;
+  --shadow-ui:
+    0 18px 60px -12px rgba(0, 0, 0, 0.66),
+    0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --logo-a: #00e5ff;
+  --logo-b: #b026ff;
+  --wall-1: #0b0f1c;
+  --wall-2: #0e1224;
+  --wall-3: #120b26;
+  --wall-dot: rgba(255, 255, 255, 0.045);
+  --hover-bg: rgba(255, 255, 255, 0.08);
+  --track-bg: rgba(255, 255, 255, 0.16);
+  --thumb: #ffffff;
+  --swatch-clip: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+
+/* filet lumineux sur l'arête haute : le détail qui fait « cher » */
+[data-theme='neon-nuit'] .toolbar::before {
+  content: '';
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  top: 0;
+  height: 1px;
+  border-radius: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--accent, var(--logo-a)) 75%, transparent),
+    transparent
+  );
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+[data-theme='neon-nuit'] .tbtn.active {
+  background: radial-gradient(
+    120% 120% at 50% 130%,
+    color-mix(in srgb, var(--accent, var(--logo-a)) 30%, transparent),
+    color-mix(in srgb, var(--accent, var(--logo-a)) 8%, transparent)
+  );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent, var(--logo-a)) 34%, transparent),
+    0 6px 18px -8px color-mix(in srgb, var(--accent, var(--logo-a)) 80%, transparent);
+}
+
+[data-theme='neon-nuit'] .sep {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 255, 255, 0.16),
+    transparent
+  );
+}
+
+[data-theme='neon-nuit'] .edge-glow {
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--logo-a) 40%, transparent),
+    inset 0 0 30px -8px color-mix(in srgb, var(--logo-a) 50%, transparent),
+    inset 0 0 90px -40px color-mix(in srgb, var(--logo-b) 70%, transparent);
+}
+
+/* ============================================================
+   2 · GLACIER — clair givré, pilule, aucun halo, texte sombre
+   ============================================================ */
+
+[data-theme='glacier'] {
+  --font-ui: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --glass-bg: rgba(255, 255, 255, 0.74);
+  --glass-border: rgba(18, 42, 78, 0.1);
+  --glass-blur: 30px;
+  --text-1: #0d1b2a;
+  --text-2: rgba(13, 27, 42, 0.55);
+  /* --radius-ui et --radius-btn restent raisonnables : d'autres panneaux s'en
+     servent pour leurs cartes. La pilule est appliquée explicitement à la
+     barre d'outils et à ses boutons, plus bas. */
+  --radius-ui: 20px;
+  --radius-btn: 12px;
+  --radius-card: 22px;
+  --shadow-ui:
+    0 20px 46px -18px rgba(24, 62, 116, 0.34),
+    0 2px 6px rgba(24, 62, 116, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --logo-a: #1f6feb;
+  --logo-b: #59a8ff;
+  --wall-1: #eef3fb;
+  --wall-2: #e3ecf9;
+  --wall-3: #dae6f6;
+  --wall-dot: rgba(24, 62, 116, 0.06);
+  --hover-bg: rgba(24, 62, 116, 0.08);
+  --track-bg: rgba(24, 62, 116, 0.14);
+  --thumb: #ffffff;
+  --swatch-clip: circle(50% at 50% 50%);
+}
+
+/* la pilule : silhouette signature de Glacier */
+[data-theme='glacier'] .toolbar,
+[data-theme='glacier'] .tool-indicator,
+[data-theme='glacier'] .tbtn,
+[data-theme='glacier'] .onb-next,
+[data-theme='glacier'] .onb-glyph,
+[data-theme='glacier'] .onb-check {
+  border-radius: 999px;
+}
+
+[data-theme='glacier'] .toolbar {
+  padding: 8px 12px;
+  gap: 8px;
+  border-width: 1px;
+}
+
+[data-theme='glacier'] .tbtn {
+  width: 36px;
+  height: 36px;
+}
+
+[data-theme='glacier'] .tbtn:hover {
+  transform: none;
+  background: var(--hover-bg);
+}
+
+[data-theme='glacier'] .tbtn.active {
+  filter: none;
+  color: var(--accent, var(--logo-a));
+  background: color-mix(in srgb, var(--accent, var(--logo-a)) 15%, #fff);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent, var(--logo-a)) 55%, transparent);
+}
+
+/* sur fond clair, une pastille blanche doit rester visible : on la détoure
+   par une ombre portée (le clip-path interdit bordure et box-shadow) */
+[data-theme='glacier'] .swatch {
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 1px 2px rgba(24, 62, 116, 0.5));
+}
+
+[data-theme='glacier'] .swatch.active {
+  transform: scale(1.2);
+  filter: drop-shadow(0 3px 6px color-mix(in srgb, var(--c) 55%, transparent));
+}
+
+[data-theme='glacier'] .sep {
+  height: 20px;
+  background: rgba(18, 42, 78, 0.12);
+}
+
+[data-theme='glacier'] .brand {
+  filter: none;
+  opacity: 0.9;
+}
+
+[data-theme='glacier'] .cursor-dot {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.8),
+    0 2px 8px rgba(20, 50, 90, 0.35);
+}
+
+[data-theme='glacier'] .edge-glow {
+  box-shadow:
+    inset 0 0 0 1.5px color-mix(in srgb, var(--logo-a) 34%, transparent),
+    inset 0 0 40px -18px rgba(24, 62, 116, 0.4);
+}
+
+[data-theme='glacier'] .tool-indicator {
+  background: rgba(255, 255, 255, 0.86);
+  color: #0d1b2a;
+  box-shadow: 0 12px 30px -14px rgba(24, 62, 116, 0.5);
+}
+
+/* ============================================================
+   3 · HOLO IRIS — nuit + anneau irisé qui tourne lentement
+   ============================================================ */
+
+[data-theme='holo-iris'] {
+  --font-ui: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --glass-bg: rgba(14, 9, 28, 0.62);
+  --glass-border: transparent;
+  --glass-blur: 24px;
+  --text-1: rgba(255, 255, 255, 0.95);
+  --text-2: rgba(226, 214, 255, 0.6);
+  --radius-ui: 26px;
+  --radius-btn: 14px;
+  --radius-card: 22px;
+  --shadow-ui:
+    0 26px 70px -18px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --logo-a: #ff5fd2;
+  --logo-b: #5ce1ff;
+  --wall-1: #0a0714;
+  --wall-2: #150a26;
+  --wall-3: #06101f;
+  --wall-dot: rgba(255, 255, 255, 0.05);
+  --hover-bg: rgba(255, 255, 255, 0.09);
+  --track-bg: rgba(255, 255, 255, 0.14);
+  --thumb: #ffffff;
+  --swatch-clip: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+}
+
+/* l'anneau irisé : un dégradé conique masqué en contour pur */
+/* NB : on ne touche jamais à `position` ici — la barre est en `fixed`,
+   elle sert déjà de bloc conteneur à ses pseudo-éléments. */
+[data-theme='holo-iris'] .toolbar,
+[data-theme='holo-iris'] .hint-card,
+[data-theme='holo-iris'] .onb-card {
+  border-color: transparent;
+}
+
+[data-theme='holo-iris'] .toolbar::before,
+[data-theme='holo-iris'] .hint-card::before,
+[data-theme='holo-iris'] .onb-card::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--iris-ang),
+    #ff5fd2,
+    #b06bff,
+    #5ce1ff,
+    #7dffc0,
+    #ffd166,
+    #ff5fd2
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: hexaIrisSpin 14s linear infinite;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+/* le prisme : la barre porte un voile irisé, et chaque outil son caisson —
+   silhouette « touches de clavier » qui n'existe dans aucun autre thème */
+[data-theme='holo-iris'] .toolbar {
+  padding: 13px 17px;
+  gap: 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 95, 210, 0.11), rgba(92, 225, 255, 0.11)),
+    var(--glass-bg);
+}
+
+[data-theme='holo-iris'] .tbtn {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='holo-iris'] .tbtn:hover {
+  background: linear-gradient(
+    140deg,
+    rgba(255, 95, 210, 0.16),
+    rgba(92, 225, 255, 0.16)
+  );
+}
+
+[data-theme='holo-iris'] .tbtn.active {
+  color: #fff;
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--accent, var(--logo-a)) 42%, transparent),
+    rgba(92, 225, 255, 0.16)
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 8px 22px -10px color-mix(in srgb, var(--accent, var(--logo-a)) 90%, transparent);
+}
+
+[data-theme='holo-iris'] .sep {
+  width: 2px;
+  height: 22px;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, #ff5fd2, #5ce1ff);
+  opacity: 0.5;
+}
+
+[data-theme='holo-iris'] .swatch {
+  width: 25px;
+  height: 25px;
+}
+
+[data-theme='holo-iris'] .brand {
+  filter: drop-shadow(0 0 10px rgba(255, 95, 210, 0.55));
+}
+
+[data-theme='holo-iris'] .edge-glow {
+  box-shadow:
+    inset 0 0 0 1.5px rgba(255, 95, 210, 0.35),
+    inset 0 0 0 3px rgba(92, 225, 255, 0.14),
+    inset 0 0 70px -26px rgba(176, 107, 255, 0.7);
+}
+
+[data-theme='holo-iris'] .tool-indicator {
+  background: linear-gradient(
+    140deg,
+    rgba(255, 95, 210, 0.22),
+    rgba(92, 225, 255, 0.22)
+  );
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* ============================================================
+   4 · PHOSPHORE — terminal cathodique, monospace, angles droits
+   ============================================================ */
+
+[data-theme='phosphore'] {
+  --font-ui: ui-monospace, SFMono-Regular, 'Cascadia Mono', Menlo, Consolas, monospace;
+  --glass-bg: rgba(2, 12, 6, 0.9);
+  --glass-border: rgba(125, 255, 155, 0.34);
+  --glass-blur: 0px;
+  --text-1: #b9ffcd;
+  --text-2: rgba(125, 255, 155, 0.62);
+  --radius-ui: 0px;
+  --radius-btn: 0px;
+  --radius-card: 0px;
+  --shadow-ui:
+    0 0 0 1px rgba(125, 255, 155, 0.1),
+    0 14px 34px rgba(0, 0, 0, 0.66),
+    inset 0 0 34px rgba(125, 255, 155, 0.07);
+  --logo-a: #7dff9b;
+  --logo-b: #25d366;
+  --wall-1: #020604;
+  --wall-2: #04120a;
+  --wall-3: #010805;
+  --wall-dot: rgba(125, 255, 155, 0.07);
+  --hover-bg: rgba(125, 255, 155, 0.12);
+  --track-bg: rgba(125, 255, 155, 0.2);
+  --thumb: #7dff9b;
+  --swatch-clip: inset(0);
+}
+
+[data-theme='phosphore'] .toolbar,
+[data-theme='phosphore'] .hint-card,
+[data-theme='phosphore'] .onb-card,
+[data-theme='phosphore'] .tool-indicator {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: hidden;
+}
+
+/* scanlines : la trame cathodique, statique donc gratuite */
+[data-theme='phosphore'] .toolbar::after,
+[data-theme='phosphore'] .hint-card::after,
+[data-theme='phosphore'] .onb-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(125, 255, 155, 0.07) 0 1px,
+    transparent 1px 3px
+  );
+  pointer-events: none;
+}
+
+[data-theme='phosphore'] .toolbar {
+  padding: 8px 10px;
+  gap: 8px;
+  border-width: 1px;
+}
+
+[data-theme='phosphore'] .tbtn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid transparent;
+}
+
+[data-theme='phosphore'] .tbtn:hover {
+  transform: none;
+  border-color: rgba(125, 255, 155, 0.45);
+  background: var(--hover-bg);
+}
+
+[data-theme='phosphore'] .tbtn.active {
+  filter: none;
+  color: #03170b;
+  background: var(--accent, var(--logo-a));
+  border-color: var(--accent, var(--logo-a));
+  box-shadow: 0 0 14px -2px color-mix(in srgb, var(--accent, var(--logo-a)) 75%, transparent);
+}
+
+[data-theme='phosphore'] .chip-label {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+[data-theme='phosphore'] .swatch {
+  width: 18px;
+  height: 18px;
+}
+
+[data-theme='phosphore'] .swatch.active {
+  transform: none;
+  outline: 2px solid var(--text-1);
+  outline-offset: 2px;
+}
+
+[data-theme='phosphore'] .swatches {
+  gap: 8px;
+}
+
+[data-theme='phosphore'] .sep {
+  height: 22px;
+  background: rgba(125, 255, 155, 0.28);
+}
+
+[data-theme='phosphore'] .brand {
+  filter: none;
+  opacity: 0.85;
+}
+
+[data-theme='phosphore'] .size-group input[type='range'] {
+  height: 6px;
+  border-radius: 0;
+}
+
+[data-theme='phosphore'] .size-group input[type='range']::-webkit-slider-thumb {
+  border-radius: 0;
+  width: 8px;
+  height: 18px;
+  box-shadow: 0 0 10px rgba(125, 255, 155, 0.8);
+}
+
+[data-theme='phosphore'] .size-group input[type='range']::-moz-range-thumb {
+  border-radius: 0;
+  width: 8px;
+  height: 18px;
+}
+
+[data-theme='phosphore'] .tool-indicator {
+  border-radius: 0;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+[data-theme='phosphore'] .tool-indicator::before {
+  content: '> ';
+  color: var(--logo-a);
+}
+
+[data-theme='phosphore'] .hexa-mark {
+  clip-path: none;
+  background: var(--logo-a);
+}
+
+[data-theme='phosphore'] .edge-glow {
+  box-shadow:
+    inset 0 0 0 1px rgba(125, 255, 155, 0.55),
+    inset 0 0 40px -14px rgba(125, 255, 155, 0.5);
+}
+
+/* ============================================================
+   5 · SAKURA — pastel, très arrondi, ombres douces colorées
+   ============================================================ */
+
+[data-theme='sakura'] {
+  --font-ui: ui-rounded, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 150, 190, 0.34);
+  --glass-blur: 26px;
+  --text-1: #5b2b45;
+  --text-2: rgba(91, 43, 69, 0.58);
+  --radius-ui: 28px;
+  --radius-btn: 17px;
+  --radius-card: 26px;
+  --shadow-ui:
+    0 26px 54px -20px rgba(255, 120, 170, 0.6),
+    0 6px 18px -8px rgba(183, 156, 255, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --logo-a: #ff86b3;
+  --logo-b: #b79cff;
+  --wall-1: #fff6f9;
+  --wall-2: #fdeef7;
+  --wall-3: #f2ecff;
+  --wall-dot: rgba(255, 140, 190, 0.12);
+  --hover-bg: rgba(255, 134, 179, 0.14);
+  --track-bg: rgba(255, 134, 179, 0.24);
+  --thumb: #ffffff;
+  --swatch-clip: inset(0 round 9px);
+}
+
+[data-theme='sakura'] .toolbar {
+  padding: 12px 16px;
+  gap: 12px;
+  border-width: 1.5px;
+}
+
+[data-theme='sakura'] .tbtn {
+  width: 40px;
+  height: 40px;
+}
+
+[data-theme='sakura'] .tbtn:hover {
+  transform: translateY(-2px) scale(1.05);
+  background: var(--hover-bg);
+}
+
+[data-theme='sakura'] .tbtn.active {
+  filter: none;
+  color: color-mix(in srgb, var(--accent, var(--logo-a)) 82%, #3a1a2c);
+  background: color-mix(in srgb, var(--accent, var(--logo-a)) 26%, #fff);
+  box-shadow: 0 10px 18px -8px color-mix(in srgb, var(--accent, var(--logo-a)) 75%, transparent);
+}
+
+/* séparateurs : de simples pétales ponctuels */
+[data-theme='sakura'] .sep {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--logo-a) 55%, transparent);
+}
+
+[data-theme='sakura'] .swatch {
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 2px 3px rgba(91, 43, 69, 0.3));
+}
+
+[data-theme='sakura'] .swatch:hover {
+  transform: translateY(-2px) scale(1.14);
+}
+
+[data-theme='sakura'] .swatch.active {
+  transform: translateY(-2px) scale(1.2);
+  filter: drop-shadow(0 6px 8px color-mix(in srgb, var(--c) 55%, transparent));
+}
+
+[data-theme='sakura'] .size-group input[type='range'] {
+  height: 6px;
+  border-radius: 3px;
+}
+
+[data-theme='sakura'] .cursor-dot {
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.85),
+    0 4px 12px color-mix(in srgb, var(--c, #fff) 60%, transparent);
+}
+
+[data-theme='sakura'] .edge-glow {
+  box-shadow:
+    inset 0 0 0 3px rgba(255, 134, 179, 0.35),
+    inset 0 0 60px -18px rgba(183, 156, 255, 0.6);
+}
+
+[data-theme='sakura'] .tool-indicator {
+  background: rgba(255, 255, 255, 0.9);
+  color: #5b2b45;
+  box-shadow: 0 14px 26px -14px rgba(255, 120, 170, 0.8);
+}
+
+/* ============================================================
+   6 · ROYAL — marine profond, filets dorés, empattements
+   ============================================================ */
+
+[data-theme='royal'] {
+  --font-ui: Georgia, 'Times New Roman', 'Iowan Old Style', serif;
+  --glass-bg: rgba(6, 14, 30, 0.82);
+  --glass-border: rgba(232, 196, 106, 0.4);
+  --glass-blur: 14px;
+  --text-1: #f4e9cf;
+  --text-2: rgba(244, 233, 207, 0.58);
+  --radius-ui: 8px;
+  --radius-btn: 5px;
+  --radius-card: 8px;
+  --shadow-ui:
+    0 28px 64px -20px rgba(0, 0, 0, 0.78),
+    inset 0 0 0 1px rgba(232, 196, 106, 0.12);
+  --logo-a: #e8c46a;
+  --logo-b: #c9a227;
+  --wall-1: #060d1c;
+  --wall-2: #0b1730;
+  --wall-3: #07101f;
+  --wall-dot: rgba(232, 196, 106, 0.07);
+  --hover-bg: rgba(232, 196, 106, 0.12);
+  --track-bg: rgba(232, 196, 106, 0.2);
+  --thumb: #e8c46a;
+  --swatch-clip: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+/* le filet doré intérieur, signature des reliures */
+[data-theme='royal'] .toolbar::after,
+[data-theme='royal'] .hint-card::after,
+[data-theme='royal'] .onb-card::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(232, 196, 106, 0.26);
+  border-radius: calc(var(--radius-ui) - 4px);
+  pointer-events: none;
+}
+
+[data-theme='royal'] .toolbar {
+  padding: 12px 18px;
+  gap: 12px;
+  border-width: 1.5px;
+  background:
+    linear-gradient(180deg, rgba(13, 28, 56, 0.92), rgba(5, 11, 24, 0.94)),
+    var(--glass-bg);
+}
+
+/* filet doré supérieur, comme un fer à dorer sur une reliure */
+[data-theme='royal'] .toolbar::before {
+  content: '';
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(232, 196, 106, 0.8),
+    transparent
+  );
+  pointer-events: none;
+}
+
+[data-theme='royal'] .tbtn {
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-btn) var(--radius-btn) 0 0;
+}
+
+[data-theme='royal'] .tbtn:hover {
+  transform: none;
+  background: var(--hover-bg);
+  border-bottom-color: rgba(232, 196, 106, 0.45);
+}
+
+[data-theme='royal'] .tbtn.active {
+  filter: none;
+  color: var(--accent, var(--logo-a));
+  background: color-mix(in srgb, var(--accent, var(--logo-a)) 14%, transparent);
+  border-bottom-color: var(--accent, var(--logo-a));
+}
+
+[data-theme='royal'] .chip-label {
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  font-weight: 400;
+}
+
+[data-theme='royal'] .sep {
+  height: 30px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(232, 196, 106, 0.55),
+    transparent
+  );
+}
+
+[data-theme='royal'] .swatch {
+  width: 20px;
+  height: 20px;
+}
+
+[data-theme='royal'] .swatch.active {
+  transform: scale(1.24) rotate(0deg);
+  filter: drop-shadow(0 0 6px var(--c));
+}
+
+[data-theme='royal'] .brand {
+  filter: drop-shadow(0 0 8px rgba(232, 196, 106, 0.45));
+}
+
+[data-theme='royal'] .tool-indicator {
+  border-radius: 4px;
+  font-variant: small-caps;
+  letter-spacing: 0.14em;
+  font-weight: 400;
+  font-size: 13px;
+}
+
+[data-theme='royal'] .edge-glow {
+  box-shadow:
+    inset 0 0 0 1px rgba(232, 196, 106, 0.5),
+    inset 0 0 0 5px rgba(6, 14, 30, 0.35),
+    inset 0 0 0 6px rgba(232, 196, 106, 0.18);
+}
+
+/* ============================================================
+   7 · TOON — aplats, contours 3 px, ombres dures décalées
+   ============================================================ */
+
+[data-theme='toon'] {
+  --font-ui: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --ink: #14110d;
+  --glass-bg: #fffdf3;
+  --glass-border: var(--ink);
+  --glass-blur: 0px;
+  --text-1: #14110d;
+  --text-2: rgba(20, 17, 13, 0.62);
+  --radius-ui: 18px;
+  --radius-btn: 11px;
+  --radius-card: 18px;
+  --shadow-ui: 7px 7px 0 var(--ink);
+  --logo-a: #ff2e63;
+  --logo-b: #ffd400;
+  --wall-1: #ffd166;
+  --wall-2: #ff9f1c;
+  --wall-3: #ffe9a8;
+  --wall-dot: rgba(20, 17, 13, 0.13);
+  --hover-bg: #ffe27a;
+  --track-bg: var(--ink);
+  --thumb: #ff2e63;
+  --swatch-clip: none;
+}
+
+[data-theme='toon'] .toolbar,
+[data-theme='toon'] .hint-card,
+[data-theme='toon'] .onb-card,
+[data-theme='toon'] .tool-indicator {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-width: 3px;
+  border-style: solid;
+}
+
+[data-theme='toon'] .toolbar {
+  padding: 10px 14px;
+  gap: 10px;
+}
+
+[data-theme='toon'] .tbtn {
+  border: 2.5px solid transparent;
+  font-weight: 800;
+}
+
+[data-theme='toon'] .tbtn:hover {
+  transform: translate(-2px, -2px);
+  background: var(--hover-bg);
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+[data-theme='toon'] .tbtn:active {
+  transform: translate(0, 0);
+  box-shadow: 0 0 0 var(--ink);
+}
+
+[data-theme='toon'] .tbtn.active {
+  filter: none;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent, var(--logo-a)) 62%, #fff);
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+[data-theme='toon'] .tbtn.danger:hover {
+  color: var(--ink);
+  background: #ff5a6a;
+}
+
+[data-theme='toon'] .sep {
+  width: 3px;
+  height: 28px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+
+[data-theme='toon'] .swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 3px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+[data-theme='toon'] .swatch:hover {
+  transform: translate(-1px, -1px);
+}
+
+[data-theme='toon'] .swatch.active {
+  transform: translate(-2px, -2px) scale(1.1);
+  filter: none;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+[data-theme='toon'] .chip-label {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+[data-theme='toon'] .brand {
+  filter: none;
+}
+
+[data-theme='toon'] .size-group input[type='range'] {
+  height: 6px;
+  border-radius: 0;
+  background: var(--ink);
+}
+
+[data-theme='toon'] .size-group input[type='range']::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--thumb);
+  border: 2.5px solid var(--ink);
+  box-shadow: none;
+}
+
+[data-theme='toon'] .size-group input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: var(--thumb);
+  border: 2.5px solid var(--ink);
+  box-shadow: none;
+}
+
+[data-theme='toon'] .cursor-dot {
+  box-shadow: 0 0 0 2.5px var(--ink);
+}
+
+[data-theme='toon'] .tool-indicator {
+  border-radius: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: #fffdf3;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+
+[data-theme='toon'] .hexa-mark {
+  background: var(--logo-a);
+  box-shadow: none;
+}
+
+/* le liseré devient une case de BD */
+[data-theme='toon'] .edge-glow {
+  box-shadow:
+    inset 0 0 0 6px var(--ink),
+    inset 0 0 0 10px color-mix(in srgb, var(--logo-b) 85%, transparent);
+}
+
+/* ============================================================
+   8 · STEALTH — monochrome, ultra compact, aucun halo
+   ============================================================ */
+
+[data-theme='stealth'] {
+  --font-ui: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --glass-bg: rgba(12, 12, 14, 0.56);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-blur: 8px;
+  --text-1: rgba(255, 255, 255, 0.66);
+  --text-2: rgba(255, 255, 255, 0.34);
+  --radius-ui: 10px;
+  --radius-btn: 6px;
+  --radius-card: 10px;
+  --shadow-ui: 0 6px 16px rgba(0, 0, 0, 0.45);
+  --logo-a: #9aa3ad;
+  --logo-b: #6b7280;
+  --wall-1: #0d0d0f;
+  --wall-2: #141417;
+  --wall-3: #0a0a0c;
+  --wall-dot: rgba(255, 255, 255, 0.03);
+  --hover-bg: rgba(255, 255, 255, 0.08);
+  --track-bg: rgba(255, 255, 255, 0.14);
+  --thumb: #9aa3ad;
+  --swatch-clip: inset(0 round 3px);
+}
+
+[data-theme='stealth'] .toolbar {
+  padding: 4px 7px;
+  gap: 5px;
+  opacity: 0.42;
+  transition: opacity 0.28s ease;
+}
+
+[data-theme='stealth'] .toolbar:hover {
+  opacity: 1;
+}
+
+[data-theme='stealth'] .group {
+  gap: 2px;
+}
+
+[data-theme='stealth'] .tbtn {
+  width: 27px;
+  height: 27px;
+}
+
+[data-theme='stealth'] .tbtn svg {
+  width: 15px;
+  height: 15px;
+}
+
+[data-theme='stealth'] .tbtn:hover {
+  transform: none;
+}
+
+[data-theme='stealth'] .tbtn.active {
+  filter: none;
+  color: var(--accent, var(--logo-a));
+  background: color-mix(in srgb, var(--accent, var(--logo-a)) 16%, transparent);
+}
+
+[data-theme='stealth'] .swatches {
+  gap: 4px;
+}
+
+[data-theme='stealth'] .swatch {
+  width: 12px;
+  height: 12px;
+}
+
+[data-theme='stealth'] .swatch.active {
+  transform: scale(1.25);
+  filter: none;
+}
+
+[data-theme='stealth'] .sep {
+  height: 16px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='stealth'] .brand {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+[data-theme='stealth'] .hexa-mark {
+  background: var(--logo-a);
+}
+
+[data-theme='stealth'] .chip-label {
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+[data-theme='stealth'] .size-group {
+  padding: 0 4px;
+  gap: 6px;
+}
+
+[data-theme='stealth'] .size-group input[type='range'] {
+  width: 56px;
+  height: 3px;
+}
+
+[data-theme='stealth'] .size-group input[type='range']::-webkit-slider-thumb {
+  width: 10px;
+  height: 10px;
+  background: var(--thumb);
+  box-shadow: none;
+}
+
+[data-theme='stealth'] .size-group input[type='range']::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  background: var(--thumb);
+  box-shadow: none;
+}
+
+[data-theme='stealth'] .cursor-dot {
+  box-shadow: none;
+  opacity: 0.85;
+}
+
+[data-theme='stealth'] .tool-indicator {
+  bottom: 76px;
+  padding: 4px 10px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  background: rgba(12, 12, 14, 0.6);
+  border-color: rgba(255, 255, 255, 0.06);
+  color: var(--text-1);
+}
+
+[data-theme='stealth'] .edge-glow {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.13);
+}
+
+[data-theme='stealth'] .hint-card {
+  opacity: 0.6;
+}
+
+/* ============================================================
+   Panneaux tiers (réglages, profils, raccourcis) : ils héritent
+   des tokens, on ne fait qu'aligner leur silhouette sur le thème.
+   ============================================================ */
+
+/* les panneaux suivent --radius-card, jamais --radius-ui : ce dernier peut
+   valoir 999px (pilule de la barre d'outils) et transformerait une feuille
+   de réglages en disque. */
+.kme-sheet,
+.hx-settings,
+.settings-stub,
+.replay-bar {
+  border-radius: var(--radius-card, 16px);
+}
+
+[data-theme='phosphore'] .kme-sheet,
+[data-theme='phosphore'] .hx-settings,
+[data-theme='phosphore'] .settings-stub,
+[data-theme='toon'] .kme-sheet,
+[data-theme='toon'] .hx-settings,
+[data-theme='toon'] .settings-stub {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+[data-theme='toon'] .kme-sheet,
+[data-theme='toon'] .hx-settings,
+[data-theme='toon'] .settings-stub {
+  border: 3px solid var(--ink);
+  box-shadow: 7px 7px 0 var(--ink);
+}
+
+/* ============================================================
+   Économie d'énergie : rien ne doit tourner pour rien (§2.5, §13)
+   — en mode traversant l'UI est cachée, on coupe les animations ;
+   — respect de « mouvement réduit » du système.
+   ============================================================ */
+
+body.passthrough [data-theme] .toolbar::before,
+body.passthrough .toolbar::before,
+body.passthrough .hint-card::before,
+body.passthrough .onb-card::before {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme='holo-iris'] .toolbar::before,
+  [data-theme='holo-iris'] .hint-card::before,
+  [data-theme='holo-iris'] .onb-card::before {
+    animation: none;
+  }
+}

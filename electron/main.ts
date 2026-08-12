@@ -17,9 +17,11 @@ import {
   ipcMain,
   screen,
   type Display,
-  type IpcMainEvent,
+  type WebContents,
 } from 'electron'
 import path from 'node:path'
+// Serveur local de la vue OBS (§10.2) : HTTP + WebSocket sur 127.0.0.1.
+import { broadcastObs, obsServerStatus, startObsServer, stopObsServer } from './obs-server'
 
 /* ------------------------------------------------------------------ *
  * Réglages moteur Chromium
@@ -49,6 +51,8 @@ interface Overlay {
   hasContent: boolean
   /** true = clics traversants (mode jeu) ; false = mode dessin */
   passthrough: boolean
+  /** horodatage de la dernière entrée en mode dessin (anti blur parasite) */
+  drawEnteredAt: number
   /** minuterie de grâce avant win.hide() */
   hideTimer: NodeJS.Timeout | null
 }
@@ -94,7 +98,8 @@ function overlayFor(win: BrowserWindow | null): Overlay | undefined {
   return undefined
 }
 
-function overlayFromEvent(e: IpcMainEvent): Overlay | undefined {
+/** Fonctionne pour ipcMain.on comme pour ipcMain.handle (même forme d'événement). */
+function overlayFromEvent(e: { sender: WebContents }): Overlay | undefined {
   return overlayFor(BrowserWindow.fromWebContents(e.sender))
 }
 
@@ -196,6 +201,7 @@ function applyPassthrough(o: Overlay, on: boolean): void {
         /* ignore */
       }
     } else {
+      o.drawEnteredAt = Date.now()
       o.win.setIgnoreMouseEvents(false)
       o.win.setFocusable(true)
       showOverlay(o)
@@ -221,8 +227,9 @@ function toggleDrawMode(): void {
     }
   }
   applyPassthrough(target, !enterDraw)
+  // Un seul canal, en valeur absolue : impossible de désynchroniser l'interface
+  // du vrai état de la fenêtre (ce qu'un simple « toggle » ne garantit pas).
   send(target, 'set-draw', enterDraw)
-  send(target, 'toggle-draw')
 }
 
 /* ------------------------------------------------------------------ *
@@ -294,6 +301,7 @@ function createOverlay(display: Display): Overlay | null {
       displayId: display.id,
       hasContent: false,
       passthrough: true,
+      drawEnteredAt: 0,
       hideTimer: null,
     }
 
@@ -302,10 +310,14 @@ function createOverlay(display: Display): Overlay | null {
       overlays.delete(display.id)
     })
 
-    // Ceinture et bretelles : si un tiers nous fait passer derrière, on remonte.
+    // Perdre le focus pendant le mode dessin = l'utilisateur est reparti dans le
+    // jeu (clic dans la fenêtre du jeu, Alt+Tab…). On rend la souris immédiatement
+    // plutôt que de le laisser cliquer dans le vide sur un overlay opaque.
     win.on('blur', () => {
       if (overlay.passthrough) return
-      // Perdre le focus en mode dessin = l'utilisateur est reparti dans le jeu.
+      // Fenêtre de grâce : sous Windows, passer focusable puis appeler focus()
+      // peut produire un blur parasite juste après l'entrée en mode dessin.
+      if (Date.now() - overlay.drawEnteredAt < 400) return
       applyPassthrough(overlay, true)
       send(overlay, 'set-draw', false)
     })
@@ -485,7 +497,7 @@ function registerIpc(): void {
   // Capture de l'écran appelant, en pixels PHYSIQUES (loupe, gel d'image, flou).
   ipcMain.handle('hexa:capture-screen', async (e) => {
     try {
-      const o = overlayFromEvent(e as unknown as IpcMainEvent)
+      const o = overlayFromEvent(e)
       const display =
         screen.getAllDisplays().find((d) => d.id === o?.displayId) ?? screen.getPrimaryDisplay()
       const size = {
@@ -512,7 +524,7 @@ function registerIpc(): void {
   // de la loupe : bien moins coûteux qu'une suite de captures).
   ipcMain.handle('hexa:get-screen-source-id', async (e) => {
     try {
-      const o = overlayFromEvent(e as unknown as IpcMainEvent)
+      const o = overlayFromEvent(e)
       const display =
         screen.getAllDisplays().find((d) => d.id === o?.displayId) ?? screen.getPrimaryDisplay()
       const sources = await desktopCapturer.getSources({
@@ -545,6 +557,35 @@ function registerIpc(): void {
       registerShortcuts({ ...map, toggleDraw: DEFAULT_SHORTCUTS.toggleDraw })
     }
     return { ...shortcuts, applied: ok }
+  })
+
+  /* ---- Miroir OBS (§10.2) ---------------------------------------- */
+
+  // Démarrage/arrêt du serveur local qui sert obs.html et diffuse l'état.
+  ipcMain.handle('hexa:obs-server', (_e, value: unknown) => {
+    const cfg = (value ?? {}) as { enabled?: unknown; port?: unknown }
+    const port =
+      typeof cfg.port === 'number' && cfg.port > 1023 && cfg.port < 65536 ? cfg.port : 4787
+    try {
+      if (cfg.enabled === true) {
+        return startObsServer({
+          port,
+          root: path.join(app.getAppPath(), 'dist'),
+          onClients: (n) => broadcast('obs-clients', n),
+        })
+      }
+      stopObsServer()
+      broadcast('obs-clients', 0)
+      return obsServerStatus()
+    } catch (err) {
+      return { running: false, port, clients: 0, url: '', error: String(err) }
+    }
+  })
+
+  // Message déjà sérialisé par le renderer : on ne fait que le relayer.
+  ipcMain.on('hexa:obs-publish', (_e, payload: unknown) => {
+    if (typeof payload !== 'string' || payload.length > 4_000_000) return
+    broadcastObs(payload)
   })
 }
 
@@ -579,6 +620,7 @@ if (!gotLock) {
   })
 
   app.on('will-quit', () => {
+    stopObsServer()
     try {
       globalShortcut.unregisterAll()
     } catch {

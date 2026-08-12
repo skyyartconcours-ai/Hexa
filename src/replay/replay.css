@@ -1,0 +1,347 @@
+/* ============================================================
+   Hexa — rejeu de session (§11).
+   Tout en tokens : la barre est juste dans les 8 thèmes.
+   Aucune animation permanente : les transitions sont déclenchées
+   par l'interaction, jamais en boucle de fond.
+   ============================================================ */
+
+/* Calque de rejeu : au-dessus de la scène, sous l'interface. */
+.rp-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 30;
+  pointer-events: none;
+  /* voile cinéma : les néons ressortent, l'écran dit « on est en rejeu » */
+  background:
+    radial-gradient(
+      130% 100% at 50% 42%,
+      color-mix(in srgb, var(--wall-1) 38%, transparent) 0%,
+      color-mix(in srgb, var(--wall-1) 76%, transparent) 100%
+    );
+  animation: rpVeil 420ms ease both;
+}
+
+/* La couche vive s'efface pendant le rejeu — elle n'est PAS détruite.
+   On coupe aussi ses événements : impossible de dessiner par-dessus un
+   rejeu par mégarde, et la session en cours reste exactement comme elle est. */
+body.replay-on .stage {
+  pointer-events: none;
+}
+
+body.replay-on .stage canvas {
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+body.replay-on .toolbar {
+  opacity: 0;
+  transform: translateX(-50%) translateY(24px);
+  pointer-events: none;
+  transition:
+    opacity 220ms ease,
+    transform 320ms cubic-bezier(0.22, 1.35, 0.36, 1);
+}
+
+.rp-bar-root {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  z-index: 60;
+  width: min(920px, calc(100vw - 48px));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 15px;
+  border-radius: var(--radius-ui);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  box-shadow: var(--shadow-ui);
+  color: var(--text-1);
+  font-family: var(--font-ui);
+  pointer-events: auto;
+  animation: rpIn 460ms cubic-bezier(0.22, 1.42, 0.36, 1) both;
+}
+
+/* --- ligne de titre ------------------------------------------------ */
+
+.rp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.rp-tag {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 10px;
+  color: #050810;
+  background: linear-gradient(135deg, var(--logo-a), var(--logo-b));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--logo-a) 40%, transparent);
+}
+
+.rp-count {
+  color: var(--text-2);
+}
+
+.rp-spacer {
+  flex: 1;
+}
+
+.rp-close {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  line-height: 1;
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    transform 220ms cubic-bezier(0.22, 1.4, 0.36, 1);
+}
+
+.rp-close:hover {
+  color: var(--text-1);
+  background: color-mix(in srgb, var(--text-1) 10%, transparent);
+  transform: rotate(90deg);
+}
+
+/* --- transport ------------------------------------------------------ */
+
+.rp-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rp-play {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  color: #050810;
+  background: linear-gradient(135deg, var(--logo-a), var(--logo-b));
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--logo-a) 34%, transparent);
+  transition:
+    transform 240ms cubic-bezier(0.22, 1.5, 0.36, 1),
+    box-shadow 240ms ease;
+}
+
+.rp-play:hover {
+  transform: scale(1.07);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--logo-a) 52%, transparent);
+}
+
+.rp-play:active {
+  transform: scale(0.94);
+}
+
+.rp-track {
+  position: relative;
+  flex: 1;
+  height: 38px;
+  border-radius: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text-1) 6%, transparent);
+  border: 1px solid var(--glass-border);
+  touch-action: none;
+}
+
+/* Mini-frise de densité : on VOIT où ça dessine dans la session. */
+.rp-bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  padding: 3px 2px;
+}
+
+.rp-bar {
+  flex: 1;
+  min-width: 1px;
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in srgb, var(--logo-a) 55%, var(--text-2));
+}
+
+.rp-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--logo-a) 26%, transparent),
+    color-mix(in srgb, var(--logo-b) 34%, transparent)
+  );
+  border-right: 1px solid color-mix(in srgb, var(--logo-a) 70%, transparent);
+  pointer-events: none;
+}
+
+.rp-knob {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: #fff;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--logo-a) 35%, transparent),
+    0 0 16px color-mix(in srgb, var(--logo-a) 80%, transparent);
+  pointer-events: none;
+}
+
+.rp-time {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 108px;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.rp-time b {
+  font-size: 14px;
+  color: var(--text-1);
+}
+
+.rp-speeds {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-1) 6%, transparent);
+  border: 1px solid var(--glass-border);
+}
+
+.rp-speed {
+  padding: 4px 9px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font: 600 11px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    background 200ms ease;
+}
+
+.rp-speed:hover {
+  color: var(--text-1);
+}
+
+.rp-speed[data-on='1'] {
+  color: #050810;
+  background: linear-gradient(135deg, var(--logo-a), var(--logo-b));
+}
+
+.rp-ghost {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 9px;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-2);
+  font: 700 10px/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    transform 220ms cubic-bezier(0.22, 1.45, 0.36, 1);
+}
+
+.rp-ghost:hover {
+  color: var(--text-1);
+  border-color: color-mix(in srgb, var(--logo-a) 55%, transparent);
+  transform: translateY(-1px);
+}
+
+.rp-ghost[data-on='1'] {
+  color: var(--text-1);
+  border-color: color-mix(in srgb, var(--logo-a) 70%, transparent);
+  box-shadow: inset 0 0 18px color-mix(in srgb, var(--logo-a) 22%, transparent);
+}
+
+.rp-rec[data-on='1'] {
+  color: #ff5f6d;
+  border-color: #ff5f6d;
+  box-shadow: 0 0 18px rgba(255, 95, 109, 0.35);
+}
+
+.rp-notice {
+  padding: 9px 12px;
+  border-radius: var(--radius-btn);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-2);
+  background: color-mix(in srgb, var(--text-1) 6%, transparent);
+  border: 1px solid var(--glass-border);
+  animation: rpNotice 260ms ease both;
+}
+
+@keyframes rpIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(30px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes rpVeil {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rpNotice {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rp-bar-root,
+  .rp-canvas,
+  .rp-notice {
+    animation: none;
+  }
+  .rp-close:hover,
+  .rp-play:hover,
+  .rp-ghost:hover {
+    transform: none;
+  }
+}

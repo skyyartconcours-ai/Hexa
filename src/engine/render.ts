@@ -1,6 +1,8 @@
 import { getStroke } from 'perfect-freehand'
 import type { Stroke, StrokePoint } from './types'
 import { clamp, easeOutCubic, rgba, whiteMix } from './geometry'
+import { arrowHeadLen, easeOutBack, neonHead, renderCurvedArrow, renderShape } from './shapes'
+import { renderBadge, renderMeasure, renderStamp, renderText } from './teaching'
 
 /** part de blanc dans le cœur des traits néon */
 export const CORE_MIX = 0.62
@@ -11,6 +13,8 @@ export interface RenderState {
   from: number
   glowBoost: number
   now: number
+  /** pastille numérotée : centre de la pastille précédente (flèche de liaison) */
+  link?: { x: number; y: number } | null
 }
 
 function tracePath(ctx: CanvasRenderingContext2D, pts: StrokePoint[], from: number): void {
@@ -49,8 +53,24 @@ export function renderStroke(ctx: CanvasRenderingContext2D, s: Stroke, st: Rende
     renderLine(ctx, s, st)
     return
   }
-  if (s.tool === 'rect' || s.tool === 'ellipse' || s.tool === 'text' || s.tool === 'badge') {
-    // implémentés par les vagues de construction suivantes
+  if (s.tool === 'rect' || s.tool === 'ellipse') {
+    renderShape(ctx, s, st)
+    return
+  }
+  if (s.tool === 'text') {
+    renderText(ctx, s, st)
+    return
+  }
+  if (s.tool === 'badge') {
+    renderBadge(ctx, s, st, st.link ?? null)
+    return
+  }
+  if (s.tool === 'measure') {
+    renderMeasure(ctx, s, st)
+    return
+  }
+  if (s.tool === 'stamp') {
+    renderStamp(ctx, s, st)
     return
   }
   const pts = s.points
@@ -100,16 +120,31 @@ export function renderStroke(ctx: CanvasRenderingContext2D, s: Stroke, st: Rende
 }
 
 function renderArrow(ctx: CanvasRenderingContext2D, s: Stroke, st: RenderState): void {
+  // geste courbe : la flèche épouse la courbe au lieu de forcer la ligne (§4.2.2)
+  if (s.points.length > 2) {
+    renderCurvedArrow(ctx, s, st)
+    return
+  }
   const a = s.points[0]
   const bRaw = s.points[s.points.length - 1]
   if (!a || !bRaw || (a.x === bRaw.x && a.y === bRaw.y)) return
 
   let t = 1
-  if (s.anim) t = easeOutCubic(clamp((st.now - s.anim.start) / s.anim.duration, 0, 1))
+  let headK = 1
+  if (s.anim) {
+    const p = clamp((st.now - s.anim.start) / s.anim.duration, 0, 1)
+    if (s.anim.kind === 'head') {
+      // morph d'une forme intelligente : le fût est déjà là, la pointe éclot
+      headK = easeOutBack(p)
+    } else {
+      t = easeOutCubic(p)
+      // la pointe se dessine APRÈS le fût, avec un pop élastique (§4.2.1)
+      headK = easeOutBack(clamp((p - 0.68) / 0.32, 0, 1))
+    }
+  }
   const b = { x: a.x + (bRaw.x - a.x) * t, y: a.y + (bRaw.y - a.y) * t }
   const ang = Math.atan2(b.y - a.y, b.x - a.x)
-  const headLen = clamp(s.size * 3.2, 16, 46)
-  const headW = headLen * 0.42
+  const headLen = arrowHeadLen(s.size) * Math.max(headK, 0.001)
   const shaftEnd = {
     x: b.x - Math.cos(ang) * headLen * 0.72,
     y: b.y - Math.sin(ang) * headLen * 0.72,
@@ -133,30 +168,9 @@ function renderArrow(ctx: CanvasRenderingContext2D, s: Stroke, st: RenderState):
   shaft(s.size * 1.9, rgba(s.color, 0.3 * st.alpha * g))
   shaft(s.size, whiteMix(s.color, CORE_MIX, 0.95 * st.alpha))
 
-  // pointe : triangle net avec le même halo
-  const nx = -Math.sin(ang)
-  const ny = Math.cos(ang)
-  const bx = b.x - Math.cos(ang) * headLen
-  const by = b.y - Math.sin(ang) * headLen
-  const tri = () => {
-    ctx.beginPath()
-    ctx.moveTo(b.x, b.y)
-    ctx.lineTo(bx + nx * headW, by + ny * headW)
-    ctx.lineTo(bx - nx * headW, by - ny * headW)
-    ctx.closePath()
-  }
-  ctx.strokeStyle = rgba(s.color, 0.16 * st.alpha * g)
-  ctx.lineWidth = s.size * 2.4
-  tri()
-  ctx.stroke()
-  ctx.strokeStyle = rgba(s.color, 0.3 * st.alpha * g)
-  ctx.lineWidth = s.size * 1.1
-  tri()
-  ctx.stroke()
-  ctx.fillStyle = whiteMix(s.color, CORE_MIX, 0.95 * st.alpha)
-  tri()
-  ctx.fill()
   ctx.restore()
+  // pointe : même recette néon, avec le pop élastique
+  neonHead(ctx, b, ang, s.size, s.color, st.alpha, g, headK)
 }
 
 function renderLine(ctx: CanvasRenderingContext2D, s: Stroke, st: RenderState): void {

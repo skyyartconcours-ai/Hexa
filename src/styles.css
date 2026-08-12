@@ -13,6 +13,8 @@
   --text-2: rgba(255, 255, 255, 0.6);
   --radius-ui: 20px;
   --radius-btn: 12px;
+  /* rayon des cartes et panneaux (la barre garde --radius-ui) */
+  --radius-card: 16px;
   --shadow-ui:
     0 12px 42px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -21,6 +23,13 @@
   --wall-1: #0b0f1c;
   --wall-2: #0e1224;
   --wall-3: #120b26;
+  /* tokens de peau (vague thèmes) : chaque thème les redéfinit dans themes.css */
+  --wall-dot: rgba(255, 255, 255, 0.045);
+  --hover-bg: rgba(255, 255, 255, 0.07);
+  --track-bg: rgba(255, 255, 255, 0.16);
+  --thumb: #ffffff;
+  /* forme des pastilles de couleur : hexagone par défaut, cercle/carré/losange ailleurs */
+  --swatch-clip: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
 }
 
 * {
@@ -114,7 +123,7 @@ button {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    radial-gradient(var(--wall-dot, rgba(255, 255, 255, 0.045)) 1px, transparent 1px),
     radial-gradient(1100px 750px at 18% 8%, var(--wall-2) 0%, transparent 62%),
     radial-gradient(950px 700px at 86% 88%, var(--wall-3) 0%, transparent 58%),
     linear-gradient(160deg, var(--wall-1) 0%, var(--wall-2) 52%, var(--wall-3) 100%);
@@ -175,7 +184,7 @@ button {
   right: 26px;
   width: 320px;
   padding: 16px 18px;
-  border-radius: 16px;
+  border-radius: var(--radius-card, 16px);
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   backdrop-filter: blur(var(--glass-blur));
@@ -285,7 +294,7 @@ button {
 
 .tbtn:hover {
   color: var(--text-1);
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--hover-bg, rgba(255, 255, 255, 0.07));
   transform: translateY(-1px);
 }
 
@@ -329,9 +338,11 @@ button {
 .swatch {
   width: 22px;
   height: 25px;
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  clip-path: var(--swatch-clip, polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%));
   background: var(--c);
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.18s ease;
 }
 
 .swatch:hover {
@@ -364,7 +375,7 @@ button {
   width: 90px;
   height: 4px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--track-bg, rgba(255, 255, 255, 0.16));
   outline: none;
 }
 
@@ -374,7 +385,7 @@ button {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--thumb, #fff);
   border: none;
   box-shadow: 0 0 10px color-mix(in srgb, var(--accent, #fff) 80%, transparent);
   cursor: pointer;
@@ -384,7 +395,7 @@ button {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--thumb, #fff);
   border: none;
   box-shadow: 0 0 10px color-mix(in srgb, var(--accent, #fff) 80%, transparent);
   cursor: pointer;
@@ -503,4 +514,85 @@ body.passthrough .stage {
 /* le curseur custom disparaît au-dessus de l'UI */
 body.over-ui .cursor-dot {
   opacity: 0 !important;
+}
+
+/* ============================================================
+   Outils de dessin : texte flottant et curseurs dédiés
+   (vague « formes intelligentes » — §4.6)
+   ============================================================ */
+
+/* champ de saisie du texte : verre dépoli, posé au point cliqué */
+.hexa-text {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translateY(-50%);
+  z-index: 35;
+  padding: 6px 8px;
+  border-radius: 14px;
+  background: var(--glass-bg);
+  border: 1px solid color-mix(in srgb, var(--c, #fff) 45%, transparent);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  box-shadow:
+    var(--shadow-ui),
+    0 0 22px -6px var(--c, #fff);
+  animation: textIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: left center;
+}
+
+.hexa-text.is-out {
+  opacity: 0;
+  transform: translateY(-50%) scale(0.96);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+@keyframes textIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+.hexa-text-field {
+  min-width: 190px;
+  border: none;
+  outline: none;
+  background: none;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text-1);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--c, #fff) 65%, transparent);
+  caret-color: var(--c, #fff);
+}
+
+.hexa-text-field::placeholder {
+  color: var(--text-2);
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+/* le curseur devient un point d'ancrage fin pour les outils posés au clic */
+.cursor-dot[data-tool='text'],
+.cursor-dot[data-tool='stamp'],
+.cursor-dot[data-tool='measure'] {
+  width: 7px;
+  height: 7px;
+  box-shadow:
+    0 0 8px var(--c, #fff),
+    0 0 0 6px color-mix(in srgb, var(--c, #fff) 18%, transparent);
+}
+
+.cursor-dot[data-tool='badge'] {
+  background: transparent;
+  border: 2px solid var(--c, #fff);
+  width: 18px;
+  height: 18px;
 }

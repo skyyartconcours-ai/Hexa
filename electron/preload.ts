@@ -11,7 +11,14 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 
 /** Canaux que le processus principal peut pousser vers la page. */
-const INBOUND = ['toggle-draw', 'panic-clear', 'set-draw', 'spike-cursor'] as const
+const INBOUND = [
+  'toggle-draw',
+  'panic-clear',
+  'set-draw',
+  'spike-cursor',
+  /** nombre de vues OBS connectées au serveur local (§10.2) */
+  'obs-clients',
+] as const
 type Inbound = (typeof INBOUND)[number]
 
 /** Informations de l'écran porteur, injectées à la création de la fenêtre. */
@@ -96,6 +103,23 @@ const api = {
   /** Reconfigure les raccourcis GLOBAUX (mode dessin, panique). */
   setShortcuts(map: { toggleDraw: string; panic: string }): Promise<unknown> {
     return ipcRenderer.invoke('hexa:set-shortcuts', map).catch(() => null)
+  },
+
+  /**
+   * Démarre/arrête le serveur local de la vue OBS (§10.2).
+   * Écoute TOUJOURS sur 127.0.0.1 côté processus principal.
+   */
+  obsServer(cfg: { enabled: boolean; port: number }): Promise<unknown> {
+    return ipcRenderer.invoke('hexa:obs-server', cfg).catch(() => null)
+  },
+
+  /** Diffuse un message du miroir OBS (déjà sérialisé) aux vues connectées. */
+  obsPublish(payload: string): void {
+    try {
+      if (typeof payload === 'string') ipcRenderer.send('hexa:obs-publish', payload)
+    } catch {
+      /* un miroir qui tombe ne doit jamais gêner le dessin */
+    }
   },
 }
 

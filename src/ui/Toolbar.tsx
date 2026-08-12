@@ -4,7 +4,9 @@ import type { ToolId } from '../engine/types'
 import {
   HexaLogo,
   IconArrow,
+  IconBadge,
   IconClear,
+  IconEllipse,
   IconEraser,
   IconExport,
   IconGear,
@@ -12,11 +14,16 @@ import {
   IconInfinity,
   IconLaser,
   IconLine,
+  IconMagnet,
+  IconMeasure,
   IconPen,
+  IconRect,
   IconRedo,
   IconSparkles,
+  IconText,
   IconTimer,
   IconUndo,
+  IconWand,
 } from './icons'
 
 const TOOLS: { id: ToolId; icon: ReactElement; label: string; kbd: string }[] = [
@@ -24,6 +31,11 @@ const TOOLS: { id: ToolId; icon: ReactElement; label: string; kbd: string }[] = 
   { id: 'highlight', icon: <IconHighlight />, label: 'Surligneur', kbd: 'S' },
   { id: 'line', icon: <IconLine />, label: 'Ligne (Shift : angles 15°)', kbd: 'L' },
   { id: 'arrow', icon: <IconArrow />, label: 'Flèche', kbd: 'F' },
+  { id: 'rect', icon: <IconRect />, label: 'Rectangle (Shift : carré · Alt : rempli)', kbd: 'R' },
+  { id: 'ellipse', icon: <IconEllipse />, label: 'Ellipse (Shift : cercle · Alt : rempli)', kbd: 'O' },
+  { id: 'text', icon: <IconText />, label: 'Texte (Entrée valide, Échap annule)', kbd: 'T' },
+  { id: 'badge', icon: <IconBadge />, label: 'Numéroteur : pastilles 1, 2, 3…', kbd: 'N' },
+  { id: 'measure', icon: <IconMeasure />, label: 'Règle de mesure (distance et angle)', kbd: 'M' },
   { id: 'laser', icon: <IconLaser />, label: 'Laser (maintenir Z)', kbd: 'Z' },
   { id: 'eraser', icon: <IconEraser />, label: 'Gomme', kbd: 'E' },
 ]
@@ -41,6 +53,10 @@ export function Toolbar({ onUndo, onRedo, onClear, onExport }: ToolbarActions) {
   const size = useUiStore((s) => s.size)
   const fadeDelay = useUiStore((s) => s.fadeDelay)
   const sparkles = useUiStore((s) => s.sparkles)
+  const smartShapes = useUiStore((s) => s.smartShapes)
+  const guides = useUiStore((s) => s.guides)
+  const toggleSmartShapes = useUiStore((s) => s.toggleSmartShapes)
+  const toggleGuides = useUiStore((s) => s.toggleGuides)
   const setTool = useUiStore((s) => s.setTool)
   const setColor = useUiStore((s) => s.setColor)
   const setSize = useUiStore((s) => s.setSize)
@@ -119,6 +135,20 @@ export function Toolbar({ onUndo, onRedo, onClear, onExport }: ToolbarActions) {
           onClick={toggleSparkles}
         >
           <IconSparkles />
+        </button>
+        <button
+          className={`tbtn ${smartShapes ? 'active' : ''}`}
+          title="Formes intelligentes — W : le tracé à main levée est redressé (Ctrl+Z rend le brut)"
+          onClick={toggleSmartShapes}
+        >
+          <IconWand />
+        </button>
+        <button
+          className={`tbtn ${guides ? 'active' : ''}`}
+          title="Guides magnétiques — G : angles remarquables, alignements (Alt : suspendre)"
+          onClick={toggleGuides}
+        >
+          <IconMagnet />
         </button>
       </div>
 

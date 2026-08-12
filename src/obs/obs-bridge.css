@@ -1,0 +1,93 @@
+/* ============================================================
+   Hexa — indicateur OBS.
+   Volontairement minuscule et silencieux : il n'apparaît que si
+   l'utilisateur a activé quelque chose, et ne réclame jamais
+   l'attention. Tout en tokens : beau dans les 8 thèmes.
+   ============================================================ */
+
+.obs-pill {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  font: 600 11px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-ui);
+  pointer-events: none;
+  opacity: 0.62;
+  animation: obsPillIn 320ms cubic-bezier(0.22, 1.35, 0.36, 1) both;
+}
+
+.obs-pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-2);
+  box-shadow: 0 0 0 0 transparent;
+  transition:
+    background 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.obs-pill[data-status='connected'] .obs-pill-dot,
+.obs-pill[data-status='mirror'] .obs-pill-dot {
+  background: var(--logo-a);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--logo-a) 70%, transparent);
+}
+
+.obs-pill[data-status='connecting'] .obs-pill-dot,
+.obs-pill[data-status='auth'] .obs-pill-dot {
+  background: var(--logo-b);
+  animation: obsPillPulse 1.4s ease-in-out infinite;
+}
+
+.obs-pill[data-status='retry'] .obs-pill-dot {
+  background: #ff6b35;
+  opacity: 0.75;
+}
+
+/* Mode « Stream seul » : l'overlay n'est plus peint sur l'écran du streamer,
+   il ne vit que dans la browser source (§10.2). L'interface, elle, reste. */
+body.obs-stream-only .stage canvas {
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+@keyframes obsPillIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+  to {
+    opacity: 0.62;
+    transform: none;
+  }
+}
+
+@keyframes obsPillPulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obs-pill,
+  .obs-pill-dot {
+    animation: none;
+  }
+}

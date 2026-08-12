@@ -56,6 +56,56 @@ export const IconLaser = () => (
   </Svg>
 )
 
+export const IconRect = () => (
+  <Svg>
+    <rect x="4" y="6" width="16" height="12" rx="2.5" />
+  </Svg>
+)
+
+export const IconEllipse = () => (
+  <Svg>
+    <ellipse cx="12" cy="12" rx="8" ry="6" />
+  </Svg>
+)
+
+export const IconText = () => (
+  <Svg>
+    <path d="M6 6.5h12" />
+    <path d="M12 6.5V18" />
+    <path d="M9 18h6" opacity="0.55" />
+  </Svg>
+)
+
+export const IconBadge = () => (
+  <Svg>
+    <circle cx="8.5" cy="8.5" r="4" />
+    <circle cx="16" cy="16.5" r="4" />
+    <path d="M11.4 11.2l2.2 2.4" opacity="0.6" strokeDasharray="1.6 2" />
+  </Svg>
+)
+
+export const IconMeasure = () => (
+  <Svg>
+    <path d="M4.5 19.5 19.5 4.5" />
+    <path d="M3.4 17.2 6.8 20.6M7.6 13 10.4 15.8M11.8 8.8 15.2 12.2M16 4.6 19.4 8" opacity="0.75" />
+  </Svg>
+)
+
+export const IconWand = () => (
+  <Svg>
+    <path d="M5 19 15.5 8.5" />
+    <path d="m14 5.5 1 2.2 2.2 1-2.2 1-1 2.2-1-2.2-2.2-1 2.2-1z" />
+    <path d="M19 14.4l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z" opacity="0.7" />
+  </Svg>
+)
+
+export const IconMagnet = () => (
+  <Svg>
+    <path d="M6 5v7a6 6 0 0 0 12 0V5" />
+    <path d="M6 10.5h4M14 10.5h4" />
+  </Svg>
+)
+
 export const IconEraser = () => (
   <Svg>
     <path d="M5.5 14.5 12 8a2 2 0 0 1 2.8 0l1.2 1.2a2 2 0 0 1 0 2.8L9.5 18.5H7l-1.5-1.5a2 2 0 0 1 0-2.5z" />

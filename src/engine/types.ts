@@ -9,6 +9,8 @@ export type ToolId =
   | 'ellipse'
   | 'text'
   | 'badge'
+  | 'measure'
+  | 'stamp'
   | 'laser'
   | 'ping'
   | 'spotlight'
@@ -26,6 +28,8 @@ export type StrokeTool =
   | 'ellipse'
   | 'text'
   | 'badge'
+  | 'measure'
+  | 'stamp'
 
 export interface StrokePoint {
   x: number
@@ -54,11 +58,21 @@ export interface Stroke {
   text?: string
   /** pastille numérotée */
   badge?: number
+  /** pastille : id de la pastille précédente, reliée par une flèche fine (§4.8) */
+  linkFrom?: number
+  /** tampon d'image : dataURL bornée (voir STAMP_MAX_DATAURL) et taille d'affichage */
+  image?: string
+  w?: number
+  h?: number
+  /** tracé brut conservé quand une forme intelligente a redressé le geste :
+   *  le premier Ctrl+Z le restitue au lieu de supprimer (§4.1.5) */
+  raw?: StrokePoint[]
   /** timestamp auquel le trait commence à se dissoudre (mode fade auto) */
   dieAt?: number
   dying?: { start: number; duration: number; mode: DyingMode }
-  /** animation d'apparition (flèches : draw-on, formes : morph…) */
-  anim?: { start: number; duration: number }
+  /** animation d'apparition (flèches : draw-on, formes : morph…)
+   *  kind 'head' : le fût est déjà posé, seule la pointe éclot */
+  anim?: { start: number; duration: number; kind?: 'draw' | 'head' }
 }
 
 export interface EngineOptions {
@@ -68,6 +82,15 @@ export interface EngineOptions {
   /** délai avant dissolution en ms — null = les annotations restent jusqu'au clear */
   fadeDelay: number | null
   sparkles: boolean
+  /** formes intelligentes : le tracé au stylo est redressé à la fin du geste (§4.1) */
+  smartShapes: boolean
+  /** guides magnétiques (angles remarquables, alignements, espacement égal) */
+  guides: boolean
+  /** numéroteur : relier automatiquement la pastille N à N+1 */
+  linkBadges: boolean
+  /** intensité globale des halos néon (1 = normal, réglable 0,4 → 1,4).
+   *  Optionnel : un moteur qui l'ignore reste correct. */
+  effects?: number
 }
 
 export interface Particle {
