@@ -1,0 +1,66 @@
+# Fabrique l'application Windows de Hexa et publie l'installateur en Release,
+# pour que l'utilisateur n'ait ni Node, ni terminal, ni git à installer.
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/stream-annotation-tool-nw1om0
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-windows
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Fabriquer l'installateur
+        run: npm run dist
+
+      - name: Lister ce qui a été produit
+        shell: bash
+        run: ls -la release/
+
+      # Toujours disponible, même si la Release échoue
+      - name: Déposer les exécutables en artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hexa-windows
+          path: release/*.exe
+          if-no-files-found: error
+
+      # Lien de téléchargement direct, sans zip et sans compte développeur
+      - name: Publier la Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${{ github.run_number }}"
+          gh release create "$TAG" release/*.exe \
+            --title "Hexa — build ${{ github.run_number }}" \
+            --notes "Installateur Windows de Hexa.
+
+          **Hexa-Installateur-*.exe** : installation classique, raccourci sur le bureau.
+          **Hexa-portable-*.exe** : rien à installer, se lance directement.
+
+          L'application n'est pas signée numériquement : Windows affichera un avertissement SmartScreen au premier lancement. Cliquer sur « Informations complémentaires » puis « Exécuter quand même »." \
+            --latest

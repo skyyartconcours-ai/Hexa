@@ -5,10 +5,14 @@ import react from '@vitejs/plugin-react'
 /** Chemin absolu d'un fichier du dépôt (module ESM : pas de __dirname). */
 const at = (file: string) => fileURLToPath(new URL(file, import.meta.url))
 
-// Config pensée pour Tauri : port fixe, pas de clearScreen pour garder les logs Rust visibles.
 export default defineConfig({
   plugins: [react()],
   clearScreen: false,
+  // CRUCIAL pour l'application empaquetée : Electron charge dist/index.html via
+  // file://. Avec la base absolue par défaut ('/'), les scripts pointeraient vers
+  // la racine du disque et la fenêtre resterait DÉSESPÉRÉMENT VIDE. En relatif,
+  // ils sont résolus à côté du HTML. Le serveur de dev n'est pas affecté.
+  base: './',
   server: {
     port: 5173,
     strictPort: true,
