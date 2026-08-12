@@ -57,8 +57,11 @@ const MAG_R = 200
  * Grossissement par défaut. À ×2, la zone source fait exactement 200 px de
  * côté pour 400 px de disque : c'est la valeur décrite au §6.
  */
-const MAG_ZOOM_DEFAULT = 2
-const MAG_ZOOM_MIN = 1.5
+/** Grossissement par défaut de la loupe. 1,7 plutôt que 2 : à 2, le contexte
+ *  autour du point visé disparaît trop vite et on perd ses repères sur une
+ *  minimap. La molette monte jusqu'à 8 quand on veut vraiment coller au pixel. */
+const MAG_ZOOM_DEFAULT = 1.7
+const MAG_ZOOM_MIN = 1.2
 const MAG_ZOOM_MAX = 8
 /** Ressort amorti du disque (§6) : ces deux nombres FONT l'impression de luxe. */
 const SPRING_K = 0.15
