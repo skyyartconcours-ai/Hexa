@@ -1,0 +1,192 @@
+{
+  "version": "1.0",
+  "language": "fr",
+  "note": "Vocabulaire contrôlé. Toute extraction DOIT utiliser ces identifiants. Un tag hors liste est signalé comme erreur, jamais inventé ni corrigé en silence.",
+
+  "domains": {
+    "fondamentaux": {
+      "label": "Fondamentaux",
+      "level": 1,
+      "subdomains": {
+        "cs": "Last hit et farm",
+        "trade": "Échanges de coups",
+        "hp_mana": "Gestion des ressources (PV, mana)",
+        "cooldowns": "Suivi des cooldowns",
+        "recall": "Timings de recall",
+        "level_spike": "Paliers de niveau (2, 3, 6, 11, 16)"
+      }
+    },
+    "wave": {
+      "label": "Gestion de vague",
+      "level": 2,
+      "prereq": ["fondamentaux"],
+      "subdomains": {
+        "etats": "États de vague (neutre, poussée, gelée)",
+        "freeze": "Freeze",
+        "slow_push": "Slow push",
+        "fast_push": "Fast push / crash",
+        "bounce": "Rebond de vague",
+        "reset": "Reset de vague",
+        "tempo_wave": "Vague et tempo (crash avant objectif)"
+      }
+    },
+    "laning": {
+      "label": "Phase de lane",
+      "level": 2,
+      "prereq": ["fondamentaux"],
+      "subdomains": {
+        "matchup": "Lecture du matchup",
+        "patterns": "Patterns de trade et all-in",
+        "prio": "Prise de priorité",
+        "roam": "Roaming",
+        "punition": "Punir une erreur adverse",
+        "survie": "Jouer une lane perdue"
+      }
+    },
+    "jungle": {
+      "label": "Jungle",
+      "level": 2,
+      "prereq": ["fondamentaux"],
+      "subdomains": {
+        "pathing": "Pathing et routes de clear",
+        "clear": "Vitesse et efficacité de clear",
+        "gank": "Ganks et timings",
+        "counter_jungle": "Contre-jungle et invade",
+        "tracking": "Tracking du jungler adverse",
+        "setup": "Setup d'objectif"
+      }
+    },
+    "vision": {
+      "label": "Vision",
+      "level": 2,
+      "prereq": ["fondamentaux"],
+      "subdomains": {
+        "placement": "Placement de wards",
+        "deep": "Vision profonde",
+        "control": "Pink wards / control wards",
+        "deni": "Déni de vision et sweep",
+        "lecture": "Lire la vision adverse",
+        "timings_vision": "Vision avant objectif"
+      }
+    },
+    "macro": {
+      "label": "Macro",
+      "level": 3,
+      "prereq": ["wave", "vision"],
+      "subdomains": {
+        "tempo": "Tempo et initiative",
+        "rotations": "Rotations et déplacements",
+        "sidelane": "Assignation des side lanes",
+        "prio_map": "Priorité et contrôle de map",
+        "win_condition": "Condition de victoire",
+        "closing": "Fermer la partie",
+        "comeback": "Jouer en retard"
+      }
+    },
+    "objectifs": {
+      "label": "Objectifs neutres",
+      "level": 3,
+      "prereq": ["vision", "wave"],
+      "subdomains": {
+        "dragon": "Dragons et âme",
+        "herald": "Héraut",
+        "baron": "Baron",
+        "tours": "Tours et plates",
+        "arbitrage": "Arbitrage entre objectifs",
+        "smite": "Contest et smite"
+      }
+    },
+    "teamfight": {
+      "label": "Combats d'équipe",
+      "level": 3,
+      "prereq": ["fondamentaux"],
+      "subdomains": {
+        "positionnement": "Positionnement",
+        "engage": "Engage et disengage",
+        "focus": "Choix de cible",
+        "peel": "Peel et protection",
+        "tracking_cd": "Suivi des cooldowns clés",
+        "skirmish": "Escarmouches 2v2 / 3v3"
+      }
+    },
+    "draft": {
+      "label": "Draft",
+      "level": 3,
+      "subdomains": {
+        "archetypes": "Archétypes de composition",
+        "picks_bans": "Picks et bans",
+        "flex": "Picks flex",
+        "counterpick": "Counterpick",
+        "synergies": "Synergies",
+        "wincon_draft": "Condition de victoire en draft"
+      }
+    },
+    "mecaniques": {
+      "label": "Mécaniques",
+      "level": 1,
+      "subdomains": {
+        "kiting": "Kiting / orb walking",
+        "animation": "Animation cancel",
+        "combos": "Combos",
+        "spacing": "Spacing et portées",
+        "dodge": "Esquive de skillshot",
+        "camera": "Contrôle de caméra"
+      }
+    },
+    "economie": {
+      "label": "Économie",
+      "level": 2,
+      "prereq": ["fondamentaux"],
+      "subdomains": {
+        "or": "Sources et gestion de l'or",
+        "items": "Choix d'objets",
+        "build_path": "Chemins de build et composants",
+        "spikes": "Power spikes d'objet",
+        "arbitrage_or": "Arbitrage or / tempo"
+      }
+    },
+    "mental": {
+      "label": "Mental et méthode",
+      "level": 1,
+      "subdomains": {
+        "tilt": "Tilt et gestion émotionnelle",
+        "autopilot": "Sortir de l'autopilote",
+        "objectifs_perso": "Fixer des objectifs",
+        "constance": "Constance et routine",
+        "communication": "Communication et shotcall"
+      }
+    },
+    "review": {
+      "label": "Progression et review",
+      "level": 2,
+      "subdomains": {
+        "vod": "Méthode de VOD review",
+        "erreurs": "Identifier ses erreurs récurrentes",
+        "mesure": "Mesurer sa progression",
+        "entrainement": "Entraînement délibéré"
+      }
+    }
+  },
+
+  "roles": ["top", "jungle", "mid", "adc", "support", "tous"],
+
+  "phases": ["pre_game", "early", "mid", "late", "toutes"],
+
+  "claim_types": {
+    "principe": "Vérité générale qui explique un mécanisme du jeu",
+    "regle": "Règle conditionnelle explicite : si X alors Y",
+    "heuristique": "Raccourci de décision, vrai en général, avec exceptions",
+    "seuil": "Valeur chiffrée ou mesurable à viser",
+    "sequence": "Suite d'étapes ordonnées à exécuter",
+    "erreur": "Erreur fréquente à éviter et pourquoi",
+    "exercice": "Drill ou exercice d'entraînement concret",
+    "exemple": "Cas concret illustrant un point"
+  },
+
+  "levels": {
+    "1": "Fondation - accessible sans prérequis",
+    "2": "Intermédiaire - suppose les fondations acquises",
+    "3": "Avancé - suppose la macro et la lecture de map",
+    "4": "Expert - contextuel, haut elo ou compétitif"
+  }
+}

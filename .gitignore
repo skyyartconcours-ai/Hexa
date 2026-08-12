@@ -1,0 +1,15 @@
+# Dossier de travail Hexa : corpus, blocs, packs, sorties.
+# Volumineux et entièrement reconstructible à partir des transcripts sources.
+build/
+build_*/
+
+# Les transcripts eux-mêmes ne vivent pas dans ce dépôt.
+transcripts*/
+for_ai*/
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+Thumbs.db

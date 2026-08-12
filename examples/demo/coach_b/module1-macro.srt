@@ -1,0 +1,23 @@
+1
+00:00:00,000 --> 00:00:09,000
+Bonjour, on attaque la macro. Premier point, la gestion de vague avant objectif.
+
+2
+00:00:09,000 --> 00:00:21,000
+Il ne faut jamais freeze devant sa tour quand on est en retard, c'est une erreur classique qui vous enferme.
+
+3
+00:00:21,000 --> 00:00:33,000
+En jeu compétitif, si vous freeze en retard vous perdez toute la prio et votre jungler ne peut plus rien faire de la map.
+
+4
+00:00:33,000 --> 00:00:45,000
+Sur les objectifs, crashez la vague 45 secondes avant le dragon pour avoir le temps de rotate proprement.
+
+5
+00:00:45,000 --> 00:00:57,000
+La vision se pose avant l'objectif, comptez trente secondes minimum pour nettoyer la vision adverse.
+
+6
+00:00:57,000 --> 00:01:10,000
+Le splitpush est la meilleure façon de fermer une partie quand vous avez un top laner qui gagne son 1v1.

@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Claim",
+  "description": "Unité pédagogique atomique extraite d'un corpus. C'est l'atome du produit : une affirmation actionnable, attribuée, traçable jusqu'à un timecode.",
+  "type": "object",
+  "required": ["statement", "type", "domain", "subdomain", "anchors"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Généré par le pipeline, pas par l'extraction."
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 15,
+      "maxLength": 400,
+      "description": "UNE affirmation actionnable, autoportante, reformulée proprement. Pas une citation brute, pas un résumé de paragraphe."
+    },
+    "explanation": {
+      "type": "string",
+      "maxLength": 1200,
+      "description": "Le POURQUOI tel que le coach l'explique. Vide si le coach ne l'explique pas - ne jamais inventer la justification."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["principe", "regle", "heuristique", "seuil", "sequence", "erreur", "exercice", "exemple"]
+    },
+    "domain": {
+      "type": "string",
+      "description": "Identifiant de domaine issu de taxonomy.json."
+    },
+    "subdomain": {
+      "type": "string",
+      "description": "Identifiant de sous-domaine issu de taxonomy.json."
+    },
+    "roles": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Rôles concernés. ['tous'] si général."
+    },
+    "phases": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Phases de jeu concernées."
+    },
+    "conditions": {
+      "type": "array",
+      "items": {"type": "string", "maxLength": 200},
+      "description": "Contexte de validité : elo, matchup, composition, état de la partie. CRITIQUE pour l'arbitrage entre coachs : deux conseils opposés sont souvent deux contextes différents."
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "anchors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string"},
+      "description": "Ancres [source@mm:ss] du bloc d'où vient l'affirmation. Au moins une. C'est ce qui rend l'affirmation vérifiable."
+    },
+    "quote": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Citation littérale courte à l'appui, verbatim du transcript."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["explicite", "implicite", "incertain"],
+      "description": "explicite = le coach le dit mot pour mot. implicite = déduit de son propos sans ambiguïté. incertain = interprétation, à relire."
+    },
+    "prereq_hint": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Notions supposées connues pour comprendre cette affirmation."
+    }
+  }
+}

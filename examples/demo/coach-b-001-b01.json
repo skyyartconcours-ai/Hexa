@@ -1,0 +1,93 @@
+[
+ {
+  "statement": "Il ne faut jamais freeze devant sa tour quand on est en retard, ça vous enferme",
+  "explanation": "En retard, le freeze fait perdre toute la priorité et le jungler ne peut plus jouer la map.",
+  "type": "regle",
+  "domain": "wave",
+  "subdomain": "freeze",
+  "roles": [
+   "tous"
+  ],
+  "phases": [
+   "early"
+  ],
+  "conditions": [
+   "jeu compétitif",
+   "équipe coordonnée"
+  ],
+  "level": 3,
+  "anchors": [
+   "[coach-b-001@00:09]"
+  ],
+  "quote": "Il ne faut jamais freeze devant sa tour quand on est en retard",
+  "confidence": "explicite",
+  "prereq_hint": [
+   "états de vague"
+  ]
+ },
+ {
+  "statement": "Crasher la vague 45 secondes avant le dragon pour avoir le temps de rotate proprement",
+  "explanation": "",
+  "type": "seuil",
+  "domain": "wave",
+  "subdomain": "tempo_wave",
+  "roles": [
+   "tous"
+  ],
+  "phases": [
+   "mid"
+  ],
+  "conditions": [],
+  "level": 3,
+  "anchors": [
+   "[coach-b-001@00:33]"
+  ],
+  "quote": "crashez la vague 45 secondes avant le dragon",
+  "confidence": "explicite",
+  "prereq_hint": []
+ },
+ {
+  "statement": "Poser la vision avant l'objectif en comptant trente secondes minimum pour nettoyer la vision adverse",
+  "explanation": "",
+  "type": "seuil",
+  "domain": "vision",
+  "subdomain": "timings_vision",
+  "roles": [
+   "tous"
+  ],
+  "phases": [
+   "mid"
+  ],
+  "conditions": [],
+  "level": 3,
+  "anchors": [
+   "[coach-b-001@00:45]"
+  ],
+  "quote": "comptez trente secondes minimum",
+  "confidence": "explicite",
+  "prereq_hint": []
+ },
+ {
+  "statement": "Le splitpush est la meilleure façon de fermer une partie avec un top laner qui gagne son 1v1",
+  "explanation": "",
+  "type": "heuristique",
+  "domain": "macro",
+  "subdomain": "closing",
+  "roles": [
+   "top"
+  ],
+  "phases": [
+   "late"
+  ],
+  "conditions": [
+   "top laner qui gagne son duel"
+  ],
+  "level": 3,
+  "anchors": [
+   "[coach-b-001@00:57]"
+  ],
+  "quote": "Le splitpush est la meilleure façon de fermer une partie",
+  "confidence": "explicite",
+  "prereq_hint": []
+ }
+]
