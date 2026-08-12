@@ -13,7 +13,7 @@
  * coût nul au repos.
  */
 import type { Stroke } from '../engine/types'
-import { OBS_CHANNEL, OBS_PROTOCOL_VERSION, type ObsMessage, type ObsMode } from './protocol'
+import { OBS_CHANNEL, type ObsMessage, type ObsMode } from './protocol'
 
 /** Fenêtre d'échantillonnage des lots de points. */
 const SAMPLE_MS = 33
@@ -63,8 +63,24 @@ export class ObsLink {
   private lastScan = 0
   private lastStrokes: readonly Stroke[] = []
   private lastCurrent: Stroke | null = null
+  /** regroupement des demandes d'état complet (voir requestFull) */
+  private fullTimer: ReturnType<typeof setTimeout> | null = null
+  /** regroupement des changements de résolution */
+  private sizeTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor() {
+    // La taille de l'écran annoté suit les changements de résolution (le
+    // streamer passe en 1080p pour jouer, revient en 1440p…). Un écouteur
+    // passif, aucun sondage : le coût au repos reste nul.
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', () => {
+        if (this.sizeTimer != null) return
+        this.sizeTimer = setTimeout(() => {
+          this.sizeTimer = null
+          this.sendViewport()
+        }, 250)
+      })
+    }
     if (typeof BroadcastChannel !== 'undefined' && !host()?.obsPublish) {
       try {
         this.channel = new BroadcastChannel(OBS_CHANNEL)
@@ -102,6 +118,19 @@ export class ObsLink {
     this.scan(now)
   }
 
+  /**
+   * Renvoie tout l'état, mais au plus une fois par salve : quand OBS ouvre une
+   * scène, plusieurs sources peuvent se connecter dans la même milliseconde.
+   * Une seule copie complète part alors, au lieu de N.
+   */
+  requestFull(): void {
+    if (this.fullTimer != null) return
+    this.fullTimer = setTimeout(() => {
+      this.fullTimer = null
+      this.sendFull()
+    }, 40)
+  }
+
   /** Renvoie tout l'état : à la connexion d'une vue, ou au réveil du miroir. */
   sendFull(): void {
     if (!this.enabled) return
@@ -110,12 +139,28 @@ export class ObsLink {
       : [...this.lastStrokes]
     this.sent.clear()
     for (const s of strokes) this.sent.set(s.id, { len: s.points.length, sig: signature(s) })
+    const { w, h } = this.viewport()
     this.send({
       t: 'state:full',
       now: performance.now(),
       strokes: structuredClone(strokes),
       mode: this.mode,
+      w,
+      h,
     })
+  }
+
+  /** Taille de l'écran annoté, en pixels logiques. */
+  private viewport(): { w: number; h: number } {
+    if (typeof window === 'undefined') return { w: 0, h: 0 }
+    return { w: Math.round(window.innerWidth), h: Math.round(window.innerHeight) }
+  }
+
+  /** Annonce la taille de l'écran : sans elle, la vue OBS décale tout (§10.2). */
+  sendViewport(): void {
+    const { w, h } = this.viewport()
+    if (!w || !h) return
+    this.send({ t: 'viewport', now: performance.now(), w, h })
   }
 
   /** Tout effacer côté miroir (touche panique). */
@@ -188,6 +233,3 @@ export class ObsLink {
 }
 
 export const obsLink = new ObsLink()
-
-/** Message de politesse envoyé par une vue qui vient de s'ouvrir (démo navigateur). */
-export const OBS_HELLO_REQUEST = { t: 'obs:hello', version: OBS_PROTOCOL_VERSION } as const

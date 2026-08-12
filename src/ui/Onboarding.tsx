@@ -1,55 +1,84 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useUiStore } from '../store'
 import { onboardingFromQuery } from '../themes'
-import { ThemeGallery } from './ThemeGallery'
+import { formatCombo, resolveKeymap, type KeymapAction } from '../keymap'
+import { onTourSignal } from './tour'
 
 /* ============================================================
    Séquence de découverte — premier lancement seulement.
-   Règle : chaque étape se valide sur le GESTE RÉELLEMENT FAIT
-   par l'utilisateur, jamais sur un bouton « j'ai compris ».
-   Aucun timer permanent : on écoute des événements, c'est tout.
+
+   Cinq étapes, pas une de plus, et à la fin l'utilisateur sait :
+   dessiner · changer de couleur · effacer · déplacer une annotation
+   (et ouvrir la roue) · rendre la souris au jeu, plus comment ses
+   viewers verront tout ça.
+
+   Règle : chaque étape se valide sur le GESTE RÉELLEMENT FAIT, jamais
+   sur un bouton « j'ai compris ». Aucun timer permanent : on écoute des
+   événements, c'est tout. Les touches affichées sortent du clavier ACTIF
+   (preset Epic Pen par défaut, remaps compris) — jamais écrites en dur.
    ============================================================ */
 
-type StepId = 'trait' | 'grab' | 'fade' | 'radial' | 'theme'
+type StepId = 'trait' | 'couleur' | 'effacer' | 'souris' | 'stream'
 
 interface Step {
   id: StepId
   title: string
+  /** texte principal, en français d'utilisateur */
   text: string
-  /** ce qu'on attend, formulé comme une consigne courte */
+  /** consigne courte, affichée en pied de carte tant que ce n'est pas fait */
   cue: string
+  /** actions dont on affiche la touche réelle sous le texte */
+  keys?: { action: KeymapAction; label: string }[]
 }
 
 const STEPS: Step[] = [
   {
     id: 'trait',
-    title: 'Trace ton premier trait',
-    text: "Appuie et dessine n'importe où sur l'écran. Le trait s'épaissit quand tu ralentis : c'est un feutre, pas un tuyau.",
-    cue: 'Dessine un trait',
+    title: 'Dessine ton premier trait',
+    text: 'Appuie sur le bouton gauche de la souris et trace, n’importe où sur l’écran. Le trait s’épaissit quand tu ralentis : c’est un feutre, pas un tuyau. La molette change son épaisseur.',
+    cue: 'Trace un trait',
+    keys: [
+      { action: 'tool.pen', label: 'pinceau' },
+      { action: 'tool.highlight', label: 'surligneur' },
+    ],
   },
   {
-    id: 'grab',
-    title: 'Attrape une annotation',
-    text: 'Clic droit sur un trait et fais-le glisser. Rien n’est figé : tout ce que tu poses reste déplaçable.',
-    cue: 'Clic droit sur ton trait, puis glisse',
+    id: 'couleur',
+    title: 'Change de couleur',
+    text: 'Clique une pastille de la barre en bas, ou appuie sur un chiffre. Sept couleurs, choisies pour rester lisibles sur n’importe quel jeu.',
+    cue: 'Change de couleur',
+    keys: [
+      { action: 'color.1', label: 'cyan' },
+      { action: 'color.2', label: 'magenta' },
+      { action: 'color.4', label: 'vert' },
+    ],
   },
   {
-    id: 'fade',
-    title: 'Règle le fondu',
-    text: 'La touche D fait tourner la durée de vie : 2s, 4s, 8s, puis ∞. En ∞, tout reste jusqu’au nettoyage — parfait pour un tableau d’analyse.',
-    cue: 'Appuie sur D',
+    id: 'effacer',
+    title: 'Efface',
+    text: 'Une touche enlève tout, une autre revient en arrière d’un trait. Et si tu préfères effacer à la main, la gomme retire le trait entier que tu survoles, clic maintenu.',
+    cue: 'Efface ou annule',
+    keys: [
+      { action: 'edit.clear', label: 'tout effacer' },
+      { action: 'edit.undo', label: 'annuler' },
+      { action: 'tool.eraser', label: 'gomme' },
+    ],
   },
   {
-    id: 'radial',
-    title: 'Le menu radial',
-    text: 'Maintiens le clic droit : la roue d’outils apparaît sous ton curseur. Tu glisses, tu relâches, c’est choisi. Jamais besoin de viser un coin de l’écran.',
-    cue: 'Maintiens le clic droit une seconde',
+    id: 'souris',
+    title: 'Le clic droit fait deux choses',
+    text: 'Sur une annotation, il l’attrape : tu la fais glisser où tu veux. Dans le vide, maintiens-le une demi-seconde : la roue des outils et des couleurs éclot sous ton curseur — tu glisses, tu relâches, c’est choisi. Plus jamais besoin de viser un coin de l’écran.',
+    cue: 'Fais un clic droit',
   },
   {
-    id: 'theme',
-    title: 'Choisis ta peau',
-    text: 'Huit designs, huit personnalités. Clique pour essayer en direct : tout change immédiatement, tu peux en changer quand tu veux dans les réglages.',
-    cue: 'Choisis un thème',
+    id: 'stream',
+    title: 'Et sur ton stream ?',
+    text: 'Dans OBS, une source « Capture d’écran » suffit : tes annotations sont posées par-dessus le bureau, elles partent dans le direct comme le reste. Attention, une source « Capture de jeu » filme l’intérieur du jeu et ne les verra jamais.',
+    cue: 'Rends la souris au jeu',
+    keys: [
+      { action: 'mode.cursor', label: 'rendre la souris au jeu' },
+      { action: 'mode.draw', label: 'revenir dessiner' },
+    ],
   },
 ]
 
@@ -68,40 +97,27 @@ function StepGlyph({ id }: { id: StepId }) {
         />
       </svg>
     )
-  if (id === 'grab')
+  if (id === 'couleur')
     return (
       <svg viewBox="0 0 36 36" className="onb-svg" aria-hidden>
-        <path
-          d="M6 22c5-9 11-9 16-2"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          opacity="0.45"
-        />
-        <g className="onb-slide">
-          <path
-            d="M12 24c5-9 11-9 16-2"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-          />
-          <path d="M20 14l9 3.5-3.8 1.4-1.4 3.8z" fill="currentColor" />
+        <g className="onb-pulse">
+          <circle cx="14" cy="14" r="7" fill="currentColor" opacity="0.9" />
+          <circle cx="24" cy="19" r="7" fill="currentColor" opacity="0.5" />
+          <circle cx="16" cy="25" r="6" fill="currentColor" opacity="0.28" />
         </g>
       </svg>
     )
-  if (id === 'fade')
+  if (id === 'effacer')
     return (
       <svg viewBox="0 0 36 36" className="onb-svg" aria-hidden>
         <g className="onb-fadey" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2.6">
           <path d="M8 12h20" />
-          <path d="M8 18h20" opacity="0.6" />
-          <path d="M8 24h20" opacity="0.28" />
+          <path d="M8 19h20" opacity="0.6" />
+          <path d="M8 26h20" opacity="0.28" />
         </g>
       </svg>
     )
-  if (id === 'radial')
+  if (id === 'souris')
     return (
       <svg viewBox="0 0 36 36" className="onb-svg" aria-hidden>
         <circle cx="18" cy="18" r="10.5" fill="none" stroke="currentColor" strokeWidth="1.6" opacity="0.4" />
@@ -119,9 +135,10 @@ function StepGlyph({ id }: { id: StepId }) {
   return (
     <svg viewBox="0 0 36 36" className="onb-svg" aria-hidden>
       <g className="onb-pulse">
-        <path d="M10 4l7 4v8l-7 4-7-4V8z" transform="translate(4 6)" fill="currentColor" opacity="0.9" />
-        <circle cx="26" cy="12" r="5" fill="currentColor" opacity="0.5" />
-        <rect x="20" y="20" width="10" height="10" rx="3" fill="currentColor" opacity="0.35" />
+        <rect x="4" y="7" width="28" height="18" rx="3" fill="none" stroke="currentColor" strokeWidth="2.2" />
+        <path d="M12 30h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+        <circle cx="10" cy="12.5" r="2" fill="currentColor" />
+        <path d="M15 20l5-7 4 5 3-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
       </g>
     </svg>
   )
@@ -134,6 +151,15 @@ export function Onboarding() {
   const [ok, setOk] = useState(false)
   const [closing, setClosing] = useState(false)
   const timers = useRef<number[]>([])
+  const keymapPreset = useUiStore((s) => s.keymapPreset)
+  const keymapOverrides = useUiStore((s) => s.keymapOverrides)
+
+  // Les touches montrées sont celles qui marchent VRAIMENT sur cette machine :
+  // preset actif (Epic Pen par défaut) et remaps de l'utilisateur compris.
+  const bindings = useMemo(
+    () => resolveKeymap(keymapPreset, keymapOverrides),
+    [keymapPreset, keymapOverrides],
+  )
 
   const later = useCallback((fn: () => void, ms: number) => {
     timers.current.push(window.setTimeout(fn, ms))
@@ -155,30 +181,76 @@ export function Onboarding() {
     }, 420)
   }, [forced, later])
 
-  /** l'étape est réussie : petite fanfare, puis on avance */
+  // « Rejouer la découverte guidée » (bouton du panneau d'aide) : le drapeau
+  // repasse à faux dans le store, la séquence repart du début. Personne n'a
+  // besoin de connaître un paramètre d'URL pour revoir la présentation.
+  useEffect(
+    () =>
+      useUiStore.subscribe((s, prev) => {
+        if (prev.onboarded && !s.onboarded) {
+          setIndex(0)
+          setOk(false)
+          setClosing(false)
+          setVisible(true)
+        }
+      }),
+    [],
+  )
+
+  const step = STEPS[index]
+  const last = index === STEPS.length - 1
+
+  /** l'étape est réussie : petite fanfare, puis on avance (ou on termine) */
   const validate = useCallback(() => {
     setOk((already) => {
       if (already) return already
       later(() => {
+        if (last) {
+          finish()
+          return
+        }
         setOk(false)
         setIndex((i) => Math.min(i + 1, STEPS.length - 1))
       }, 900)
       return true
     })
-  }, [later])
-
-  const step = STEPS[index]
+  }, [later, last, finish])
 
   // ---- détection des gestes réels (aucun setInterval, aucune rAF) ----
   useEffect(() => {
     if (!visible || closing) return
     const id = step.id
-    if (id === 'theme') return
 
-    if (id === 'fade') {
-      // couvre la touche D comme le bouton de la barre d'outils
+    // Étape « couleur » : la barre d'outils comme le clavier passent tous les
+    // deux par le store, donc un seul abonnement couvre les deux.
+    if (id === 'couleur') {
       return useUiStore.subscribe((s, prev) => {
-        if (s.fadeDelay !== prev.fadeDelay) validate()
+        if (s.color !== prev.color) validate()
+      })
+    }
+
+    // Étape « effacer » : l'application signale elle-même qu'elle a retiré de
+    // l'encre (touche, bouton de la barre ou raccourci global). En prime, on
+    // accepte le simple fait de prendre la gomme : c'est le même apprentissage.
+    if (id === 'effacer') {
+      const offSignal = onTourSignal((kind) => {
+        if (kind === 'erase') validate()
+      })
+      const offStore = useUiStore.subscribe((s, prev) => {
+        if (s.tool === 'eraser' && prev.tool !== 'eraser') validate()
+      })
+      return () => {
+        offSignal()
+        offStore()
+      }
+    }
+
+    // Étape finale : rendre la souris au jeu. Dès que c'est fait, la découverte
+    // se termine d'elle-même — sinon la carte deviendrait inaccessible, la
+    // fenêtre laissant désormais passer les clics.
+    if (id === 'stream') {
+      return onTourSignal((kind) => {
+        if (kind === 'passthrough') validate()
       })
     }
 
@@ -187,14 +259,6 @@ export function Onboarding() {
     let startX = 0
     let startY = 0
     let travel = 0
-    let holdId = 0
-
-    const clearHold = () => {
-      if (holdId) {
-        window.clearTimeout(holdId)
-        holdId = 0
-      }
-    }
 
     const onDown = (e: PointerEvent) => {
       // on ignore les gestes faits sur l'interface (barre d'outils, carte)
@@ -204,24 +268,18 @@ export function Onboarding() {
       startX = e.clientX
       startY = e.clientY
       travel = 0
-      if (id === 'radial' && e.button === 2) {
-        holdId = window.setTimeout(() => {
-          if (down && travel < 18) validate()
-        }, 420)
-      }
     }
 
     const onMove = (e: PointerEvent) => {
       if (!down) return
       travel = Math.hypot(e.clientX - startX, e.clientY - startY)
-      if (id === 'grab' && button === 2 && travel > 26) validate()
-      if (id === 'radial' && travel > 18) clearHold()
+      // déplacement d'une annotation au clic droit
+      if (id === 'souris' && button === 2 && travel > 26) validate()
     }
 
     const onUp = () => {
       if (down && id === 'trait' && button === 0 && travel > 80) validate()
       down = false
-      clearHold()
     }
 
     const opts = { capture: true, passive: true } as const
@@ -229,8 +287,17 @@ export function Onboarding() {
     window.addEventListener('pointermove', onMove, opts)
     window.addEventListener('pointerup', onUp, opts)
     window.addEventListener('pointercancel', onUp, opts)
+    // …et l'autre moitié de l'étape « clic droit » : la roue s'est ouverte.
+    // C'est le moteur qui le dit, au moment exact où elle éclot : impossible
+    // de le deviner ici, l'utilisateur bouge la souris juste après.
+    const offRadial =
+      id === 'souris'
+        ? onTourSignal((kind) => {
+            if (kind === 'radial') validate()
+          })
+        : null
     return () => {
-      clearHold()
+      offRadial?.()
       window.removeEventListener('pointerdown', onDown, opts)
       window.removeEventListener('pointermove', onMove, opts)
       window.removeEventListener('pointerup', onUp, opts)
@@ -250,17 +317,15 @@ export function Onboarding() {
 
   if (!visible) return null
 
-  const last = index === STEPS.length - 1
-
   return (
     <div className="onb-root" aria-live="polite">
       <div
         key={step.id}
-        className={`onb-card${last ? ' is-wide' : ''}${ok ? ' is-ok' : ''}${closing ? ' is-out' : ''}`}
+        className={`onb-card${ok ? ' is-ok' : ''}${closing ? ' is-out' : ''}`}
         onPointerEnter={() => document.body.classList.add('over-ui')}
         onPointerLeave={() => document.body.classList.remove('over-ui')}
       >
-        <button className="onb-skip" title="Passer le guide (Échap)" onClick={finish}>
+        <button className="onb-skip" title="Passer la découverte (Échap)" onClick={finish}>
           ✕
         </button>
 
@@ -278,7 +343,19 @@ export function Onboarding() {
 
         <p className="onb-text">{step.text}</p>
 
-        {last && <ThemeGallery />}
+        {step.keys && (
+          <p className="onb-keys">
+            {step.keys.map((k) => {
+              const combo = bindings[k.action]?.[0]
+              if (!combo) return null
+              return (
+                <span className="onb-key" key={k.action}>
+                  <kbd>{formatCombo(combo)}</kbd> {k.label}
+                </span>
+              )
+            })}
+          </p>
+        )}
 
         <div className="onb-foot">
           <div className="onb-rail">
@@ -292,7 +369,7 @@ export function Onboarding() {
           <div className="onb-cue">{ok ? 'Bien joué' : step.cue}</div>
           {last ? (
             <button className="onb-next is-primary" onClick={finish}>
-              Terminer
+              C’est parti
             </button>
           ) : (
             <button

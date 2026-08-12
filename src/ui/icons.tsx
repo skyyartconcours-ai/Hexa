@@ -216,6 +216,106 @@ export const IconScript = () => (
   </Svg>
 )
 
+/** Loupe (§6) : le disque grossissant et son manche. */
+export const IconMagnifier = () => (
+  <Svg>
+    <circle cx="10.6" cy="10.6" r="6.4" />
+    <path d="m15.4 15.4 4.4 4.4" />
+    <path d="M8.4 10.6h4.4M10.6 8.4v4.4" opacity="0.6" />
+  </Svg>
+)
+
+/** Gel d'image (§5.5) : un flocon posé sur un cadre photo. */
+export const IconFreeze = () => (
+  <Svg>
+    <rect x="3.2" y="4.6" width="17.6" height="14.8" rx="2.4" />
+    <path d="M12 8v8M8.6 9.9l6.8 4.2M15.4 9.9l-6.8 4.2" />
+  </Svg>
+)
+
+/** Masque flou (§5.6) : un rectangle dont le contenu se dilue. */
+export const IconBlur = () => (
+  <Svg>
+    <rect x="3.4" y="6" width="17.2" height="12" rx="2.2" />
+    <path d="M6.4 10h11" opacity="0.85" />
+    <path d="M6.4 13h11" opacity="0.55" />
+    <path d="M6.4 16h7" opacity="0.3" />
+  </Svg>
+)
+
+/** Avant/après (§5.7) : le curseur vertical entre deux moitiés. */
+export const IconCompare = () => (
+  <Svg>
+    <rect x="3.4" y="5.4" width="17.2" height="13.2" rx="2.2" />
+    <path d="M12 4v16" />
+    <path d="M8.6 10.2 6.4 12l2.2 1.8M15.4 10.2 17.6 12l-2.2 1.8" opacity="0.75" />
+  </Svg>
+)
+
+/* ---- éléments posés à l'écran (§5.8) : grille, chrono, notes ---- */
+
+/** Grille et règle des tiers (§5.8.1). */
+export const IconGrid = () => (
+  <Svg>
+    <rect x="3.4" y="3.4" width="17.2" height="17.2" rx="2.2" />
+    <path d="M9.1 3.6v16.8M14.9 3.6v16.8M3.6 9.1h16.8M3.6 14.9h16.8" opacity="0.72" />
+  </Svg>
+)
+
+/** Chronomètre (§5.8.2) — distinct du sablier du fondu automatique. */
+export const IconStopwatch = () => (
+  <Svg>
+    <circle cx="12" cy="13.6" r="7.2" />
+    <path d="M12 10.2v3.4l2.2 1.6" />
+    <path d="M9.6 2.8h4.8" />
+    <path d="M18.4 6.6l1.4-1.4" opacity="0.7" />
+  </Svg>
+)
+
+/** Note posée à l'écran (§5.8.3) : un coin replié. */
+export const IconNote = () => (
+  <Svg>
+    <path d="M5 4.4h9.4L19 9v10.6H5V4.4z" />
+    <path d="M14.2 4.6V9H19" opacity="0.75" />
+    <path d="M8 12.4h7M8 15.6h4.6" opacity="0.6" />
+  </Svg>
+)
+
+/** Croix de fermeture d'un élément posé — discrète, apparaît au survol. */
+export const IconCross = () => (
+  <Svg>
+    <path d="M6.6 6.6 17.4 17.4M17.4 6.6 6.6 17.4" strokeWidth="2" />
+  </Svg>
+)
+
+export const IconPlay = () => (
+  <Svg>
+    <path d="M8.4 5.6 18 12l-9.6 6.4V5.6z" fill="currentColor" strokeWidth="1.4" />
+  </Svg>
+)
+
+export const IconPause = () => (
+  <Svg>
+    <path d="M9.2 5.4v13.2M14.8 5.4v13.2" strokeWidth="2.6" />
+  </Svg>
+)
+
+export const IconReset = () => (
+  <Svg>
+    <path d="M4.6 12a7.4 7.4 0 1 0 2.3-5.4" />
+    <path d="M4.4 4.6v4.2h4.2" />
+  </Svg>
+)
+
+/** Aide (touche ?) — le seul bouton qu'on cherche quand on est perdu. */
+export const IconHelp = () => (
+  <Svg>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.3 9.2a2.8 2.8 0 1 1 3.4 3.2c-.6.2-.9.7-.9 1.3v.5" strokeWidth="2" />
+    <path d="M12 17.4v.2" strokeWidth="2.6" />
+  </Svg>
+)
+
 export const HexaLogo = () => (
   <svg width="22" height="24" viewBox="0 0 32 34" fill="none" aria-hidden>
     <defs>

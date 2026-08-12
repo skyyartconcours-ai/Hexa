@@ -322,8 +322,13 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
         </div>
       </div>
 
-      {/* infobulle : le SEUL texte, et seulement au survol (§9.4) */}
-      <div className={`radial-label${label ? ' is-on' : ''}`}>{label ?? ''}</div>
+      {/* Infobulle : le SEUL texte de la roue (§9.4). Au survol elle nomme le
+          secteur visé ; tant que rien n'est visé elle rappelle le geste, en
+          plus discret — sans ça, un débutant ouvre la roue et se demande ce
+          qu'il est censé faire. */}
+      <div className={`radial-label${label ? ' is-on' : ' is-hint'}`}>
+        {label ?? 'Glisse vers un outil, puis relâche'}
+      </div>
     </div>
   )
 }

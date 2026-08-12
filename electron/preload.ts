@@ -18,6 +18,20 @@ const INBOUND = [
   'spike-cursor',
   /** nombre de vues OBS connectées au serveur local (§10.2) */
   'obs-clients',
+  /** une source navigateur vient d'ouvrir : elle réclame l'état complet */
+  'obs-full-request',
+  /** état du serveur local (port réellement écouté, erreur éventuelle) */
+  'obs-status',
+  /** « Réglages… » demandé depuis l'icône de la barre des tâches */
+  'open-settings',
+  /** action déclenchée par un raccourci GLOBAL, alors que le jeu avait le focus */
+  'action',
+  /**
+   * L'écran porteur a changé de taille, d'échelle (100 % → 125 %) ou de
+   * rotation. La page doit recalibrer ses canvas : sans ça, le trait tombe à
+   * côté du curseur (§12.3).
+   */
+  'display-changed',
 ] as const
 type Inbound = (typeof INBOUND)[number]
 
@@ -45,8 +59,17 @@ const api = {
   /** Vraie valeur : permet au renderer de savoir qu'il tourne en overlay. */
   isOverlay: true,
 
-  /** Écran porteur (pixels logiques + facteur d'échelle DPI, §12.3). */
+  /**
+   * Écran porteur (pixels logiques + facteur d'échelle DPI, §12.3).
+   * INSTANTANÉ pris à la création de la fenêtre : après un changement de
+   * résolution ou d'échelle il est périmé — utiliser `displayInfo()`.
+   */
   display: displayInfo,
+
+  /** Écran porteur, relu à l'instant auprès du processus principal. */
+  displayInfo(): Promise<DisplayInfo | null> {
+    return ipcRenderer.invoke('hexa:display-info').catch(() => null)
+  },
 
   /** Clic traversant on/off (§2.2). */
   setPassthrough(value: boolean): void {
@@ -100,8 +123,12 @@ const api = {
     return ipcRenderer.invoke('hexa:get-screen-source-id').catch(() => null)
   },
 
-  /** Reconfigure les raccourcis GLOBAUX (mode dessin, panique). */
-  setShortcuts(map: { toggleDraw: string; panic: string }): Promise<unknown> {
+  /**
+   * Reconfigure les raccourcis GLOBAUX. Table { action: accélérateur }, ex.
+   * { 'mode.draw': 'F8', 'tool.pen': 'Control+Shift+3' }. Renvoie la liste de
+   * ce qui a été pris et de ce que Windows a refusé.
+   */
+  setShortcuts(map: Record<string, string>): Promise<unknown> {
     return ipcRenderer.invoke('hexa:set-shortcuts', map).catch(() => null)
   },
 
@@ -111,6 +138,28 @@ const api = {
    */
   obsServer(cfg: { enabled: boolean; port: number }): Promise<unknown> {
     return ipcRenderer.invoke('hexa:obs-server', cfg).catch(() => null)
+  },
+
+  /** État du serveur de la vue OBS : port réellement écouté, vues, erreur. */
+  obsStatus(): Promise<unknown> {
+    return ipcRenderer.invoke('hexa:obs-status').catch(() => null)
+  },
+
+  /**
+   * Écrit une ligne dans le journal de diagnostic (hexa.log). Sert quand la page
+   * rencontre un problème que seul l'utilisateur pourra nous rapporter.
+   */
+  log(scope: string, message: string): void {
+    try {
+      if (typeof message === 'string') ipcRenderer.send('hexa:log', String(scope), message)
+    } catch {
+      /* ignore */
+    }
+  },
+
+  /** Emplacement du journal, à afficher dans les réglages (« Où est le journal ? »). */
+  logPath(): Promise<string> {
+    return ipcRenderer.invoke('hexa:log-path').catch(() => '')
   },
 
   /** Diffuse un message du miroir OBS (déjà sérialisé) aux vues connectées. */

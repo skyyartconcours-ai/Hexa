@@ -5,10 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hexa · vue OBS</title>
     <!--
-      Page destinée à une browser source OBS.
-      URL par défaut de l'overlay Electron : http://127.0.0.1:4787/obs.html
-      Cocher « Arrière-plan transparent » n'est même pas nécessaire :
-      la page ne peint aucun fond.
+      Page destinée à une source « Navigateur » (Browser) d'OBS.
+      Adresse par défaut : http://127.0.0.1:4787/obs.html
+      Largeur / Hauteur = la taille de la SCÈNE OBS (souvent 1920 × 1080) ;
+      Hexa met automatiquement l'écran annoté à cette échelle.
+
+      Rien à cocher pour la transparence : la page ne peint aucun fond.
+      Paramètres facultatifs de l'URL :
+        ?ws=ws://127.0.0.1:4788   force l'adresse du serveur (port inhabituel)
+        ?bare=1                   supprime la carte d'attente du démarrage
+      Mode d'emploi complet : docs/OBS.md
     -->
     <link
       rel="icon"

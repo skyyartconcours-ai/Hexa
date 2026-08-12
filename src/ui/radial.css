@@ -255,6 +255,15 @@
   transform: translate(-50%, calc(-50% + 170px)) scale(1);
 }
 
+/* Rappel du geste, tant qu'aucun secteur n'est visé : présent mais effacé,
+   il ne doit jamais voler la vedette au nom de l'outil survolé. */
+.radial-label.is-hint {
+  opacity: 0.62;
+  transform: translate(-50%, calc(-50% + 168px)) scale(0.94);
+  color: var(--text-2);
+  font-weight: 500;
+}
+
 /* ---------- animations ---------- */
 
 @keyframes radial-pop {

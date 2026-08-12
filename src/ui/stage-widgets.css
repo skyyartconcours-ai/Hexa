@@ -1,0 +1,336 @@
+/* ============================================================
+   Hexa — éléments posés sur l'écran (§5.8)
+   Grille et tiers · chronos · notes persistantes.
+   Tous les tokens viennent du contrat de thème (styles.css) : ces
+   éléments changent donc de peau avec les 8 thèmes, sans un octet
+   de plus.
+   ============================================================ */
+
+/* ---------- grille et règle des tiers (§5.8.1) ----------
+   Rendue AVANT `.stage` dans le document, en z-index auto : elle passe
+   donc sous les annotations sans créer de contexte d'empilement. */
+.stage-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-repeat: repeat;
+}
+
+/* ---------- couche des éléments posés ----------
+   Au-dessus des annotations (canvas) et du liseré (40), sous la barre
+   d'outils (50) et les panneaux (60/70). La couche elle-même est
+   transparente aux clics : seules les cartes reçoivent le pointeur. */
+.stage-widgets {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+}
+
+.sw-card {
+  position: absolute;
+  pointer-events: auto;
+  color: var(--text-1);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-ui);
+  animation: sw-in 0.24s cubic-bezier(0.22, 1.2, 0.4, 1) both;
+}
+
+.sw-card.is-dragging {
+  animation: none;
+  transform: scale(1.02);
+  cursor: grabbing;
+}
+
+@keyframes sw-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* poignée : le curseur annonce le déplacement avant même le clic */
+.sw-grip {
+  cursor: grab;
+}
+
+.sw-close {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 7px;
+  color: var(--text-2);
+  opacity: 0;
+  transition:
+    opacity 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+.sw-card:hover .sw-close {
+  opacity: 1;
+}
+
+.sw-close:hover {
+  color: #ff8ba0;
+  background: rgba(255, 90, 120, 0.16);
+}
+
+.sw-close svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ---------- chrono et compte à rebours (§5.8.2) ---------- */
+
+.sw-clock {
+  min-width: 218px;
+  padding: 10px 14px 12px;
+  text-align: center;
+}
+
+.sw-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: -2px -4px 2px;
+  padding: 2px 4px;
+}
+
+.sw-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* Grands chiffres tabulaires : la largeur ne bouge JAMAIS d'un chiffre à
+   l'autre, sinon la carte tremble à chaque seconde. */
+.sw-digits {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  text-shadow: 0 0 22px color-mix(in srgb, var(--accent, #00e5ff) 42%, transparent);
+}
+
+.sw-clock[data-kind='countdown'] .sw-digits {
+  font-size: 46px;
+}
+
+/* dernières secondes : une pulsation DOUCE, jamais un clignotement */
+.sw-clock[data-urgent='1'] .sw-digits {
+  color: #ffd166;
+  text-shadow: 0 0 26px rgba(255, 190, 80, 0.55);
+  animation: sw-urgent 1s ease-in-out infinite;
+}
+
+@keyframes sw-urgent {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.92;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+/* zéro atteint : trois battements plus larges, puis PLUS RIEN ne bouge */
+.sw-clock[data-done='1'] .sw-digits {
+  color: #ff6b8a;
+  text-shadow: 0 0 30px rgba(255, 90, 120, 0.6);
+  animation: sw-done 0.62s ease-out 3 both;
+}
+
+.sw-clock[data-done='1'] {
+  border-color: rgba(255, 107, 138, 0.5);
+}
+
+@keyframes sw-done {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.13);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.sw-steps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.sw-step {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.sw-step:hover {
+  background: var(--hover-bg);
+  color: var(--text-1);
+}
+
+.sw-step.active {
+  color: #061018;
+  background: var(--accent, #00e5ff);
+}
+
+.sw-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.sw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  transition:
+    background 0.15s ease,
+    transform 0.12s ease;
+}
+
+.sw-btn:hover {
+  background: var(--hover-bg);
+}
+
+.sw-btn:active {
+  transform: scale(0.96);
+}
+
+.sw-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.sw-clock[data-running='1'] .sw-btn.primary {
+  color: #061018;
+  background: var(--accent, #00e5ff);
+}
+
+.sw-swap {
+  min-width: 28px;
+  padding: 0 8px;
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+/* ---------- notes persistantes (§5.8.3) ---------- */
+
+.sw-note {
+  padding: 12px 12px 10px;
+  /* liseré de la couleur active à la création : on repère ses notes d'un coup
+     d'œil quand il y en a plusieurs à l'écran */
+  border-left: 3px solid var(--c, #00e5ff);
+  box-shadow:
+    var(--shadow-ui),
+    -8px 0 26px -18px var(--c, #00e5ff);
+}
+
+/* barre de préhension discrète, en haut de la note */
+.sw-note-grip {
+  height: 8px;
+  margin: -6px -4px 4px;
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 50% 50%, var(--text-2) 0.8px, transparent 0.9px) 0 0 / 5px 4px;
+  opacity: 0.28;
+  transition: opacity 0.16s ease;
+}
+
+.sw-note:hover .sw-note-grip {
+  opacity: 0.6;
+}
+
+.sw-note-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.sw-note-text {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  font: inherit;
+  font-size: 14.5px;
+  line-height: 1.42;
+  color: var(--text-1);
+  background: none;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.sw-note-text::placeholder {
+  color: var(--text-2);
+}
+
+/* ---------- clic traversant ----------
+   Les éléments posés RESTENT VISIBLES (c'est tout leur intérêt en direct :
+   un compte à rebours, une consigne), mais ils ne prennent plus le pointeur
+   et leurs commandes s'effacent : à l'écran, il ne reste que l'information. */
+body.passthrough .stage-widgets {
+  pointer-events: none;
+}
+
+body.passthrough .sw-actions,
+body.passthrough .sw-steps,
+body.passthrough .sw-close,
+body.passthrough .sw-note-grip {
+  opacity: 0;
+}
+
+body.passthrough .sw-card {
+  background: color-mix(in srgb, var(--glass-bg) 72%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-card,
+  .sw-clock[data-urgent='1'] .sw-digits,
+  .sw-clock[data-done='1'] .sw-digits {
+    animation: none;
+  }
+}

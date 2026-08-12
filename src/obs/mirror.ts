@@ -23,6 +23,9 @@ export class ObsMirror {
   private offset: number | null = null
   private w = 0
   private h = 0
+  /** taille de l'écran annoté chez le streamer (0 = inconnue, on suit la nôtre) */
+  private srcW = 0
+  private srcH = 0
   private raf = 0
   private wakeTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -69,9 +72,13 @@ export class ObsMirror {
         this.order = []
         this.map.clear()
         this.mode = msg.mode
+        if (msg.w && msg.h) this.setSource(msg.w, msg.h)
         for (const s of msg.strokes) this.put(s)
         break
       }
+      case 'viewport':
+        this.setSource(msg.w, msg.h)
+        break
       case 'stroke:add':
         this.put(msg.stroke)
         break
@@ -110,6 +117,32 @@ export class ObsMirror {
       this.onFirstState?.()
     }
     this.wake()
+  }
+
+  /** Mémorise la taille de l'écran annoté (source des coordonnées). */
+  private setSource(w: number, h: number): void {
+    if (!(w > 0) || !(h > 0)) return
+    if (this.srcW === w && this.srcH === h) return
+    this.srcW = w
+    this.srcH = h
+  }
+
+  /**
+   * Passage « écran du streamer » → « scène OBS ».
+   *
+   * Un écran 2560×1440 mirroité dans une scène 1920×1080 doit rentrer
+   * ENTIÈREMENT : on met à l'échelle uniformément (les cercles restent ronds)
+   * et on centre. Quand les deux tailles coïncident — le cas courant, 1080p
+   * partout — l'échelle vaut 1 et rien ne bouge d'un pixel.
+   */
+  private fit(): { scale: number; dx: number; dy: number } {
+    if (!this.srcW || !this.srcH || !this.w || !this.h) return { scale: 1, dx: 0, dy: 0 }
+    const scale = Math.min(this.w / this.srcW, this.h / this.srcH)
+    return {
+      scale,
+      dx: (this.w - this.srcW * scale) / 2,
+      dy: (this.h - this.srcH * scale) / 2,
+    }
   }
 
   private sync(remoteNow: number): void {
@@ -209,12 +242,21 @@ export class ObsMirror {
   private render(now: number): void {
     const ctx = this.ctx
     if (!ctx) return
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5)
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, this.w, this.h)
     const list: Stroke[] = []
     for (const id of this.order) {
       const s = this.map.get(id)
       if (s) list.push(s)
     }
+    // mise à l'échelle écran → scène, appliquée à la matrice : le rendu reste
+    // celui du moteur, au pixel près, sans toucher aux coordonnées des traits
+    const { scale, dx, dy } = this.fit()
+    if (scale !== 1 || dx !== 0 || dy !== 0) {
+      ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * dx, dpr * dy)
+    }
     paintStrokes(ctx, list, now)
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   }
 }

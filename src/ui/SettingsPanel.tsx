@@ -26,8 +26,9 @@ import {
   stampName,
   type PngScale,
 } from '../replay/exporter'
-import { OBS_DEFAULT_PORT } from '../obs/protocol'
+import { OBS_DEFAULT_PORT, suggestedCanvasSize } from '../obs/protocol'
 import { obsWsClient, statusLabel, type ObsWsStatus } from '../obs/client'
+import { obsServerInfo, subscribeObsServer } from '../obs/status'
 import './settings.css'
 
 export interface SettingsPanelProps {
@@ -144,6 +145,8 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
   const toggleLinkBadges = useUiStore((s) => s.toggleLinkBadges)
   const effectIntensity = useUiStore((s) => s.effectIntensity)
   const setEffectIntensity = useUiStore((s) => s.setEffectIntensity)
+  const arrowPulse = useUiStore((s) => s.arrowPulse)
+  const toggleArrowPulse = useUiStore((s) => s.toggleArrowPulse)
   const setReplayOpen = useUiStore((s) => s.setReplayOpen)
 
   const obsMirror = useUiStore((s) => s.obsMirror)
@@ -169,6 +172,11 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
 
   // compteur de traits archivés — poussé par l'enregistreur, jamais sondé
   useEffect(() => recorder.subscribe(() => setArchived(recorder.count)), [])
+
+  // état RÉEL du serveur de la vue OBS (port écouté, vues connectées, erreur) :
+  // poussé par le processus principal, jamais deviné.
+  const [serverInfo, setServerInfo] = useState(obsServerInfo)
+  useEffect(() => subscribeObsServer(() => setServerInfo(obsServerInfo())), [])
 
   // état obs-websocket — le client pousse, on affiche
   useEffect(() => {
@@ -211,11 +219,43 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
     return () => clearTimeout(t)
   }, [flash])
 
+  // Adresse EXACTE à coller dans la source navigateur. On affiche le port
+  // RÉELLEMENT écouté : si 4787 était pris, Hexa a glissé sur le suivant, et
+  // c'est celui-là qu'il faut copier — pas celui du champ.
   const obsUrl = useMemo(() => {
-    if (isElectron) return `http://127.0.0.1:${obsPort}/obs.html`
+    if (isElectron) return `http://127.0.0.1:${serverInfo.port || obsPort}/obs.html`
     if (typeof window === 'undefined') return ''
     return `${window.location.origin}/obs.html`
-  }, [isElectron, obsPort])
+  }, [isElectron, obsPort, serverInfo.port])
+
+  const canvas = useMemo(() => suggestedCanvasSize(), [])
+
+  /** Phrase d'état du serveur, en français, sans jargon. */
+  const serverLine = useMemo(() => {
+    if (!isElectron) return "Démo navigateur : ouvre obs.html dans un second onglet."
+    if (!obsServerOn) return 'Serveur arrêté : la source navigateur ne recevra rien.'
+    if (serverInfo.error) return `Problème : ${serverInfo.error}.`
+    if (!serverInfo.running) return 'Démarrage…'
+    const moved =
+      serverInfo.wantedPort && serverInfo.port !== serverInfo.wantedPort
+        ? ` (le port ${serverInfo.wantedPort} était occupé)`
+        : ''
+    if (serverInfo.clients === 0) {
+      return `En écoute sur le port ${serverInfo.port}${moved} · aucune source connectée pour l'instant.`
+    }
+    return `En écoute sur le port ${serverInfo.port}${moved} · ${serverInfo.clients} source${
+      serverInfo.clients > 1 ? 's' : ''
+    } connectée${serverInfo.clients > 1 ? 's' : ''}.`
+  }, [isElectron, obsServerOn, serverInfo])
+
+  const serverTone =
+    !isElectron || !obsServerOn
+      ? 'off'
+      : serverInfo.error
+        ? 'retry'
+        : serverInfo.clients > 0
+          ? 'connected'
+          : 'connecting'
 
   const pickSession = (): SessionExport => {
     if (source === 'all') return recorder.flatSession()
@@ -354,7 +394,10 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
             <div className="hx-field">
               <div className="hx-field-text">
                 <b>Intensité des effets</b>
-                <i>Halos néon, braises, étincelles. À gauche : sobre. À droite : spectaculaire.</i>
+                <i>
+                  Halos néon, allumage du trait, braises de dissolution, étincelles. À gauche :
+                  sobre et professionnel. À droite : spectaculaire pour le stream.
+                </i>
               </div>
               <div className="hx-slider">
                 <input
@@ -393,6 +436,12 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
                 hint="Le numéroteur trace 1 → 2 → 3."
                 on={linkBadges}
                 onChange={toggleLinkBadges}
+              />
+              <Switch
+                label="Flèches pulsantes"
+                hint="Une flèche posée respire. Superbe pour insister… mais elle occupe le processeur en continu."
+                on={arrowPulse}
+                onChange={toggleArrowPulse}
               />
             </div>
           </Section>
@@ -469,7 +518,7 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
           {/* ---------------- OBS ---------------- */}
           <Section
             title="OBS"
-            hint="Une vue browser source rendue par le même moteur, et un écran qui se nettoie au changement de scène."
+            hint="Une source navigateur rendue par le même moteur qu'à l'écran, et un écran qui se nettoie au changement de scène."
           >
             <div className="hx-grid2">
               <Switch
@@ -490,8 +539,9 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
               <div className="hx-field-text">
                 <b>Sortie</b>
                 <i>
-                  Écran : OBS capture ton écran, l'overlay est visible. Stream seul : ton écran
-                  reste propre, seules les annotations partent à l'antenne.
+                  {obsMode === 'screen'
+                    ? 'Écran : tu vois tes annotations sur ton écran, et OBS les capture avec lui. Choisis une source « Capture d’écran » dans OBS — la « Capture de jeu » ne les verra pas.'
+                    : 'Stream seul : ton écran reste propre (tes annotations n’y sont plus peintes), elles ne partent que dans la source navigateur ci-dessous. Utile en jeu, ou pour ne pas gêner ce que tu lis.'}
                 </i>
               </div>
               <Segmented
@@ -501,6 +551,13 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
                 render={(v) => (v === 'screen' ? 'Écran' : 'Stream seul')}
               />
             </div>
+
+            <p className="hx-note">
+              <b>Le piège à connaître :</b> une « Capture de jeu » (Game Capture) accroche le rendu
+              du jeu et ne voit AUCUN outil d'annotation — ni Hexa, ni Epic Pen. Deux solutions :
+              garder une source « Capture d'écran » (Display Capture), ou ajouter la source
+              navigateur ci-dessous, qui marche dans tous les cas. Détails dans docs/OBS.md.
+            </p>
 
             {isElectron && (
               <div className="hx-field">
@@ -535,8 +592,12 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
               </button>
             </div>
             <p className="hx-note">
-              Dans OBS : + → <b>Navigateur</b> → colle cette adresse, largeur et hauteur = celles de
-              ta scène. Le fond est déjà transparent.
+              Dans OBS : <b>+</b> sous « Sources » → <b>Navigateur</b> (Browser) → colle cette
+              adresse → Largeur <b>{canvas.width}</b>, Hauteur <b>{canvas.height}</b> → OK. Le fond
+              est déjà transparent, il n'y a rien d'autre à cocher.{' '}
+              <span className="hx-status" data-status={serverTone}>
+                {serverLine}
+              </span>
             </p>
 
             <div className="hx-field">

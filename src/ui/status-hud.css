@@ -1,0 +1,180 @@
+/* ============================================================
+   Hexa — pastille d'état et messages éphémères.
+   Rien à l'écran quand tout va bien : la pastille n'apparaît que
+   si la barre est masquée, les messages s'effacent seuls.
+   Tokens uniquement : lisible dans les huit thèmes.
+   ============================================================ */
+
+.hx-status {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 52;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-ui);
+  color: var(--text-2);
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: hxStatusIn 260ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+@keyframes hxStatusIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.hx-status b {
+  color: var(--text-1);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.hx-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.hx-status-sep {
+  width: 1px;
+  height: 12px;
+  background: var(--glass-border);
+}
+
+.hx-status-fade.is-inf {
+  color: var(--logo-a);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.hx-status-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 4px;
+  opacity: 0.85;
+}
+
+.hx-status kbd,
+.hx-toast kbd {
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--text-1) 10%, transparent);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+/* ---------- messages éphémères ---------- */
+
+.hx-toast {
+  position: fixed;
+  left: 50%;
+  top: 24px;
+  transform: translateX(-50%);
+  z-index: 88;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-ui);
+  color: var(--text-1);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: calc(100vw - 40px);
+  overflow: hidden;
+  pointer-events: none;
+  animation: hxToast 2600ms ease-in-out forwards;
+}
+
+/* mode jeu : accent chaud, on ne le confond pas avec le mode dessin */
+.hx-toast.is-game {
+  border-color: color-mix(in srgb, var(--logo-b) 55%, transparent);
+  box-shadow:
+    var(--shadow-ui),
+    0 0 0 1px color-mix(in srgb, var(--logo-b) 30%, transparent);
+}
+
+.hx-toast.is-draw {
+  border-color: color-mix(in srgb, var(--logo-a) 55%, transparent);
+}
+
+.hx-toast-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: var(--text-2);
+  font-size: 11.5px;
+}
+
+@keyframes hxToast {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  6% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  84% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hx-status {
+    animation: none;
+  }
+
+  .hx-toast {
+    animation: hxToastFlat 2600ms linear forwards;
+  }
+
+  @keyframes hxToastFlat {
+    0% {
+      opacity: 0;
+    }
+    4% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+}

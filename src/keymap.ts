@@ -55,9 +55,11 @@ export type KeymapAction =
   // interface
   | 'ui.toolbar'
   | 'ui.settings'
+  | 'ui.cheatsheet'
   | 'ui.close'
   // système (enregistrés côté Electron)
   | 'mode.draw'
+  | 'mode.cursor'
   | 'app.panic'
 
 export type KeymapCategory = 'outils' | 'momentanes' | 'couleurs' | 'edition' | 'interface' | 'systeme'
@@ -78,7 +80,13 @@ export interface KeymapEntry {
   category: KeymapCategory
   /** true = l'action vit tant que la touche est maintenue (§8.5) */
   hold?: boolean
-  /** true = enregistré par Electron via globalShortcut, actif même hors focus */
+  /**
+   * true = Hexa tente de l'enregistrer côté Electron via globalShortcut, donc
+   * elle marche MÊME quand le jeu a le focus. Seules les combinaisons avec
+   * modificateur (ou F6–F12) sont réellement confisquées au système : voir
+   * `isRegistrableCombo`. Une lettre nue reste locale, sinon on volerait la
+   * touche à tous les autres logiciels.
+   */
   global?: boolean
   /** précision optionnelle affichée en petit sous le libellé */
   hint?: string
@@ -86,8 +94,8 @@ export interface KeymapEntry {
 
 /** L'ordre de ce tableau est l'ordre d'affichage dans l'éditeur. */
 export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
-  { action: 'tool.pen', label: 'Pinceau', category: 'outils' },
-  { action: 'tool.highlight', label: 'Surligneur', category: 'outils' },
+  { action: 'tool.pen', label: 'Pinceau', category: 'outils', global: true },
+  { action: 'tool.highlight', label: 'Surligneur', category: 'outils', global: true },
   { action: 'tool.line', label: 'Ligne droite', category: 'outils', hint: 'Maj : angles de 15°' },
   { action: 'tool.arrow', label: 'Flèche', category: 'outils' },
   { action: 'tool.rect', label: 'Rectangle', category: 'outils' },
@@ -101,7 +109,7 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
     category: 'outils',
     hint: 'Ctrl+V colle directement une image du presse-papier',
   },
-  { action: 'tool.eraser', label: 'Gomme', category: 'outils' },
+  { action: 'tool.eraser', label: 'Gomme', category: 'outils', global: true },
 
   {
     action: 'hold.laser',
@@ -114,19 +122,39 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
   { action: 'hold.magnifier', label: 'Loupe', category: 'momentanes', hold: true },
   { action: 'hold.freeze', label: 'Gel d’image', category: 'momentanes', hold: true },
 
-  { action: 'color.1', label: 'Couleur 1', category: 'couleurs' },
-  { action: 'color.2', label: 'Couleur 2', category: 'couleurs' },
-  { action: 'color.3', label: 'Couleur 3', category: 'couleurs' },
-  { action: 'color.4', label: 'Couleur 4', category: 'couleurs' },
-  { action: 'color.5', label: 'Couleur 5', category: 'couleurs' },
-  { action: 'color.6', label: 'Couleur 6', category: 'couleurs' },
-  { action: 'color.7', label: 'Couleur 7', category: 'couleurs' },
+  // Les couleurs sont nommées : « Couleur 4 » ne dit rien à personne, « Vert »
+  // se retrouve d'un coup d'œil dans la liste comme dans la barre.
+  { action: 'color.1', label: 'Couleur 1 · cyan', category: 'couleurs' },
+  { action: 'color.2', label: 'Couleur 2 · magenta', category: 'couleurs' },
+  { action: 'color.3', label: 'Couleur 3 · violet', category: 'couleurs' },
+  { action: 'color.4', label: 'Couleur 4 · vert', category: 'couleurs' },
+  { action: 'color.5', label: 'Couleur 5 · jaune', category: 'couleurs' },
+  { action: 'color.6', label: 'Couleur 6 · orange', category: 'couleurs' },
+  { action: 'color.7', label: 'Couleur 7 · blanc', category: 'couleurs' },
 
-  { action: 'edit.undo', label: 'Annuler', category: 'edition' },
+  { action: 'edit.undo', label: 'Annuler', category: 'edition', global: true },
   { action: 'edit.redo', label: 'Rétablir', category: 'edition' },
-  { action: 'edit.clear', label: 'Tout effacer', category: 'edition' },
-  { action: 'size.dec', label: 'Épaisseur —', category: 'edition', hint: 'Molette aussi' },
-  { action: 'size.inc', label: 'Épaisseur +', category: 'edition', hint: 'Molette aussi' },
+  {
+    action: 'edit.clear',
+    label: 'Tout effacer',
+    category: 'edition',
+    global: true,
+    hint: 'Nettoie tous les écrans d’un coup',
+  },
+  {
+    action: 'size.dec',
+    label: 'Trait plus fin',
+    category: 'edition',
+    global: true,
+    hint: 'La molette de la souris fait la même chose',
+  },
+  {
+    action: 'size.inc',
+    label: 'Trait plus épais',
+    category: 'edition',
+    global: true,
+    hint: 'La molette de la souris fait la même chose',
+  },
   {
     action: 'fade.cycle',
     label: 'Durée du fondu',
@@ -142,8 +170,14 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
   { action: 'toggle.guides', label: 'Guides magnétiques', category: 'edition' },
   { action: 'toggle.linkBadges', label: 'Relier les pastilles numérotées', category: 'edition' },
 
-  { action: 'ui.toolbar', label: 'Afficher/masquer la barre', category: 'interface' },
+  { action: 'ui.toolbar', label: 'Afficher/masquer la barre', category: 'interface', global: true },
   { action: 'ui.settings', label: 'Réglages', category: 'interface' },
+  {
+    action: 'ui.cheatsheet',
+    label: 'Aide',
+    category: 'interface',
+    hint: 'Les gestes, tout le clavier, le stream et le dépannage',
+  },
   { action: 'ui.close', label: 'Fermer le panneau ouvert', category: 'interface' },
 
   {
@@ -151,7 +185,14 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
     label: 'Mode dessin / mode jeu',
     category: 'systeme',
     global: true,
-    hint: 'Évite F1–F5 : ce sont les sorts alliés dans League of Legends',
+    hint: 'Bascule. Évite F1–F5 : ce sont les sorts alliés dans League of Legends',
+  },
+  {
+    action: 'mode.cursor',
+    label: 'Curseur : rendre la souris au jeu',
+    category: 'systeme',
+    global: true,
+    hint: 'L’équivalent de l’outil « curseur » d’Epic Pen',
   },
   {
     action: 'app.panic',
@@ -224,6 +265,9 @@ const HEXA_BINDINGS: Bindings = {
 
   'ui.toolbar': 'h',
   'ui.settings': 'ctrl+,',
+  // « ? » : sur un clavier français il s'obtient avec Maj+, — sur un QWERTY
+  // avec Maj+/. On accepte les deux, la touche d'aide doit marcher partout.
+  'ui.cheatsheet': ['shift+,', 'shift+/'],
   'ui.close': 'esc',
 
   'mode.draw': 'f8',
@@ -231,41 +275,63 @@ const HEXA_BINDINGS: Bindings = {
 }
 
 /**
- * Preset « Compatibilité Epic Pen ».
+ * Preset « Compatibilité Epic Pen » — LE PRESET PAR DÉFAUT.
+ *
+ * Quelqu'un qui arrive d'Epic Pen doit pouvoir dessiner à la seconde où Hexa
+ * démarre, sans rien réapprendre : sa mémoire musculaire est le vrai produit.
  *
  * ⚠️ Ces combinaisons proviennent de la documentation publique d'Epic Pen
  * (source tierce, non vérifiable hors ligne) : elles sont fournies pour
  * retrouver ses réflexes, et TOUTES remappables depuis l'éditeur.
- * Le reste du clavier (couleurs, épaisseur, fondu…) hérite du preset Hexa.
+ *
+ * Chaque ligne garde EN SECOND la touche maison d'Hexa : basculer de preset ne
+ * fait donc jamais perdre un raccourci, il en ajoute.
+ * Le reste du clavier (couleurs, formes, fondu…) hérite du preset Hexa.
  */
 const EPICPEN_BINDINGS: Bindings = {
+  // outils — Ctrl+Maj+3/4/5 comme Epic Pen
   'tool.pen': ['ctrl+shift+3', 'p'],
   'tool.highlight': ['ctrl+shift+4', 's'],
   'tool.eraser': ['ctrl+shift+5', 'e'],
+  // édition
   'edit.undo': ['ctrl+shift+6', 'ctrl+z'],
-  'mode.draw': ['ctrl+shift+2', 'f8'],
   'edit.clear': ['ctrl+e', 'c'],
+  // épaisseur du trait : Epic Pen la règle depuis sa barre ; on prolonge la
+  // série Ctrl+Maj+7/8 pour rester dans la même logique de doigts.
+  'size.dec': ['ctrl+shift+7', '['],
+  'size.inc': ['ctrl+shift+8', ']'],
+  // interface
   'ui.toolbar': ['ctrl+h', 'h'],
+  // système : chez Epic Pen, Ctrl+Maj+2 sélectionne l'outil « curseur »,
+  // c'est-à-dire qu'il rend la souris au jeu. F8 reste la bascule maison.
+  'mode.cursor': ['ctrl+shift+2'],
+  'mode.draw': ['f8'],
 }
 
+/** Le preset par défaut est le PREMIER : c'est celui que l'œil lit en premier. */
 export const KEYMAP_PRESETS: readonly KeymapPreset[] = [
+  {
+    id: 'epicpen',
+    name: 'Epic Pen',
+    description:
+      'Par défaut. Reprend les combinaisons d’Epic Pen (Ctrl+Maj+2/3/4/5/6, Ctrl+E, Ctrl+H) en gardant celles d’Hexa en second.',
+    extends: 'hexa',
+    bindings: EPICPEN_BINDINGS,
+  },
   {
     id: 'hexa',
     name: 'Hexa',
     description: 'Le clavier maison : une lettre par outil, tout sous la main gauche.',
     bindings: HEXA_BINDINGS,
   },
-  {
-    id: 'epicpen',
-    name: 'Compatibilité Epic Pen',
-    description:
-      'Reprend les combinaisons d’Epic Pen (Ctrl+Maj+3/4/5/6, Ctrl+E, Ctrl+H) en gardant celles d’Hexa en second.',
-    extends: 'hexa',
-    bindings: EPICPEN_BINDINGS,
-  },
 ]
 
-export const DEFAULT_PRESET: KeymapPresetId = 'hexa'
+/**
+ * PAR DÉFAUT : Epic Pen. Demande explicite et répétée : « les raccourcis Epic
+ * Pen par défaut, customisable ». Ce preset étant un sur-ensemble du clavier
+ * maison, personne n'y perd une touche.
+ */
+export const DEFAULT_PRESET: KeymapPresetId = 'epicpen'
 
 function presetById(id: KeymapPresetId): KeymapPreset {
   return KEYMAP_PRESETS.find((p) => p.id === id) ?? KEYMAP_PRESETS[0]
@@ -529,6 +595,157 @@ export function toAccelerator(combo: string): string {
     else out.push(part.toUpperCase())
   }
   return out.join('+')
+}
+
+/* ------------------------------------------------------------------ *
+ * Raccourcis GLOBAUX (enregistrés par Electron)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Actions qu'Hexa tente de confisquer au système. On annote PAR-DESSUS un jeu :
+ * si la combinaison ne marche que quand notre fenêtre a le focus, elle ne sert
+ * à rien. Dérivé de la table : `global: true` est la seule source de vérité.
+ */
+export const GLOBAL_ACTIONS: readonly KeymapAction[] = KEYMAP_ENTRIES.filter((e) => e.global).map(
+  (e) => e.action,
+)
+
+/**
+ * Combinaisons qu'on n'a PAS le droit de confisquer au système : ce sont les
+ * réflexes universels. Confisquer Ctrl+Z, ce serait casser l'annulation dans
+ * Word, Photoshop et le navigateur de l'utilisateur — le genre de dégât qui
+ * fait désinstaller un logiciel. Elles restent parfaitement actives dans Hexa,
+ * simplement en local (quand la fenêtre a le focus).
+ *
+ * Ctrl+E et Ctrl+H, eux, sont confisqués : ce sont les raccourcis d'Epic Pen,
+ * c'est exactement ce que l'utilisateur demande.
+ */
+const NEVER_GLOBAL = new Set([
+  'ctrl+z',
+  'ctrl+y',
+  'ctrl+c',
+  'ctrl+v',
+  'ctrl+x',
+  'ctrl+a',
+  'ctrl+s',
+  'ctrl+p',
+  'ctrl+f',
+  'ctrl+w',
+  'ctrl+n',
+  'ctrl+t',
+])
+
+/**
+ * Une combinaison peut-elle être enregistrée au niveau du SYSTÈME sans nuire ?
+ *
+ * Règle de sécurité : il faut un vrai modificateur (Ctrl, Alt ou Windows). Une
+ * lettre nue enregistrée globalement serait volée à Word, au chat Twitch et au
+ * jeu lui-même — c'est inacceptable. Les touches de fonction F6 à F12 passent
+ * seules (F1–F5 restent les sorts alliés de League of Legends).
+ */
+export function isRegistrableCombo(combo: string): boolean {
+  const c = normalizeCombo(combo)
+  const parts = c.split('+').filter(Boolean)
+  if (parts.length === 0) return false
+  if (NEVER_GLOBAL.has(c)) return false
+  const key = parts[parts.length - 1]
+  const mods = parts.slice(0, -1)
+  if (mods.includes('ctrl') || mods.includes('alt') || mods.includes('meta')) return true
+  return /^f([6-9]|1[0-2])$/.test(key)
+}
+
+/**
+ * Accélérateurs Electron à enregistrer : action → accélérateur.
+ * On garde la PREMIÈRE combinaison enregistrable de chaque action (les autres
+ * restent gérées par la page, quand elle a le focus).
+ */
+export function globalAccelerators(
+  bindings: ResolvedBindings,
+): Partial<Record<KeymapAction, string>> {
+  const out: Partial<Record<KeymapAction, string>> = {}
+  const taken = new Set<string>()
+  for (const action of GLOBAL_ACTIONS) {
+    for (const combo of bindings[action]) {
+      if (!isRegistrableCombo(combo)) continue
+      const accel = toAccelerator(combo)
+      // Deux actions sur la même combinaison : la première gagne, sinon
+      // globalShortcut.register refuserait la seconde en silence.
+      if (taken.has(accel)) continue
+      taken.add(accel)
+      out[action] = accel
+      break
+    }
+  }
+  return out
+}
+
+/** Accélérateurs par défaut (preset Epic Pen), pour le tout premier démarrage. */
+export function defaultGlobalAccelerators(): Partial<Record<KeymapAction, string>> {
+  return globalAccelerators(resolveKeymap(DEFAULT_PRESET))
+}
+
+/* ------------------------------------------------------------------ *
+ * Sécurité d'usage : combinaisons refusées ou déconseillées
+ * ------------------------------------------------------------------ */
+
+export interface ComboRisk {
+  /** 'refus' = Hexa n'assigne pas ; 'attention' = on assigne mais on prévient */
+  level: 'refus' | 'attention'
+  message: string
+}
+
+/**
+ * Combinaisons que Windows garde pour lui et qui feraient des dégâts : les
+ * assigner ne servirait à rien (le système les intercepte avant nous) et
+ * pourrait fermer l'application en plein direct.
+ */
+const FORBIDDEN: Record<string, string> = {
+  'alt+f4': 'Alt+F4 ferme la fenêtre active : Windows la garde pour lui.',
+  'ctrl+alt+delete': 'Ctrl+Alt+Suppr appartient à Windows et ne peut pas être intercepté.',
+  'ctrl+shift+esc': 'Ctrl+Maj+Échap ouvre le gestionnaire des tâches de Windows.',
+  'alt+tab': 'Alt+Tab est la bascule de fenêtres de Windows.',
+  'meta+tab': 'Windows+Tab ouvre l’affichage des tâches.',
+  'alt+esc': 'Alt+Échap appartient au gestionnaire de fenêtres.',
+  'meta+l': 'Windows+L verrouille la session : ton direct s’arrêterait net.',
+  'meta+d': 'Windows+D réduit toutes les fenêtres.',
+  'ctrl+alt+backspace': 'Combinaison réservée par le système.',
+}
+
+/**
+ * Verdict sur une combinaison qu'on s'apprête à assigner.
+ * `global` : l'action est censée marcher même hors focus (raccourci système).
+ */
+export function comboSafety(combo: string, global = false): ComboRisk | null {
+  const c = normalizeCombo(combo)
+  if (!c) return null
+  const forbidden = FORBIDDEN[c]
+  if (forbidden) return { level: 'refus', message: forbidden }
+
+  const parts = c.split('+')
+  const key = parts[parts.length - 1]
+  const mods = parts.slice(0, -1)
+
+  if (/^f[1-5]$/.test(key)) {
+    return {
+      level: 'attention',
+      message: 'F1 à F5 sont les sorts alliés dans League of Legends : à éviter en jeu.',
+    }
+  }
+  if (mods.includes('meta')) {
+    return {
+      level: 'attention',
+      message:
+        'Windows garde la main sur la plupart des combinaisons Windows+… : elle peut ne jamais arriver jusqu’à Hexa.',
+    }
+  }
+  if (global && !isRegistrableCombo(c)) {
+    return {
+      level: 'attention',
+      message:
+        'Sans Ctrl, Alt ou une touche F6–F12, ce raccourci ne marchera que si la fenêtre d’Hexa a le focus — pas par-dessus un jeu.',
+    }
+  }
+  return null
 }
 
 /* ------------------------------------------------------------------ *

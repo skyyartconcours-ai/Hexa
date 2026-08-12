@@ -209,6 +209,23 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
+/* « Personnalisé » : s'allume par-dessus le preset dès qu'une ligne est
+   remappée. Contour, pas remplissage : le preset de base reste lisible. */
+.kme-preset[data-custom='1'] {
+  color: var(--logo-a);
+  background: color-mix(in srgb, var(--logo-a) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--logo-a) 45%, transparent);
+}
+
+.kme-preset:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.kme-preset:disabled:hover {
+  color: var(--text-2);
+}
+
 .kme-ghost {
   padding: 6px 12px;
   border-radius: 999px;
@@ -354,6 +371,17 @@
   align-self: flex-start;
 }
 
+/* « global » réellement réservé auprès de Windows : la pastille s'allume */
+.kme-tag[data-live='1'] {
+  color: var(--logo-a);
+  background: color-mix(in srgb, var(--logo-a) 18%, transparent);
+  box-shadow: 0 0 12px -3px color-mix(in srgb, var(--logo-a) 70%, transparent);
+}
+
+.kme-tag[data-live='0'] {
+  opacity: 0.55;
+}
+
 .kme-keys {
   display: flex;
   align-items: center;
@@ -440,9 +468,25 @@
   background: rgba(255, 107, 107, 0.12);
 }
 
+/* « réinitialiser cette ligne » : même capsule, mais ce n'est pas destructeur */
+.kme-clear[data-reset='1'] {
+  font-size: 13px;
+}
+
+.kme-clear[data-reset='1']:hover {
+  color: var(--logo-a);
+  background: color-mix(in srgb, var(--logo-a) 14%, transparent);
+}
+
 .kme-conflict {
   font-size: 11px;
   color: var(--kme-warn);
+  padding: 2px 4px 8px;
+}
+
+.kme-warn {
+  font-size: 11px;
+  color: var(--text-2);
   padding: 2px 4px 8px;
 }
 
@@ -454,6 +498,102 @@
   border-radius: var(--radius-btn);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--kme-line);
+}
+
+.kme-note b {
+  color: var(--text-1);
+}
+
+/* ---------- bandeau d'alerte (refus, refus de Windows) ---------- */
+
+.kme-alert {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-1);
+  padding: 10px 12px;
+  border-radius: var(--radius-btn);
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.42);
+  animation: kme-rise 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------- interrupteur « raccourcis globaux » ---------- */
+
+.kme-global {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 11px 13px;
+  border-radius: var(--radius-btn);
+  background: var(--kme-row);
+  border: 1px solid var(--kme-line);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.kme-global:hover {
+  background: var(--kme-row-hover);
+}
+
+.kme-global[data-on='1'] {
+  border-color: color-mix(in srgb, var(--logo-a) 40%, transparent);
+  background: color-mix(in srgb, var(--logo-a) 8%, transparent);
+}
+
+.kme-global-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.kme-global-text b {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.kme-global-text i {
+  font-style: normal;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.kme-global-track {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--kme-line);
+  transition: background 200ms ease;
+}
+
+.kme-global[data-on='1'] .kme-global-track {
+  background: linear-gradient(135deg, var(--logo-a), var(--logo-b));
+  border-color: transparent;
+}
+
+.kme-global-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  transition: transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.kme-global[data-on='1'] .kme-global-knob {
+  transform: translateX(18px);
 }
 
 /* ---------- profils ---------- */

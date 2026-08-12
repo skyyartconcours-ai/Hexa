@@ -1,0 +1,390 @@
+/* ============================================================
+   Hexa — aide-mémoire des raccourcis.
+   Aucune couleur en dur : tokens uniquement, donc juste dans les
+   huit thèmes (y compris les clairs). Passe au-dessus des
+   réglages (z-index 94/95), sous le menu radial.
+   ============================================================ */
+
+.shs-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 94;
+  background: color-mix(in srgb, var(--wall-1) 68%, transparent);
+  backdrop-filter: blur(4px) saturate(0.9);
+  -webkit-backdrop-filter: blur(4px) saturate(0.9);
+  animation: shsFade 200ms ease both;
+}
+
+.shs {
+  position: fixed;
+  z-index: 95;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(920px, calc(100vw - 40px));
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-ui);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  box-shadow: var(--shadow-ui);
+  color: var(--text-1);
+  font-family: var(--font-ui);
+  overflow: hidden;
+  animation: shsIn 420ms cubic-bezier(0.22, 1.35, 0.36, 1) both;
+}
+
+@keyframes shsFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shsIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* ---------- en-tête ---------- */
+
+.shs-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--glass-border);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--logo-a) 8%, transparent),
+    transparent
+  );
+}
+
+.shs-mark {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 7px;
+  background: linear-gradient(135deg, var(--logo-a), var(--logo-b));
+  box-shadow: 0 0 18px -2px color-mix(in srgb, var(--logo-a) 60%, transparent);
+}
+
+.shs-top-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.shs-top-text b {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+}
+
+.shs-top-text i {
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+.shs-btn {
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  border: 1px solid var(--glass-border);
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.shs-btn:hover {
+  color: var(--text-1);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.shs-btn:active {
+  transform: scale(0.96);
+}
+
+.shs-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: var(--text-2);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.shs-close:hover {
+  color: var(--text-1);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.shs-close:active {
+  transform: scale(0.9);
+}
+
+/* ---------- corps ---------- */
+
+.shs-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.shs-scroll::-webkit-scrollbar {
+  width: 9px;
+}
+
+.shs-scroll::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* ---------- l'essentiel ---------- */
+
+.shs-hero {
+  padding: 14px 16px 16px;
+  border-radius: var(--radius-btn);
+  background: color-mix(in srgb, var(--logo-a) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--logo-a) 26%, transparent);
+}
+
+.shs-hero h3 {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--logo-a);
+  margin-bottom: 10px;
+}
+
+.shs-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px 18px;
+}
+
+.shs-hero-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shs-hero-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- colonnes par catégorie ---------- */
+
+.shs-cols {
+  columns: 2;
+  column-gap: 26px;
+}
+
+@media (max-width: 720px) {
+  .shs-cols {
+    columns: 1;
+  }
+}
+
+.shs-cat {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 16px;
+}
+
+.shs-cat h4 {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--text-2);
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.shs-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 2px;
+  border-radius: 7px;
+}
+
+.shs-line:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.shs-line dt {
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+  /* pointillés de liaison : la lecture d'un aide-mémoire imprimé */
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.shs-line dd {
+  display: flex;
+  gap: 5px;
+  flex: none;
+  align-items: center;
+}
+
+.shs-kbd {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.3px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  color: var(--text-1);
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 1.5px 0 rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+}
+
+.shs-kbd[data-alt='1'] {
+  opacity: 0.55;
+  font-size: 10px;
+}
+
+.shs-none {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-2);
+  opacity: 0.7;
+}
+
+.shs-flag {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--logo-b);
+  background: color-mix(in srgb, var(--logo-b) 15%, transparent);
+  vertical-align: middle;
+}
+
+.shs-flag[data-global='1'] {
+  color: var(--logo-a);
+  background: color-mix(in srgb, var(--logo-a) 15%, transparent);
+}
+
+/* ---------- note Stream Deck ---------- */
+
+.shs-note {
+  padding: 12px 14px;
+  border-radius: var(--radius-btn);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+}
+
+.shs-note h4 {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+.shs-note p {
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--text-2);
+}
+
+.shs-note p + p {
+  margin-top: 6px;
+}
+
+.shs-note b {
+  color: var(--text-1);
+}
+
+/* ---------- impression : noir sur blanc, une feuille propre ---------- */
+
+@media print {
+  .shs-scrim,
+  .shs-close,
+  .shs-btn {
+    display: none !important;
+  }
+
+  .shs {
+    position: static;
+    transform: none;
+    max-height: none;
+    width: auto;
+    color: #000;
+    background: #fff;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    animation: none;
+  }
+
+  .shs-scroll {
+    overflow: visible;
+  }
+
+  .shs-kbd {
+    color: #000;
+    background: #f2f2f2;
+    border-color: #bbb;
+    box-shadow: none;
+  }
+
+  .shs-line dt,
+  .shs-note p,
+  .shs-top-text i {
+    color: #222;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shs,
+  .shs-scrim {
+    animation: none !important;
+  }
+}

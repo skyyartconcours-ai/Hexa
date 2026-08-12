@@ -20,7 +20,7 @@
  */
 import { sha256Base64 } from './sha256'
 
-export type ObsWsStatus = 'off' | 'connecting' | 'connected' | 'auth' | 'retry'
+export type ObsWsStatus = 'off' | 'connecting' | 'connected' | 'auth' | 'retry' | 'denied'
 
 export interface ObsWsConfig {
   enabled: boolean
@@ -137,8 +137,16 @@ export class ObsWebSocketClient {
       }
       void this.handle(msg)
     }
-    sock.onclose = () => {
+    sock.onclose = (e: CloseEvent) => {
       if (this.socket === sock) this.socket = null
+      // 4009 = « AuthenticationFailed » côté obs-websocket v5. Réessayer en
+      // boucle avec un mot de passe faux ne sert à rien : on le DIT, et on
+      // attend que l'utilisateur corrige (ce qui relance tout seul via
+      // configure()). Le mot de passe lui-même n'apparaît nulle part.
+      if (e.code === 4009) {
+        this.setStatus('denied')
+        return
+      }
       this.scheduleRetry()
     }
     sock.onerror = () => {
@@ -211,6 +219,8 @@ export function statusLabel(status: ObsWsStatus): string {
       return 'authentification…'
     case 'retry':
       return 'hors ligne, nouvelle tentative'
+    case 'denied':
+      return 'mot de passe refusé par OBS'
     default:
       return 'désactivé'
   }

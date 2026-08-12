@@ -235,6 +235,20 @@ button {
   transform: translateX(-50%);
   display: flex;
   align-items: center;
+  justify-content: center;
+  /* La barre a grossi au fil des vagues (38 boutons) : sur un portable
+     1366 ou 1600 px de large, elle dépassait des DEUX côtés et le pinceau
+     lui-même devenait inatteignable. Elle se replie donc sur deux rangs
+     plutôt que de sortir de l'écran — jamais un outil hors de portée. */
+  flex-wrap: wrap;
+  /* `width: max-content` puis `max-width` : sans lui, la barre étant calée à
+     left:50%, le navigateur ne lui accorde que la MOITIÉ DROITE de l'écran
+     pour se replier et la tasse en un bloc trois fois trop haut. Là, elle
+     garde son rang unique sur un grand écran et n'en ajoute un second que
+     lorsque l'écran est vraiment trop étroit. */
+  width: max-content;
+  max-width: calc(100vw - 28px);
+  row-gap: 6px;
   gap: 10px;
   padding: 10px 14px;
   border-radius: var(--radius-ui);
@@ -662,5 +676,146 @@ body.over-ui .cursor-dot {
     opacity: 1;
     width: 64px;
     transform: scaleX(1);
+  }
+}
+
+/* ============================================================
+   Effets de capture d'écran — loupe, gel, masques, avant/après
+   (src/engine/fx-capture.ts). DEUX plans encadrent la scène du
+   moteur : `.fx-below` est inséré juste avant `.stage`, `.fx-hud`
+   juste après. Rien n'est ajouté dans `.stage`, dont les trois
+   canvas (voile · statique · vif) appartiennent au moteur.
+   ============================================================ */
+
+/* image gelée, masques flous, moitié « avant » : SOUS les annotations.
+   z-index auto + position dans le DOM avant `.stage` : c'est l'ordre du
+   document qui décide, sans créer de contexte d'empilement inutile. */
+.fx-below {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* disque de la loupe, poignées, comparateur : au-dessus des annotations,
+   mais toujours sous le curseur (30), le liseré (40) et la barre (50) */
+.fx-below canvas,
+.fx-hud canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* la vidéo du flux d'écran n'est jamais montrée : elle sert de source à
+   drawImage. Hors flux, l'élément n'existe même pas dans le document. */
+.fx-feed {
+  position: fixed;
+  left: -20000px;
+  top: 0;
+  width: 2px;
+  height: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fx-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 26;
+  pointer-events: none;
+}
+
+/* badge discret « GEL » / « AVANT / APRÈS » (§5.5) */
+.fx-badge {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translate(-50%, -14px);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--text-1);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-ui);
+  opacity: 0;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+
+.fx-badge.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.fx-badge.on::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: #ff5f7a;
+  box-shadow: 0 0 10px #ff5f7a;
+  vertical-align: middle;
+}
+
+/* message honnête quand l'écran ne peut pas être lu */
+.fx-toast {
+  position: absolute;
+  left: 50%;
+  /* au-dessus de l'indicateur d'outil (bottom ~90 px), jamais par-dessus */
+  bottom: 150px;
+  transform: translate(-50%, 10px);
+  max-width: 460px;
+  padding: 10px 16px;
+  border-radius: var(--radius-card);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--text-1);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-ui);
+  opacity: 0;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.fx-toast.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* le HUD s'efface avec le reste de l'interface en clic traversant */
+body.passthrough .fx-toast {
+  opacity: 0;
+}
+
+/* curseurs dédiés aux outils de capture */
+.cursor-dot[data-tool='magnifier'],
+.cursor-dot[data-tool='blur'],
+.cursor-dot[data-tool='freeze'] {
+  width: 14px;
+  height: 14px;
+  background: transparent;
+  border: 1.5px solid var(--c, #fff);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--c, #fff) 60%, transparent);
+}
+
+.cursor-dot[data-tool='blur'] {
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-badge,
+  .fx-toast {
+    transition: none;
   }
 }

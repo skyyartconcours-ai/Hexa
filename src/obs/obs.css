@@ -85,7 +85,19 @@ body {
   border-radius: 50%;
   background: #00e5ff;
   box-shadow: 0 0 12px #00e5ff;
-  animation: obsPulse 1.8s ease-in-out infinite;
+  /* Bornée : 11 battements ≈ 20 s, exactement la durée de vie de la carte.
+     Une source navigateur qui anime en boucle coûterait du processeur à OBS
+     pendant tout le direct — hors de question. */
+  animation: obsPulse 1.8s ease-in-out 11;
+}
+
+/* Hexa injoignable : le point passe orange, sans clignoter (l'utilisateur doit
+   lire le message, pas regarder une alarme). */
+.obs-wait[data-linked='non'] .obs-dot {
+  background: #ff8a3d;
+  box-shadow: 0 0 12px rgba(255, 138, 61, 0.75);
+  animation: none;
+  opacity: 0.85;
 }
 
 @keyframes obsIn {

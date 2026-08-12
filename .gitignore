@@ -5,3 +5,5 @@ src-tauri/gen/
 *.local
 .DS_Store
 dist-electron/
+release/
+test/e2e/captures/

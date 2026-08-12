@@ -9,6 +9,14 @@ import type {
 } from './types'
 import { clamp, dist, easeInQuad, easeOutCubic, pointToSegment, rgba, whiteMix } from './geometry'
 import { renderEmber, renderStroke } from './render'
+import {
+  paintSpotDraft,
+  paintVeil,
+  pushLassoPoint,
+  regionUsable,
+  type SpotRegion,
+} from './stream-fx'
+import { fxKeepsAlive, inkLayer, setInkInvalidate } from './ink-fx'
 import { OneEuro } from './oneEuro'
 import { sfx } from '../audio'
 import {
@@ -52,8 +60,6 @@ const RADIAL_SLOP = 18
 const PING_MS = 900
 /** spotlight (§5.2) : ouverture/fermeture élastique douce */
 const SPOT_MS = 250
-/** largeur du dégradé de bord du spotlight — jamais de bord net (§5.2) */
-const SPOT_FEATHER = 40
 /** attrapé au clic droit : léger grossissement autour du centroïde */
 const GRAB_SCALE = 1.04
 const GRAB_IN_MS = 150
@@ -143,6 +149,11 @@ export class HexaEngine {
   private spotR = 180
   /** le voile a-t-il encore quelque chose de dessiné à effacer ? */
   private veilPainted = false
+  /** §5.2 — zone figée par un geste : rectangle tracé à la volée ou lasso.
+   *  `null` = variante par défaut, le disque qui suit le curseur. */
+  private spotRegion: SpotRegion | null = null
+  /** zone en cours de tracé (le geste n'est pas encore relâché) */
+  private spotDraw: SpotRegion | null = null
 
   /** clic droit maintenu dans le vide → menu radial (§8.2) */
   private radialTimer: ReturnType<typeof setTimeout> | null = null
@@ -172,11 +183,20 @@ export class HexaEngine {
   private running = false
   private raf = 0
   private wakeTimer: ReturnType<typeof setTimeout> | null = null
+  /** une image de rendu a déjà échoué : on ne noie pas la console à 60 Hz */
+  private renderFailed = false
   private staticDirty = true
   private lastFrame = 0
   private idSeq = 1
   private w = 0
   private h = 0
+  /**
+   * Dernier rapport pixels physiques / pixels CSS appliqué aux canvas. Gardé
+   * pour repérer un changement de mise à l'échelle Windows (100 % → 125 %) :
+   * la taille en pixels CSS peut alors rester identique alors que le fond de
+   * rendu, lui, doit être réalloué (§12.3).
+   */
+  private dpr = 0
   private fx: OneEuro | null = null
   private fy: OneEuro | null = null
   private lastActivity = false
@@ -225,6 +245,12 @@ export class HexaEngine {
       this.staticDirty = true
       this.wake()
     })
+    // ---- calque consolidé (S4) : un réglage qui change l'apparence des
+    // traits déjà posés (thème clair, intensité) doit repeindre tout de suite
+    setInkInvalidate(() => {
+      this.staticDirty = true
+      this.wake()
+    })
     stage.addEventListener('pointerdown', down)
     stage.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
@@ -269,6 +295,9 @@ export class HexaEngine {
     if (this.radialTimer) clearTimeout(this.radialTimer)
     this.closeText?.()
     setImageInvalidate(null)
+    // le calque consolidé est un cache : on rend la mémoire tout de suite
+    setInkInvalidate(null)
+    inkLayer.reset()
     this.cursor.remove()
     this.veilCv.remove()
   }
@@ -276,7 +305,17 @@ export class HexaEngine {
   setOptions(patch: Partial<EngineOptions>): void {
     const prevFade = this.opts.fadeDelay
     const prevTool = this.opts.tool
+    const prevFx = this.opts.effects
     this.opts = { ...this.opts, ...patch }
+    // ---- calque consolidé (S4) ----------------------------------------
+    // L'intensité des effets change l'apparence des traits DÉJÀ POSÉS : sans
+    // ça, le curseur des réglages ne se voyait qu'au trait suivant. On salit
+    // la couche statique, le calque se reconstruit tout seul à l'image d'après.
+    if (this.opts.effects !== prevFx) {
+      this.staticDirty = true
+      this.wake()
+    }
+    // ---- fin ----------------------------------------------------------
     if (this.opts.tool !== prevTool && prevTool === 'text') this.closeText?.()
     // le spotlight vit tant que son outil est sélectionné (§8.5 : maintien de
     // touche = il s'ouvre à l'appui et se referme au relâchement)
@@ -579,6 +618,17 @@ export class HexaEngine {
       this.spawnPing(pt.x, pt.y)
       return
     }
+    // §5.2 — les deux autres variantes du spotlight : on TRACE la zone à
+    // éclairer. Glisser = rectangle · Alt + glisser = forme libre au lasso.
+    // Un simple clic (sans glisser) rend la main au disque suiveur.
+    if (t === 'spotlight') {
+      this.spotDraw = e.altKey
+        ? { shape: 'lasso', path: [{ x: pt.x, y: pt.y }] }
+        : { shape: 'rect', a: { x: pt.x, y: pt.y }, b: { x: pt.x, y: pt.y } }
+      this.spotRegion = null
+      this.wake()
+      return
+    }
     if (t === 'eraser') {
       this.erasing = true
       this.eraseAt(pt)
@@ -793,6 +843,9 @@ export class HexaEngine {
             if (c.tool === 'pen' && this.opts.sparkles) this.spawnSparkles(fpt)
           }
         }
+      } else if (this.spotDraw) {
+        if (this.spotDraw.shape === 'rect') this.spotDraw.b = { x: pt.x, y: pt.y }
+        else pushLassoPoint(this.spotDraw.path!, pt)
       } else if (this.erasing) {
         this.eraseAt(pt)
       } else if (this.opts.tool === 'laser') {
@@ -815,6 +868,7 @@ export class HexaEngine {
       this.grabbed ||
       this.current ||
       this.erasing ||
+      this.spotDraw ||
       this.opts.tool === 'laser' ||
       // le spotlight suit le curseur SANS clic (§5.2), donc même en traversant
       this.opts.tool === 'spotlight' ||
@@ -882,6 +936,17 @@ export class HexaEngine {
     // relâché avant 220 ms : ni roue, ni rien. Le clic droit dans le vide
     // reste inoffensif, exactement comme avant.
     this.cancelRadial()
+    // §5.2 — fin du tracé d'une zone de spotlight. Trop court pour être un
+    // geste ? On revient au disque suiveur : un clic ne « casse » jamais
+    // l'outil, il le remet simplement dans son état de départ.
+    if (this.spotDraw) {
+      const drawn = this.spotDraw
+      this.spotDraw = null
+      this.spotRegion = regionUsable(drawn) ? drawn : null
+      this.staticDirty = true
+      this.wake()
+      return
+    }
     if (this.grabbed) {
       const now = performance.now()
       if (this.opts.fadeDelay != null) {
@@ -1051,6 +1116,12 @@ export class HexaEngine {
     this.spotFrom = this.spotState(now).a
     this.spotAt = now
     this.spotOn = on
+    // en quittant l'outil, la zone tracée s'oublie : au retour, le spotlight
+    // repart sur le disque suiveur, jamais sur une zone d'il y a dix minutes
+    if (!on) {
+      this.spotRegion = null
+      this.spotDraw = null
+    }
     this.wake()
   }
 
@@ -1124,9 +1195,22 @@ export class HexaEngine {
   }
 
   private resize(): void {
+    // Le fond de rendu est en pixels PHYSIQUES, les coordonnées de la souris en
+    // pixels CSS : c'est `setTransform(dpr, …)` qui relie les deux. Tant que ce
+    // rapport est juste, le trait tombe exactement sous le curseur, à 100 %
+    // comme à 125 % ou 150 % (§12.3).
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5)
-    this.w = this.stage.clientWidth
-    this.h = this.stage.clientHeight
+    const w = this.stage.clientWidth
+    const h = this.stage.clientHeight
+    // Rien n'a bougé : ne PAS réallouer. Windows émet des `resize` en rafale
+    // (barre des tâches, retour de veille, écran reconfiguré) et réallouer les
+    // trois canvas efface le calque statique pour le repeindre à l'identique —
+    // du travail et un clignotement pour rien. Ce garde-fou rend aussi
+    // inoffensif le `resize` synthétique émis quand seul le DPI change (App.tsx).
+    if (w === this.w && h === this.h && dpr === this.dpr) return
+    this.dpr = dpr
+    this.w = w
+    this.h = h
     for (const [cv, ctx] of [
       [this.veilCv, this.vCtx],
       [this.staticCv, this.sCtx],
@@ -1214,19 +1298,35 @@ export class HexaEngine {
     const hwActive = this.hw.active(now)
     const guidesActive = this.overlay.active(now)
     const spotAnim = now - this.spotAt < SPOT_MS
-    if (
-      this.staticDirty ||
-      dyingActive ||
-      animActive ||
-      morphActive ||
-      this.grabbed ||
-      this.grabAnim
-    ) {
-      this.renderStatic(now)
+    // encre vivante : allumage d'un trait fraîchement posé, flèches pulsantes.
+    // Sans rien à animer, renvoie false — et la boucle s'endort comme avant.
+    const fxActive = fxKeepsAlive(this.strokes, now)
+    // Filet de sécurité : une exception levée ici (un rayon négatif, une police
+    // introuvable, une image cassée…) sortirait de la boucle AVANT le prochain
+    // requestAnimationFrame — l'overlay se figerait alors définitivement, en
+    // plein direct, sans aucun message. On préfère une image ratée à une
+    // application morte : on note l'incident une fois, et la boucle continue.
+    try {
+      if (
+        this.staticDirty ||
+        dyingActive ||
+        animActive ||
+        morphActive ||
+        fxActive ||
+        this.grabbed ||
+        this.grabAnim
+      ) {
+        this.renderStatic(now)
+      }
+      // voile du spotlight : canvas dédié, sous les annotations (se nettoie seul)
+      this.renderVeil(now)
+      this.renderLive(now)
+    } catch (err) {
+      if (!this.renderFailed) {
+        this.renderFailed = true
+        console.error('[hexa] rendu interrompu sur une image, la boucle continue :', err)
+      }
     }
-    // voile du spotlight : canvas dédié, sous les annotations (se nettoie seul)
-    this.renderVeil(now)
-    this.renderLive(now)
     // miroir : enregistreur de session (§11) et vue OBS (§10.2). Uniquement
     // pendant que la boucle tourne, donc jamais au repos.
     this.onMirror?.(this.strokes, this.current)
@@ -1243,6 +1343,7 @@ export class HexaEngine {
       dyingActive ||
       animActive ||
       morphActive ||
+      fxActive ||
       hwActive ||
       guidesActive
     if (busy) {
@@ -1299,7 +1400,24 @@ export class HexaEngine {
   private renderStatic(now: number): void {
     const ctx = this.sCtx
     ctx.clearRect(0, 0, this.w, this.h)
+    // ---- calque consolidé (src/engine/ink-fx.ts) --------------------------
+    // Les traits POSÉS (terminés, immobiles, sans animation) sont peints une
+    // seule fois hors écran puis restitués en un appel : 200 annotations ne
+    // coûtent plus 200 recalculs de contour par image. Le vectoriel reste la
+    // source de vérité — le calque se reconstruit tout seul dès que la liste
+    // change (annuler, dissolution, thème, redimensionnement).
+    const glow = this.opts.effects ?? 1
+    const settled = inkLayer.compose(ctx, this.strokes, {
+      w: this.w,
+      h: this.h,
+      now,
+      glow,
+      hot: (s) => s === this.grabbed || this.morphs.has(s.id) || this.grabAnim?.id === s.id,
+      paint: (c, s) => renderStroke(c, s, { alpha: 1, from: 0, glowBoost: glow, now }),
+    })
+    // ---- fin du calque consolidé -----------------------------------------
     for (const s of this.strokes) {
+      if (settled.has(s.id)) continue
       let alpha = 1
       let from = 0
       // intensité des effets (réglages) : multiplie le halo, 1 par défaut
@@ -1374,6 +1492,9 @@ export class HexaEngine {
     if (this.current) {
       renderStroke(ctx, this.current, { alpha: 1, from: 0, glowBoost: 1, now })
     }
+    // §5.2 — zone de spotlight en cours de tracé : un contour pointillé, le
+    // temps du geste seulement (le voile montre déjà le résultat)
+    if (this.spotDraw) paintSpotDraft(ctx, this.spotDraw, this.opts.color)
     if (this.particles.length > 0) this.renderSparks(ctx, now)
     if (this.pings.length > 0) this.renderPings(ctx, now)
     if (this.laser.length > 0) this.renderLaser(ctx, now)
@@ -1505,47 +1626,15 @@ export class HexaEngine {
       }
       return
     }
-    const x = this.pointer.x
-    const y = this.pointer.y
-    const r = Math.max(28, this.spotR * (0.6 + 0.4 * st.r))
-    const inner = Math.max(4, r - SPOT_FEATHER)
-    ctx.clearRect(0, 0, this.w, this.h)
-    ctx.fillStyle = `rgba(3, 5, 12, ${0.7 * st.a})`
-    ctx.fillRect(0, 0, this.w, this.h)
-    // le trou : dégradé doux, jamais de bord net (§5.2)
-    const hole = ctx.createRadialGradient(x, y, inner, x, y, r)
-    hole.addColorStop(0, 'rgba(0,0,0,1)')
-    hole.addColorStop(0.5, 'rgba(0,0,0,0.78)')
-    hole.addColorStop(0.8, 'rgba(0,0,0,0.3)')
-    hole.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.save()
-    ctx.globalCompositeOperation = 'destination-out'
-    ctx.fillStyle = hole
-    ctx.beginPath()
-    ctx.arc(x, y, r, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
-    // Deux touches de lumière, très légères : un liseré chaud au bord du disque
-    // et un voile clair au centre, comme un vrai faisceau. Jamais de cercle net.
-    ctx.save()
-    ctx.globalCompositeOperation = 'lighter'
-    const boost = this.opts.effects ?? 1
-    const ring = ctx.createRadialGradient(x, y, inner * 0.9, x, y, r * 1.04)
-    ring.addColorStop(0, rgba(this.opts.color, 0))
-    ring.addColorStop(0.9, rgba(this.opts.color, 0.07 * st.a * boost))
-    ring.addColorStop(1, rgba(this.opts.color, 0))
-    ctx.fillStyle = ring
-    ctx.beginPath()
-    ctx.arc(x, y, r * 1.04, 0, Math.PI * 2)
-    ctx.fill()
-    const lift = ctx.createRadialGradient(x, y, 0, x, y, inner)
-    lift.addColorStop(0, `rgba(255,255,255,${0.05 * st.a})`)
-    lift.addColorStop(1, 'rgba(255,255,255,0)')
-    ctx.fillStyle = lift
-    ctx.beginPath()
-    ctx.arc(x, y, inner, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
+    // Trois variantes, un seul voile (src/engine/stream-fx.ts) : disque
+    // suiveur quand aucune zone n'est tracée, sinon le rectangle ou le lasso
+    // — et pendant le geste, la zone en cours, déjà éclairée.
+    paintVeil(ctx, this.w, this.h, this.spotDraw ?? this.spotRegion, this.pointer, this.spotR, {
+      accent: this.opts.color,
+      boost: this.opts.effects ?? 1,
+      alpha: st.a,
+      scale: st.r,
+    })
     this.veilPainted = true
   }
 

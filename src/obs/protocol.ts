@@ -41,6 +41,23 @@ export interface ObsStateFull {
   now: number
   strokes: Stroke[]
   mode: ObsMode
+  /** taille de l'écran annoté, en pixels logiques (voir ObsViewport) */
+  w?: number
+  h?: number
+}
+
+/**
+ * Taille de la surface annotée. INDISPENSABLE : les traits sont exprimés dans
+ * les pixels de l'écran du streamer (1920×1080, 2560×1440…), alors que la
+ * source navigateur d'OBS a la taille de la SCÈNE. Sans cette information, un
+ * écran 1440p mirroité dans une scène 1080p verrait ses annotations décalées
+ * et rognées : le miroir met tout à l'échelle grâce à ce message.
+ */
+export interface ObsViewport {
+  t: 'viewport'
+  now: number
+  w: number
+  h: number
 }
 
 export interface ObsStrokeAdd {
@@ -90,6 +107,7 @@ export type ObsMessage =
   | ObsStrokeRemove
   | ObsClear
   | ObsModeMsg
+  | ObsViewport
 
 const KINDS = new Set([
   'hello',
@@ -100,6 +118,7 @@ const KINDS = new Set([
   'stroke:remove',
   'clear',
   'mode',
+  'viewport',
 ])
 
 /** Garde-fou : tout ce qui arrive du réseau est vérifié avant d'être appliqué. */
@@ -116,4 +135,36 @@ export function parseObsMessage(raw: string): ObsMessage | null {
   } catch {
     return null
   }
+}
+
+/* ------------------------------------------------------------------ *
+ * Sens inverse : vue → Hexa
+ * ------------------------------------------------------------------ */
+
+/**
+ * Le SEUL message qu'une vue a le droit d'envoyer : « je viens d'ouvrir,
+ * envoie-moi tout ». Volontairement unique — rien venu du réseau ne doit
+ * pouvoir piloter Hexa. Le serveur (electron/obs-server.ts) rejette le reste.
+ *
+ * Il est indispensable : OBS recharge une source navigateur quand elle devient
+ * visible (option « Rafraîchir le navigateur quand la scène devient active »),
+ * et sans cette demande la source repartirait vide jusqu'au trait suivant.
+ */
+export const OBS_HELLO = { t: 'obs:hello', version: OBS_PROTOCOL_VERSION } as const
+
+/** Taille conseillée d'une source navigateur : celle du canevas de la scène. */
+export interface ObsCanvasSize {
+  width: number
+  height: number
+}
+
+/** Résolution la plus probable de la scène du streamer, pour le mode d'emploi. */
+export function suggestedCanvasSize(): ObsCanvasSize {
+  if (typeof window === 'undefined') return { width: 1920, height: 1080 }
+  const w = Math.round(window.screen?.width ?? 1920)
+  const h = Math.round(window.screen?.height ?? 1080)
+  // Une scène OBS est presque toujours en 1920×1080, même sur un écran plus
+  // grand : on ne propose l'écran réel que s'il est plus petit.
+  if (w >= 1920 && h >= 1080) return { width: 1920, height: 1080 }
+  return { width: w || 1920, height: h || 1080 }
 }

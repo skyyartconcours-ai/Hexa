@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hexa — dessine sur ton écran, en direct</title>
+    <meta
+      name="description"
+      content="Hexa : l'outil d'annotation d'écran pour les streamers, les coachs et les profs. Gratuit, hors ligne, et pensé pour ne rien coûter à ton jeu."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z' fill='none' stroke='%2300e5ff' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <style>
+      /* ============================================================
+         Hexa — page de présentation.
+         Un seul fichier, aucune ressource extérieure, aucune police
+         téléchargée : la page s'ouvre hors ligne, comme l'application.
+         Aucune animation infinie non plus — même discipline que le
+         moteur : rien ne tourne quand rien ne se passe.
+         ============================================================ */
+
+      :root {
+        --nuit: #05070e;
+        --nuit-2: #090c18;
+        --verre: rgba(255, 255, 255, 0.045);
+        --verre-bord: rgba(255, 255, 255, 0.09);
+        --texte: #e8f1ff;
+        --texte-doux: #9fb0c9;
+        --texte-faible: #6d7c93;
+        --cyan: #00e5ff;
+        --violet: #b026ff;
+        --rose: #ff2d95;
+        --vert: #39ff14;
+        --jaune: #ffe900;
+        --rayon: 18px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--nuit);
+        color: var(--texte);
+        font: 16px/1.65 "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui,
+          "Helvetica Neue", Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+
+      /* halos de fond — peints une fois, jamais animés */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        background:
+          radial-gradient(1200px 800px at 12% -6%, rgba(0, 229, 255, 0.16), transparent 60%),
+          radial-gradient(1000px 760px at 92% 4%, rgba(176, 38, 255, 0.17), transparent 58%),
+          radial-gradient(900px 700px at 50% 108%, rgba(255, 45, 149, 0.1), transparent 62%),
+          linear-gradient(180deg, var(--nuit) 0%, var(--nuit-2) 60%, var(--nuit) 100%);
+      }
+
+      .conteneur {
+        width: min(1120px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+
+      a {
+        color: var(--cyan);
+      }
+
+      /* ---------------- en-tête ---------------- */
+
+      .hero {
+        padding: 88px 0 40px;
+        text-align: center;
+      }
+
+      .marque {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 26px;
+      }
+
+      .marque svg {
+        width: 46px;
+        height: 46px;
+        filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.55));
+      }
+
+      .marque span {
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+      }
+
+      h1 {
+        margin: 0 0 18px;
+        font-size: clamp(31px, 5.2vw, 56px);
+        line-height: 1.09;
+        letter-spacing: -0.025em;
+        font-weight: 800;
+        text-wrap: balance;
+      }
+
+      h1 .lueur {
+        background: linear-gradient(100deg, #7ef0ff 0%, #b98cff 48%, #ff7ec6 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        text-shadow: 0 0 60px rgba(126, 240, 255, 0.28);
+      }
+
+      .accroche {
+        margin: 0 auto 12px;
+        max-width: 680px;
+        font-size: clamp(17px, 2.2vw, 21px);
+        color: var(--texte-doux);
+      }
+
+      .accroche strong {
+        color: var(--texte);
+        font-weight: 600;
+      }
+
+      .boutons {
+        margin-top: 34px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        justify-content: center;
+      }
+
+      .bouton {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 30px;
+        border-radius: 999px;
+        font-size: 17px;
+        font-weight: 650;
+        text-decoration: none;
+        border: 1px solid transparent;
+        transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease,
+          background 0.18s ease;
+      }
+
+      .bouton-plein {
+        background: linear-gradient(100deg, #00d5f5, #7b5cff 55%, #c04bff);
+        color: #04060d;
+        box-shadow: 0 12px 40px rgba(0, 200, 255, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+      }
+
+      .bouton-plein:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 18px 52px rgba(0, 200, 255, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+      }
+
+      .bouton-vide {
+        background: var(--verre);
+        border-color: var(--verre-bord);
+        color: var(--texte);
+      }
+
+      .bouton-vide:hover {
+        transform: translateY(-2px);
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .mentions {
+        margin-top: 20px;
+        font-size: 14px;
+        color: var(--texte-faible);
+      }
+
+      .mentions b {
+        color: var(--texte-doux);
+        font-weight: 600;
+      }
+
+      /* ---------------- captures ---------------- */
+
+      .capture {
+        margin: 46px 0 0;
+        text-align: center;
+      }
+
+      .capture img {
+        max-width: 100%;
+        height: auto;
+        border-radius: var(--rayon);
+        display: block;
+        margin: 0 auto;
+      }
+
+      .capture.cadre img {
+        border: 1px solid var(--verre-bord);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+      }
+
+      .capture figcaption {
+        margin-top: 14px;
+        font-size: 14.5px;
+        color: var(--texte-faible);
+      }
+
+      /* ---------------- sections ---------------- */
+
+      section {
+        padding: 66px 0 10px;
+      }
+
+      h2 {
+        margin: 0 0 10px;
+        font-size: clamp(26px, 3.6vw, 38px);
+        letter-spacing: -0.02em;
+        font-weight: 750;
+      }
+
+      .sous-titre {
+        margin: 0 0 34px;
+        color: var(--texte-doux);
+        font-size: 17px;
+        max-width: 720px;
+      }
+
+      .grille {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+      }
+
+      .carte {
+        padding: 26px 24px;
+        border-radius: var(--rayon);
+        background: var(--verre);
+        border: 1px solid var(--verre-bord);
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+      }
+
+      .carte:hover {
+        transform: translateY(-3px);
+        border-color: rgba(126, 240, 255, 0.3);
+      }
+
+      .carte h3 {
+        margin: 0 0 8px;
+        font-size: 18.5px;
+        font-weight: 650;
+      }
+
+      .carte p {
+        margin: 0;
+        color: var(--texte-doux);
+        font-size: 15.2px;
+      }
+
+      .puce {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        margin-bottom: 16px;
+        border-radius: 12px;
+        background: rgba(0, 229, 255, 0.11);
+        border: 1px solid rgba(0, 229, 255, 0.24);
+      }
+
+      .puce svg {
+        width: 21px;
+        height: 21px;
+        stroke: var(--cyan);
+        fill: none;
+        stroke-width: 1.9;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .carte:nth-child(2) .puce {
+        background: rgba(176, 38, 255, 0.11);
+        border-color: rgba(176, 38, 255, 0.26);
+      }
+      .carte:nth-child(2) .puce svg {
+        stroke: #cd7bff;
+      }
+      .carte:nth-child(3) .puce {
+        background: rgba(255, 45, 149, 0.1);
+        border-color: rgba(255, 45, 149, 0.24);
+      }
+      .carte:nth-child(3) .puce svg {
+        stroke: #ff77b6;
+      }
+      .carte:nth-child(4) .puce {
+        background: rgba(57, 255, 20, 0.09);
+        border-color: rgba(57, 255, 20, 0.22);
+      }
+      .carte:nth-child(4) .puce svg {
+        stroke: #7dff9b;
+      }
+      .carte:nth-child(5) .puce {
+        background: rgba(255, 233, 0, 0.09);
+        border-color: rgba(255, 233, 0, 0.22);
+      }
+      .carte:nth-child(5) .puce svg {
+        stroke: #ffe900;
+      }
+      .carte:nth-child(6) .puce {
+        background: rgba(255, 107, 53, 0.1);
+        border-color: rgba(255, 107, 53, 0.24);
+      }
+      .carte:nth-child(6) .puce svg {
+        stroke: #ff9b6b;
+      }
+
+      /* ---------------- tableaux ---------------- */
+
+      .defilant {
+        overflow-x: auto;
+        border-radius: var(--rayon);
+        border: 1px solid var(--verre-bord);
+        background: rgba(255, 255, 255, 0.028);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 620px;
+      }
+
+      th,
+      td {
+        padding: 15px 20px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+        font-size: 15.2px;
+        vertical-align: top;
+      }
+
+      tbody tr:last-child th,
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      thead th {
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--texte-faible);
+        font-weight: 650;
+        background: rgba(255, 255, 255, 0.022);
+      }
+
+      thead th.hexa {
+        color: #7ef0ff;
+      }
+
+      tbody th {
+        font-weight: 600;
+        color: var(--texte);
+        width: 27%;
+      }
+
+      td.epic {
+        color: var(--texte-faible);
+      }
+
+      td.hexa {
+        color: var(--texte-doux);
+        background: rgba(0, 229, 255, 0.035);
+      }
+
+      td.hexa b {
+        color: #a8ecff;
+        font-weight: 600;
+      }
+
+      /* ---------------- raccourcis ---------------- */
+
+      .touches {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      }
+
+      .touche {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 18px;
+        border-radius: 14px;
+        background: var(--verre);
+        border: 1px solid var(--verre-bord);
+      }
+
+      .touche span {
+        color: var(--texte-doux);
+        font-size: 15px;
+      }
+
+      kbd {
+        flex: 0 0 auto;
+        padding: 5px 11px;
+        border-radius: 8px;
+        font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+        font-size: 13px;
+        color: #d6f7ff;
+        background: rgba(126, 240, 255, 0.12);
+        border: 1px solid rgba(126, 240, 255, 0.3);
+        white-space: nowrap;
+      }
+
+      /* ---------------- étapes ---------------- */
+
+      .etapes {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        counter-reset: pas;
+      }
+
+      .etape {
+        position: relative;
+        padding: 26px 24px 26px 68px;
+        border-radius: var(--rayon);
+        background: var(--verre);
+        border: 1px solid var(--verre-bord);
+      }
+
+      .etape::before {
+        counter-increment: pas;
+        content: counter(pas);
+        position: absolute;
+        left: 24px;
+        top: 24px;
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        font-size: 15px;
+        font-weight: 700;
+        color: #04060d;
+        background: linear-gradient(140deg, #00d5f5, #b26bff);
+      }
+
+      .etape h3 {
+        margin: 0 0 6px;
+        font-size: 17.5px;
+        font-weight: 650;
+      }
+
+      .etape p {
+        margin: 0;
+        color: var(--texte-doux);
+        font-size: 15px;
+      }
+
+      /* ---------------- appel final ---------------- */
+
+      .final {
+        margin: 80px 0 0;
+        padding: 60px 34px;
+        border-radius: 26px;
+        text-align: center;
+        background: linear-gradient(
+          150deg,
+          rgba(0, 229, 255, 0.11),
+          rgba(176, 38, 255, 0.12) 55%,
+          rgba(255, 45, 149, 0.09)
+        );
+        border: 1px solid rgba(126, 240, 255, 0.22);
+      }
+
+      .final h2 {
+        margin-bottom: 14px;
+      }
+
+      .final p {
+        margin: 0 auto;
+        max-width: 560px;
+        color: var(--texte-doux);
+      }
+
+      footer {
+        padding: 54px 0 64px;
+        text-align: center;
+        color: var(--texte-faible);
+        font-size: 14px;
+      }
+
+      footer a {
+        color: var(--texte-doux);
+        text-decoration: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+      }
+
+      footer a:hover {
+        color: var(--cyan);
+      }
+
+      .note {
+        margin-top: 26px;
+        padding: 18px 22px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 233, 0, 0.22);
+        background: rgba(255, 233, 0, 0.055);
+        color: var(--texte-doux);
+        font-size: 15px;
+      }
+
+      .note b {
+        color: #ffe900;
+        font-weight: 650;
+      }
+
+      @media (max-width: 640px) {
+        .hero {
+          padding-top: 56px;
+        }
+        th,
+        td {
+          padding: 13px 15px;
+        }
+        .etape {
+          padding-left: 24px;
+          padding-top: 66px;
+        }
+      }
+
+      /* Quelqu'un qui préfère le mouvement réduit ne subit aucune transition. */
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+        }
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="conteneur">
+      <!-- ================= en-tête ================= -->
+      <header class="hero">
+        <div class="marque">
+          <svg viewBox="0 0 48 48" aria-hidden="true">
+            <defs>
+              <linearGradient id="mg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#31d9ff" />
+                <stop offset="1" stop-color="#a855f7" />
+              </linearGradient>
+            </defs>
+            <path d="M24 3l18 10.5v21L24 45 6 34.5v-21z" fill="url(#mg)" />
+            <path d="M24 8.5l13.2 7.7v15.6L24 39.5l-13.2-7.7V16.2z" fill="#05070e" />
+            <path
+              d="M16 32c4-11 10-14 16-18"
+              fill="none"
+              stroke="#7ef0ff"
+              stroke-width="3.2"
+              stroke-linecap="round"
+            />
+            <circle cx="32.6" cy="13.4" r="3.1" fill="#fff" />
+          </svg>
+          <span>HEXA</span>
+        </div>
+
+        <h1>
+          Dessine sur ton écran.<br />
+          <span class="lueur">En direct, devant tout le monde.</span>
+        </h1>
+
+        <p class="accroche">
+          Tu appuies sur une touche, tu dessines par-dessus ton jeu, <strong>c'est magnifique</strong>,
+          ça s'efface tout seul, et ton jeu ne perd pas une image par seconde.
+        </p>
+
+        <div class="boutons">
+          <a class="bouton bouton-plein" href="https://github.com/skyyartconcours-ai/Hexa/releases/latest">
+            ⬇ Télécharger pour Windows
+          </a>
+          <a class="bouton bouton-vide" href="GUIDE.md">Voir le mode d'emploi</a>
+        </div>
+
+        <p class="mentions">
+          <b>Gratuit</b> · Windows 10 et 11 · <b>Fonctionne hors ligne</b> · Aucun compte, aucune
+          publicité
+        </p>
+      </header>
+
+      <!-- ================= vitrine ================= -->
+      <figure class="capture">
+        <img
+          src="img/vitrine.png"
+          alt="Des annotations néon de Hexa posées sur un écran : rectangle cyan, flèche violette, ellipse rose, pastilles numérotées reliées entre elles, et la barre d'outils en bas"
+          width="1600"
+          height="900"
+        />
+        <figcaption>
+          Tout ça est dessiné à la souris, en quelques secondes. Les formes se redressent toutes
+          seules.
+        </figcaption>
+      </figure>
+
+      <!-- ================= ce que ça fait ================= -->
+      <section id="fonctions">
+        <h2>Ce que Hexa fait pour toi</h2>
+        <p class="sous-titre">
+          Onze outils, un menu qui s'ouvre sous ton curseur, et un écran qui se nettoie tout seul.
+          Rien à configurer avant de commencer.
+        </p>
+
+        <div class="grille">
+          <article class="carte">
+            <div class="puce">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 21l3.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11z" />
+                <path d="M14 6l4 4" />
+              </svg>
+            </div>
+            <h3>Un trait qui a de la gueule</h3>
+            <p>
+              Le trait est lissé, s'épaissit quand tu accélères, et brille d'un halo néon. Rien à
+              voir avec le trait plat d'Epic Pen.
+            </p>
+          </article>
+
+          <article class="carte">
+            <div class="puce">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3.5" y="6" width="17" height="12" rx="2.4" />
+                <path d="M8 12.5l2.6 2.6L16 9.5" />
+              </svg>
+            </div>
+            <h3>Formes intelligentes</h3>
+            <p>
+              Dessine un rectangle de travers : Hexa le redresse tout seul. Tu préférais ton tracé ?
+              Un Ctrl+Z te le rend.
+            </p>
+          </article>
+
+          <article class="carte">
+            <div class="puce">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="8.4" />
+                <circle cx="12" cy="12" r="2.6" />
+                <path d="M12 3.6v3M12 17.8v2.6M3.6 12h3M17.4 12h3" />
+              </svg>
+            </div>
+            <h3>Le menu radial</h3>
+            <p>
+              Clic droit maintenu : une roue s'ouvre sous ton curseur. Tu glisses vers l'outil, tu
+              relâches. Sans quitter l'action des yeux.
+            </p>
+          </article>
+
+          <article class="carte">
+            <div class="puce">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4.5 15.5c3-6 8-8 15-8" />
+                <path d="M15.5 4.5l4 3-4 3" />
+              </svg>
+            </div>
+            <h3>Le mode ∞</h3>
+            <p>
+              Par défaut tout s'efface après 4 secondes. Appuie sur D jusqu'à ∞ et ton écran devient
+              un tableau : ça reste jusqu'au nettoyage.
+            </p>
+          </article>
+
+          <article class="carte">
+            <div class="puce">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M5 18.5c1.6-6.4 4.4-10 8-12" />
+                <path d="M9 18.5c1.6-6.4 4.4-10 8-12" />
+                <path d="M4 21h16" />
+              </svg>
+            </div>
+            <h3>Écris à la main</h3>
+            <p>
+              Griffonne un mot au stylo : une demi-seconde plus tard, Hexa le retrace en
+              typographie nette et lisible.
+            </p>
+          </article>
+
+          <article class="carte">
+            <div class="puce">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="2.8" y="4.5" width="18.4" height="12" rx="2" />
+                <path d="M8 20h8M12 16.5V20" />
+              </svg>
+            </div>
+            <h3>Pensé pour OBS</h3>
+            <p>
+              Une couche dédiée pour ton stream : tes spectateurs voient tes annotations, et ton
+              écran à toi peut rester totalement propre.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ================= comparatif ================= -->
+      <section id="comparatif">
+        <h2>Face à Epic Pen</h2>
+        <p class="sous-titre">
+          Hexa reprend les raccourcis d'Epic Pen pour que tes doigts n'aient rien à réapprendre.
+          Tout le reste a été refait.
+        </p>
+
+        <div class="defilant">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>Epic Pen</th>
+                <th class="hexa">Hexa</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th>L'écran finit sale</th>
+                <td class="epic">Tu effaces à la main</td>
+                <td class="hexa">
+                  <b>Il se nettoie tout seul</b> — 2 s, 4 s, 8 s, ou ∞ si tu veux un tableau
+                </td>
+              </tr>
+              <tr>
+                <th>La qualité du trait</th>
+                <td class="epic">Un trait plat, façon Paint</td>
+                <td class="hexa">
+                  <b>Trait lissé</b> qui s'épaissit avec la vitesse, halo néon en trois passes
+                </td>
+              </tr>
+              <tr>
+                <th>Les formes</th>
+                <td class="epic">Tu vises, et tu trembles</td>
+                <td class="hexa">
+                  <b>Formes intelligentes</b> : ton rectangle bancal se redresse, et Ctrl+Z rend le
+                  tracé d'origine
+                </td>
+              </tr>
+              <tr>
+                <th>L'écriture</th>
+                <td class="epic">Ton gribouillis reste un gribouillis</td>
+                <td class="hexa"><b>Retranscrit en typographie nette</b>, automatiquement</td>
+              </tr>
+              <tr>
+                <th>Changer d'outil</th>
+                <td class="epic">Viser la barre d'outils</td>
+                <td class="hexa">
+                  <b>Menu radial</b> sous le curseur : clic droit, tu glisses, tu relâches
+                </td>
+              </tr>
+              <tr>
+                <th>Corriger</th>
+                <td class="epic">Effacer et recommencer</td>
+                <td class="hexa"><b>Clic droit sur une annotation et tu la déplaces</b></td>
+              </tr>
+              <tr>
+                <th>Le style</th>
+                <td class="epic">Une barre grise</td>
+                <td class="hexa">
+                  <b>8 thèmes complets</b>, du néon au terminal vert, du pastel au quasi-invisible
+                </td>
+              </tr>
+              <tr>
+                <th>OBS</th>
+                <td class="epic">Ce que voit ton écran</td>
+                <td class="hexa">
+                  <b>Une couche dédiée</b> : tes spectateurs voient tout, ton écran reste propre
+                </td>
+              </tr>
+              <tr>
+                <th>Après coup</th>
+                <td class="epic">Rien</td>
+                <td class="hexa">
+                  <b>Rejeu horodaté</b> de la session, export PNG transparent jusqu'en 4×
+                </td>
+              </tr>
+              <tr>
+                <th>Le coût pour ton jeu</th>
+                <td class="epic">Une couche composée en permanence</td>
+                <td class="hexa">
+                  <b>La fenêtre se cache dès qu'elle est vide</b> : rien n'est dessiné, rien n'est
+                  calculé
+                </td>
+              </tr>
+              <tr>
+                <th>Le prix</th>
+                <td class="epic">Payant pour la version complète</td>
+                <td class="hexa"><b>Gratuit</b>, et sans aucune connexion</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ================= raccourcis ================= -->
+      <section id="raccourcis">
+        <h2>Tes raccourcis Epic Pen fonctionnent déjà</h2>
+        <p class="sous-titre">
+          Ils sont actifs dès le premier lancement, et ils marchent même quand ton jeu est au
+          premier plan. Tous remplaçables, si tu préfères tes propres touches.
+        </p>
+
+        <div class="touches">
+          <div class="touche"><span>Stylo</span><kbd>Ctrl + Maj + 3</kbd></div>
+          <div class="touche"><span>Surligneur</span><kbd>Ctrl + Maj + 4</kbd></div>
+          <div class="touche"><span>Gomme</span><kbd>Ctrl + Maj + 5</kbd></div>
+          <div class="touche"><span>Annuler</span><kbd>Ctrl + Maj + 6</kbd></div>
+          <div class="touche"><span>Rendre la souris au jeu</span><kbd>Ctrl + Maj + 2</kbd></div>
+          <div class="touche"><span>Tout effacer</span><kbd>Ctrl + E</kbd></div>
+          <div class="touche"><span>Montrer / cacher la barre</span><kbd>Ctrl + H</kbd></div>
+          <div class="touche"><span>Entrer en mode dessin</span><kbd>F8</kbd></div>
+        </div>
+
+        <figure class="capture cadre">
+          <img
+            src="img/raccourcis.png"
+            alt="L'aide-mémoire des raccourcis de Hexa affiché à l'écran, listant les outils, l'édition, l'interface et les raccourcis système"
+            width="1600"
+            height="900"
+          />
+          <figcaption>
+            Une touche — <kbd>?</kbd> — et la liste complète s'affiche à l'écran, lisible de loin.
+          </figcaption>
+        </figure>
+      </section>
+
+      <!-- ================= menu radial ================= -->
+      <section id="radial">
+        <h2>Le geste qui change tout</h2>
+        <p class="sous-titre">
+          Pendant une partie, tu n'as pas le temps de chercher une barre d'outils des yeux. Alors
+          l'outil vient à toi : clic droit maintenu, la roue s'ouvre exactement là où est déjà ta
+          souris.
+        </p>
+
+        <figure class="capture">
+          <img
+            src="img/menu-radial.png"
+            alt="Le menu radial de Hexa ouvert sous le curseur : les outils en couronne extérieure, les sept couleurs au centre"
+            width="1600"
+            height="900"
+          />
+          <figcaption>
+            Les outils tout autour, les couleurs au centre. Tu glisses, tu relâches, c'est pris.
+          </figcaption>
+        </figure>
+      </section>
+
+      <!-- ================= thèmes ================= -->
+      <section id="themes">
+        <h2>Huit thèmes, un seul moteur</h2>
+        <p class="sous-titre">
+          Ce ne sont pas des changements de couleur : la barre change de forme, d'ombre et
+          d'animation. Ton overlay ne ressemble pas à celui des autres.
+        </p>
+
+        <figure class="capture cadre">
+          <img
+            src="img/themes.png"
+            alt="Le panneau de réglages de Hexa ouvert sur la galerie des huit thèmes : Néon nuit, Glacier, Holo iris, Phosphore, Sakura, Royal, Toon et Stealth"
+            width="1600"
+            height="900"
+          />
+          <figcaption>
+            Néon nuit, Glacier, Holo iris, Phosphore, Sakura, Royal, Toon, Stealth. Le changement
+            est immédiat.
+          </figcaption>
+        </figure>
+      </section>
+
+      <!-- ================= installation ================= -->
+      <section id="installer">
+        <h2>L'installer prend cinq minutes</h2>
+        <p class="sous-titre">
+          Pas de compte à créer, rien d'autre à installer avant. Trois clics et c'est réglé.
+        </p>
+
+        <div class="etapes">
+          <article class="etape">
+            <h3>Télécharge</h3>
+            <p>
+              Ouvre la page de téléchargement et prends le fichier
+              <b>Hexa-Installateur-….exe</b>.
+            </p>
+          </article>
+          <article class="etape">
+            <h3>Passe l'avertissement</h3>
+            <p>
+              Windows affiche un écran bleu parce que le programme n'est pas signé. Clique sur
+              « Informations complémentaires », puis sur « Exécuter quand même ».
+            </p>
+          </article>
+          <article class="etape">
+            <h3>Appuie sur F8</h3>
+            <p>
+              Un liseré lumineux s'allume autour de ton écran : tu dessines. Réappuie sur F8 et la
+              souris repart dans ton jeu.
+            </p>
+          </article>
+        </div>
+
+        <p class="note">
+          <b>L'écran bleu de Windows, c'est normal.</b> Il apparaît pour tous les logiciels
+          gratuits qui n'ont pas payé de certificat de signature à Microsoft. Le
+          <a href="INSTALLATION.md">guide d'installation</a> détaille chaque clic, avec les mots
+          exacts à chercher à l'écran.
+        </p>
+      </section>
+
+      <!-- ================= appel final ================= -->
+      <div class="final">
+        <h2>Prêt à annoter ton prochain direct ?</h2>
+        <p>
+          Hexa se télécharge, s'installe, et se fait oublier jusqu'à ce que tu appuies sur F8.
+          Il ne se connecte à rien et ne demande rien.
+        </p>
+        <div class="boutons">
+          <a class="bouton bouton-plein" href="https://github.com/skyyartconcours-ai/Hexa/releases/latest">
+            ⬇ Télécharger Hexa pour Windows
+          </a>
+          <a class="bouton bouton-vide" href="INSTALLATION.md">Guide d'installation</a>
+        </div>
+      </div>
+
+      <footer>
+        <p>
+          <a href="INSTALLATION.md">Installation</a> · <a href="GUIDE.md">Mode d'emploi</a> ·
+          <a href="https://github.com/skyyartconcours-ai/Hexa">Le code source</a>
+        </p>
+        <p>
+          Hexa fonctionne entièrement hors ligne. Aucune donnée ne quitte ton ordinateur : pas de
+          compte, pas de statistiques, pas de mouchard.
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

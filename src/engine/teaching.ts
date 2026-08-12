@@ -215,9 +215,16 @@ export function renderBadge(
   ctx.fill()
   ctx.strokeStyle = `rgba(255,255,255,${0.55 * st.alpha})`
   ctx.lineWidth = Math.max(1, rr * 0.075)
-  ctx.beginPath()
-  ctx.arc(c.x, c.y, rr - ctx.lineWidth / 2, 0, Math.PI * 2)
-  ctx.stroke()
+  // Aux toutes premières images du pop, la pastille est plus petite que son
+  // propre liseré : le rayon devient négatif, arc() lève, et l'exception tue la
+  // boucle de rendu — l'overlay se fige alors JUSQU'AU REDÉMARRAGE. On ne trace
+  // le liseré que lorsqu'il tient dans le disque.
+  const rTrait = rr - ctx.lineWidth / 2
+  if (rTrait > 0) {
+    ctx.beginPath()
+    ctx.arc(c.x, c.y, rTrait, 0, Math.PI * 2)
+    ctx.stroke()
+  }
   // chiffre
   const fs = rr * 1.12
   ctx.font = `800 ${fs}px ${FONT_STACK}`

@@ -122,6 +122,37 @@
   color: var(--text-2);
 }
 
+/* ---------- touches réelles de l'étape ---------- */
+
+.onb-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 11px;
+}
+
+.onb-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+.onb-key kbd {
+  padding: 3px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--text-1) 9%, transparent);
+  color: var(--text-1);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: inset 0 -1.5px 0 color-mix(in srgb, var(--wall-1) 45%, transparent);
+}
+
 .onb-skip {
   position: absolute;
   top: 10px;

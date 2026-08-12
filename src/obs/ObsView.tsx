@@ -16,7 +16,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Stroke } from '../engine/types'
 import { ObsMirror } from './mirror'
-import { isObsMessage, OBS_CHANNEL, parseObsMessage, type ObsMessage } from './protocol'
+import { isObsMessage, OBS_CHANNEL, OBS_HELLO, parseObsMessage, type ObsMessage } from './protocol'
 
 /** Reconnexion WebSocket : progressive, bornée, jamais agressive. */
 const BACKOFF = [500, 1000, 2000, 4000, 8000, 12_000]
@@ -40,7 +40,17 @@ export function ObsView() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const mirrorRef = useRef<ObsMirror | null>(null)
   const [live, setLive] = useState(false)
+  const [linked, setLinked] = useState(false)
+  // Filet de sécurité pour l'antenne : même si Hexa n'est jamais joignable, la
+  // carte d'attente s'efface toute seule. Rien d'Hexa ne doit rester affiché
+  // devant les spectateurs.
+  const [expired, setExpired] = useState(false)
   const bare = query('bare') === '1'
+
+  useEffect(() => {
+    const t = setTimeout(() => setExpired(true), 20_000)
+    return () => clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -87,9 +97,20 @@ export function ObsView() {
       }
       socket.onopen = () => {
         retry = 0
+        setLinked(true)
+        // « Je viens d'ouvrir, envoie-moi tout. » C'est CE message qui fait
+        // qu'une source navigateur ajoutée en pleine session — ou rechargée par
+        // OBS au changement de scène — affiche les annotations déjà présentes
+        // au lieu de rester vide jusqu'au trait suivant.
+        try {
+          socket?.send(JSON.stringify(OBS_HELLO))
+        } catch {
+          /* le serveur renverra de toute façon son dernier état complet */
+        }
       }
       socket.onclose = () => {
         socket = null
+        setLinked(false)
         schedule()
       }
       socket.onerror = () => {
@@ -147,12 +168,22 @@ export function ObsView() {
   return (
     <div className="obs-root">
       <canvas ref={canvasRef} className="obs-canvas" />
-      {!bare && !live && (
-        <div className="obs-wait">
+      {!bare && !live && !expired && (
+        <div className="obs-wait" data-linked={linked ? 'oui' : 'non'}>
           <span className="obs-dot" />
           <div>
             <b>Hexa · vue OBS</b>
-            <p>En attente des annotations. Cette carte disparaît dès le premier trait reçu.</p>
+            {linked ? (
+              <p>
+                Connexion établie. Dessine sur ton écran : les annotations arrivent ici. Cette carte
+                disparaît toute seule.
+              </p>
+            ) : (
+              <p>
+                En attente d'Hexa. Vérifie qu'Hexa est lancé et que l'adresse est bien celle
+                affichée dans ses réglages, section OBS. Cette carte s'efface au bout de 20 s.
+              </p>
+            )}
           </div>
         </div>
       )}

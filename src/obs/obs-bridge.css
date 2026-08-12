@@ -49,12 +49,29 @@
 .obs-pill[data-status='connecting'] .obs-pill-dot,
 .obs-pill[data-status='auth'] .obs-pill-dot {
   background: var(--logo-b);
-  animation: obsPillPulse 1.4s ease-in-out infinite;
+  /* Bornée : une connexion qui n'aboutit pas bascule en « retry » ; hors de
+     question de laisser une animation tourner en boucle pendant tout un
+     direct (§13, budget perf). */
+  animation: obsPillPulse 1.4s ease-in-out 14;
 }
 
 .obs-pill[data-status='retry'] .obs-pill-dot {
   background: #ff6b35;
   opacity: 0.75;
+}
+
+/* Alerte : « Stream seul » sans aucune vue connectée, ou serveur en erreur.
+   L'utilisateur croit annoter son direct alors que rien ne sort : c'est le seul
+   cas où la pastille a le droit de se faire remarquer. */
+.obs-pill[data-status='alert'] {
+  opacity: 1;
+  color: #ffd9c2;
+  border-color: rgba(255, 107, 53, 0.55);
+}
+
+.obs-pill[data-status='alert'] .obs-pill-dot {
+  background: #ff6b35;
+  box-shadow: 0 0 10px rgba(255, 107, 53, 0.8);
 }
 
 /* Mode « Stream seul » : l'overlay n'est plus peint sur l'écran du streamer,
