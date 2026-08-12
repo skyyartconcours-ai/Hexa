@@ -61,12 +61,21 @@ export interface UiState extends ObsSettings {
   guides: boolean
   /** numéroteur : relier automatiquement la pastille N à N+1 */
   linkBadges: boolean
+  /** mode écriture : le gribouillis manuscrit devient une typographie nette
+   *  ~600 ms après le dernier trait. DÉSACTIVÉ par défaut : la magie se choisit. */
+  handwriting: boolean
   /** identifiant du thème visuel (8 designs) */
   theme: string
   /** la séquence de découverte a déjà été jouée (premier lancement seulement) */
   onboarded: boolean
   /** intensité globale des halos et braises (0.4 sobre → 1.4 spectaculaire) */
   effectIntensity: number
+  /** rayon du disque du spotlight en px (§5.2) — réglé à la molette, persistant */
+  spotlightRadius: number
+  /** sons génératifs : COUPÉS par défaut (§16.7) */
+  sound: boolean
+  /** volume des sons génératifs (0 → 1) */
+  soundVolume: number
   settingsOpen: boolean
   /** barre de rejeu de session ouverte (§11) — n'altère jamais la session vive */
   replayOpen: boolean
@@ -89,9 +98,13 @@ export interface UiState extends ObsSettings {
   toggleSmartShapes: () => void
   toggleGuides: () => void
   toggleLinkBadges: () => void
+  toggleHandwriting: () => void
   setTheme: (theme: string) => void
   setOnboarded: (onboarded: boolean) => void
   setEffectIntensity: (value: number) => void
+  setSpotlightRadius: (r: number) => void
+  toggleSound: () => void
+  setSoundVolume: (v: number) => void
   setSettingsOpen: (open: boolean) => void
   setReplayOpen: (open: boolean) => void
   /** applique un sous-ensemble des réglages OBS */
@@ -117,9 +130,14 @@ export const useUiStore = create<UiState>()(
       smartShapes: true,
       guides: true,
       linkBadges: true,
+      handwriting: false,
       theme: 'neon-nuit',
       onboarded: false,
       effectIntensity: 1,
+      spotlightRadius: 180,
+      // §16.7 : aucun son par défaut, c'est une option qu'on choisit d'allumer
+      sound: false,
+      soundVolume: 0.6,
       settingsOpen: false,
       replayOpen: false,
       toolbarVisible: true,
@@ -140,10 +158,14 @@ export const useUiStore = create<UiState>()(
       toggleSmartShapes: () => set((s) => ({ smartShapes: !s.smartShapes })),
       toggleGuides: () => set((s) => ({ guides: !s.guides })),
       toggleLinkBadges: () => set((s) => ({ linkBadges: !s.linkBadges })),
+      toggleHandwriting: () => set((s) => ({ handwriting: !s.handwriting })),
       setTheme: (theme) => set({ theme }),
       setOnboarded: (onboarded) => set({ onboarded }),
       setEffectIntensity: (value) =>
         set({ effectIntensity: Math.min(1.4, Math.max(0.4, Math.round(value * 20) / 20)) }),
+      setSpotlightRadius: (r) => set({ spotlightRadius: Math.min(500, Math.max(80, Math.round(r))) }),
+      toggleSound: () => set((s) => ({ sound: !s.sound })),
+      setSoundVolume: (v) => set({ soundVolume: Math.min(1, Math.max(0, v)) }),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
       setReplayOpen: (replayOpen) => set({ replayOpen }),
       setObs: (patch) => set(patch as Partial<UiState>),
@@ -201,9 +223,13 @@ export const useUiStore = create<UiState>()(
         smartShapes: s.smartShapes,
         guides: s.guides,
         linkBadges: s.linkBadges,
+        handwriting: s.handwriting,
         theme: s.theme,
         onboarded: s.onboarded,
         effectIntensity: s.effectIntensity,
+        spotlightRadius: s.spotlightRadius,
+        sound: s.sound,
+        soundVolume: s.soundVolume,
         toolbarVisible: s.toolbarVisible,
         // réglages OBS (le mot de passe reste strictement local, comme le reste
         // du store : aucune télémétrie, aucun envoi, aucun journal)

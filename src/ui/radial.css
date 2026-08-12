@@ -1,0 +1,374 @@
+/* ============================================================
+   Menu radial (§8.2) — rendu DOM/SVG, zéro canvas, zéro boucle.
+   Tout est en tokens de thème : la roue change de peau avec l'app.
+   ============================================================ */
+
+.radial {
+  position: fixed;
+  left: var(--rx, 50%);
+  top: var(--ry, 50%);
+  width: 0;
+  height: 0;
+  z-index: 90;
+  /* la roue ne capte JAMAIS le pointeur : le stage garde la capture et le
+     geste est suivi au niveau de window (sinon le relâché serait perdu) */
+  pointer-events: none;
+}
+
+.radial-dial {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 300px;
+  height: 300px;
+  transform: translate(-50%, -50%);
+  animation: radial-pop 240ms cubic-bezier(0.18, 1.5, 0.32, 1) both;
+  will-change: transform, opacity;
+}
+
+.radial.is-closing .radial-dial {
+  animation: radial-out 180ms cubic-bezier(0.4, 0, 0.7, 0.4) both;
+}
+
+.radial-dial svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+/* ---------- verre dépoli sous la roue ---------- */
+
+.radial-aura {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 268px;
+  height: 268px;
+  margin: -134px 0 0 -134px;
+  border-radius: 50%;
+  backdrop-filter: blur(calc(var(--glass-blur) * 0.55)) saturate(1.15);
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.55)) saturate(1.15);
+  background: radial-gradient(
+    circle at 50% 42%,
+    color-mix(in srgb, var(--accent) 12%, transparent) 0%,
+    transparent 62%
+  );
+  box-shadow: var(--shadow-ui);
+  /* le voile s'estompe sur le bord : jamais de cercle net et dur */
+  mask: radial-gradient(circle, #000 62%, transparent 78%);
+  -webkit-mask: radial-gradient(circle, #000 62%, transparent 78%);
+  animation: radial-aura-in 320ms cubic-bezier(0.2, 1.3, 0.35, 1) both;
+}
+
+/* ---------- lames ---------- */
+
+.blade {
+  transform-box: view-box;
+  transform-origin: 150px 150px;
+  animation: blade-bloom 320ms cubic-bezier(0.16, 1.45, 0.3, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 11ms);
+}
+
+.blade-in {
+  animation-duration: 280ms;
+  animation-delay: calc(60ms + var(--i, 0) * 9ms);
+}
+
+.sect {
+  transform-box: view-box;
+  transform-origin: 150px 150px;
+  transition:
+    transform 160ms cubic-bezier(0.18, 1.5, 0.32, 1),
+    fill 140ms ease,
+    filter 140ms ease,
+    opacity 140ms ease;
+}
+
+/* cercle de bordure de la roue */
+.rim {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke-width: 1;
+  animation: radial-aura-in 340ms cubic-bezier(0.2, 1.3, 0.35, 1) both;
+  transform-box: view-box;
+  transform-origin: 150px 150px;
+}
+
+/* le voile de lumière ne doit jamais intercepter quoi que ce soit */
+.sheen {
+  pointer-events: none;
+  animation: blade-bloom 320ms cubic-bezier(0.16, 1.45, 0.3, 1) backwards;
+}
+
+.sect-tool {
+  fill: var(--glass-bg);
+  stroke: var(--glass-border);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.sect-tool.is-current {
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  fill: color-mix(in srgb, var(--accent) 9%, var(--glass-bg));
+}
+
+.sect-tool.is-on {
+  fill: color-mix(in srgb, var(--accent) 34%, var(--glass-bg));
+  stroke: color-mix(in srgb, var(--accent) 85%, transparent);
+  stroke-width: 1.4;
+  transform: scale(1.055);
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 75%, transparent));
+}
+
+/* fill + stroke de la même couleur, jointures rondes : des pétales, pas des
+   parts de camembert */
+.sect-color {
+  fill: var(--c);
+  opacity: 0.74;
+  stroke: var(--c);
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+}
+
+.sect-color.is-current {
+  opacity: 0.92;
+}
+
+.sect-color.is-on {
+  opacity: 1;
+  transform: scale(1.07);
+  filter: drop-shadow(0 0 13px color-mix(in srgb, var(--c) 85%, transparent));
+}
+
+.sect.is-flash {
+  animation: sect-flash 200ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+/* ---------- moyeu ---------- */
+
+.hub {
+  animation: hub-in 300ms cubic-bezier(0.18, 1.5, 0.32, 1) both;
+  animation-delay: 40ms;
+}
+
+.hub-ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 1.2;
+  animation: hub-in 300ms cubic-bezier(0.18, 1.5, 0.32, 1) both;
+  animation-delay: 40ms;
+}
+
+/* ---------- icônes ---------- */
+
+.radial-icons {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: icons-fade 220ms ease both;
+  animation-delay: 60ms;
+}
+
+.ricon {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  color: var(--text-1);
+  opacity: 0.62;
+  transform: scale(0.94);
+  transition:
+    color 140ms ease,
+    transform 170ms cubic-bezier(0.18, 1.6, 0.32, 1),
+    filter 140ms ease;
+  animation: icon-in 300ms cubic-bezier(0.16, 1.45, 0.3, 1) backwards;
+  animation-delay: calc(40ms + var(--i, 0) * 11ms);
+}
+
+.ricon.is-current {
+  opacity: 0.95;
+}
+
+.ricon.is-on {
+  color: color-mix(in srgb, var(--accent) 45%, #fff);
+  opacity: 1;
+  transform: scale(1.3);
+  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--accent) 85%, transparent));
+}
+
+.radial-hub-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  display: grid;
+  place-items: center;
+  color: var(--text-1);
+  animation: hub-mark-in 220ms cubic-bezier(0.18, 1.5, 0.32, 1) both;
+}
+
+.radial-hub-mark svg {
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 55%, transparent));
+}
+
+.hub-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow:
+    0 0 12px var(--c),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+/* ---------- infobulle (le seul texte, au survol seulement) ---------- */
+
+.radial-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, calc(-50% + 158px)) scale(0.9);
+  padding: 5px 13px;
+  border-radius: 999px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-ui);
+  color: var(--text-1);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0;
+  transition:
+    opacity 130ms ease,
+    transform 200ms cubic-bezier(0.18, 1.5, 0.32, 1);
+}
+
+.radial-label.is-on {
+  opacity: 1;
+  transform: translate(-50%, calc(-50% + 170px)) scale(1);
+}
+
+/* ---------- animations ---------- */
+
+@keyframes radial-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.68) rotate(-7deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes radial-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.09);
+  }
+}
+
+@keyframes radial-aura-in {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes blade-bloom {
+  from {
+    opacity: 0;
+    transform: scale(0.78);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* l'opacité des icônes est portée par leur conteneur : la keyframe ne touche
+   que l'échelle, sinon l'état survolé serait écrasé à la fin de l'animation */
+@keyframes icon-in {
+  from {
+    transform: scale(0.5);
+  }
+  to {
+    transform: scale(0.94);
+  }
+}
+
+@keyframes icons-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes hub-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+    transform-box: view-box;
+    transform-origin: 150px 150px;
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    transform-box: view-box;
+    transform-origin: 150px 150px;
+  }
+}
+
+@keyframes hub-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sect-flash {
+  0% {
+    filter: brightness(1.6) drop-shadow(0 0 16px color-mix(in srgb, var(--accent) 90%, transparent));
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    filter: brightness(2.4) drop-shadow(0 0 26px color-mix(in srgb, var(--accent) 90%, transparent));
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+/* accessibilité : on respecte le réglage système */
+@media (prefers-reduced-motion: reduce) {
+  .radial-dial,
+  .radial-aura,
+  .blade,
+  .ricon,
+  .hub,
+  .hub-ring,
+  .radial-hub-mark {
+    animation-duration: 1ms;
+  }
+}

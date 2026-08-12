@@ -30,6 +30,8 @@ export type StrokeTool =
   | 'badge'
   | 'measure'
   | 'stamp'
+  /** mot typographié issu du mode écriture — jamais sélectionnable à la main */
+  | 'glyph'
 
 export interface StrokePoint {
   x: number
@@ -67,6 +69,11 @@ export interface Stroke {
   /** tracé brut conservé quand une forme intelligente a redressé le geste :
    *  le premier Ctrl+Z le restitue au lieu de supprimer (§4.1.5) */
   raw?: StrokePoint[]
+  /** mode écriture : traits manuscrits d'origine d'un mot typographié.
+   *  Le premier Ctrl+Z rejoue le morph à l'envers et les rend. */
+  ink?: Stroke[]
+  /** mode écriture : inclinaison du mot en tangente (0 = droit) */
+  slant?: number
   /** timestamp auquel le trait commence à se dissoudre (mode fade auto) */
   dieAt?: number
   dying?: { start: number; duration: number; mode: DyingMode }
@@ -91,6 +98,9 @@ export interface EngineOptions {
   /** intensité globale des halos néon (1 = normal, réglable 0,4 → 1,4).
    *  Optionnel : un moteur qui l'ignore reste correct. */
   effects?: number
+  /** mode écriture : le gribouillis manuscrit devient une typographie nette
+   *  ~600 ms après le dernier trait. Désactivé par défaut : la magie se choisit. */
+  handwriting?: boolean
 }
 
 export interface Particle {

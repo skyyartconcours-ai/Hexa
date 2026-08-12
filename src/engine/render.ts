@@ -3,6 +3,7 @@ import type { Stroke, StrokePoint } from './types'
 import { clamp, easeOutCubic, rgba, whiteMix } from './geometry'
 import { arrowHeadLen, easeOutBack, neonHead, renderCurvedArrow, renderShape } from './shapes'
 import { renderBadge, renderMeasure, renderStamp, renderText } from './teaching'
+import { renderGlyph } from './handwriting'
 
 /** part de blanc dans le cœur des traits néon */
 export const CORE_MIX = 0.62
@@ -71,6 +72,11 @@ export function renderStroke(ctx: CanvasRenderingContext2D, s: Stroke, st: Rende
   }
   if (s.tool === 'stamp') {
     renderStamp(ctx, s, st)
+    return
+  }
+  // mode écriture : mot typographié (morph en cours ou texte net)
+  if (s.tool === 'glyph') {
+    renderGlyph(ctx, s, st)
     return
   }
   const pts = s.points

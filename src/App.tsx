@@ -3,6 +3,8 @@ import { HexaEngine } from './engine/engine'
 import type { ToolId } from './engine/types'
 import { COLORS, useUiStore } from './store'
 import { Toolbar } from './ui/Toolbar'
+import { RadialMenu } from './ui/RadialMenu'
+import { sfx } from './audio'
 import { SettingsPanel } from './ui/SettingsPanel'
 import { ReplayBar } from './ui/ReplayBar'
 import { Onboarding } from './ui/Onboarding'
@@ -32,6 +34,8 @@ const TOOL_LABELS: Record<string, string> = {
   measure: 'Mesure',
   stamp: 'Tampon d’image',
   laser: 'Laser',
+  ping: 'Ping',
+  spotlight: 'Spotlight',
   eraser: 'Gomme',
 }
 
@@ -43,6 +47,8 @@ export default function App() {
   const heldToolRef = useRef<ToolId | null>(null)
   /** touche physique qui tient l'outil momentané, pour le relâcher au bon keyup */
   const heldKeyRef = useRef<{ key: string; code: string } | null>(null)
+  /** premier rendu : pas de son de sélection au démarrage */
+  const mountedRef = useRef(false)
 
   const tool = useUiStore((s) => s.tool)
   const color = useUiStore((s) => s.color)
@@ -52,8 +58,12 @@ export default function App() {
   const smartShapes = useUiStore((s) => s.smartShapes)
   const guides = useUiStore((s) => s.guides)
   const linkBadges = useUiStore((s) => s.linkBadges)
+  const handwriting = useUiStore((s) => s.handwriting)
   const theme = useUiStore((s) => s.theme)
   const effectIntensity = useUiStore((s) => s.effectIntensity)
+  const spotlightRadius = useUiStore((s) => s.spotlightRadius)
+  const sound = useUiStore((s) => s.sound)
+  const soundVolume = useUiStore((s) => s.soundVolume)
   const settingsOpen = useUiStore((s) => s.settingsOpen)
   const replayOpen = useUiStore((s) => s.replayOpen)
   const toolbarVisible = useUiStore((s) => s.toolbarVisible)
@@ -62,6 +72,8 @@ export default function App() {
 
   const [indicator, setIndicator] = useState<string | null>(null)
   const [passthrough, setPassthrough] = useState(false)
+  /** menu radial ouvert (clic droit maintenu dans le vide, §8.2) */
+  const [radial, setRadial] = useState<{ x: number; y: number } | null>(null)
 
   // création du moteur (une seule fois)
   useEffect(() => {
@@ -82,6 +94,16 @@ export default function App() {
       recorder.observe(strokes, current)
       obsLink.publish(strokes, current)
     }
+    // §8.2 : le moteur a détecté un clic droit maintenu 220 ms dans le vide
+    engine.onRadial = (x, y) => setRadial({ x, y })
+    // touche panique : la roue et le spotlight se referment avec le reste
+    engine.onPanic = () => {
+      setRadial(null)
+      const s = useUiStore.getState()
+      if (s.tool === 'spotlight' || s.tool === 'ping') s.setTool('pen')
+    }
+    // molette sur le spotlight : le rayon est mémorisé d'une session à l'autre
+    engine.onSpotRadius = (r) => useUiStore.getState().setSpotlightRadius(r)
     bridge.on('panic-clear', () => engine.clear())
     // 'toggle-draw' : bascule relative (compatibilité) — 'set-draw' : valeur
     // absolue envoyée par le processus principal, seule source fiable quand
@@ -102,9 +124,33 @@ export default function App() {
       smartShapes,
       guides,
       linkBadges,
+      handwriting,
       effects: effectIntensity,
     })
-  }, [tool, color, size, fadeDelay, sparkles, smartShapes, guides, linkBadges, effectIntensity])
+  }, [
+    tool,
+    color,
+    size,
+    fadeDelay,
+    sparkles,
+    smartShapes,
+    guides,
+    linkBadges,
+    handwriting,
+    effectIntensity,
+  ])
+
+  // rayon du spotlight (§5.2) : réglé à la molette, mémorisé, réappliqué
+  useEffect(() => {
+    engineRef.current?.setSpotRadius(spotlightRadius)
+  }, [spotlightRadius])
+
+  // sons génératifs (§16.7) : coupés par défaut, aucun fichier, aucun réseau.
+  // Le contexte audio ne naît qu'au premier son réellement joué.
+  useEffect(() => {
+    sfx.setEnabled(sound)
+    sfx.setVolume(soundVolume)
+  }, [sound, soundVolume])
 
   // intensité des effets : le moteur (halos), et aussi le rejeu, les exports
   // et la vue OBS, qui partagent la même recette de rendu
@@ -128,9 +174,15 @@ export default function App() {
   // indicateur discret au changement d'outil (brief §9.6)
   useEffect(() => {
     setIndicator(TOOL_LABELS[tool] ?? tool)
+    // micro-son de sélection : jamais au montage, et jamais pendant la roue
+    // (elle joue déjà son propre retour au relâché, on ne double pas).
+    if (mountedRef.current && !radial) sfx.tool()
+    mountedRef.current = true
     const t = setTimeout(() => setIndicator(null), 850)
     return () => clearTimeout(t)
-  }, [tool])
+    // `radial` est volontairement hors dépendances : on lit la valeur du rendu
+    // qui a provoqué le changement d'outil.
+  }, [tool]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------
   // Clavier — TOUT passe par la table centralisée (src/keymap.ts).
@@ -170,10 +222,27 @@ export default function App() {
     const extraKey = (e: KeyboardEvent): boolean => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return false
       const k = e.key.toLowerCase()
+      // §8.5 — maintien de touche : Q = ping momentané. On appuie, un ping
+      // part aussitôt sous le curseur ; on relâche, l'outil précédent revient.
+      // (Z laser et X spotlight sont déjà décrits par la table centrale.)
+      if (k === 'q') {
+        e.preventDefault()
+        if (e.repeat || heldToolRef.current != null) return true
+        heldToolRef.current = st().tool
+        heldKeyRef.current = { key: 'q', code: e.code }
+        st().setTool('ping')
+        engineRef.current?.ping()
+        return true
+      }
       if (k === 'm') st().setTool('measure')
       else if (k === 'w') st().toggleSmartShapes()
       else if (k === 'g') st().toggleGuides()
-      else return false
+      // mode écriture : bascule (J) et transcription immédiate (Entrée).
+      // Entrée n'est capturée que s'il y a vraiment de l'écriture en attente.
+      else if (k === 'j') st().toggleHandwriting()
+      else if (k === 'enter') {
+        if (!engineRef.current?.transcribeNow()) return false
+      } else return false
       e.preventDefault()
       return true
     }
@@ -351,7 +420,12 @@ export default function App() {
                 couleurs
               </li>
               <li>
+                <b>Clic droit maintenu dans le vide</b> : menu radial — glisse vers l'outil ou la
+                couleur, relâche, c'est pris
+              </li>
+              <li>
                 <b>D</b> : fondu (2s/4s/8s/∞) · <b>C</b> : tout effacer · <b>Maintenir Z</b> : laser
+                · <b>X</b> : spotlight (molette = rayon) · <b>Q</b> : ping
               </li>
             </ul>
           </div>
@@ -378,6 +452,20 @@ export default function App() {
           onRedo={() => engineRef.current?.redo()}
           onClear={() => engineRef.current?.clear()}
           onExport={exportSession}
+        />
+      )}
+
+      {/* Menu radial (§8.2) : clic droit maintenu 220 ms dans le vide.
+          Le moteur décide de l'ouverture, la roue gère le geste et se referme
+          elle-même au relâché. */}
+      {radial && (
+        <RadialMenu
+          x={radial.x}
+          y={radial.y}
+          onClose={() => {
+            engineRef.current?.closeRadial()
+            setRadial(null)
+          }}
         />
       )}
 

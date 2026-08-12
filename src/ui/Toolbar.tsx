@@ -15,11 +15,16 @@ import {
   IconLaser,
   IconLine,
   IconMagnet,
+  IconScript,
   IconMeasure,
+  IconMute,
   IconPen,
+  IconPing,
   IconRect,
   IconRedo,
+  IconSound,
   IconSparkles,
+  IconSpotlight,
   IconText,
   IconTimer,
   IconUndo,
@@ -37,6 +42,13 @@ const TOOLS: { id: ToolId; icon: ReactElement; label: string; kbd: string }[] = 
   { id: 'badge', icon: <IconBadge />, label: 'Numéroteur : pastilles 1, 2, 3…', kbd: 'N' },
   { id: 'measure', icon: <IconMeasure />, label: 'Règle de mesure (distance et angle)', kbd: 'M' },
   { id: 'laser', icon: <IconLaser />, label: 'Laser (maintenir Z)', kbd: 'Z' },
+  { id: 'ping', icon: <IconPing />, label: 'Ping : un clic, un repère qui bat', kbd: 'Q' },
+  {
+    id: 'spotlight',
+    icon: <IconSpotlight />,
+    label: 'Spotlight (maintenir X · molette : rayon)',
+    kbd: 'X',
+  },
   { id: 'eraser', icon: <IconEraser />, label: 'Gomme', kbd: 'E' },
 ]
 
@@ -55,8 +67,14 @@ export function Toolbar({ onUndo, onRedo, onClear, onExport }: ToolbarActions) {
   const sparkles = useUiStore((s) => s.sparkles)
   const smartShapes = useUiStore((s) => s.smartShapes)
   const guides = useUiStore((s) => s.guides)
+  const sound = useUiStore((s) => s.sound)
+  const soundVolume = useUiStore((s) => s.soundVolume)
+  const toggleSound = useUiStore((s) => s.toggleSound)
+  const setSoundVolume = useUiStore((s) => s.setSoundVolume)
   const toggleSmartShapes = useUiStore((s) => s.toggleSmartShapes)
   const toggleGuides = useUiStore((s) => s.toggleGuides)
+  const handwriting = useUiStore((s) => s.handwriting)
+  const toggleHandwriting = useUiStore((s) => s.toggleHandwriting)
   const setTool = useUiStore((s) => s.setTool)
   const setColor = useUiStore((s) => s.setColor)
   const setSize = useUiStore((s) => s.setSize)
@@ -150,6 +168,36 @@ export function Toolbar({ onUndo, onRedo, onClear, onExport }: ToolbarActions) {
         >
           <IconMagnet />
         </button>
+        <button
+          className={`tbtn ${handwriting ? 'active' : ''}`}
+          title="Mode écriture — J : écris à la main, Hexa retrace en typographie (Entrée : tout de suite · Ctrl+Z rend le gribouillis)"
+          onClick={toggleHandwriting}
+        >
+          <IconScript />
+        </button>
+        <button
+          className={`tbtn ${sound ? 'active' : ''}`}
+          title={
+            sound
+              ? 'Sons génératifs actifs — tout est synthétisé, aucun fichier'
+              : 'Sons génératifs (coupés par défaut)'
+          }
+          onClick={toggleSound}
+        >
+          {sound ? <IconSound /> : <IconMute />}
+        </button>
+        {sound && (
+          <span className="vol-group" title="Volume des sons">
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={soundVolume}
+              onChange={(e) => setSoundVolume(Number(e.target.value))}
+            />
+          </span>
+        )}
       </div>
 
       <div className="sep" />

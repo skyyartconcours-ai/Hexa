@@ -596,3 +596,71 @@ body.over-ui .cursor-dot {
   width: 18px;
   height: 18px;
 }
+
+/* ping (§5.4) : une cible fine, on voit où l'onde va partir */
+.cursor-dot[data-tool='ping'] {
+  background: transparent;
+  border: 2px solid var(--c, #fff);
+  box-shadow:
+    0 0 12px var(--c, #fff),
+    inset 0 0 8px color-mix(in srgb, var(--c, #fff) 45%, transparent);
+}
+
+/* menu radial ouvert : la pastille de curseur s'efface, la roue prend le relais */
+.cursor-dot.is-hidden {
+  visibility: hidden;
+}
+
+/* ---------- volume des sons génératifs (barre d'outils) ---------- */
+
+.vol-group {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  animation: volIn 0.22s cubic-bezier(0.18, 1.5, 0.32, 1);
+}
+
+.vol-group input[type='range'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 56px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--track-bg, rgba(255, 255, 255, 0.16));
+  outline: none;
+}
+
+.vol-group input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--thumb, #fff);
+  border: none;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent, #fff) 80%, transparent);
+  cursor: pointer;
+}
+
+.vol-group input[type='range']::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--thumb, #fff);
+  border: none;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent, #fff) 80%, transparent);
+  cursor: pointer;
+}
+
+@keyframes volIn {
+  from {
+    opacity: 0;
+    width: 0;
+    transform: scaleX(0.4);
+  }
+  to {
+    opacity: 1;
+    width: 64px;
+    transform: scaleX(1);
+  }
+}

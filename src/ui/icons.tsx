@@ -172,6 +172,50 @@ export const IconExport = () => (
   </Svg>
 )
 
+export const IconPing = () => (
+  <Svg>
+    <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="5.5" opacity="0.75" />
+    <circle cx="12" cy="12" r="9" opacity="0.35" />
+  </Svg>
+)
+
+export const IconSpotlight = () => (
+  <Svg>
+    <circle cx="12" cy="12" r="4.6" />
+    <path d="M12 3.4v2.2M12 18.4v2.2M3.4 12h2.2M18.4 12h2.2" opacity="0.55" />
+    <path
+      d="M6.3 6.3 4.8 4.8M17.7 17.7l1.5 1.5M17.7 6.3l1.5-1.5M6.3 17.7l-1.5 1.5"
+      opacity="0.35"
+    />
+  </Svg>
+)
+
+export const IconSound = () => (
+  <Svg>
+    <path d="M5 9.5h3l4-3.2v11.4l-4-3.2H5z" />
+    <path d="M15.6 9.2a4 4 0 0 1 0 5.6" opacity="0.8" />
+    <path d="M18 6.8a7.4 7.4 0 0 1 0 10.4" opacity="0.45" />
+  </Svg>
+)
+
+export const IconMute = () => (
+  <Svg>
+    <path d="M5 9.5h3l4-3.2v11.4l-4-3.2H5z" />
+    <path d="m16 10 4 4M20 10l-4 4" opacity="0.8" />
+  </Svg>
+)
+
+/** Mode écriture : le gribouillis (la vague du bas) devient une capitale nette. */
+export const IconScript = () => (
+  <Svg>
+    <path d="M4.2 16.4 10 4.6l5.8 11.8" />
+    <path d="M6.6 12.2h6.8" />
+    <path d="M3.6 21c1.8-1.7 3.6.9 5.4-.4s3.6 1.1 5.4-.6" opacity="0.55" />
+    <path d="M19.4 3.6l.85 2.15 2.15.85-2.15.85-.85 2.15-.85-2.15L16.4 6.6l2.15-.85z" />
+  </Svg>
+)
+
 export const HexaLogo = () => (
   <svg width="22" height="24" viewBox="0 0 32 34" fill="none" aria-hidden>
     <defs>

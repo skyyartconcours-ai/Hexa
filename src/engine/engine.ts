@@ -7,12 +7,22 @@ import type {
   StrokePoint,
   ToolId,
 } from './types'
-import { clamp, dist, easeInQuad, pointToSegment, rgba, whiteMix } from './geometry'
+import { clamp, dist, easeInQuad, easeOutCubic, pointToSegment, rgba, whiteMix } from './geometry'
 import { renderEmber, renderStroke } from './render'
 import { OneEuro } from './oneEuro'
-import { hitShape, renderMorph, resample, shapeOutline, squarify, alignLoop } from './shapes'
+import { sfx } from '../audio'
+import {
+  hitShape,
+  renderMorph,
+  resample,
+  shapeOutline,
+  squarify,
+  alignLoop,
+  easeOutBack,
+} from './shapes'
 import type { MorphAnim, Pt } from './shapes'
 import { recognize } from './recognizer'
+import { Handwriting, clearMorphs } from './handwriting'
 import { GuideOverlay, buildAnchors, snapPoint } from './guides'
 import type { Anchor } from './guides'
 import {
@@ -26,12 +36,52 @@ import {
   textSizeOf,
 } from './teaching'
 
-const LASER_TTL = 450
+/** durée de vie de la traînée laser (§5.3) — une vraie comète, pas un pointillé */
+const LASER_TTL = 650
 const DISSOLVE_MIN = 420
 const SNAP_RAD = (15 * Math.PI) / 180
 /** durée du morph entre le tracé brut et la forme parfaite (§4.1.5) */
 const MORPH_MS = 150
 const MORPH_SAMPLES = 72
+
+/** clic droit maintenu dans le vide → menu radial (§8.2) */
+const RADIAL_HOLD = 220
+/** au-delà, le geste est un déplacement, pas un maintien : on annule la roue */
+const RADIAL_SLOP = 18
+/** ping (§5.4) : deux contractions puis disparition */
+const PING_MS = 900
+/** spotlight (§5.2) : ouverture/fermeture élastique douce */
+const SPOT_MS = 250
+/** largeur du dégradé de bord du spotlight — jamais de bord net (§5.2) */
+const SPOT_FEATHER = 40
+/** attrapé au clic droit : léger grossissement autour du centroïde */
+const GRAB_SCALE = 1.04
+const GRAB_IN_MS = 150
+const GRAB_BACK_MS = 520
+
+/** retour élastique (relâché d'une annotation attrapée) */
+const easeOutElastic = (t: number): number => {
+  if (t <= 0) return 0
+  if (t >= 1) return 1
+  return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1
+}
+
+/** Étincelle : une particule enrichie d'un éclat en croix pour les plus grosses.
+ *  Défini ici (et pas dans types.ts) pour rester purement interne au moteur. */
+interface Spark extends Particle {
+  /** 0 = braise ronde, 1 = éclat à quatre branches */
+  glint: number
+  /** rotation de l'éclat, en radians */
+  rot: number
+}
+
+/** Ping éphémère (§5.4) : jamais dans l'undo, jamais dans l'export */
+interface Ping {
+  x: number
+  y: number
+  t: number
+  color: string
+}
 
 /** outils qui démarrent un tracé au clic gauche */
 const FREEHAND_TOOLS = new Set(['pen', 'highlight'])
@@ -71,7 +121,7 @@ export class HexaEngine {
   private strokes: Stroke[] = []
   private redoStack: Stroke[] = []
   private current: Stroke | null = null
-  private particles: Particle[] = []
+  private particles: Spark[] = []
   private laser: LaserPoint[] = []
   private grabbed: Stroke | null = null
   private grabLast = { x: 0, y: 0 }
@@ -80,8 +130,33 @@ export class HexaEngine {
   private shiftHeld = false
   private altHeld = false
 
+  /** pings en cours (§5.4) — effet éphémère, hors undo et hors fondu auto */
+  private pings: Ping[] = []
+
+  /** spotlight (§5.2) : voile sombre + trou dégradé, rendu SOUS les annotations */
+  private veilCv: HTMLCanvasElement
+  private vCtx: CanvasRenderingContext2D
+  private spotOn = false
+  /** valeur de l'ouverture au démarrage de l'animation en cours */
+  private spotFrom = 0
+  private spotAt = -1e9
+  private spotR = 180
+  /** le voile a-t-il encore quelque chose de dessiné à effacer ? */
+  private veilPainted = false
+
+  /** clic droit maintenu dans le vide → menu radial (§8.2) */
+  private radialTimer: ReturnType<typeof setTimeout> | null = null
+  private radialFrom = { x: 0, y: 0 }
+  private radialOpen = false
+
+  /** effet de RENDU de l'attrapé : grossissement + retour élastique.
+   *  Ne touche JAMAIS les points de l'annotation (l'export reste exact). */
+  private grabAnim: { id: number; start: number; from: number; back: boolean } | null = null
+
   /** morphs en cours (hors Stroke : jamais sérialisé) */
   private morphs = new Map<number, MorphAnim>()
+  /** mode écriture : file d'analyse, reconnaissance et morph typographique */
+  private hw = new Handwriting()
   /** guides magnétiques : index des points remarquables + calque de rendu */
   private overlay = new GuideOverlay()
   private anchors: Anchor[] = []
@@ -125,6 +200,13 @@ export class HexaEngine {
     this.liveCv = liveCv
     this.sCtx = staticCv.getContext('2d')!
     this.lCtx = liveCv.getContext('2d')!
+    // Voile du spotlight : un troisième canvas glissé SOUS les annotations.
+    // C'est ce qui fait que l'écran s'assombrit mais que le trait, lui, reste
+    // parfaitement lumineux — un voile posé par-dessus ternirait tout.
+    this.veilCv = document.createElement('canvas')
+    this.veilCv.className = 'veil-canvas'
+    stage.insertBefore(this.veilCv, stage.firstChild)
+    this.vCtx = this.veilCv.getContext('2d')!
     this.cursor = document.createElement('div')
     this.cursor.className = 'cursor-dot'
     stage.appendChild(this.cursor)
@@ -170,13 +252,25 @@ export class HexaEngine {
   /** le moteur demande un changement d'outil (collage d'image → tampon) */
   onRequestTool?: (tool: ToolId) => void
 
+  /** clic droit maintenu 220 ms dans le vide : l'interface ouvre la roue (§8.2) */
+  onRadial?: (x: number, y: number) => void
+
+  /** tout vient d'être effacé : l'interface referme roue, spotlight, panneaux */
+  onPanic?: () => void
+
+  /** la molette a changé le rayon du spotlight : à persister dans le store */
+  onSpotRadius?: (r: number) => void
+
   destroy(): void {
     for (const fn of this.detachFns) fn()
+    clearMorphs()
     cancelAnimationFrame(this.raf)
     if (this.wakeTimer) clearTimeout(this.wakeTimer)
+    if (this.radialTimer) clearTimeout(this.radialTimer)
     this.closeText?.()
     setImageInvalidate(null)
     this.cursor.remove()
+    this.veilCv.remove()
   }
 
   setOptions(patch: Partial<EngineOptions>): void {
@@ -184,6 +278,12 @@ export class HexaEngine {
     const prevTool = this.opts.tool
     this.opts = { ...this.opts, ...patch }
     if (this.opts.tool !== prevTool && prevTool === 'text') this.closeText?.()
+    // le spotlight vit tant que son outil est sélectionné (§8.5 : maintien de
+    // touche = il s'ouvre à l'appui et se referme au relâchement)
+    if (this.opts.tool !== prevTool) this.setSpot(this.opts.tool === 'spotlight')
+    // mode écriture coupé : la file d'analyse en attente est abandonnée, le
+    // gribouillis déjà posé reste tel quel
+    if ('handwriting' in patch && this.opts.handwriting !== true) this.hw.reset()
     if ('fadeDelay' in patch && this.opts.fadeDelay !== prevFade) {
       const now = performance.now()
       for (const s of this.strokes) {
@@ -195,10 +295,62 @@ export class HexaEngine {
     this.syncCursor()
   }
 
+  /* ------------------------------------------------------------------ *
+   * Effets stream : spotlight, ping, menu radial (§5.2, §5.4, §8.2)
+   * ------------------------------------------------------------------ */
+
+  /** rayon du disque éclairé, réglable à la molette (80 → 500 px) */
+  setSpotRadius(r: number): void {
+    const next = clamp(r, 80, 500)
+    if (next === this.spotR) return
+    this.spotR = next
+    if (this.spotVisible(performance.now())) this.wake()
+  }
+
+  /** l'interface a refermé la roue : le moteur reprend la main sur le pointeur */
+  closeRadial(): void {
+    this.radialOpen = false
+    this.cursor.classList.remove('is-hidden')
+  }
+
+  /** ping au curseur (§5.4) — aussi appelé par la touche momentanée */
+  ping(): void {
+    this.spawnPing(this.pointer.x, this.pointer.y)
+  }
+
+  /**
+   * Mode écriture : transcrire tout de suite ce qui est en attente, sans
+   * attendre les 600 ms d'inactivité (raccourci de déclenchement manuel).
+   * Renvoie false si la file est vide — l'appelant peut alors laisser la
+   * touche à quelqu'un d'autre.
+   */
+  transcribeNow(): boolean {
+    if (!this.hw.trigger(performance.now())) return false
+    this.wake()
+    return true
+  }
+
+  /** y a-t-il de l'écriture en attente de transcription ? */
+  get writingPending(): boolean {
+    return this.hw.hasPending
+  }
+
   undo(): void {
     for (let i = this.strokes.length - 1; i >= 0; i--) {
       const s = this.strokes[i]
       if (s.dying) continue
+      // 1er Ctrl+Z après une transcription : on REND LE GRIBOUILLIS, le morph
+      // se rejoue à l'envers (mode écriture). L'échange effectif est fait par
+      // la boucle quand le dé-morph est terminé.
+      if (s.tool === 'glyph' && s.ink) {
+        if (this.hw.demorph(s, performance.now())) {
+          s.anim = { start: performance.now(), duration: 340 }
+          this.staticDirty = true
+          this.wake()
+          return
+        }
+        continue
+      }
       // 1er Ctrl+Z après un redressement : on rend le TRACÉ BRUT (§4.1.5)
       if (s.raw) {
         const now = performance.now()
@@ -260,6 +412,18 @@ export class HexaEngine {
     this.badgeSeq = 1
     this.lastBadgeId = null
     this.anchorsDirty = true
+    // mode écriture : la file d'analyse en attente part avec le reste
+    this.hw.reset()
+    // la touche panique nettoie AUSSI les effets vivants : roue, spotlight,
+    // pings, traînée laser, étincelles. Un seul geste, écran net.
+    this.cancelRadial()
+    if (this.radialOpen) this.closeRadial()
+    this.pings.length = 0
+    this.laser.length = 0
+    this.particles.length = 0
+    this.setSpot(false)
+    sfx.clearSfx()
+    this.onPanic?.()
     this.wake()
   }
 
@@ -333,6 +497,15 @@ export class HexaEngine {
         if (Math.abs(x - pts[0].x) < w && Math.abs(y - pts[0].y) < h) return s
         continue
       }
+      // mot typographié (mode écriture) : boîte du texte, ligne de base en pts[0]
+      if (s.tool === 'glyph') {
+        const fw = s.w ?? 0
+        const fh = s.h ?? 0
+        const top = pts[0].y - fh * 0.82
+        const bottom = pts[0].y + fh * 0.24
+        if (x > pts[0].x - 8 && x < pts[0].x + fw + 8 && y > top && y < bottom) return s
+        continue
+      }
       if (s.tool === 'text') {
         const box = textBox(this.sCtx, s)
         if (x > pts[0].x - 6 && x < pts[0].x + box.w + 6 && Math.abs(y - pts[0].y) < box.h / 2 + 4) {
@@ -366,6 +539,8 @@ export class HexaEngine {
   private onDown(e: PointerEvent): void {
     // clic dans l'éditeur de texte flottant : ce n'est pas un geste de dessin
     if (e.target !== this.stage && !(e.target instanceof HTMLCanvasElement)) return
+    // la roue est ouverte : c'est elle qui pilote le geste, le moteur se tait
+    if (this.radialOpen) return
     const pt = this.toLocal(e)
     this.pointer = pt
     this.shiftHeld = e.shiftKey
@@ -373,22 +548,37 @@ export class HexaEngine {
     this.stage.setPointerCapture(e.pointerId)
 
     if (e.button === 2) {
-      // clic droit sur une annotation : on l'attrape pour la déplacer.
-      // (clic droit maintenu dans le vide = menu radial, vague suivante)
+      // Priorité absolue au comportement historique : s'il y a une annotation
+      // sous le curseur, le clic droit l'ATTRAPE (l'utilisateur y tient).
+      // Ce n'est que dans le vide que le maintien ouvre le menu radial (§8.2).
       const s = this.strokeAt(pt.x, pt.y)
       if (s) {
         this.grabbed = s
         this.grabLast = { x: pt.x, y: pt.y }
         s.dieAt = undefined // le compte à rebours est suspendu pendant le drag
+        this.grabAnim = { id: s.id, start: performance.now(), from: 1, back: false }
         this.cursor.classList.add('is-grab')
         this.staticDirty = true
         this.wake()
+        return
       }
+      this.radialFrom = { x: pt.x, y: pt.y }
+      this.cancelRadial()
+      this.radialTimer = setTimeout(() => {
+        this.radialTimer = null
+        this.radialOpen = true
+        this.cursor.classList.add('is-hidden')
+        this.onRadial?.(this.radialFrom.x, this.radialFrom.y)
+      }, RADIAL_HOLD)
       return
     }
     if (e.button !== 0) return
 
     const t = this.opts.tool
+    if (t === 'ping') {
+      this.spawnPing(pt.x, pt.y)
+      return
+    }
     if (t === 'eraser') {
       this.erasing = true
       this.eraseAt(pt)
@@ -539,8 +729,18 @@ export class HexaEngine {
     this.onRequestTool?.('stamp')
   }
 
-  /** molette : redimensionne le tampon survolé, sinon comportement de l'app */
+  /** molette : rayon du spotlight, taille du tampon survolé, sinon l'app */
   private onWheel(e: WheelEvent): void {
+    if (this.opts.tool === 'spotlight') {
+      e.preventDefault()
+      const r = clamp(this.spotR * (e.deltaY < 0 ? 1.09 : 1 / 1.09), 80, 500)
+      if (r !== this.spotR) {
+        this.spotR = r
+        this.onSpotRadius?.(Math.round(r))
+        this.wake()
+      }
+      return
+    }
     if (this.opts.tool !== 'eraser') {
       const s = this.strokeAt(this.pointer.x, this.pointer.y)
       if (s && s.tool === 'stamp' && s.w && s.h) {
@@ -558,6 +758,8 @@ export class HexaEngine {
   }
 
   private onMove(e: PointerEvent): void {
+    // roue ouverte : le geste appartient au menu radial
+    if (this.radialOpen) return
     this.shiftHeld = e.shiftKey
     this.altHeld = e.altKey
     const coalesced = e.getCoalescedEvents?.() ?? []
@@ -601,12 +803,21 @@ export class HexaEngine {
         else this.overlay.clear(pt.t)
       }
     }
+    // un vrai déplacement pendant le maintien = ce n'est plus un maintien
+    if (
+      this.radialTimer &&
+      dist(this.pointer.x, this.pointer.y, this.radialFrom.x, this.radialFrom.y) > RADIAL_SLOP
+    ) {
+      this.cancelRadial()
+    }
     this.moveCursor()
     if (
       this.grabbed ||
       this.current ||
       this.erasing ||
       this.opts.tool === 'laser' ||
+      // le spotlight suit le curseur SANS clic (§5.2), donc même en traversant
+      this.opts.tool === 'spotlight' ||
       CLICK_TOOLS.has(this.opts.tool)
     ) {
       this.wake()
@@ -668,9 +879,20 @@ export class HexaEngine {
   }
 
   private onUp(_e: PointerEvent): void {
+    // relâché avant 220 ms : ni roue, ni rien. Le clic droit dans le vide
+    // reste inoffensif, exactement comme avant.
+    this.cancelRadial()
     if (this.grabbed) {
+      const now = performance.now()
       if (this.opts.fadeDelay != null) {
-        this.grabbed.dieAt = performance.now() + this.opts.fadeDelay
+        this.grabbed.dieAt = now + this.opts.fadeDelay
+      }
+      // retour élastique du grossissement (effet de rendu uniquement)
+      this.grabAnim = {
+        id: this.grabbed.id,
+        start: now,
+        from: this.grabFactor(now),
+        back: true,
       }
       this.grabbed = null
       this.cursor.classList.remove('is-grab')
@@ -700,10 +922,16 @@ export class HexaEngine {
       if (c.tool === 'arrow') c.anim = { start: now, duration: 300 }
       else if (c.tool === 'rect' || c.tool === 'ellipse') c.anim = { start: now, duration: 220 }
     }
+    // Mode écriture : le trait rejoint la file d'analyse. Les formes
+    // intelligentes sont volontairement mises en veille pendant ce mode —
+    // sinon un « O » deviendrait une ellipse avant même d'être lu.
+    const writing = this.opts.handwriting === true && c.tool === 'pen'
+    if (writing) this.hw.push(c, now)
     // formes intelligentes : le geste au stylo est redressé (§4.1)
-    if (c.tool === 'pen' && this.opts.smartShapes) this.applySmartShape(c, now)
+    if (c.tool === 'pen' && this.opts.smartShapes && !writing) this.applySmartShape(c, now)
     if (this.opts.fadeDelay != null) c.dieAt = now + this.opts.fadeDelay + (c.anim?.duration ?? 0)
     this.strokes.push(c)
+    sfx.strokeSfx()
     this.anchorsDirty = true
     this.staticDirty = true
     this.emitActivity()
@@ -745,24 +973,132 @@ export class HexaEngine {
 
   private pushLaser(pt: StrokePoint, pressed: boolean): void {
     this.laser.push({ x: pt.x, y: pt.y, t: pt.t, pressed })
-    if (this.laser.length > 160) this.laser.splice(0, this.laser.length - 160)
+    if (this.laser.length > 260) this.laser.splice(0, this.laser.length - 260)
   }
 
+  /**
+   * Étincelles du tracé. Nettement plus présentes qu'avant : la densité suit
+   * la VITESSE du geste (un trait rapide crache des braises), et une étincelle
+   * sur cinq est un éclat à quatre branches. Toujours borné, toujours élégant.
+   */
   private spawnSparkles(pt: StrokePoint): void {
-    if (this.particles.length > 260) return
-    const count = Math.random() < 0.45 ? 2 : 1
+    if (this.particles.length > 420) return
+    const boost = this.opts.effects ?? 1
+    const c = this.current
+    let speed = 0
+    if (c && c.points.length > 1) {
+      const a = c.points[c.points.length - 2]
+      speed = clamp(dist(a.x, a.y, pt.x, pt.y) / Math.max(1, pt.t - a.t), 0, 1.6)
+    }
+    const count = Math.max(1, Math.round((1.8 + speed * 0.9) * boost))
+    const spread = this.opts.size * 2.4 + 3
     for (let i = 0; i < count; i++) {
+      const glint = Math.random() < 0.2 ? 1 : 0
       this.particles.push({
-        x: pt.x + (Math.random() - 0.5) * this.opts.size * 2.2,
-        y: pt.y + (Math.random() - 0.5) * this.opts.size * 2.2,
-        vx: (Math.random() - 0.5) * 120,
-        vy: -20 - Math.random() * 70,
+        x: pt.x + (Math.random() - 0.5) * spread,
+        y: pt.y + (Math.random() - 0.5) * spread,
+        vx: (Math.random() - 0.5) * (140 + speed * 110),
+        vy: -28 - Math.random() * 105,
         born: pt.t,
-        life: 380 + Math.random() * 420,
-        size: 0.7 + Math.random() * 1.7,
+        life: 460 + Math.random() * 620,
+        size: (glint ? 1.5 + Math.random() * 1.6 : 0.8 + Math.random() * 1.8) * (0.8 + boost * 0.3),
         color: this.opts.color,
+        glint,
+        rot: Math.random() * Math.PI,
       })
     }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Ping (§5.4) — effet éphémère : hors undo, hors export, hors fondu auto
+   * ------------------------------------------------------------------ */
+
+  private spawnPing(x: number, y: number): void {
+    const now = performance.now()
+    this.pings.push({ x, y, t: now, color: this.opts.color })
+    if (this.pings.length > 10) this.pings.shift()
+    if (this.opts.sparkles) {
+      const boost = this.opts.effects ?? 1
+      const n = Math.round(9 * boost)
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.4
+        const v = 70 + Math.random() * 90
+        this.particles.push({
+          x: x + Math.cos(a) * 14,
+          y: y + Math.sin(a) * 14,
+          vx: Math.cos(a) * v,
+          vy: Math.sin(a) * v - 20,
+          born: now,
+          life: 420 + Math.random() * 380,
+          size: 1 + Math.random() * 1.7,
+          color: this.opts.color,
+          glint: Math.random() < 0.35 ? 1 : 0,
+          rot: a,
+        })
+      }
+    }
+    sfx.pingSfx()
+    this.wake()
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Spotlight (§5.2) — voile sombre + trou à bord dégradé, sous le trait
+   * ------------------------------------------------------------------ */
+
+  private setSpot(on: boolean): void {
+    if (this.spotOn === on) return
+    const now = performance.now()
+    this.spotFrom = this.spotState(now).a
+    this.spotAt = now
+    this.spotOn = on
+    this.wake()
+  }
+
+  /** `a` : opacité du voile (0→1) · `r` : facteur de rayon, avec dépassement */
+  private spotState(now: number): { a: number; r: number } {
+    const target = this.spotOn ? 1 : 0
+    const p = clamp((now - this.spotAt) / SPOT_MS, 0, 1)
+    return {
+      a: this.spotFrom + (target - this.spotFrom) * easeOutCubic(p),
+      r: this.spotFrom + (target - this.spotFrom) * easeOutBack(p),
+    }
+  }
+
+  private spotVisible(now: number): boolean {
+    return this.spotOn || this.spotState(now).a > 0.002
+  }
+
+  /** annule le maintien du clic droit (relâché tôt, geste, ou panique) */
+  private cancelRadial(): void {
+    if (this.radialTimer) {
+      clearTimeout(this.radialTimer)
+      this.radialTimer = null
+    }
+  }
+
+  /** échelle de RENDU de l'annotation attrapée : 1 → 1,04 puis retour élastique */
+  private grabFactor(now: number): number {
+    const g = this.grabAnim
+    if (!g) return 1
+    if (!g.back) return 1 + (GRAB_SCALE - 1) * easeOutCubic(clamp((now - g.start) / GRAB_IN_MS, 0, 1))
+    const p = clamp((now - g.start) / GRAB_BACK_MS, 0, 1)
+    if (p >= 1) return 1
+    return 1 + (g.from - 1) * (1 - easeOutElastic(p))
+  }
+
+  /** centre d'une annotation (boîte englobante) — pivot du grossissement */
+  private centroid(s: Stroke): { x: number; y: number } {
+    let x0 = Infinity
+    let y0 = Infinity
+    let x1 = -Infinity
+    let y1 = -Infinity
+    for (const p of s.points) {
+      if (p.x < x0) x0 = p.x
+      if (p.y < y0) y0 = p.y
+      if (p.x > x1) x1 = p.x
+      if (p.y > y1) y1 = p.y
+    }
+    return { x: (x0 + x1) / 2, y: (y0 + y1) / 2 }
   }
 
   private moveCursor(): void {
@@ -773,9 +1109,10 @@ export class HexaEngine {
     const t = this.opts.tool
     this.cursor.dataset.tool = t
     this.cursor.style.setProperty('--c', this.opts.color)
-    const d = t === 'eraser' ? 30 : clamp(this.opts.size * 1.6, 8, 26)
+    const d = t === 'eraser' ? 30 : t === 'ping' ? 26 : clamp(this.opts.size * 1.6, 8, 26)
     this.cursor.style.setProperty('--d', `${d}px`)
-    this.cursor.style.opacity = t === 'laser' ? '0' : '1'
+    // laser et spotlight ont leur propre signe à l'écran : pas de pastille
+    this.cursor.style.opacity = t === 'laser' || t === 'spotlight' ? '0' : '1'
   }
 
   private emitActivity(): void {
@@ -791,6 +1128,7 @@ export class HexaEngine {
     this.w = this.stage.clientWidth
     this.h = this.stage.clientHeight
     for (const [cv, ctx] of [
+      [this.veilCv, this.vCtx],
       [this.staticCv, this.sCtx],
       [this.liveCv, this.lCtx],
     ] as const) {
@@ -859,14 +1197,35 @@ export class HexaEngine {
     }
     // traînée laser
     while (this.laser.length > 0 && now - this.laser[0].t > LASER_TTL) this.laser.shift()
+    // pings arrivés au bout de leur vie (effet éphémère, rien à purger ailleurs)
+    while (this.pings.length > 0 && now - this.pings[0].t > PING_MS) this.pings.shift()
+    // fin du retour élastique de l'annotation relâchée
+    if (this.grabAnim && this.grabAnim.back && now - this.grabAnim.start >= GRAB_BACK_MS) {
+      this.grabAnim = null
+      this.staticDirty = true
+    }
+
+    // mode écriture : échéance de transcription et fins de dé-morph
+    this.pumpHandwriting(now)
 
     const dyingActive = this.strokes.some((s) => s.dying)
     const animActive = this.strokes.some((s) => s.anim && now - s.anim.start < s.anim.duration)
     const morphActive = this.morphs.size > 0
+    const hwActive = this.hw.active(now)
     const guidesActive = this.overlay.active(now)
-    if (this.staticDirty || dyingActive || animActive || morphActive || this.grabbed) {
+    const spotAnim = now - this.spotAt < SPOT_MS
+    if (
+      this.staticDirty ||
+      dyingActive ||
+      animActive ||
+      morphActive ||
+      this.grabbed ||
+      this.grabAnim
+    ) {
       this.renderStatic(now)
     }
+    // voile du spotlight : canvas dédié, sous les annotations (se nettoie seul)
+    this.renderVeil(now)
     this.renderLive(now)
     // miroir : enregistreur de session (§11) et vue OBS (§10.2). Uniquement
     // pendant que la boucle tourne, donc jamais au repos.
@@ -878,9 +1237,13 @@ export class HexaEngine {
       this.erasing ||
       this.particles.length > 0 ||
       this.laser.length > 0 ||
+      this.pings.length > 0 ||
+      this.grabAnim != null ||
+      spotAnim ||
       dyingActive ||
       animActive ||
       morphActive ||
+      hwActive ||
       guidesActive
     if (busy) {
       this.raf = requestAnimationFrame(this.loop)
@@ -892,12 +1255,45 @@ export class HexaEngine {
     for (const s of this.strokes) {
       if (!s.dying && s.dieAt != null) next = Math.min(next, s.dieAt)
     }
+    // …ou si une transcription d'écriture est programmée (mode écriture)
+    const hwDue = this.hw.nextDue()
+    if (hwDue != null) next = Math.min(next, hwDue)
     if (next < Infinity) {
       this.wakeTimer = setTimeout(() => {
         this.wakeTimer = null
         this.wake()
       }, Math.max(16, next - now))
     }
+  }
+
+  /**
+   * Mode écriture : applique les échanges décidés par le module d'écriture
+   * (encre → mot typographié, ou l'inverse après un Ctrl+Z). Le module ne
+   * touche jamais lui-même à la liste des traits : ici seulement.
+   */
+  private pumpHandwriting(now: number): void {
+    const swaps = this.hw.tick(now, this.strokes, { nextId: () => this.idSeq++, glow: 1 })
+    if (swaps.length === 0) return
+    for (const swap of swaps) {
+      for (const s of swap.remove) {
+        const i = this.strokes.indexOf(s)
+        if (i >= 0) this.strokes.splice(i, 1)
+      }
+      for (const s of swap.add) {
+        s.dying = undefined
+        s.dieAt =
+          this.opts.fadeDelay == null
+            ? undefined
+            : now + this.opts.fadeDelay + (s.anim?.duration ?? 0)
+        this.strokes.push(s)
+      }
+    }
+    // une transcription remplace l'encre : rétablir le gribouillis passe par
+    // le dé-morph (Ctrl+Z), pas par la pile de rétablissement
+    this.redoStack = []
+    this.anchorsDirty = true
+    this.staticDirty = true
+    this.emitActivity()
   }
 
   private renderStatic(now: number): void {
@@ -923,12 +1319,24 @@ export class HexaEngine {
           }
         }
       }
+      // annotation attrapée : léger grossissement autour de son centre, puis
+      // retour élastique au relâché. C'est un effet de RENDU : les points de
+      // l'annotation ne bougent pas d'un pixel (export et rejeu intacts).
+      const gk = this.grabAnim?.id === s.id ? this.grabFactor(now) : 1
+      if (gk !== 1) {
+        const c = this.centroid(s)
+        ctx.save()
+        ctx.translate(c.x, c.y)
+        ctx.scale(gk, gk)
+        ctx.translate(-c.x, -c.y)
+      }
       // morph en cours : on dessine l'image intermédiaire, pas la forme finale
       const morph = this.morphs.get(s.id)
       if (morph) {
         const mt = clamp((now - morph.start) / morph.duration, 0, 1)
         renderMorph(ctx, morph, mt, s, alpha)
         if (mt >= 1) this.morphs.delete(s.id)
+        if (gk !== 1) ctx.restore()
         continue
       }
       renderStroke(ctx, s, { alpha, from, glowBoost, now, link: this.linkAnchor(s) })
@@ -942,6 +1350,7 @@ export class HexaEngine {
           renderEmber(ctx, head.x, head.y, r, s.color, 1 - p * 0.4)
         }
       }
+      if (gk !== 1) ctx.restore()
     }
     this.staticDirty = false
   }
@@ -965,25 +1374,179 @@ export class HexaEngine {
     if (this.current) {
       renderStroke(ctx, this.current, { alpha: 1, from: 0, glowBoost: 1, now })
     }
-    if (this.particles.length > 0) {
-      ctx.save()
-      ctx.globalCompositeOperation = 'lighter'
-      for (const p of this.particles) {
-        const k = 1 - (now - p.born) / p.life
-        if (k <= 0) continue
-        const a = k * k
-        ctx.fillStyle = rgba(p.color, 0.3 * a)
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.fillStyle = whiteMix(p.color, 0.75, 0.9 * a)
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-        ctx.fill()
-      }
-      ctx.restore()
-    }
+    if (this.particles.length > 0) this.renderSparks(ctx, now)
+    if (this.pings.length > 0) this.renderPings(ctx, now)
     if (this.laser.length > 0) this.renderLaser(ctx, now)
+    // mode écriture : confirmation du mot lu, couche live donc hors export
+    this.hw.renderChip(ctx, now)
+  }
+
+  /** étincelles : halo large + halo serré + cœur blanchi, et éclats en croix */
+  private renderSparks(ctx: CanvasRenderingContext2D, now: number): void {
+    const boost = this.opts.effects ?? 1
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.lineCap = 'round'
+    for (const p of this.particles) {
+      const age = (now - p.born) / p.life
+      if (age >= 1) continue
+      const k = 1 - age
+      // allumage franc, extinction douce : c'est ce qui fait la braise
+      const a = Math.min(1, age * 9) * k * k
+      const r = p.size * 1.5 * (1 + age * 0.4)
+      ctx.fillStyle = rgba(p.color, 0.3 * a * boost)
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, r * 5, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = rgba(p.color, 0.55 * a)
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, r * 2.1, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = whiteMix(p.color, 0.86, a)
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, r * 0.9, 0, Math.PI * 2)
+      ctx.fill()
+      if (p.glint === 1) {
+        const l = r * 7.5 * k
+        ctx.save()
+        ctx.translate(p.x, p.y)
+        ctx.rotate(p.rot + age * 1.1)
+        ctx.strokeStyle = whiteMix(p.color, 0.6, 0.62 * a)
+        ctx.lineWidth = Math.max(0.7, r * 0.42)
+        ctx.beginPath()
+        ctx.moveTo(-l, 0)
+        ctx.lineTo(l, 0)
+        ctx.moveTo(0, -l * 0.55)
+        ctx.lineTo(0, l * 0.55)
+        ctx.stroke()
+        ctx.restore()
+      }
+    }
+    ctx.restore()
+  }
+
+  /**
+   * Ping (§5.4) : deux anneaux qui se contractent l'un après l'autre, avec un
+   * dépassement élastique, sur un halo qui pulse. Très lisible pour le viewer,
+   * même sur une image de jeu chargée.
+   */
+  private renderPings(ctx: CanvasRenderingContext2D, now: number): void {
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.lineCap = 'round'
+    const boost = this.opts.effects ?? 1
+    for (const p of this.pings) {
+      const age = (now - p.t) / PING_MS
+      if (age < 0 || age >= 1) continue
+      const fade = age > 0.74 ? 1 - (age - 0.74) / 0.26 : 1
+      // halo qui respire sous les anneaux (deux battements)
+      const pulse = Math.abs(Math.sin(age * Math.PI * 2))
+      const hr = 40 + 34 * pulse
+      const halo = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, hr)
+      halo.addColorStop(0, rgba(p.color, 0.42 * fade * boost))
+      halo.addColorStop(0.4, rgba(p.color, 0.2 * fade))
+      halo.addColorStop(1, rgba(p.color, 0))
+      ctx.fillStyle = halo
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, hr, 0, Math.PI * 2)
+      ctx.fill()
+      // les deux contractions : départ large, convergence douce (smoothstep),
+      // puis un léger dépassement élastique juste avant l'extinction
+      for (let k = 0; k < 2; k++) {
+        const q = (age - k * 0.3) / 0.56
+        if (q <= 0 || q >= 1) continue
+        const s = q * q * (3 - 2 * q)
+        const wobble = q > 0.8 ? Math.sin((q - 0.8) * 15.7) * 4 * (1 - q) * 5 : 0
+        const r = Math.max(9, 104 - 84 * s + wobble)
+        const a = Math.min(1, q * 6) * (1 - q * q) * fade
+        const w = 2 + 6.5 * (1 - q)
+        ctx.strokeStyle = rgba(p.color, 0.26 * a * boost)
+        ctx.lineWidth = w * 3.6
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.strokeStyle = rgba(p.color, 0.5 * a)
+        ctx.lineWidth = w * 1.7
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.strokeStyle = whiteMix(p.color, 0.6, 0.95 * a)
+        ctx.lineWidth = w
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2)
+        ctx.stroke()
+      }
+      // cœur : un point blanc qui bat au rythme des anneaux
+      const beat = 5 + 3.4 * pulse
+      const core = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, beat * 2.4)
+      core.addColorStop(0, whiteMix(p.color, 0.92, 0.98 * fade))
+      core.addColorStop(0.4, rgba(p.color, 0.55 * fade))
+      core.addColorStop(1, rgba(p.color, 0))
+      ctx.fillStyle = core
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, beat * 2.4, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    ctx.restore()
+  }
+
+  /**
+   * Spotlight (§5.2) : voile sombre à 70 %, trou dégradé sur 40 px autour du
+   * curseur. Le voile vit sur SON canvas, sous les annotations : l'écran
+   * s'assombrit, le trait reste éclatant.
+   */
+  private renderVeil(now: number): void {
+    const ctx = this.vCtx
+    const st = this.spotState(now)
+    if (st.a <= 0.002) {
+      if (this.veilPainted) {
+        ctx.clearRect(0, 0, this.w, this.h)
+        this.veilPainted = false
+      }
+      return
+    }
+    const x = this.pointer.x
+    const y = this.pointer.y
+    const r = Math.max(28, this.spotR * (0.6 + 0.4 * st.r))
+    const inner = Math.max(4, r - SPOT_FEATHER)
+    ctx.clearRect(0, 0, this.w, this.h)
+    ctx.fillStyle = `rgba(3, 5, 12, ${0.7 * st.a})`
+    ctx.fillRect(0, 0, this.w, this.h)
+    // le trou : dégradé doux, jamais de bord net (§5.2)
+    const hole = ctx.createRadialGradient(x, y, inner, x, y, r)
+    hole.addColorStop(0, 'rgba(0,0,0,1)')
+    hole.addColorStop(0.5, 'rgba(0,0,0,0.78)')
+    hole.addColorStop(0.8, 'rgba(0,0,0,0.3)')
+    hole.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.save()
+    ctx.globalCompositeOperation = 'destination-out'
+    ctx.fillStyle = hole
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+    // Deux touches de lumière, très légères : un liseré chaud au bord du disque
+    // et un voile clair au centre, comme un vrai faisceau. Jamais de cercle net.
+    ctx.save()
+    ctx.globalCompositeOperation = 'lighter'
+    const boost = this.opts.effects ?? 1
+    const ring = ctx.createRadialGradient(x, y, inner * 0.9, x, y, r * 1.04)
+    ring.addColorStop(0, rgba(this.opts.color, 0))
+    ring.addColorStop(0.9, rgba(this.opts.color, 0.07 * st.a * boost))
+    ring.addColorStop(1, rgba(this.opts.color, 0))
+    ctx.fillStyle = ring
+    ctx.beginPath()
+    ctx.arc(x, y, r * 1.04, 0, Math.PI * 2)
+    ctx.fill()
+    const lift = ctx.createRadialGradient(x, y, 0, x, y, inner)
+    lift.addColorStop(0, `rgba(255,255,255,${0.05 * st.a})`)
+    lift.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = lift
+    ctx.beginPath()
+    ctx.arc(x, y, inner, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+    this.veilPainted = true
   }
 
   private renderLaser(ctx: CanvasRenderingContext2D, now: number): void {
@@ -993,28 +1556,36 @@ export class HexaEngine {
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     const color = this.opts.color
+    const boost = this.opts.effects ?? 1
     for (let i = 1; i < pts.length; i++) {
       const a = pts[i - 1]
       const b = pts[i]
       const age = (now - b.t) / LASER_TTL
       if (age >= 1) continue
-      const k = 1 - age
-      const w = (b.pressed ? 13 : 9) * k + 1
-      ctx.strokeStyle = rgba(color, 0.16 * k)
-      ctx.lineWidth = w * 2.6
+      // la queue s'affine vite, la tête reste large : c'est ce qui fait comète
+      const k = Math.pow(1 - age, 0.72)
+      const w = (b.pressed ? 15 : 11) * k + 1.2
+      ctx.strokeStyle = rgba(color, 0.13 * k * boost)
+      ctx.lineWidth = w * 4.2
       ctx.beginPath()
       ctx.moveTo(a.x, a.y)
       ctx.lineTo(b.x, b.y)
       ctx.stroke()
-      ctx.strokeStyle = whiteMix(color, 0.55, 0.5 * k)
-      ctx.lineWidth = w
+      ctx.strokeStyle = rgba(color, 0.3 * k)
+      ctx.lineWidth = w * 2
+      ctx.beginPath()
+      ctx.moveTo(a.x, a.y)
+      ctx.lineTo(b.x, b.y)
+      ctx.stroke()
+      ctx.strokeStyle = whiteMix(color, 0.7, 0.72 * k)
+      ctx.lineWidth = w * 0.62
       ctx.beginPath()
       ctx.moveTo(a.x, a.y)
       ctx.lineTo(b.x, b.y)
       ctx.stroke()
     }
     const head = pts[pts.length - 1]
-    const r = head.pressed ? 30 : 22
+    const r = head.pressed ? 38 : 28
     const grad = ctx.createRadialGradient(head.x, head.y, 0, head.x, head.y, r)
     grad.addColorStop(0, whiteMix(color, 0.85, 0.95))
     grad.addColorStop(0.25, rgba(color, 0.5))
