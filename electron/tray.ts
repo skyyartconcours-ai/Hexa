@@ -30,6 +30,14 @@ export interface TrayActions {
   clearAll: () => void
   /** ouvre le panneau de réglages dans l'overlay */
   openSettings: () => void
+  /**
+   * Remet la barre d'outils à son ancrage par défaut (§S4.3).
+   *
+   * Filet de sécurité indispensable : si la barre a fini hors champ — écran
+   * débranché, résolution divisée par deux — plus AUCUN clic ne peut la
+   * rattraper. L'icône près de l'horloge, elle, reste toujours atteignable.
+   */
+  resetToolbar: () => void
   /** met l'overlay en veille complète (aucune fenêtre) ou le réveille */
   toggleSuspended: () => void
   /** vrai si le mode dessin est actif sur au moins un écran */
@@ -179,6 +187,7 @@ function buildMenu(): Menu {
     { label: 'Tout effacer', click: () => a?.clearAll() },
     { type: 'separator' },
     { label: 'Réglages…', click: () => a?.openSettings() },
+    { label: 'Replacer la barre d’outils', click: () => a?.resetToolbar() },
     {
       label: veille ? 'Afficher Hexa' : 'Masquer Hexa (mise en veille)',
       click: () => a?.toggleSuspended(),

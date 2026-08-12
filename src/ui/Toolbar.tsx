@@ -1,9 +1,26 @@
-import { useMemo } from 'react'
-import type { CSSProperties, ReactElement } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactElement, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { COLORS, useUiStore } from '../store'
 import type { ToolId } from '../engine/types'
 import { GRID_LABELS } from '../engine/stream-fx'
-import { formatCombo, resolveKeymap, type KeymapAction } from '../keymap'
+import {
+  eventCombos,
+  formatCombo,
+  KEYMAP_BY_ACTION,
+  resolveKeymap,
+  type KeymapAction,
+} from '../keymap'
+import {
+  EDGE_LABELS,
+  edgePreviewStyle,
+  nearestEdge,
+  offsetAlongEdge,
+  placeDock,
+  resolveOrientation,
+  type ToolbarEdge,
+} from './toolbar-dock'
+import { bridge } from '../bridge'
 import { spawnClock, spawnNote } from './StageWidgets'
 import {
   HexaLogo,
@@ -81,7 +98,13 @@ const TOOLS: ToolButton[] = [
     kbd: 'L',
     action: 'tool.line',
   },
-  { id: 'arrow', icon: <IconArrow />, label: 'Flèche', kbd: 'F', action: 'tool.arrow' },
+  {
+    id: 'arrow',
+    icon: <IconArrow />,
+    label: 'Flèche (trace ta courbe, elle l’épouse · Maj : flèche droite)',
+    kbd: 'F',
+    action: 'tool.arrow',
+  },
   {
     id: 'rect',
     icon: <IconRect />,
@@ -153,6 +176,85 @@ const TOOLS: ToolButton[] = [
   },
 ]
 
+/* ------------------------------------------------------------------ *
+ * Orientation, ancrage, écran porteur (§S4)
+ * ------------------------------------------------------------------ */
+
+/** Poignée de préhension : six points, le geste universel du « ça se déplace ». */
+function IconGrip(): ReactElement {
+  return (
+    <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden focusable="false">
+      <g fill="currentColor">
+        <circle cx="4" cy="2" r="1.15" />
+        <circle cx="8" cy="2" r="1.15" />
+        <circle cx="4" cy="6" r="1.15" />
+        <circle cx="8" cy="6" r="1.15" />
+        <circle cx="4" cy="10" r="1.15" />
+        <circle cx="8" cy="10" r="1.15" />
+      </g>
+    </svg>
+  )
+}
+
+/** Bascule d'orientation : deux barres, l'une debout, l'autre couchée. */
+function IconOrient({ vertical }: { vertical: boolean }): ReactElement {
+  return (
+    <svg viewBox="0 0 20 20" width="17" height="17" aria-hidden focusable="false">
+      <rect
+        x={vertical ? 4.5 : 2}
+        y={vertical ? 2 : 4.5}
+        width={vertical ? 5 : 16}
+        height={vertical ? 16 : 5}
+        rx="1.6"
+        fill="currentColor"
+        opacity="0.9"
+      />
+      <rect
+        x={vertical ? 12 : 2}
+        y={vertical ? 4.5 : 12}
+        width={vertical ? 5 : 16}
+        height={vertical ? 11 : 5}
+        rx="1.6"
+        fill="currentColor"
+        opacity="0.32"
+      />
+    </svg>
+  )
+}
+
+/**
+ * Cette fenêtre porte-t-elle la barre ?
+ *
+ * ⚠️ POINT CRITIQUE du multi-écrans : Hexa ouvre UNE FENÊTRE PAR ÉCRAN et chacune
+ * monte l'interface React complète. Sans ce garde-fou, la barre d'outils
+ * apparaîtrait sur TOUS les écrans — donc en plein milieu de ce que les
+ * spectateurs regardent, exactement ce qu'il fallait éviter.
+ *
+ * Le processus principal désigne UN écran porteur (le plus à droite, sinon
+ * l'écran principal) et le dit à chaque fenêtre via `--hexa-display`
+ * (`toolbarHost`). Les annotations, elles, restent disponibles PARTOUT : seule
+ * la barre est confinée. En démo navigateur il n'y a pas de passerelle : on
+ * affiche la barre, évidemment.
+ */
+function useToolbarHost(): boolean {
+  const [host, setHost] = useState(() => bridge.display?.toolbarHost !== false)
+  useEffect(
+    () =>
+      // Un écran débranché peut déplacer le porteur : le processus principal
+      // renvoie alors un 'display-changed' à CHAQUE fenêtre, porteuse ou non.
+      bridge.on('display-changed', (info) => {
+        if (info && typeof info.toolbarHost === 'boolean') setHost(info.toolbarHost)
+      }),
+    [],
+  )
+  return host
+}
+
+/** Taille de la zone de travail, en pixels CSS. */
+function viewport(): { width: number; height: number } {
+  return { width: window.innerWidth, height: window.innerHeight }
+}
+
 export interface ToolbarActions {
   onUndo: () => void
   onRedo: () => void
@@ -205,8 +307,18 @@ export function Toolbar({
   const setCheatsheetOpen = useUiStore((s) => s.setCheatsheetOpen)
   const keymapPreset = useUiStore((s) => s.keymapPreset)
   const keymapOverrides = useUiStore((s) => s.keymapOverrides)
+  const toolbarEdge = useUiStore((s) => s.toolbarEdge)
+  const toolbarOffset = useUiStore((s) => s.toolbarOffset)
+  const toolbarOrientation = useUiStore((s) => s.toolbarOrientation)
+  const setToolbarDock = useUiStore((s) => s.setToolbarDock)
+  const setToolbarOrientation = useUiStore((s) => s.setToolbarOrientation)
+  const toggleToolbarOrientation = useUiStore((s) => s.toggleToolbarOrientation)
 
   const hover = (on: boolean) => document.body.classList.toggle('over-ui', on)
+
+  const isHost = useToolbarHost()
+  const orient = resolveOrientation(toolbarEdge, toolbarOrientation)
+  const vertical = orient === 'vertical'
 
   // Les info-bulles disent la touche qui marche VRAIMENT sur cette machine :
   // preset actif et remaps de l'utilisateur compris. Rien n'est écrit en dur.
@@ -226,15 +338,186 @@ export function Toolbar({
     return `${label} — ${hold ? 'maintenir ' : ''}${k}`
   }
 
+  /* ---------------- Touche Fin maintenue : les raccourcis (§S4.4) --------- *
+   * Le libellé court vient de la table des raccourcis (« Pinceau », « Flèche »)
+   * et jamais du texte d'info-bulle, qui est une phrase entière. À défaut, on
+   * coupe le libellé de la barre à sa première ponctuation.                  */
+  const [hints, setHints] = useState(false)
+  const hintCombos = useMemo(() => new Set(bindings['ui.hints'] ?? []), [bindings])
+  useEffect(() => {
+    if (hintCombos.size === 0) return
+    const concerne = (e: KeyboardEvent) => eventCombos(e).some((c) => hintCombos.has(c))
+    const down = (e: KeyboardEvent) => {
+      if (e.repeat || !concerne(e)) return
+      e.preventDefault()
+      setHints(true)
+    }
+    const up = (e: KeyboardEvent) => {
+      if (concerne(e)) setHints(false)
+    }
+    // Perdre le focus la touche enfoncée laisserait la barre gonflée pour
+    // toujours : le relâché n'arriverait jamais.
+    const off = () => setHints(false)
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', off)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', off)
+    }
+  }, [hintCombos])
+
+  const nomCourt = (label: string, action?: KeymapAction): string => {
+    const officiel = action ? KEYMAP_BY_ACTION[action]?.label : undefined
+    if (officiel) return officiel
+    return label.split(/\s+[(—:·]/)[0]
+  }
+
+  /** Pastille « (Ctrl + Maj + 3) » glissée dans le bouton tant que Fin est tenue. */
+  const rappel = (label: string, action?: KeymapAction, repli?: string): ReactNode => {
+    if (!hints) return null
+    const k = touche(action, repli)
+    if (!k) return null
+    return (
+      <span className="tb-hint">
+        <span className="tb-hint-name">{nomCourt(label, action)}</span>
+        <span className="tb-hint-key">({k})</span>
+      </span>
+    )
+  }
+
+  /* ---------------- Placement : ancrage, glisser, bornage (§S4.2-3) ------- */
+  const barRef = useRef<HTMLDivElement | null>(null)
+  const [place, setPlace] = useState<{ left: number; top: number } | null>(null)
+  const [drag, setDrag] = useState<{ left: number; top: number; edge: ToolbarEdge } | null>(null)
+
+  /**
+   * Recalcule la position à partir du bord, de la proportion mémorisée et de la
+   * TAILLE RÉELLE de la barre. Rejoué à chaque changement de taille (thème,
+   * raccourcis affichés, repli sur deux rangs) et à chaque redimensionnement de
+   * l'écran : c'est ce qui ramène tout seul la barre dans le cadre quand la
+   * position mémorisée vient d'un écran débranché.
+   */
+  const replacer = useCallback(() => {
+    const el = barRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    if (r.width === 0 && r.height === 0) return
+    setPlace(
+      placeDock(
+        { edge: toolbarEdge, offset: toolbarOffset },
+        { width: r.width, height: r.height },
+        viewport(),
+      ),
+    )
+  }, [toolbarEdge, toolbarOffset])
+
+  useLayoutEffect(() => {
+    replacer()
+    const el = barRef.current
+    // ResizeObserver plutôt qu'une boucle : il ne se réveille QUE si la barre
+    // change de taille, et se rendort aussitôt. Zéro processeur au repos.
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(replacer)
+    if (el && ro) ro.observe(el)
+    window.addEventListener('resize', replacer)
+    return () => {
+      ro?.disconnect()
+      window.removeEventListener('resize', replacer)
+    }
+  }, [replacer, orient, hints])
+
+  const onGripDown = (e: ReactPointerEvent<HTMLElement>) => {
+    const el = barRef.current
+    if (!el || e.button !== 0) return
+    e.preventDefault()
+    const r = el.getBoundingClientRect()
+    const dx = e.clientX - r.left
+    const dy = e.clientY - r.top
+    hover(true)
+    setDrag({ left: r.left, top: r.top, edge: toolbarEdge })
+    const suivre = (ev: PointerEvent) => {
+      const rr = el.getBoundingClientRect()
+      const left = ev.clientX - dx
+      const top = ev.clientY - dy
+      setDrag({ left, top, edge: nearestEdge(left + rr.width / 2, top + rr.height / 2, viewport()) })
+    }
+    const lacher = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', suivre)
+      const rr = el.getBoundingClientRect()
+      const left = ev.clientX - dx
+      const top = ev.clientY - dy
+      const view = viewport()
+      const cx = left + rr.width / 2
+      const cy = top + rr.height / 2
+      const edge = nearestEdge(cx, cy, view)
+      setToolbarDock(edge, offsetAlongEdge(edge, cx, cy, view))
+      // Lâcher la barre sur un bord, c'est CHOISIR ce bord : l'orientation
+      // redevient celle qui va avec (verticale à gauche/droite, horizontale en
+      // haut/bas). Un ancrage à gauche qui resterait horizontal serait absurde.
+      setToolbarOrientation('auto')
+      setDrag(null)
+    }
+    window.addEventListener('pointermove', suivre)
+    window.addEventListener('pointerup', lacher, { once: true })
+  }
+
+  // Cette fenêtre ne porte pas la barre (écran de gauche d'une configuration à
+  // deux écrans) : on annote quand même, mais sans barre par-dessus le jeu.
+  if (!isHost) return null
+
+  const pose: CSSProperties = drag
+    ? { left: drag.left, top: drag.top, right: 'auto', bottom: 'auto', transform: 'none' }
+    : place
+      ? { left: place.left, top: place.top, right: 'auto', bottom: 'auto', transform: 'none' }
+      : { visibility: 'hidden' }
+
   return (
     <div
-      className="toolbar"
-      style={{ '--accent': color } as CSSProperties}
+      ref={barRef}
+      className={`toolbar ${vertical ? 'vertical' : 'horizontal'} edge-${toolbarEdge} ${
+        hints ? 'hints' : ''
+      } ${drag ? 'dragging' : ''}`}
+      style={{ '--accent': color, ...pose } as CSSProperties}
       onPointerEnter={() => hover(true)}
       onPointerLeave={() => hover(false)}
     >
-      <div className="brand" title="Hexa">
-        <HexaLogo />
+      {/* Aperçu d'ancrage : un liseré sur le bord visé, hors de la barre (donc
+          par portail — la barre porte un backdrop-filter, qui piégerait un
+          enfant en position fixe dans son propre repère). */}
+      {drag &&
+        createPortal(
+          <div className="dock-preview" aria-hidden>
+            <span className="dock-preview-edge" style={edgePreviewStyle(drag.edge)} />
+            <span className={`dock-preview-word edge-${drag.edge}`}>{EDGE_LABELS[drag.edge]}</span>
+          </div>,
+          document.body,
+        )}
+
+      <div className="tb-handle">
+        <span
+          className="brand grip"
+          title={`Hexa — glisse cette poignée pour déplacer la barre (elle s’ancre aux bords · actuellement ${EDGE_LABELS[toolbarEdge]})`}
+          onPointerDown={onGripDown}
+        >
+          <HexaLogo />
+          <span className="grip-dots" aria-hidden>
+            <IconGrip />
+          </span>
+        </span>
+        <button
+          className="tbtn tb-orient"
+          title={bulle(
+            vertical
+              ? 'Barre verticale — passer à l’horizontale'
+              : 'Barre horizontale — passer à la verticale',
+            'ui.toolbar.orient',
+          )}
+          onClick={toggleToolbarOrientation}
+        >
+          <IconOrient vertical={vertical} />
+          {rappel('Barre verticale / horizontale', 'ui.toolbar.orient')}
+        </button>
       </div>
 
       <div className="group">
@@ -246,6 +529,7 @@ export function Toolbar({
             onClick={() => setTool(t.id)}
           >
             {t.icon}
+            {rappel(t.label, t.action, t.kbd)}
           </button>
         ))}
         {/* Le gel n'est pas un outil mais une BASCULE : une fois l'écran figé
@@ -264,20 +548,26 @@ export function Toolbar({
           onClick={onFreeze}
         >
           <IconFreeze />
+          {rappel('Gel d’image', 'hold.freeze', 'V')}
         </button>
       </div>
 
       <div className="sep" />
 
+      {/* Les pastilles sont détourées au clip-path : un enfant y serait
+          découpé avec elles. Le rappel de touche vit donc DANS LA CELLULE,
+          à côté de l'hexagone, jamais dedans. */}
       <div className="group swatches">
         {COLORS.map((c, i) => (
-          <button
-            key={c}
-            className={`swatch ${color === c ? 'active' : ''}`}
-            style={{ '--c': c } as CSSProperties}
-            title={bulle(COLOR_NAMES[i] ?? `Couleur ${i + 1}`, `color.${i + 1}` as KeymapAction)}
-            onClick={() => setColor(c)}
-          />
+          <span className="swatch-cell" key={c}>
+            <button
+              className={`swatch ${color === c ? 'active' : ''}`}
+              style={{ '--c': c } as CSSProperties}
+              title={bulle(COLOR_NAMES[i] ?? `Couleur ${i + 1}`, `color.${i + 1}` as KeymapAction)}
+              onClick={() => setColor(c)}
+            />
+            {rappel(COLOR_NAMES[i] ?? `Couleur ${i + 1}`, `color.${i + 1}` as KeymapAction)}
+          </span>
         ))}
       </div>
 
@@ -315,6 +605,7 @@ export function Toolbar({
         >
           {fadeDelay == null ? <IconInfinity /> : <IconTimer />}
           <span className="chip-label">{fadeDelay == null ? '∞' : `${fadeDelay / 1000}s`}</span>
+          {rappel('Durée du fondu', 'fade.cycle', 'D')}
         </button>
         <button
           className={`tbtn ${sparkles ? 'active' : ''}`}
@@ -337,6 +628,7 @@ export function Toolbar({
           onClick={toggleSmartShapes}
         >
           <IconWand />
+          {rappel('Formes intelligentes', 'toggle.smartShapes', 'W')}
         </button>
         <button
           className={`tbtn ${guides ? 'active' : ''}`}
@@ -348,13 +640,15 @@ export function Toolbar({
           onClick={toggleGuides}
         >
           <IconMagnet />
+          {rappel('Guides magnétiques', 'toggle.guides', 'G')}
         </button>
         <button
           className={`tbtn ${handwriting ? 'active' : ''}`}
-          title="Mode écriture — J : écris à la main, Hexa retrace en typographie (Entrée : tout de suite · annuler rend le gribouillis)"
+          title="Mode écriture — J : écris tes CAPITALES à la main, chaque lettre est retracée en typographie juste après (Entrée : tout de suite · annuler rend le gribouillis)"
           onClick={toggleHandwriting}
         >
           <IconScript />
+          {rappel('Mode écriture', undefined, 'J')}
         </button>
         <button
           className={`tbtn ${comparing ? 'active' : ''}`}
@@ -422,9 +716,11 @@ export function Toolbar({
       <div className="group">
         <button className="tbtn" title={bulle('Annuler le dernier trait', 'edit.undo')} onClick={onUndo}>
           <IconUndo />
+          {rappel('Annuler', 'edit.undo')}
         </button>
         <button className="tbtn" title={bulle('Rétablir', 'edit.redo')} onClick={onRedo}>
           <IconRedo />
+          {rappel('Rétablir', 'edit.redo')}
         </button>
         <button
           className="tbtn danger"
@@ -432,6 +728,7 @@ export function Toolbar({
           onClick={onClear}
         >
           <IconClear />
+          {rappel('Tout effacer', 'edit.clear')}
         </button>
       </div>
 
@@ -451,6 +748,7 @@ export function Toolbar({
           onClick={() => setSettingsOpen(true)}
         >
           <IconGear />
+          {rappel('Réglages', 'ui.settings')}
         </button>
         {/* L'aide doit être ATTEIGNABLE À LA SOURIS : personne ne devine tout
             seul qu'une touche « ? » ouvre un panneau. */}
@@ -460,6 +758,7 @@ export function Toolbar({
           onClick={() => setCheatsheetOpen(true)}
         >
           <IconHelp />
+          {rappel('Aide', 'ui.cheatsheet')}
         </button>
       </div>
     </div>

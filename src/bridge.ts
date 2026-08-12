@@ -28,6 +28,11 @@ export interface BridgeEvents {
    * `resize` côté page (§12.3).
    */
   'display-changed': (info: HexaDisplayInfo) => void
+  /**
+   * « Replacer la barre d'outils » demandé depuis l'icône près de l'horloge
+   * (§S4.3) : dernier recours quand la barre a fini hors champ.
+   */
+  'toolbar-reset': () => void
 }
 
 export type BridgeChannel = keyof BridgeEvents
@@ -38,6 +43,17 @@ export interface HexaDisplayInfo {
   scaleFactor: number
   bounds: { x: number; y: number; width: number; height: number }
   primary: boolean
+  /**
+   * Cette fenêtre porte-t-elle la BARRE D'OUTILS (§S4.2) ?
+   *
+   * Il y a une fenêtre par écran et chacune monte l'interface complète : sans
+   * ce drapeau, la barre s'afficherait sur TOUS les écrans, donc par-dessus ce
+   * que les spectateurs regardent. Le processus principal en désigne un seul
+   * (le plus à droite, sinon l'écran principal) et redit son choix par
+   * 'display-changed' quand la topologie bouge.
+   * Absent = démo navigateur : la barre s'affiche, évidemment.
+   */
+  toolbarHost?: boolean
 }
 
 /**

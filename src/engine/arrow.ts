@@ -269,9 +269,11 @@ export function beautifyArrow(raw: Pt[], straight = false): Pt[] {
   const total = pathLen(pts)
   // geste minuscule : rien à embellir
   if (total < 6) return [a, b]
-  // tolérance proportionnelle à l'échelle du geste : un grand geste tolère
-  // un grand nettoyage, un petit geste garde ses détails
-  const tol = clamp(Math.max(chord, total * 0.5) * 0.02, 1.4, 8)
+  // Tolérance proportionnelle à l'échelle du geste : un grand geste tolère un
+  // grand nettoyage, un petit garde ses détails. Le plafond est GÉNÉREUX à
+  // dessein — une main qui tremble sur un geste d'un mètre écarte facilement
+  // dix pixels, et 2 % d'un grand geste reste invisible à l'œil.
+  const tol = clamp(Math.max(chord, total * 0.5) * 0.02, 1.5, 16)
   const ctrl = simplify(pts, tol)
   if (ctrl.length < 3) return [a, b]
   // presque droit → franchement droit (§2.c)

@@ -54,6 +54,8 @@ export type KeymapAction =
   | 'toggle.linkBadges'
   // interface
   | 'ui.toolbar'
+  | 'ui.toolbar.orient'
+  | 'ui.hints'
   | 'ui.settings'
   | 'ui.cheatsheet'
   | 'ui.close'
@@ -171,6 +173,19 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
   { action: 'toggle.linkBadges', label: 'Relier les pastilles numérotées', category: 'edition' },
 
   { action: 'ui.toolbar', label: 'Afficher/masquer la barre', category: 'interface', global: true },
+  {
+    action: 'ui.toolbar.orient',
+    label: 'Barre verticale / horizontale',
+    category: 'interface',
+    hint: 'La barre se retourne, et l’ancrage suit',
+  },
+  {
+    action: 'ui.hints',
+    label: 'Voir les raccourcis sur la barre',
+    category: 'interface',
+    hold: true,
+    hint: 'MAINTENIR : chaque outil affiche son raccourci entre parenthèses',
+  },
   { action: 'ui.settings', label: 'Réglages', category: 'interface' },
   {
     action: 'ui.cheatsheet',
@@ -264,6 +279,11 @@ const HEXA_BINDINGS: Bindings = {
   'toggle.linkBadges': 'k',
 
   'ui.toolbar': 'h',
+  'ui.toolbar.orient': 'ctrl+shift+h',
+  // « Fin » : touche isolée, à l'écart de tout ce qu'un jeu utilise, et que
+  // personne n'atteint par accident en pleine partie de League of Legends.
+  // MAINTENUE, elle révèle le raccourci de chaque outil sur la barre.
+  'ui.hints': 'end',
   'ui.settings': 'ctrl+,',
   // « ? » : sur un clavier français il s'obtient avec Maj+, — sur un QWERTY
   // avec Maj+/. On accepte les deux, la touche d'aide doit marcher partout.
@@ -560,6 +580,9 @@ const DISPLAY_KEYS: Record<string, string> = {
   right: '→',
   pageup: 'Page ↑',
   pagedown: 'Page ↓',
+  home: 'Début',
+  end: 'Fin',
+  insert: 'Inser',
 }
 
 /** Rendu lisible d'une combinaison : `ctrl+shift+3` → `Ctrl + Maj + 3`. */

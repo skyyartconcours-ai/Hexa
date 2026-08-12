@@ -5,6 +5,13 @@ import { GRID_MODES, type GridMode, type StageClock, type StageNote } from './en
 import { OBS_DEFAULT_PORT, type ObsMode } from './obs/protocol'
 import { DEFAULT_PRESET, type KeymapAction, type KeymapPresetId } from './keymap'
 import {
+  DEFAULT_DOCK,
+  isEdge,
+  resolveOrientation,
+  type ToolbarEdge,
+  type ToolbarOrientationPref,
+} from './ui/toolbar-dock'
+import {
   DEFAULT_PROFILE_ID,
   findProfile,
   makeGlyph,
@@ -67,8 +74,16 @@ export interface UiState extends ObsSettings {
   guides: boolean
   /** numéroteur : relier automatiquement la pastille N à N+1 */
   linkBadges: boolean
-  /** mode écriture : le gribouillis manuscrit devient une typographie nette
-   *  ~600 ms après le dernier trait. DÉSACTIVÉ par défaut : la magie se choisit. */
+  /**
+   * Mode écriture : chaque CAPITALE tracée à la main est reconnue et
+   * retracée en typographie ~400 ms après avoir été finie, pendant qu'on
+   * écrit déjà la suivante.
+   *
+   * DÉSACTIVÉ par défaut, et ce n'est pas de la timidité : dans ce mode, un
+   * rond dessiné pour entourer un ennemi deviendrait un « O ». Or on dessine
+   * bien plus souvent qu'on n'écrit. Le mode s'allume donc d'une touche (J)
+   * ou d'un bouton, au moment où l'on veut écrire — et se coupe pareil.
+   */
   handwriting: boolean
   /** identifiant du thème visuel (8 designs) */
   theme: string
@@ -92,6 +107,17 @@ export interface UiState extends ObsSettings {
   replayOpen: boolean
   /** barre d'outils visible — masquable au clavier (Ctrl+H en preset Epic Pen) */
   toolbarVisible: boolean
+  /** bord d'ancrage de la barre (§S4) — gauche par défaut, donc verticale */
+  toolbarEdge: ToolbarEdge
+  /** position du centre de la barre le long de ce bord, en proportion 0 → 1 */
+  toolbarOffset: number
+  /** 'auto' = l'orientation suit le bord ; sinon choix explicite de l'utilisateur */
+  toolbarOrientation: ToolbarOrientationPref
+  /**
+   * Écran qui porte la barre, mémorisé entre les sessions.
+   * null = on suit la décision d'Electron (écran de droite en multi-écrans).
+   */
+  toolbarDisplayId: number | null
   /** preset de raccourcis actif (Epic Pen par défaut, ou clavier maison Hexa) */
   keymapPreset: KeymapPresetId
   /** l'utilisateur a choisi son preset lui-même : on ne le lui reprend jamais */
@@ -146,6 +172,14 @@ export interface UiState extends ObsSettings {
   /** applique un sous-ensemble des réglages OBS */
   setObs: (patch: Partial<ObsSettings>) => void
   toggleToolbar: () => void
+  /** ancre la barre à un bord, à telle proportion le long de ce bord */
+  setToolbarDock: (edge: ToolbarEdge, offset: number) => void
+  setToolbarOrientation: (pref: ToolbarOrientationPref) => void
+  /** bascule rapide vertical ⇄ horizontal (bouton de la barre, réglages) */
+  toggleToolbarOrientation: () => void
+  /** « replacer la barre » : retour au bord gauche, orientation automatique */
+  resetToolbarDock: () => void
+  setToolbarDisplayId: (id: number | null) => void
   setKeymapPreset: (preset: KeymapPresetId) => void
   setBinding: (action: KeymapAction, combo: string | null) => void
   resetBinding: (action: KeymapAction) => void
@@ -189,6 +223,10 @@ export const useUiStore = create<UiState>()(
       cheatsheetOpen: false,
       replayOpen: false,
       toolbarVisible: true,
+      toolbarEdge: DEFAULT_DOCK.edge,
+      toolbarOffset: DEFAULT_DOCK.offset,
+      toolbarOrientation: 'auto',
+      toolbarDisplayId: null,
       ...OBS_DEFAULTS,
       keymapPreset: DEFAULT_PRESET,
       keymapPresetChosen: false,
@@ -227,6 +265,29 @@ export const useUiStore = create<UiState>()(
       setReplayOpen: (replayOpen) => set({ replayOpen }),
       setObs: (patch) => set(patch as Partial<UiState>),
       toggleToolbar: () => set((s) => ({ toolbarVisible: !s.toolbarVisible })),
+
+      // ---- placement de la barre (src/ui/toolbar-dock.ts) ----
+      setToolbarDock: (toolbarEdge, offset) =>
+        set({ toolbarEdge, toolbarOffset: Math.min(1, Math.max(0, offset)) }),
+      setToolbarOrientation: (toolbarOrientation) => set({ toolbarOrientation }),
+      // Bascule explicite : on écrit l'orientation VOULUE, jamais 'auto', sinon
+      // le clic ne ferait rien tant que le bord impose déjà cette orientation.
+      toggleToolbarOrientation: () =>
+        set((s) => ({
+          toolbarOrientation:
+            resolveOrientation(s.toolbarEdge, s.toolbarOrientation) === 'vertical'
+              ? 'horizontal'
+              : 'vertical',
+        })),
+      resetToolbarDock: () =>
+        set({
+          toolbarEdge: DEFAULT_DOCK.edge,
+          toolbarOffset: DEFAULT_DOCK.offset,
+          toolbarOrientation: 'auto',
+          toolbarDisplayId: null,
+          toolbarVisible: true,
+        }),
+      setToolbarDisplayId: (toolbarDisplayId) => set({ toolbarDisplayId }),
 
       // ---- raccourcis clavier (source de vérité : src/keymap.ts) ----
       // Choisir son preset est un acte volontaire : on le mémorise pour ne
@@ -308,6 +369,10 @@ export const useUiStore = create<UiState>()(
         sound: s.sound,
         soundVolume: s.soundVolume,
         toolbarVisible: s.toolbarVisible,
+        toolbarEdge: s.toolbarEdge,
+        toolbarOffset: s.toolbarOffset,
+        toolbarOrientation: s.toolbarOrientation,
+        toolbarDisplayId: s.toolbarDisplayId,
         // réglages OBS (le mot de passe reste strictement local, comme le reste
         // du store : aucune télémétrie, aucun envoi, aucun journal)
         obsMirror: s.obsMirror,
@@ -366,6 +431,20 @@ export const useUiStore = create<UiState>()(
         // réactive l'option ensuite, son choix est marqué et jamais réécrasé.
         const p = (persisted ?? {}) as Partial<UiState> & { globalShortcutsChosen?: boolean }
         if (p.globalShortcutsChosen !== true) merged.globalShortcutsOn = false
+        // Placement de la barre : un état écrit par une version antérieure (ou
+        // trafiqué à la main) ne doit JAMAIS pouvoir envoyer la barre hors champ.
+        // Le bornage à l'écran réel est fait au rendu ; ici on garantit juste
+        // que les valeurs ont un sens.
+        if (!isEdge(merged.toolbarEdge)) merged.toolbarEdge = DEFAULT_DOCK.edge
+        if (!Number.isFinite(merged.toolbarOffset))
+          merged.toolbarOffset = DEFAULT_DOCK.offset
+        else merged.toolbarOffset = Math.min(1, Math.max(0, merged.toolbarOffset))
+        if (
+          merged.toolbarOrientation !== 'auto' &&
+          merged.toolbarOrientation !== 'vertical' &&
+          merged.toolbarOrientation !== 'horizontal'
+        )
+          merged.toolbarOrientation = 'auto'
         return merged
       },
       /** Conservé pour les futures versions : sans lui, zustand jetterait l'état. */

@@ -1,16 +1,22 @@
 /**
- * Hexa — mode écriture : le gribouillis devient une typographie impeccable.
+ * Hexa — mode écriture : le gribouillis devient une typographie impeccable,
+ * LETTRE PAR LETTRE, PENDANT qu'on écrit la suivante.
  *
  * Enchaînement complet :
- *   1. le streamer écrit à l'arrache pendant son live ;
- *   2. ~600 ms sans nouveau trait (ou raccourci manuel) déclenchent l'analyse ;
- *   3. `layout.ts` regroupe les traits en lettres / mots / lignes ;
- *   4. `recognizer.ts` ($P) identifie chaque lettre et donne une confiance ;
- *   5. confiance insuffisante = ON NE TOUCHE À RIEN (un faux positif détruit
+ *   1. le streamer écrit ses capitales à l'arrache pendant son live ;
+ *   2. une lettre est déclarée FINIE dès que l'un des deux signaux tombe :
+ *      une pause de 400 ms sans nouveau trait, ou un trait qui démarre
+ *      franchement à droite du groupe courant (§ letterClosed) ;
+ *   3. `recognizer.ts` ($P + carte de densité) l'identifie et donne une
+ *      confiance ;
+ *   4. confiance insuffisante = ON NE TOUCHE À RIEN (un faux positif détruit
  *      la confiance dans l'outil, une non-transformation ne coûte rien) ;
- *   6. sinon le mot part en morph : l'encre se désagrège en particules qui
- *      se rangent dans la forme des lettres de la police système, lettre
- *      par lettre en cascade, puis le texte net s'allume.
+ *   5. sinon la lettre part immédiatement en morph : son encre se désagrège
+ *      en particules qui se rangent dans la forme de la lettre typographiée,
+ *      380 ms, pendant que la main écrit déjà la suivante ;
+ *   6. si un trait retombe SUR une lettre déjà transformée (la barre du A
+ *      posée après coup), la lettre est RATTRAPÉE : le glyphe redevient
+ *      encre, le trait la rejoint, et la reconnaissance recommence.
  *
  * LE MORPH, VOIE CHOISIE : particules guidées par le masque alpha de la
  * vraie police (voir l'en-tête de glyphs.ts). Choisie parce qu'elle est
@@ -28,7 +34,17 @@ import type { Stroke, StrokePoint } from '../types'
 import { clamp, rgba, whiteMix } from '../geometry'
 import { resampleCloud, type TplPoint } from './templates'
 import { recognizeChar } from './recognizer'
-import { segment, type Word } from './layout'
+import {
+  boxOf,
+  estimateSlant,
+  height,
+  joins,
+  merge,
+  segment,
+  width,
+  type Box,
+  type Group,
+} from './layout'
 import {
   capRatio,
   easeInOutCubic,
@@ -40,24 +56,37 @@ import {
   textWidth,
 } from './glyphs'
 
-/** délai d'inactivité avant transformation automatique */
-export const IDLE_MS = 600
+/**
+ * Pause qui clôt une LETTRE. Réglage sensible : trop court, la barre du A
+ * arrive après la fermeture ; trop long, la magie se fait attendre. 400 ms
+ * est le compromis mesuré — et de toute façon rattrapable (§ reopen).
+ */
+export const LETTER_IDLE_MS = 400
+/**
+ * Pause qui clôt un MOT (le lexique peut alors le corriger en entier). Bien
+ * plus généreuse que la pause de fin de lettre : on hésite souvent une
+ * seconde au milieu d'un nom propre, et couper le mot en deux priverait le
+ * correcteur de la moitié de son contexte.
+ */
+const WORD_IDLE_MS = 1300
+/** Fenêtre pendant laquelle une lettre déjà transformée peut être rouverte. */
+const REOPEN_MS = 900
 /** durée du morph d'une lettre */
-const LETTER_MS = 450
-/** décalage entre deux lettres (cascade) */
+const LETTER_MS = 380
+/** décalage entre deux lettres (cascade, pour une réécriture de mot entier) */
 const CASCADE_MS = 40
 /** durée du dé-morph (premier Ctrl+Z) */
 const DEMORPH_MS = 330
 /** durée de vie du chip de confirmation */
-const CHIP_MS = 1150
+const CHIP_MS = 800
 
-/** confiance minimale d'une lettre isolée dans un mot de plusieurs lettres */
-const MIN_LETTER = 0.52
-/** confiance moyenne minimale sur le mot */
-const MIN_WORD = 0.64
-/** un mot d'UNE seule lettre est bien plus risqué : on exige beaucoup plus.
- *  Un rond isolé reste un rond ; deux lettres côte à côte, c'est un mot. */
-const MIN_SINGLE = 0.8
+/**
+ * Confiance minimale pour transformer une lettre. Choisie sur la courbe
+ * mesurée du banc d'essai (bench/seuil.mjs) : à 0,62 on transforme 94 % des
+ * lettres et 99 % des transformations sont justes. Monter plus haut ne gagne
+ * presque plus de justesse et coûte beaucoup de magie.
+ */
+const MIN_LETTER = 0.62
 /** longueur d'encre admissible pour une lettre, en hauteurs de capitale.
  *  Un gribouillis nerveux dépasse largement : c'est le filtre le plus
  *  efficace contre les faux positifs, et il ne coûte rien. */
@@ -65,10 +94,18 @@ const INK_MIN = 0.7
 const INK_MAX = 6.5
 /** en dessous, l'écriture est trop petite pour être analysée sereinement */
 const MIN_CAP_PX = 15
+/** au-delà, ce n'est plus une lettre mais un dessin */
+const MAX_STROKES_PER_LETTER = 5
 
 export interface HwSwap {
   remove: Stroke[]
   add: Stroke[]
+  /**
+   * Traits du mot EN COURS dont il faut repousser le fondu automatique.
+   * Sans ça, écrire « SYNDRA » avec un fondu à 4 s ferait disparaître le S
+   * avant le A : tant qu'on écrit le mot, le mot entier reste vivant.
+   */
+  keep?: Stroke[]
 }
 
 export interface HwContext {
@@ -76,6 +113,50 @@ export interface HwContext {
   nextId: () => number
   /** intensité globale des halos */
   glow: number
+  /** un trait est en cours de tracé : le mot ne peut pas être déclaré fini */
+  drawing?: boolean
+}
+
+/* ------------------------------------------------------------------ *
+ * CONTRAT PUBLIC — le mot en cours, à destination du lexique (§S2.7)
+ *
+ * Le module d'écriture ne connaît aucun dictionnaire : il livre des LETTRES
+ * mesurées, avec leur confiance et leur place exacte à l'écran. Un correcteur
+ * lexical s'abonne à `onWord`, décide (« SYNDRA » → « Syndra »), puis appelle
+ * `rewrite(id, texte)`. Rien d'autre n'est nécessaire.
+ * ------------------------------------------------------------------ */
+
+export interface HwLetter {
+  /** caractère retenu ; chaîne vide si la lettre est restée en gribouillis */
+  char: string
+  /** confiance 0..1 rendue par le reconnaisseur */
+  score: number
+  /** rectangle englobant du GRIBOUILLIS d'origine, en pixels écran */
+  box: Box
+  /** identifiant du trait typographié posé sur la scène (null si non transformé) */
+  glyphId: number | null
+}
+
+export interface HwWord {
+  /** identifiant stable du mot, à repasser à `rewrite()` */
+  id: number
+  /** lettres dans l'ordre de lecture */
+  letters: HwLetter[]
+  /** concaténation brute des lettres reconnues, ex. « SYNDRA » */
+  raw: string
+  /** rectangle englobant du mot entier, en pixels écran */
+  box: Box
+  /** hauteur de capitale estimée (px) */
+  capHeight: number
+  /** ligne de base estimée (px) */
+  baseline: number
+  /** inclinaison de l'écriture (tangente) */
+  slant: number
+  /** couleur et épaisseur du geste, pour recomposer un mot entier */
+  color: string
+  size: number
+  /** vrai quand le mot est terminé (longue pause, saut de ligne, mode coupé) */
+  closed: boolean
 }
 
 /* ------------------------------------------------------------------ */
@@ -353,43 +434,135 @@ export function renderGlyph(
 /* Session d'écriture                                                   */
 /* ------------------------------------------------------------------ */
 
-export class Handwriting {
-  /** traits au stylo en attente d'analyse */
-  private pending: Stroke[] = []
-  private dueAt: number | null = null
-  private chip: Chip | null = null
+/** lettre déjà jugée : transformée (glyph) ou laissée en gribouillis */
+interface DoneLetter {
+  char: string
+  score: number
+  box: Box
+  ink: Stroke[]
+  glyph: Stroke | null
+  t0: number
+  t1: number
+}
 
-  /** un trait vient d'être terminé : il rejoint la file et relance le compte à rebours */
+export class Handwriting {
+  /** lettre en cours d'écriture (ses traits s'accumulent) */
+  private open: Group | null = null
+  /** lettres déjà jugées du mot en cours */
+  private done: DoneLetter[] = []
+  /** lettres closes par un geste (et non par la pause), à juger au prochain tick */
+  private queue: Group[] = []
+  /** échanges décidés hors tick (rattrapage), à rendre au moteur */
+  private queued: HwSwap[] = []
+  /** réécritures demandées par le lexique */
+  private rewrites: { id: number; text: string }[] = []
+  private chips: Chip[] = []
+  private dueAt: number | null = null
+  /** un saut de mot est à consommer une fois la lettre en attente jugée */
+  private breakPending = false
+  private wordSeq = 1
+  private wordId = 1
+  private wordClosed = false
+  /** hauteur de capitale courante (px) — survit aux mots : on écrit à taille constante */
+  private cap = 0
+  private baseline = 0
+  /** bord droit de la dernière lettre posée : sert à ne pas les empiler */
+  private lastRight = 0
+  private lastAt = 0
+
+  /** le mot vient de changer (lettre ajoutée) ou d'être clos — pour le lexique */
+  onWord?: (w: HwWord) => void
+
+  /* ---------------- entrée ---------------- */
+
+  /**
+   * Un trait vient d'être terminé. Trois issues : il complète la lettre en
+   * cours, il rattrape une lettre déjà transformée, ou il en ouvre une
+   * nouvelle — auquel cas la précédente est close SUR-LE-CHAMP.
+   */
   push(s: Stroke, now: number): void {
-    this.pending.push(s)
-    this.dueAt = now + IDLE_MS
+    const box = boxOf(s.points)
+    const t0 = s.startedAt
+    const cap = this.capHint(box)
+    this.lastAt = now
+
+    // 1. le trait complète la lettre en cours
+    if (this.open && joins(this.open, box, t0, cap)) {
+      this.open.strokes.push(s)
+      this.open.box = merge(this.open.box, box)
+      this.open.t1 = Math.max(this.open.t1, s.endedAt ?? now)
+      this.arm(now)
+      return
+    }
+
+    // 2. rattrapage : le trait retombe sur la DERNIÈRE lettre déjà jugée
+    //    (barre du A, du E, du H posée après coup, point du J). On défait la
+    //    transformation, le trait rejoint la lettre, tout est rejoué.
+    if (!this.open && this.reopen(box, t0, now, cap)) {
+      this.open!.strokes.push(s)
+      this.open!.box = merge(this.open!.box, box)
+      this.open!.t1 = Math.max(this.open!.t1, s.endedAt ?? now)
+      this.arm(now)
+      return
+    }
+
+    // 3. nouvelle lettre : la précédente est close tout de suite
+    if (this.open) {
+      this.queue.push(this.open)
+      this.open = null
+    }
+    if (this.startsNewWord(box, cap)) this.breakPending = true
+    this.open = { strokes: [s], box, t0, t1: s.endedAt ?? now }
+    this.arm(now)
   }
 
-  /** raccourci de déclenchement manuel : on n'attend pas les 600 ms */
+  /** déclenchement manuel : la lettre en cours est jugée sans attendre */
   trigger(now: number): boolean {
-    if (this.pending.length === 0) return false
+    if (!this.open && this.queue.length === 0) return false
+    if (this.open) {
+      this.queue.push(this.open)
+      this.open = null
+    }
     this.dueAt = now
     return true
   }
 
   get hasPending(): boolean {
-    return this.pending.length > 0
+    return this.open != null || this.queue.length > 0
   }
 
-  /** file vidée (mode désactivé, effacement panique, changement de session) */
+  /** tout est abandonné (mode coupé, effacement panique, nouvelle session) */
   reset(): void {
-    this.pending = []
+    if (this.done.length > 0) this.closeWord()
+    this.open = null
+    this.queue = []
+    this.done = []
+    this.queued = []
+    this.rewrites = []
     this.dueAt = null
+    this.breakPending = false
+    this.wordClosed = false
+    this.wordId = ++this.wordSeq
+    this.cap = 0
+    this.baseline = 0
+    this.lastRight = 0
   }
 
   /** prochaine échéance à programmer par le moteur (aucune boucle ici) */
   nextDue(): number | null {
+    if (this.queue.length > 0 || this.queued.length > 0 || this.rewrites.length > 0) return this.lastAt
+    if (this.open) return this.open.t1 + LETTER_IDLE_MS
+    if (this.done.length > 0 && !this.wordClosed) return this.lastAt + WORD_IDLE_MS
     return this.dueAt
   }
 
   /** quelque chose bouge-t-il encore ? (morph, dé-morph, chip) */
   active(now: number): boolean {
-    if (this.chip && now - this.chip.start < CHIP_MS) return true
+    // +100 ms : il faut UNE image de plus après la dernière pastille dessinée,
+    // sinon la boucle s'endort sur la dernière image qui la contient encore et
+    // la pastille reste figée à l'écran (la couche live n'est repeinte que
+    // pendant que la boucle tourne).
+    for (const c of this.chips) if (now - c.start < CHIP_MS + 100) return true
     for (const m of morphs.values()) {
       if (now - m.start < m.duration) return true
     }
@@ -398,7 +571,7 @@ export class Handwriting {
 
   /**
    * Appelée à chaque image active. Renvoie les échanges de traits que le
-   * moteur doit appliquer (encre → texte, ou texte → encre pour un Ctrl+Z).
+   * moteur doit appliquer (encre → lettre, ou lettre → encre pour un Ctrl+Z).
    */
   tick(now: number, live: readonly Stroke[], ctx: HwContext): HwSwap[] {
     const swaps: HwSwap[] = []
@@ -409,18 +582,166 @@ export class Handwriting {
       morphs.delete(id)
       swaps.push({ remove: [m.stroke], add: m.ink })
     }
-
-    if (this.dueAt != null && now >= this.dueAt) {
-      this.dueAt = null
-      // un trait effacé, annulé ou dissous entre-temps ne doit pas ressusciter
-      const alive = this.pending.filter((s) => live.includes(s) && !s.dying)
-      this.pending = []
-      if (alive.length > 0) swaps.push(...this.transcribe(alive, now, ctx))
+    if (this.queued.length > 0) {
+      swaps.push(...this.queued)
+      this.queued = []
     }
+
+    // lettres closes par un geste : jugées immédiatement
+    while (this.queue.length > 0) {
+      const g = this.queue.shift()!
+      const sw = this.judge(g, now, live, ctx)
+      if (sw) swaps.push(sw)
+    }
+    // le mot précédent était fini : on le publie avant d'entamer le suivant
+    if (this.breakPending) {
+      this.breakPending = false
+      this.closeWord()
+    }
+    // lettre close par la pause
+    if (this.open && now >= this.open.t1 + LETTER_IDLE_MS) {
+      const g = this.open
+      this.open = null
+      const sw = this.judge(g, now, live, ctx)
+      if (sw) swaps.push(sw)
+    }
+    // Mot clos par une longue pause. Jamais pendant qu'un trait s'écrit : un
+    // O tracé lentement dure plus d'une seconde, et rien n'arrive dans la
+    // file avant que le crayon ne se lève. Sans cette garde, le mot se
+    // couperait en deux au beau milieu d'une lettre.
+    if (
+      !this.open &&
+      !this.wordClosed &&
+      !ctx.drawing &&
+      this.done.length > 0 &&
+      now >= this.lastAt + WORD_IDLE_MS
+    ) {
+      this.closeWord()
+    }
+    // réécritures demandées par le lexique
+    while (this.rewrites.length > 0) {
+      const r = this.rewrites.shift()!
+      const sw = this.applyRewrite(r.id, r.text, now, live, ctx)
+      if (sw) swaps.push(sw)
+    }
+    this.dueAt = null
     return swaps
   }
 
-  /** premier Ctrl+Z sur un mot typographié : on rejoue le morph à l'envers */
+  /* ---------------- mot en cours : contrat public ---------------- */
+
+  /** État du mot en construction (null si rien n'est en cours). */
+  currentWord(): HwWord | null {
+    if (this.done.length === 0) return null
+    return this.snapshot(this.wordClosed)
+  }
+
+  /**
+   * Remplace le mot `id` par `text` — c'est l'appel que fait le lexique une
+   * fois « SYNDRA » reconnu et remis en forme en « Syndra ». Les lettres
+   * posées disparaissent au profit d'un seul mot typographié, calé sur la
+   * même ligne de base et la même hauteur de capitale. Renvoie false si le
+   * mot n'existe plus (effacé, annulé, remplacé entre-temps).
+   */
+  rewrite(id: number, text: string): boolean {
+    if (id !== this.wordId || this.done.length === 0) return false
+    this.rewrites.push({ id, text })
+    return true
+  }
+
+  private snapshot(closed: boolean): HwWord {
+    let box = this.done[0].box
+    for (const l of this.done) box = merge(box, l.box)
+    const strokes = this.done.flatMap((l) => l.ink)
+    const first = strokes.find((s) => s.color) ?? null
+    return {
+      id: this.wordId,
+      letters: this.done.map((l) => ({
+        char: l.char,
+        score: l.score,
+        box: l.box,
+        glyphId: l.glyph ? l.glyph.id : null,
+      })),
+      raw: this.done.map((l) => l.char).join(''),
+      box,
+      capHeight: this.cap,
+      baseline: this.baseline,
+      slant: estimateSlant(strokes, this.cap || 24),
+      color: first?.color ?? '#ffffff',
+      size: strokes.reduce((a, s) => Math.max(a, s.size), 4),
+      closed,
+    }
+  }
+
+  private emit(closed: boolean): void {
+    if (!this.onWord || this.done.length === 0) return
+    this.onWord(this.snapshot(closed))
+  }
+
+  private closeWord(): void {
+    if (this.done.length === 0 || this.wordClosed) return
+    this.wordClosed = true
+    this.lastRight = 0
+    this.emit(true)
+  }
+
+  /* ---------------- segmentation en direct ---------------- */
+
+  /** hauteur de capitale de travail : celle du mot, sinon celle du trait. */
+  private capHint(box: Box): number {
+    if (this.cap > 0) return this.cap
+    return Math.max(12, height(box))
+  }
+
+  /** programme la prochaine échéance après un nouveau trait */
+  private arm(now: number): void {
+    this.dueAt = now + LETTER_IDLE_MS
+  }
+
+  /** Le trait ouvre-t-il un nouveau MOT ? (espace franc ou changement de ligne) */
+  private startsNewWord(box: Box, cap: number): boolean {
+    if (this.done.length === 0) return false
+    let wb = this.done[0].box
+    for (const l of this.done) wb = merge(wb, l.box)
+    if (box.x0 > wb.x1 + cap * 0.55) return true
+    if (box.x1 < wb.x0 - cap * 0.4) return true
+    const yc = (box.y0 + box.y1) / 2
+    const wc = (wb.y0 + wb.y1) / 2
+    return Math.abs(yc - wc) > cap * 0.85
+  }
+
+  /**
+   * Rattrapage : la dernière lettre jugée redevient modifiable. C'est ce qui
+   * autorise l'utilisateur à poser la barre du A une demi-seconde après ses
+   * deux jambes sans se retrouver avec deux caractères.
+   */
+  private reopen(box: Box, t0: number, now: number, cap: number): boolean {
+    const last = this.done[this.done.length - 1]
+    if (!last) return false
+    if (now - last.t1 > REOPEN_MS) return false
+    const g: Group = { strokes: last.ink, box: last.box, t0: last.t0, t1: last.t1 }
+    // même critère de regroupement que pour une lettre ouverte : le résultat
+    // ne doit pas dépendre du hasard d'une pause qui a fermé la lettre trop
+    // tôt. Seule la fenêtre de temps est plus courte.
+    if (!joins(g, box, t0, cap, REOPEN_MS)) return false
+    // les traits d'encre doivent encore exister sur la scène
+    if (last.ink.length === 0 || last.ink.length >= MAX_STROKES_PER_LETTER) return false
+    this.done.pop()
+    if (last.glyph) {
+      // la lettre typographiée s'efface, son encre revient — sans animation :
+      // ce qui compte, c'est la lettre corrigée qui va la remplacer
+      morphs.delete(last.glyph.id)
+      this.queued.push({ remove: [last.glyph], add: last.ink })
+    }
+    this.open = { strokes: [...last.ink], box: last.box, t0: last.t0, t1: last.t1 }
+    return true
+  }
+
+  /**
+   * Premier Ctrl+Z sur une lettre typographiée : on rejoue le morph à
+   * l'envers, le gribouillis revient. La lettre quitte le mot en cours — le
+   * reste du mot n'est pas touché, on peut réécrire la lettre par-dessus.
+   */
   demorph(s: Stroke, now: number): boolean {
     if (!s.ink || s.ink.length === 0) return false
     const existing = morphs.get(s.id)
@@ -433,6 +754,12 @@ export class Handwriting {
     rebuilt.start = now
     rebuilt.duration = DEMORPH_MS
     morphs.set(s.id, rebuilt)
+    const i = this.done.findIndex((l) => l.glyph?.id === s.id)
+    if (i >= 0) {
+      this.done.splice(i, 1)
+      if (this.done.length === 0) this.wordClosed = false
+      else this.emit(this.wordClosed)
+    }
     return true
   }
 
@@ -447,10 +774,11 @@ export class Handwriting {
     const anchor = s.points[0]
     const fontSize = s.h ?? 40
     const slant = s.slant ?? 0
-    const words = segment(ink)
-    if (words.length === 0) return null
-    // on ré-associe les lettres du mot à leurs traits, dans l'ordre de lecture
-    const letters = words.flatMap((w) => w.letters)
+    // cas courant du mode écriture : un seul caractère, tous les traits à lui
+    const letters =
+      text.length === 1
+        ? [{ paths: ink.map((k) => k.points.map((p) => ({ x: p.x, y: p.y }))) }]
+        : segment(ink).flatMap((w) => w.letters)
     if (letters.length !== text.length) return null
     const offsets = letterOffsets(text, fontSize)
     const built: LetterMorph[] = []
@@ -478,60 +806,143 @@ export class Handwriting {
     }
   }
 
-  /* ---------------- reconnaissance d'une volée de traits ---------------- */
+  /* ---------------- jugement d'UNE lettre ---------------- */
 
-  private transcribe(strokes: Stroke[], now: number, ctx: HwContext): HwSwap[] {
-    const swaps: HwSwap[] = []
-    for (const w of segment(strokes)) {
-      const res = this.readWord(w)
-      if (!res) continue
-      swaps.push(this.buildWord(w, res.text, now, ctx))
+  /**
+   * Reconnaît la lettre que forment les traits de `g` et, si la confiance
+   * est au rendez-vous, la remplace par sa version typographiée. Sinon le
+   * gribouillis reste exactement tel qu'il est : c'est la règle d'or, un
+   * faux positif coûte infiniment plus cher qu'une non-transformation.
+   */
+  private judge(g: Group, now: number, live: readonly Stroke[], ctx: HwContext): HwSwap | null {
+    // un trait effacé, annulé ou dissous entre-temps ne doit pas ressusciter
+    const ink = g.strokes.filter((s) => live.includes(s) && !s.dying)
+    if (ink.length === 0) return null
+    const box = boxOf(ink.flatMap((s) => s.points))
+    const paths = ink.map((s) => s.points.map((p) => ({ x: p.x, y: p.y })))
+
+    // hauteur de capitale : celle du mot si on en a une, sinon celle du trait.
+    // Une lettre plate (un « - ») ne doit pas rétrécir tout le mot.
+    const h = height(box)
+    const cap = this.cap > 0 ? this.cap : Math.max(h, width(box) * 0.55)
+    const res = this.read(paths, ink, cap)
+
+    const letter: DoneLetter = {
+      char: res?.char ?? '',
+      score: res?.score ?? 0,
+      box,
+      ink,
+      glyph: null,
+      t0: g.t0,
+      t1: Math.max(g.t1, now),
     }
-    return swaps
+    if (this.wordClosed) {
+      // une lettre après un mot clos ouvre le mot suivant
+      this.done = []
+      this.wordClosed = false
+      this.lastRight = 0
+      this.wordId = ++this.wordSeq
+    }
+    if (!res) {
+      this.done.push(letter)
+      this.track(box, h, res)
+      this.emit(false)
+      return { remove: [], add: [], keep: this.alive() }
+    }
+
+    const glyph = this.place(res.char, box, h, ink, now, ctx)
+    letter.glyph = glyph
+    this.done.push(letter)
+    this.track(box, h, res)
+    this.chips.push({
+      text: res.char,
+      x: (box.x0 + box.x1) / 2,
+      // sous la lettre : la vue reste dégagée là où la main écrit la suivante
+      y: box.y1 + 30,
+      color: glyph.color,
+      start: now + 90,
+    })
+    if (this.chips.length > 5) this.chips.shift()
+    this.emit(false)
+    return { remove: ink, add: [glyph], keep: this.alive() }
   }
 
-  /** Lit un mot ; renvoie null dès qu'un doute subsiste (§ confiance). */
-  private readWord(w: Word): { text: string; score: number } | null {
-    if (w.capHeight < MIN_CAP_PX) return null
-    if (w.letters.length > 14) return null
-    let text = ''
-    let sum = 0
-    let worst = 1
-    for (const l of w.letters) {
-      if (l.strokes.length > 5) return null
-      const ink = inkLength(l.paths) / w.capHeight
-      if (ink < INK_MIN || ink > INK_MAX) return null
-      const cands = recognizeChar(l.paths, 1)
-      if (cands.length === 0) return null
-      const c = cands[0]
-      text += c.char
-      sum += c.score
-      worst = Math.min(worst, c.score)
+  /** tous les traits du mot en cours (lettres posées et gribouillis gardés) */
+  private alive(): Stroke[] {
+    const out: Stroke[] = []
+    for (const l of this.done) {
+      if (l.glyph) out.push(l.glyph)
+      else out.push(...l.ink)
     }
-    const mean = sum / w.letters.length
-    if (w.letters.length === 1) {
-      if (mean < MIN_SINGLE) return null
-    } else if (mean < MIN_WORD || worst < MIN_LETTER) {
-      return null
-    }
-    return { text, score: mean }
+    if (this.open) out.push(...this.open.strokes)
+    return out
   }
 
-  /** Fabrique le trait typographié et lance son morph. */
-  private buildWord(w: Word, text: string, now: number, ctx: HwContext): HwSwap {
-    const ink = w.letters.flatMap((l) => l.strokes)
-    const fontSize = w.capHeight / capRatio()
-    const width = textWidth(text, fontSize)
-    // on garde la ligne de base et l'échelle du geste, et on recentre le mot
-    // sur son gribouillis : ni saut ni dérive, la lettre atterrit « là »
-    const cx = (w.box.x0 + w.box.x1) / 2
-    const penX = cx - width / 2 + (w.slant * w.capHeight) / 2
-    const baseline = w.baseline
+  /** Met à jour hauteur de capitale et ligne de base courantes du mot. */
+  private track(box: Box, h: number, res: { char: string } | null): void {
+    // les lettres qui descendent sous la ligne (J, Q) ne servent pas de repère
+    const descends = res != null && (res.char === 'J' || res.char === 'Q')
+    if (h > 8 && (this.cap === 0 || (h > this.cap * 0.55 && h < this.cap * 1.7))) {
+      this.cap = this.cap === 0 ? h : this.cap * 0.6 + h * 0.4
+    }
+    if (!descends) {
+      this.baseline =
+        this.baseline === 0 || Math.abs(box.y1 - this.baseline) > this.cap * 0.6
+          ? box.y1
+          : this.baseline * 0.55 + box.y1 * 0.45
+    }
+  }
+
+  /** Lit une lettre ; renvoie null dès qu'un doute subsiste (§ confiance). */
+  private read(
+    paths: TplPoint[][],
+    ink: Stroke[],
+    cap: number,
+  ): { char: string; score: number } | null {
+    if (cap < MIN_CAP_PX) return null
+    if (ink.length > MAX_STROKES_PER_LETTER) return null
+    const len = inkLength(paths) / cap
+    if (len < INK_MIN || len > INK_MAX) return null
+    const c = recognizeChar(paths, 1)[0]
+    if (!c || c.score < MIN_LETTER) return null
+    return { char: c.char, score: c.score }
+  }
+
+  /**
+   * Fabrique le trait typographié d'UNE lettre et lance son morph. La lettre
+   * se pose exactement là où elle a été écrite : même hauteur de capitale,
+   * même ligne de base, même inclinaison, centrée sur son gribouillis. Ni
+   * saut de position, ni saut d'échelle — c'est ce qui fait croire à une
+   * transformation et non à un remplacement.
+   */
+  private place(
+    char: string,
+    box: Box,
+    h: number,
+    ink: Stroke[],
+    now: number,
+    ctx: HwContext,
+  ): Stroke {
+    // hauteur de capitale de CETTE lettre : la sienne si elle est plausible,
+    // celle du mot sinon (une barre écrasée ne doit pas rapetisser la lettre)
+    const capPx = this.cap > 0 && (h < this.cap * 0.55 || h > this.cap * 1.7) ? this.cap : h
+    const fontSize = capPx / capRatio()
+    const slant = estimateSlant(ink, capPx)
+    const w = textWidth(char, fontSize)
+    const cx = (box.x0 + box.x1) / 2
+    // centrée sur son gribouillis… mais jamais À CHEVAL sur la lettre
+    // précédente : l'écriture à la main est souvent plus serrée que la chasse
+    // de la police. On ne pousse que vers la droite, et seulement s'il y a
+    // collision — la lettre reste là où elle a été écrite.
+    let penX = cx - w / 2 + (slant * capPx) / 2
+    if (this.lastRight > 0 && penX < this.lastRight) penX = this.lastRight
+    this.lastRight = penX + w + fontSize * 0.02
+    const baseline =
+      this.baseline > 0 && Math.abs(box.y1 - this.baseline) < capPx * 0.45 ? this.baseline : box.y1
     const color = ink[0]?.color ?? '#ffffff'
     const size = ink.reduce((a, s) => Math.max(a, s.size), 4)
 
     const point: StrokePoint = { x: penX, y: baseline, p: 0.5, t: now }
-    const total = LETTER_MS + (text.length - 1) * CASCADE_MS
     const glyph: Stroke = {
       id: ctx.nextId(),
       tool: 'glyph',
@@ -542,98 +953,128 @@ export class Handwriting {
       done: true,
       startedAt: now,
       endedAt: now,
-      text,
-      w: width,
+      text: char,
+      w,
       h: fontSize,
-      slant: w.slant,
+      slant,
       ink,
-      anim: { start: now, duration: total },
+      anim: { start: now, duration: LETTER_MS },
     }
-
-    const offsets = letterOffsets(text, fontSize)
-    const letters: LetterMorph[] = []
-    for (let i = 0; i < w.letters.length; i++) {
-      const lm = buildLetterMorph(
-        w.letters[i].paths,
-        text[i],
-        penX + offsets[i],
-        baseline,
-        fontSize,
-        w.slant,
-        i * 31 + 7,
-      )
-      if (lm) letters.push(lm)
-    }
+    const paths = ink.map((s) => s.points.map((p) => ({ x: p.x, y: p.y })))
+    const lm = buildLetterMorph(paths, char, penX, baseline, fontSize, slant, glyph.id * 31 + 7)
     morphs.set(glyph.id, {
       stroke: glyph,
-      letters,
+      letters: lm ? [lm] : [],
       ink,
       start: now,
-      duration: total,
+      duration: LETTER_MS,
       reverse: false,
       dotSize: Math.max(1.05, fontSize * 0.028),
     })
+    return glyph
+  }
 
-    this.chip = { text, x: cx, y: w.box.y0 - 16, color, start: now + 120 }
-    return { remove: ink, add: [glyph] }
+  /* ---------------- réécriture par le lexique ---------------- */
+
+  /**
+   * Remplace toutes les lettres du mot par un seul mot typographié. Le
+   * lexique s'en sert pour corriger la casse et l'orthographe une fois le
+   * mot terminé (« SYNDRA » → « Syndra »).
+   */
+  private applyRewrite(
+    id: number,
+    text: string,
+    now: number,
+    live: readonly Stroke[],
+    ctx: HwContext,
+  ): HwSwap | null {
+    if (id !== this.wordId || this.done.length === 0 || !text) return null
+    const w = this.snapshot(this.wordClosed)
+    const remove: Stroke[] = []
+    for (const l of this.done) {
+      if (l.glyph && live.includes(l.glyph)) remove.push(l.glyph)
+      for (const k of l.ink) if (live.includes(k)) remove.push(k)
+    }
+    if (remove.length === 0) return null
+    const capPx = this.cap > 0 ? this.cap : height(w.box)
+    const fontSize = capPx / capRatio()
+    const total = LETTER_MS + (text.length - 1) * CASCADE_MS
+    const glyph: Stroke = {
+      id: ctx.nextId(),
+      tool: 'glyph',
+      color: w.color,
+      size: w.size,
+      points: [{ x: w.box.x0, y: w.baseline || w.box.y1, p: 0.5, t: now }],
+      simulatePressure: false,
+      done: true,
+      startedAt: now,
+      endedAt: now,
+      text,
+      w: textWidth(text, fontSize),
+      h: fontSize,
+      slant: w.slant,
+      ink: this.done.flatMap((l) => l.ink),
+      anim: { start: now, duration: total },
+    }
+    this.done = []
+    this.wordClosed = false
+    this.wordId = ++this.wordSeq
+    return { remove, add: [glyph] }
   }
 
   /* ---------------- chip de confirmation ---------------- */
 
   /**
-   * Petit bandeau discret « mot reconnu », sur la couche live (donc jamais
-   * exporté, jamais dans le rejeu) : une seconde, puis il s'éteint.
+   * Pastille discrète « lettre retenue », posée SOUS la lettre sur la couche
+   * live (donc jamais exportée, jamais rejouée) : 800 ms, puis elle s'éteint.
+   * Elle ne sert qu'à une chose, mais elle est indispensable : comprendre en
+   * un coup d'œil ce que l'outil vient de décider à votre place.
    */
   renderChip(ctx: CanvasRenderingContext2D, now: number): void {
-    const c = this.chip
-    if (!c) return
-    const age = now - c.start
-    if (age < 0) return
-    if (age > CHIP_MS) {
-      this.chip = null
-      return
+    if (this.chips.length === 0) return
+    let alive = 0
+    for (const c of this.chips) {
+      const age = now - c.start
+      if (age > CHIP_MS) continue
+      this.chips[alive++] = c
+      if (age < 0) continue
+      const enter = clamp(age / 150, 0, 1)
+      const exit = clamp((CHIP_MS - age) / 240, 0, 1)
+      const alpha = Math.min(easeOutQuint(enter), exit)
+      const rise = (1 - easeOutQuint(enter)) * -7
+
+      ctx.save()
+      ctx.font = '700 15px ' + FONT_UI
+      const label = c.text
+      const tw = ctx.measureText(label).width
+      const h = 24
+      const w = Math.max(tw + 22, 30)
+      const x = c.x - w / 2
+      const y = c.y + rise
+
+      // halo doux derrière la plaque
+      ctx.globalCompositeOperation = 'lighter'
+      const grad = ctx.createRadialGradient(c.x, y + h / 2, 2, c.x, y + h / 2, w * 0.9)
+      grad.addColorStop(0, rgba(c.color, 0.2 * alpha))
+      grad.addColorStop(1, rgba(c.color, 0))
+      ctx.fillStyle = grad
+      ctx.fillRect(x - w * 0.5, y - h, w * 2, h * 3)
+
+      ctx.globalCompositeOperation = 'source-over'
+      roundRect(ctx, x, y, w, h, 12)
+      ctx.fillStyle = `rgba(8,10,16,${0.86 * alpha})`
+      ctx.fill()
+      ctx.strokeStyle = rgba(c.color, 0.75 * alpha)
+      ctx.lineWidth = 1.4
+      ctx.stroke()
+
+      ctx.fillStyle = whiteMix(c.color, 0.72, 0.98 * alpha)
+      ctx.textBaseline = 'middle'
+      ctx.textAlign = 'center'
+      ctx.fillText(label, c.x, y + h / 2 + 0.5)
+      ctx.restore()
     }
-    const enter = clamp(age / 170, 0, 1)
-    const exit = clamp((CHIP_MS - age) / 260, 0, 1)
-    const alpha = Math.min(easeOutQuint(enter), exit)
-    const rise = (1 - easeOutQuint(enter)) * 9
-
-    ctx.save()
-    ctx.font = '600 13px ' + FONT_UI
-    const label = c.text
-    const tw = ctx.measureText(label).width
-    const padX = 11
-    const h = 26
-    const w = tw + padX * 2 + 16
-    const x = c.x - w / 2
-    const y = c.y - h + rise
-
-    // halo doux derrière la plaque
-    ctx.globalCompositeOperation = 'lighter'
-    const grad = ctx.createRadialGradient(c.x, y + h / 2, 2, c.x, y + h / 2, w * 0.8)
-    grad.addColorStop(0, rgba(c.color, 0.22 * alpha))
-    grad.addColorStop(1, rgba(c.color, 0))
-    ctx.fillStyle = grad
-    ctx.fillRect(x - w * 0.4, y - h, w * 1.8, h * 3)
-
-    ctx.globalCompositeOperation = 'source-over'
-    roundRect(ctx, x, y, w, h, 13)
-    ctx.fillStyle = `rgba(10,12,18,${0.66 * alpha})`
-    ctx.fill()
-    ctx.strokeStyle = rgba(c.color, 0.5 * alpha)
-    ctx.lineWidth = 1
-    ctx.stroke()
-
-    // pastille lumineuse
-    ctx.fillStyle = whiteMix(c.color, 0.35, 0.95 * alpha)
-    ctx.beginPath()
-    ctx.arc(x + padX + 3, y + h / 2, 3.2, 0, Math.PI * 2)
-    ctx.fill()
-
-    ctx.fillStyle = `rgba(255,255,255,${0.92 * alpha})`
-    ctx.textBaseline = 'middle'
-    ctx.fillText(label, x + padX + 14, y + h / 2 + 0.5)
-    ctx.restore()
+    this.chips.length = alive
   }
 }
 

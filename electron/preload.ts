@@ -32,6 +32,12 @@ const INBOUND = [
    * côté du curseur (§12.3).
    */
   'display-changed',
+  /**
+   * « Replacer la barre d'outils » (menu de l'icône système, §S4.3) : la page
+   * remet la barre à son ancrage par défaut. Filet de sécurité pour le jour où
+   * elle a fini hors champ — écran débranché, résolution changée.
+   */
+  'toolbar-reset',
 ] as const
 type Inbound = (typeof INBOUND)[number]
 
@@ -41,6 +47,15 @@ interface DisplayInfo {
   scaleFactor: number
   bounds: { x: number; y: number; width: number; height: number }
   primary: boolean
+  /**
+   * Cette fenêtre est-elle celle qui affiche la BARRE D'OUTILS (§S4.2) ?
+   *
+   * Il y a une fenêtre par écran et chacune monte l'interface complète : sans
+   * ce drapeau, la barre s'afficherait sur tous les écrans à la fois. Le
+   * processus principal en désigne un seul (l'écran le plus à droite, sinon
+   * l'écran principal) et le redit par 'display-changed' si la topologie bouge.
+   */
+  toolbarHost?: boolean
 }
 
 function readDisplayInfo(): DisplayInfo | null {

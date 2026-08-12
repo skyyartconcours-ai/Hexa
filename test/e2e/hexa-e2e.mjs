@@ -574,6 +574,128 @@ if (actif('mecaniques')) {
     }
   })
 
+  /* ---------------- Flèches qui épousent le geste (S1) ---------------- */
+
+  /** Geste d'arc : chorde horizontale de `x0` à `x1`, ventre de `creux` px. */
+  const arcFleche = (x0, y0, x1, creux, n = 30) => {
+    const pts = []
+    for (let i = 0; i <= n; i++) {
+      const t = i / n
+      pts.push([x0 + (x1 - x0) * t, y0 + Math.sin(t * Math.PI) * creux])
+    }
+    return pts
+  }
+
+  /** Trace une flèche et rend la boîte + la planéité du fût. */
+  const poserFleche = async (points, { shift = false } = {}) => {
+    await toutEffacer(win)
+    await win.keyboard.press('f')
+    await win.waitForTimeout(150)
+    if (shift) await win.keyboard.down('Shift')
+    await tracer(win, points, { pauseMs: 6 })
+    if (shift) await win.keyboard.up('Shift')
+    await win.waitForTimeout(600) // l'animation de tracé (300 ms) doit finir
+    return { boite: (await encre(win)).boite, plat: await planeiteHaut(win) }
+  }
+
+  await rapport.test(win, 'flc-epouse', 'La flèche épouse la courbe · Maj la redresse', async (capturer) => {
+    const geste = arcFleche(430, 300, 1130, 190)
+    const courbe = await poserFleche(geste)
+    await capturer('1-courbe')
+    const droite = await poserFleche(geste, { shift: true })
+    await capturer('2-shift-droite')
+    // même geste : courbé il garde son ventre, Maj le réduit à la pointe seule
+    const hc = courbe.boite ? courbe.boite.h : -1
+    const hd = droite.boite ? droite.boite.h : -1
+    const ok = hc > 130 && hd > 0 && hd < 70
+    return {
+      statut: ok ? OK : KO,
+      detail:
+        `même geste (ventre 190 px) : boîte ${hc} px de haut à main levée (courbe conservée, attendu > 130) · ` +
+        `${hd} px avec Maj (flèche droite, attendu < 70)`,
+    }
+  })
+
+  await rapport.test(win, 'flc-redresse', 'Geste presque droit → flèche franchement droite', async () => {
+    // 18 px de ventre sur 700 px de corde = 2,6 % : sous le seuil, on redresse
+    const presque = await poserFleche(arcFleche(430, 380, 1130, 18))
+    // 120 px de ventre = 17 % : c'est une vraie courbe, on la garde
+    const franche = await poserFleche(arcFleche(430, 300, 1130, 120))
+    const ep = presque.plat ? presque.plat.ecartType : -1
+    const ef = franche.plat ? franche.plat.ecartType : -1
+    const ok = ep >= 0 && ep < 2 && ef > 8
+    return {
+      statut: ok ? OK : KO,
+      detail:
+        `fût : écart-type ${ep.toFixed(2)} px pour un geste à 2,6 % (droit attendu < 2) · ` +
+        `${ef.toFixed(2)} px pour un geste à 17 % (courbe conservée, attendu > 8)`,
+    }
+  })
+
+  await rapport.test(win, 'flc-lissage', 'Le tremblement de la main disparaît', async (capturer) => {
+    // même geste tremblé, tracé à la flèche puis au stylo : la flèche doit
+    // ressortir NETTEMENT plus lisse (RDP + spline), le stylo garde le geste
+    const tremble = []
+    for (let i = 0; i <= 44; i++) {
+      const t = i / 44
+      tremble.push([430 + 700 * t, 380 - Math.sin(t * Math.PI) * 60 + Math.sin(t * 53) * 11])
+    }
+    /**
+     * Nombre d'ONDULATIONS du bord haut de l'encre : chaque changement de sens
+     * franc (plus de 3 px, pour ignorer le bruit de rastérisation) compte pour
+     * un. Un arc propre en fait UNE ; un geste tremblé en fait une par secousse.
+     */
+    const ondulations = () =>
+      win.evaluate(() => {
+        const cv = document.querySelectorAll('.stage canvas')[1]
+        const ctx = cv?.getContext('2d')
+        if (!ctx) return -1
+        const d = ctx.getImageData(0, 0, cv.width, cv.height).data
+        const hauts = new Array(cv.width).fill(-1)
+        for (let y = 0; y < cv.height; y++) {
+          const base = y * cv.width * 4
+          for (let x = 0; x < cv.width; x++) {
+            if (hauts[x] < 0 && d[base + x * 4 + 3] > 40) hauts[x] = y
+          }
+        }
+        const cols = []
+        for (let x = 0; x < cv.width; x++) if (hauts[x] >= 0) cols.push(hauts[x])
+        if (cols.length < 80) return -1
+        // 15 % de marge : la pointe de la flèche ne dit rien du fût
+        const m = Math.floor(cols.length * 0.15)
+        const u = cols.slice(m, cols.length - m)
+        let sens = 0
+        let virages = 0
+        let ref = u[0]
+        for (const v of u) {
+          if (Math.abs(v - ref) < 3) continue
+          const s = v > ref ? 1 : -1
+          if (sens !== 0 && s !== sens) virages++
+          sens = s
+          ref = v
+        }
+        return virages
+      })
+
+    await poserFleche(tremble)
+    await capturer('1-fleche-lissee')
+    const oFleche = await ondulations()
+    await toutEffacer(win)
+    await win.keyboard.press('p')
+    await win.waitForTimeout(150)
+    await tracer(win, tremble, { pauseMs: 6 })
+    await win.waitForTimeout(500)
+    await capturer('2-stylo-brut')
+    const oStylo = await ondulations()
+    const ok = oFleche >= 0 && oStylo > 5 && oFleche <= 2
+    return {
+      statut: ok ? OK : KO,
+      detail:
+        `ondulations du bord haut : ${oFleche} pour la flèche (arc propre attendu ≤ 2) · ` +
+        `${oStylo} pour le même geste au stylo (secousses conservées, attendu > 5)`,
+    }
+  })
+
   await rapport.test(win, 'mec-guides', 'Guides magnétiques : la ligne s’aimante à l’horizontale', async () => {
     await toutEffacer(win)
     const mesurer = async () => {

@@ -317,6 +317,10 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
             <b>Molette</b> — épaisseur du trait.
           </li>
           <li>
+            <b>Flèche</b> — trace ta courbe, la flèche l’épouse et l’embellit. La pointe part dans
+            le sens de ton geste. <b>Maj</b> — flèche parfaitement droite.
+          </li>
+          <li>
             <b>Maj pendant le tracé</b> — carré, cercle parfait, angles de 15°.{' '}
             <b>Alt</b> — forme remplie.
           </li>

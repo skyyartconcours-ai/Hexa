@@ -44,10 +44,10 @@ export interface Word {
 /** Écart de temps maximal entre deux traits d'une même lettre. */
 export const LETTER_GAP_MS = 1200
 
-const width = (b: Box): number => b.x1 - b.x0
-const height = (b: Box): number => b.y1 - b.y0
+export const width = (b: Box): number => b.x1 - b.x0
+export const height = (b: Box): number => b.y1 - b.y0
 
-function boxOf(pts: { x: number; y: number }[]): Box {
+export function boxOf(pts: { x: number; y: number }[]): Box {
   let x0 = Infinity
   let y0 = Infinity
   let x1 = -Infinity
@@ -61,7 +61,7 @@ function boxOf(pts: { x: number; y: number }[]): Box {
   return { x0, y0, x1, y1 }
 }
 
-function merge(a: Box, b: Box): Box {
+export function merge(a: Box, b: Box): Box {
   return {
     x0: Math.min(a.x0, b.x0),
     y0: Math.min(a.y0, b.y0),
@@ -89,7 +89,7 @@ function estimateCap(boxes: Box[]): number {
 }
 
 /** Inclinaison moyenne des fûts quasi verticaux (tangente, signe = vers la droite). */
-function estimateSlant(strokes: Stroke[], cap: number): number {
+export function estimateSlant(strokes: Stroke[], cap: number): number {
   let sx = 0
   let sy = 0
   const minLen = cap * 0.22
@@ -115,29 +115,65 @@ function estimateSlant(strokes: Stroke[], cap: number): number {
   return Math.max(-0.36, Math.min(0.36, tan))
 }
 
-interface Group {
+export interface Group {
   strokes: Stroke[]
   box: Box
   t0: number
   t1: number
 }
 
-/** Le trait `s` peut-il rejoindre le groupe `g` pour former une seule lettre ? */
-function joins(g: Group, sBox: Box, sT0: number, cap: number): boolean {
-  if (sT0 - g.t1 > LETTER_GAP_MS) return false
+/**
+ * Le trait `s` peut-il rejoindre le groupe `g` pour former une seule lettre ?
+ *
+ * Deux conditions, et c'est tout l'art de la segmentation en direct : le
+ * CHEVAUCHEMENT HORIZONTAL (la barre du A repasse au-dessus des deux jambes)
+ * et la PROXIMITÉ TEMPORELLE (on ne revient pas sur une lettre trois secondes
+ * plus tard). Le garde-fou de taille interdit à une lettre de s'étaler :
+ * sans lui, un mot entier finirait dans un seul groupe.
+ *
+ * `maxGap` remplace l'écart temporel par défaut (le rattrapage d'une lettre
+ * déjà transformée s'accorde une fenêtre plus courte).
+ */
+export function joins(
+  g: Group,
+  sBox: Box,
+  sT0: number,
+  cap: number,
+  maxGap = LETTER_GAP_MS,
+): boolean {
+  if (sT0 - g.t1 > maxGap) return false
   const u = merge(g.box, sBox)
-  // une lettre ne s'étale ni beaucoup plus large ni beaucoup plus haut qu'une capitale
-  if (width(u) > cap * 1.3) return false
+  // une lettre ne s'étale pas beaucoup plus haut qu'une capitale
   if (height(u) > cap * 1.55) return false
 
   const overlap = Math.min(g.box.x1, sBox.x1) - Math.max(g.box.x0, sBox.x0)
   const minW = Math.min(width(g.box), width(sBox))
-  if (overlap > 0.34 * Math.max(minW, cap * 0.1)) return true
+  // (a) franc chevauchement horizontal : la barre du A, du E, du H, la
+  //     seconde panse du B — le trait repasse au-dessus de ce qui est déjà là
+  if (width(u) <= cap * 1.3 && overlap > 0.34 * Math.max(minW, cap * 0.1)) return true
 
-  // trait court (point du i, barre du t, accent) posé à l'aplomb du groupe
-  const cx = (sBox.x0 + sBox.x1) / 2
-  if (width(sBox) < cap * 0.55 && cx > g.box.x0 - cap * 0.14 && cx < g.box.x1 + cap * 0.14) {
-    return true
+  // (b) l'ensemble reste AUSSI ÉTROIT QU'UNE SEULE CAPITALE et les deux
+  //     traits couvrent la même bande verticale. Sans cette règle, un H (deux
+  //     fûts qui ne se touchent ni ne se chevauchent), un Y, un V, un X, un K
+  //     ou un N en trois traits partiraient en morceaux. Le garde-fou de
+  //     largeur est ici beaucoup plus serré qu'en (a), car c'est lui seul qui
+  //     empêche deux lettres voisines et jointives de fusionner : deux
+  //     capitales côte à côte occupent au moins 1,3 cap.
+  const vOver = Math.min(g.box.y1, sBox.y1) - Math.max(g.box.y0, sBox.y0)
+  const minH = Math.min(height(g.box), height(sBox))
+  if (width(u) <= cap * 1.02 && vOver > 0.45 * Math.max(minH, cap * 0.1)) return true
+
+  // (c) l'un des deux est un trait ÉTROIT (le fût du T, le point du J, le
+  //     fût du F) posé à l'aplomb de l'autre. La règle est symétrique : la
+  //     barre du F arrive après son fût, le fût du T arrive après sa barre —
+  //     et dans les deux cas c'est la même lettre.
+  if (width(u) <= cap * 1.3) {
+    const thin = width(sBox) <= width(g.box) ? sBox : g.box
+    const wide = thin === sBox ? g.box : sBox
+    const cx = (thin.x0 + thin.x1) / 2
+    if (width(thin) < cap * 0.55 && cx > wide.x0 - cap * 0.14 && cx < wide.x1 + cap * 0.14) {
+      return true
+    }
   }
   return false
 }

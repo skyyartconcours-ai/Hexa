@@ -29,7 +29,7 @@ import {
   easeOutBack,
 } from './shapes'
 import type { MorphAnim, Pt } from './shapes'
-import { beautifyArrow, pathLen } from './arrow'
+import { beautifyArrow, cumLen, pathLen } from './arrow'
 import { recognize } from './recognizer'
 import { Handwriting, clearMorphs } from './handwriting'
 import { GuideOverlay, buildAnchors, snapPoint } from './guides'
@@ -402,6 +402,16 @@ export class HexaEngine {
     return this.hw.hasPending
   }
 
+  /**
+   * Session d'écriture, exposée telle quelle : c'est par elle qu'un
+   * correcteur lexical s'abonne au mot en construction (`onWord`), le lit
+   * (`currentWord()`) et le remet en forme (`rewrite(id, texte)`).
+   * Voir le contrat HwWord / HwLetter dans engine/handwriting/index.ts.
+   */
+  get writing(): Handwriting {
+    return this.hw
+  }
+
   undo(): void {
     for (let i = this.strokes.length - 1; i >= 0; i--) {
       const s = this.strokes[i]
@@ -682,8 +692,15 @@ export class HexaEngine {
 
     if (FREEHAND_TOOLS.has(t) || TWO_POINT_TOOLS.has(t) || GESTURE_TOOLS.has(t)) {
       this.redoStack = []
-      this.fx = new OneEuro()
-      this.fy = new OneEuro()
+      // Mode écriture : le lissage est ASSOUPLI pour le stylo. Le réglage
+      // par défaut est taillé pour de grands gestes d'annotation, où un léger
+      // retard ne se voit pas ; à l'échelle d'une lettre il arrondit la
+      // pointe du V, du Y, du W — au point de les faire lire « U ». Le filtre
+      // reste actif (le tremblement de souris est toujours gommé), il suit
+      // simplement la main de plus près.
+      const writing = this.opts.handwriting === true && t === 'pen'
+      this.fx = writing ? new OneEuro(6, 0.02) : new OneEuro()
+      this.fy = writing ? new OneEuro(6, 0.02) : new OneEuro()
       const first: StrokePoint = { ...pt, x: this.fx.filter(pt.x, pt.t), y: this.fy.filter(pt.y, pt.t) }
       // le point de DÉPART s'accroche aussi aux points remarquables
       if ((TWO_POINT_TOOLS.has(t) || GESTURE_TOOLS.has(t)) && this.guidesOn()) {
@@ -953,7 +970,17 @@ export class HexaEngine {
       this.overlay.clear(performance.now())
     }
     const curve = beautifyArrow(raw, this.shiftHeld)
-    c.points = curve.map((p) => ({ x: p.x, y: p.y, p: 0.5, t: origin.t }))
+    // horodatage réparti le long de la courbe : le rejeu et l'export gardent
+    // la cadence réelle du geste, même si les points ont été recalculés
+    const t1 = g[g.length - 1].t
+    const cum = cumLen(curve)
+    const total = cum[cum.length - 1] || 1
+    c.points = curve.map((p, i) => ({
+      x: p.x,
+      y: p.y,
+      p: 0.5,
+      t: origin.t + (t1 - origin.t) * (cum[i] / total),
+    }))
   }
 
   /** accroche d'un outil posé au clic + affichage des guides correspondants */
@@ -1472,7 +1499,11 @@ export class HexaEngine {
    * touche jamais lui-même à la liste des traits : ici seulement.
    */
   private pumpHandwriting(now: number): void {
-    const swaps = this.hw.tick(now, this.strokes, { nextId: () => this.idSeq++, glow: 1 })
+    const swaps = this.hw.tick(now, this.strokes, {
+      nextId: () => this.idSeq++,
+      glow: 1,
+      drawing: this.current != null,
+    })
     if (swaps.length === 0) return
     for (const swap of swaps) {
       for (const s of swap.remove) {
@@ -1486,6 +1517,14 @@ export class HexaEngine {
             ? undefined
             : now + this.opts.fadeDelay + (s.anim?.duration ?? 0)
         this.strokes.push(s)
+      }
+      // tant qu'un mot s'écrit, ses lettres déjà posées ne doivent pas
+      // s'effacer sous le nez de l'utilisateur : leur fondu est repoussé
+      if (swap.keep && this.opts.fadeDelay != null) {
+        for (const s of swap.keep) {
+          if (s.dying) continue
+          s.dieAt = now + this.opts.fadeDelay + (s.anim?.duration ?? 0)
+        }
       }
     }
     // une transcription remplace l'encre : rétablir le gribouillis passe par

@@ -642,6 +642,52 @@ function runWelcome(): void {
  * Création des fenêtres
  * ------------------------------------------------------------------ */
 
+/**
+ * L'écran qui PORTE LA BARRE D'OUTILS (§S4.2).
+ *
+ * ⚠️ Rappel du piège : Hexa ouvre une fenêtre PAR ÉCRAN, et chacune monte
+ * l'interface React complète. Sans désignation d'un porteur unique, la barre
+ * s'afficherait sur TOUS les écrans — donc en plein milieu de celui que les
+ * spectateurs regardent. C'est exactement ce qu'il fallait éviter.
+ *
+ * Règle : l'écran le plus à DROITE (plus grand `bounds.x`). Le streamer joue sur
+ * l'écran principal, regarde son chat et ses outils à droite ; la barre plaquée
+ * contre le BORD GAUCHE de cet écran de droite se retrouve à un centimètre de
+ * l'écran de jeu — à portée de souris, et jamais par-dessus le jeu.
+ *
+ * Départages, dans l'ordre : le plus à droite, puis le plus grand, puis l'écran
+ * principal, puis le plus petit identifiant (stable d'un lancement à l'autre).
+ * Avec un seul écran, c'est forcément lui.
+ */
+/** Dernier écran porteur annoncé aux fenêtres (-1 = rien d'annoncé encore). */
+let hostBarre = -1
+
+function toolbarHostId(): number {
+  try {
+    const displays = screen.getAllDisplays()
+    if (displays.length === 0) return screen.getPrimaryDisplay().id
+    const primaryId = screen.getPrimaryDisplay().id
+    let best = displays[0]
+    for (const d of displays.slice(1)) {
+      if (d.bounds.x !== best.bounds.x) {
+        if (d.bounds.x > best.bounds.x) best = d
+        continue
+      }
+      const aireD = d.bounds.width * d.bounds.height
+      const aireBest = best.bounds.width * best.bounds.height
+      if (aireD !== aireBest) {
+        if (aireD > aireBest) best = d
+        continue
+      }
+      if (d.id === primaryId) best = d
+      else if (best.id !== primaryId && d.id < best.id) best = d
+    }
+    return best.id
+  } catch {
+    return -1
+  }
+}
+
 function createOverlay(display: Display): Overlay | null {
   const { bounds } = display
   try {
@@ -688,6 +734,9 @@ function createOverlay(display: Display): Overlay | null {
               scaleFactor: display.scaleFactor,
               bounds: display.bounds,
               primary: display.id === screen.getPrimaryDisplay().id,
+              // Une seule fenêtre affiche la barre d'outils (§S4.2). Les
+              // annotations, elles, restent disponibles sur TOUS les écrans.
+              toolbarHost: display.id === toolbarHostId(),
             }),
           )}`,
         ],
@@ -909,6 +958,7 @@ function rebuildOverlays(raison = 'démarrage'): void {
           scaleFactor: d.scaleFactor,
           bounds: d.bounds,
           primary: d.id === screen.getPrimaryDisplay().id,
+          toolbarHost: d.id === toolbarHostId(),
         })
         // Une fenêtre reposée repart parfois derrière : on réaffirme le niveau.
         reassertTopmost(existing.win)
@@ -940,6 +990,28 @@ function rebuildOverlays(raison = 'démarrage'): void {
       }
       detruits++
       log('écrans', `écran ${id} débranché — overlay libéré`)
+    }
+
+    // La barre d'outils ne vit que sur UN écran (§S4.2). Débrancher l'écran de
+    // droite déplace donc le porteur : sans ce message, la barre disparaîtrait
+    // purement et simplement, sur la seule foi de l'argument de lancement qui
+    // n'est plus vrai. On ne parle que quand le porteur CHANGE : rien au repos.
+    const host = toolbarHostId()
+    if (host !== hostBarre) {
+      const avant = hostBarre
+      hostBarre = host
+      for (const [id, o] of overlays) {
+        send(o, 'display-changed', {
+          id,
+          scaleFactor: o.scaleFactor,
+          bounds: o.wantedBounds,
+          primary: id === screen.getPrimaryDisplay().id,
+          toolbarHost: id === host,
+        })
+      }
+      log('écrans', `barre d’outils : écran porteur ${avant === -1 ? '' : `${avant} → `}${host}`, {
+        ecrans: overlays.size,
+      })
     }
 
     if (cree || detruits || repose) {
@@ -1398,6 +1470,12 @@ if (!gotLock) {
         log('menu', 'tout effacer')
       },
       openSettings: () => openSettingsPanel(),
+      resetToolbar: () => {
+        // Toutes les fenêtres reçoivent l'ordre : une seule porte la barre, mais
+        // le porteur a pu changer depuis le lancement (écran débranché).
+        broadcast('toolbar-reset')
+        log('menu', 'barre d’outils replacée')
+      },
       toggleSuspended: () => setSuspended(!suspended),
       isDrawing,
       isSuspended: () => suspended,

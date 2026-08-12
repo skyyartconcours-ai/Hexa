@@ -173,6 +173,11 @@ export default function App() {
     bridge.on('set-draw', (drawing) => setPassthrough(!drawing))
     // « Réglages… » du menu de l'icône près de l'horloge
     bridge.on('open-settings', () => useUiStore.getState().setSettingsOpen(true))
+    // « Replacer la barre d'outils » (§S4.3) : la barre revient à son ancrage
+    // par défaut et redevient visible. Écouté ICI et non dans la barre :
+    // masquée, elle n'est plus montée, et c'est justement le moment où l'on a
+    // le plus besoin de la faire revenir.
+    bridge.on('toolbar-reset', () => useUiStore.getState().resetToolbarDock())
 
     // ---- écrans et DPI qui changent EN COURS DE PARTIE (S9, §12.3) --------
     // Brancher un second écran, changer la résolution ou passer Windows de
@@ -633,6 +638,9 @@ export default function App() {
               <li>
                 <b>Formes intelligentes</b> : dessine un rectangle, un cercle ou une flèche à main
                 levée, Hexa le redresse (Ctrl+Z rend le tracé brut)
+              </li>
+              <li>
+                <b>F</b> flèche : trace ta courbe, la flèche l'épouse · <b>Shift</b> : flèche droite
               </li>
               <li>
                 <b>R</b> rectangle · <b>O</b> ellipse · <b>T</b> texte · <b>N</b> numéroteur ·{' '}
