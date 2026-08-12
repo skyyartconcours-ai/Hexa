@@ -595,7 +595,13 @@
   color: var(--text-2);
 }
 
-.hx-status {
+/* ⚠️ NE PAS RENOMMER EN `.hx-status` : ce nom est déjà pris par la pastille
+   d'état plein écran (src/ui/status-hud.css), qui est en `position: fixed`.
+   Les deux feuilles étant réunies dans un seul paquet, c'est le `fixed` qui
+   gagnait : les deux puces des Réglages sortaient de leur phrase et se
+   superposaient au milieu de l'écran (« En écoute sur le port 478 [désactivé]
+   ce connectée pour l'instant. ») — le premier écran qu'un débutant ouvre. */
+.hx-chip-status {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -607,7 +613,7 @@
   color: var(--text-2);
 }
 
-.hx-status::before {
+.hx-chip-status::before {
   content: '';
   width: 6px;
   height: 6px;
@@ -615,12 +621,12 @@
   background: var(--text-2);
 }
 
-.hx-status[data-status='connected']::before {
+.hx-chip-status[data-status='connected']::before {
   background: var(--logo-a);
   box-shadow: 0 0 8px var(--logo-a);
 }
 
-.hx-status[data-status='retry']::before {
+.hx-chip-status[data-status='retry']::before {
   background: #ff6b35;
 }
 

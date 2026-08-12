@@ -17,7 +17,8 @@ Pas encore installé ? → **[Guide d'installation](INSTALLATION.md)**
 Le liseré lumineux est ton seul repère, et c'est voulu : allumé = tu dessines,
 éteint = tes clics vont à ton jeu.
 
-Perdu ? **Ctrl + E** efface tout, tout de suite, où que tu sois.
+Perdu ? **Ctrl + Maj + X** efface tout, tout de suite, où que tu sois — même en pleine partie,
+même si Hexa n'a pas le focus. C'est la touche panique.
 
 ---
 
@@ -26,21 +27,28 @@ Perdu ? **Ctrl + E** efface tout, tout de suite, où que tu sois.
 Tu viens d'Epic Pen ? **Tes doigts n'ont rien à réapprendre.** Hexa démarre avec le clavier
 d'Epic Pen déjà en place.
 
-Ces raccourcis marchent **même quand ton jeu est au premier plan** — c'est toute la différence.
-Tu n'as pas besoin de cliquer sur Hexa avant.
+La colonne de droite dit la seule chose qui compte vraiment : est-ce que la touche répond
+**pendant que ton jeu est au premier plan**, sans avoir à cliquer sur Hexa avant ?
 
-| Ce que ça fait | La touche |
-| --- | --- |
-| Stylo (dessiner) | **Ctrl + Maj + 3** |
-| Surligneur | **Ctrl + Maj + 4** |
-| Gomme | **Ctrl + Maj + 5** |
-| Curseur — rendre la souris au jeu | **Ctrl + Maj + 2** |
-| Annuler le dernier trait | **Ctrl + Maj + 6** |
-| Tout effacer | **Ctrl + E** |
-| Trait plus fin / plus épais | **Ctrl + Maj + 7** / **Ctrl + Maj + 8** |
-| Montrer ou cacher la barre d'outils | **Ctrl + H** |
-| Entrer et sortir du mode dessin | **F8** |
-| Tout effacer, même en pleine panique | **Ctrl + Maj + X** |
+| Ce que ça fait | La touche | Marche pendant que le jeu a le focus ? |
+| --- | --- | --- |
+| Stylo (dessiner) | **Ctrl + Maj + 3** | ✅ oui |
+| Surligneur | **Ctrl + Maj + 4** | ✅ oui |
+| Gomme | **Ctrl + Maj + 5** | ✅ oui |
+| Curseur — rendre la souris au jeu | **Ctrl + Maj + 2** | ✅ oui |
+| Annuler le dernier trait | **Ctrl + Maj + 6** | ✅ oui |
+| Trait plus fin / plus épais | **Ctrl + Maj + 7** / **Ctrl + Maj + 8** | ✅ oui |
+| Entrer et sortir du mode dessin | **F8** | ✅ oui |
+| Tout effacer, même en pleine panique | **Ctrl + Maj + X** | ✅ oui |
+| Tout effacer | **Ctrl + E** | ⬜ en mode dessin |
+| Montrer ou cacher la barre d'outils | **Ctrl + H** | ⬜ en mode dessin |
+
+**Pourquoi Ctrl + E et Ctrl + H sont à part.** Windows ne partage pas un raccourci : celui qui
+le réserve le prend à *tous* les autres logiciels. Or Ctrl + E ouvre la recherche de ton
+navigateur et Ctrl + H son historique — si Hexa les confisquait, ils cesseraient de marcher
+dans Chrome, dans VLC et sur YouTube tant qu'il tourne. Hexa refuse de faire ça.
+Ils fonctionnent donc dès que le mode dessin est allumé, c'est-à-dire au moment où tu annotes.
+Pour nettoyer l'écran pendant que le jeu a le focus, c'est **Ctrl + Maj + X**.
 
 Et les raccourcis maison de Hexa, plus rapides une fois le mode dessin allumé — une seule touche,
 tout sous la main gauche :
@@ -49,19 +57,27 @@ tout sous la main gauche :
 | --- | --- | --- | --- |
 | Stylo | **P** | Laser (à maintenir) | **Z** |
 | Surligneur | **S** | Projecteur (à maintenir) | **X** |
-| Ligne droite | **L** | Repère qui bat | **Q** |
-| Flèche | **F** | Couleurs 1 à 7 | **1** … **7** |
-| Rectangle | **R** | Durée avant effacement | **D** |
-| Ellipse | **O** | Formes intelligentes | **W** |
-| Texte | **T** | Guides magnétiques | **G** |
-| Numéroteur (1, 2, 3…) | **N** | Écriture à la main | **J** |
-| Règle de mesure | **M** | Tout effacer | **C** |
-| Coller une image | **Ctrl + V** | Aide-mémoire des raccourcis | **?** |
-| Gomme | **E** | Réglages | **Ctrl + ,** |
+| Ligne droite | **L** | Repère qui bat (à maintenir) | **Q** |
+| Flèche | **F** | Loupe (à maintenir) | **A** |
+| Rectangle | **R** | Gel d'image | **V** |
+| Ellipse | **O** | Masque flou | **B** |
+| Texte | **T** | Avant / après | **U** |
+| Numéroteur (1, 2, 3…) | **N** | Couleurs 1 à 7 | **1** … **7** |
+| Règle de mesure | **M** | Durée avant effacement | **D** |
+| Masque flou | **B** | Formes intelligentes | **W** |
+| Coller une image | **Ctrl + V** | Guides magnétiques | **G** |
+| Gomme | **E** | Écriture à la main | **J** |
+| | | Tout effacer | **C** |
+| | | Aide-mémoire des raccourcis | **?** |
+| | | Réglages | **Ctrl + ,** |
 
-> **La différence entre les deux tableaux :** ceux du premier marchent partout, tout le temps.
+Et trois combinaisons pour ce qu'on **pose** à l'écran : **Ctrl + Maj + G** grille / règle des
+tiers, **Ctrl + Maj + Y** chrono, **Ctrl + Maj + B** note.
+
+> **La différence entre les deux tableaux :** ceux du premier marchent pendant que tu joues.
 > Ceux du second (une seule lettre) ne marchent que quand le mode dessin est allumé — sinon ils
 > partiraient dans ton jeu et te feraient lancer un sort au lieu de changer de couleur.
+> Pour sortir le laser en pleine partie : **Ctrl + Maj + 3** (ou **F8**) d'abord, puis **Z**.
 
 **Tu as oublié une touche ?** Appuie sur **?** (Maj + ,) pendant le mode dessin : la liste
 complète s'affiche à l'écran, lisible de loin.
@@ -125,7 +141,7 @@ Quatre façons, de la plus fine à la plus radicale :
 | --- | --- |
 | **Annuler le dernier geste** | Ctrl + Maj + 6 (ou Ctrl + Z quand Hexa a le focus) |
 | **Gommer un trait précis** | Touche **E**, puis clique et passe sur le trait sans relâcher : il disparaît en entier |
-| **Tout effacer** | **Ctrl + E** |
+| **Tout effacer** | **Ctrl + E** — en mode dessin |
 | **Tout effacer en catastrophe** | **Ctrl + Maj + X** — marche même en pleine partie, sur tous les écrans |
 
 Et surtout : **tu n'as presque jamais besoin d'effacer.** Par défaut, chaque annotation se dissout
@@ -148,7 +164,11 @@ Tes traits restent tant que tu ne dis pas le contraire. Pour repartir de zéro :
 - **8 s** : le temps d'expliquer une phrase entière.
 - **∞** : analyse de replay, cours, schéma que tu construis pièce par pièce.
 
-Le réglage se voit aussi dans la barre d'outils, sur la pastille qui affiche `4s` ou `∞`.
+**Où le voir, où le changer.** La barre d'outils porte une pastille qui affiche en clair `2s`,
+`4s`, `8s` ou `∞` : **clique dessus** et elle passe au réglage suivant, exactement comme la touche
+**D**. Elle s'allume quand tu es sur ∞, pour que le tableau persistant ne soit jamais une surprise.
+Et si tu as masqué la barre, la petite pastille d'état en haut de l'écran continue d'afficher le
+réglage en cours.
 
 ---
 
@@ -165,6 +185,41 @@ Tu **glisses** vers ce que tu veux, tu **relâches**, c'est pris.
 C'est le geste qui change tout quand tu joues : tu ne cherches plus la barre d'outils des yeux,
 tu ne quittes pas l'action. La roue s'ouvre là où est déjà ta souris, et le mouvement finit par
 devenir un réflexe — un petit coup en haut à droite, tu as le stylo, sans avoir regardé.
+
+> La roue ne s'ouvre que si tu maintiens le clic droit **dans le vide**. Sur une annotation, le
+> clic droit garde son rôle historique : tu attrapes le trait et tu le déplaces. Les deux gestes
+> ne se marchent jamais dessus.
+>
+> Tu relâches au centre (ou tu appuies sur **Échap**) : rien n'est sélectionné, la roue se referme.
+
+---
+
+## Montrer un détail : loupe, gel d'image, masque flou, avant/après
+
+Quatre outils qui ne dessinent pas : ils travaillent sur **l'image de ton écran**.
+Ils sont surtout faits pour une analyse de partie, un débrief ou un cours.
+
+**La loupe** — maintiens **A**. Un disque grossissant suit ta souris ; la **molette** règle le
+grossissement. Appuie sur **V** pendant que la loupe est ouverte et le disque **se fige à sa
+place** : le contenu, lui, continue de suivre ton curseur. C'est ce qui permet de garder la loupe
+dans un coin propre de l'image pendant que tu montres autre chose.
+
+**Le gel d'image** — **V**. Ton écran se fige sur une photo, et tu annotes tranquillement dessus
+pendant que le jeu, lui, continue. Réappuie sur **V** (ou clique le bouton allumé de la barre)
+pour rendre le direct. **Échap** le rend aussi.
+
+**Le masque flou** — **B**. Trace un rectangle sur ce qu'il ne faut pas montrer : un pseudo, une
+adresse, une notification. Le masque reste **volontairement en place** — ni le fondu, ni « tout
+effacer », ni la touche panique ne l'enlèvent. Ce qui cache une information ne doit jamais sauter
+par accident : la petite croix du masque le retire, et elle seule.
+
+**L'avant / après** — **U**. Une photo de l'écran à gauche, le direct à droite, et une poignée à
+glisser entre les deux. Si aucune photo n'a encore été prise, Hexa la prend lui-même : tu n'as pas
+d'ordre à retenir.
+
+> Ces quatre-là ont besoin du mode dessin, comme toutes les touches à une seule lettre.
+> Dans la version overlay, ils lisent l'écran sans rien te demander ; dans la démo navigateur,
+> le navigateur demande l'autorisation de partage au premier clic.
 
 ---
 
@@ -311,10 +366,13 @@ celui de **Discord**, celui de **Xbox Game Bar**, ou un logiciel de macros.
 Réglages… → **Raccourcis** → clique sur la ligne concernée → appuie sur la combinaison de ton
 choix. C'est pris immédiatement, sans redémarrer quoi que ce soit.
 
-**Cas particulier, et c'est volontaire :** **Ctrl + Z** n'annule que quand la fenêtre de Hexa a le
-focus. Hexa refuse de confisquer Ctrl+Z, Ctrl+C, Ctrl+V et compagnie à tout ton ordinateur — sinon
-il casserait l'annulation dans Word, Photoshop et ton navigateur. Pour annuler pendant que ton jeu
-est au premier plan, utilise **Ctrl + Maj + 6**.
+**Cas particulier, et c'est volontaire :** **Ctrl + Z**, **Ctrl + E** et **Ctrl + H** ne répondent
+que quand la fenêtre de Hexa a le focus, donc en mode dessin. Hexa refuse de confisquer à tout ton
+ordinateur les combinaisons que les autres logiciels utilisent déjà — Ctrl+Z casserait l'annulation
+dans Word et Photoshop, Ctrl+E la barre de recherche de ton navigateur, Ctrl+H son historique.
+Windows ne sait pas partager un raccourci : celui qui le réserve le prend à tout le monde.
+Les équivalents qui marchent pendant que tu joues : **Ctrl + Maj + 6** pour annuler,
+**Ctrl + Maj + X** pour tout effacer.
 
 ### L'overlay bloque mes clics, je ne peux plus jouer
 
@@ -397,9 +455,8 @@ C'est le fichier à joindre si tu signales un problème.
 
 Par honnêteté, parce qu'un mode d'emploi qui promet du vent ne sert à rien :
 
-- **la loupe et le gel d'image** apparaissent dans l'aide-mémoire des raccourcis, mais ne sont pas
-  encore branchés : appuyer sur A ou V ne fera rien de visible ;
-- **le flou de masquage** (cacher une information à l'écran) n'existe pas encore ;
+- **le mode Coach** — annoter depuis un second ordinateur l'écran de quelqu'un d'autre — est
+  prévu, pas commencé ;
 - Hexa est un logiciel **Windows** : macOS et Linux ne sont pas pris en charge aujourd'hui ;
 - il n'y a **aucune synchronisation en ligne**. Tes réglages et tes annotations restent sur ton
   ordinateur. Hexa ne se connecte à rien, jamais, et fonctionne entièrement hors ligne.

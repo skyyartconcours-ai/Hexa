@@ -33,9 +33,11 @@ si de rien n'était.
 C'est fait pour les streamers, les coachs et les profs. Pour le moment où il faut entourer *ça*,
 tout de suite, sans casser le rythme.
 
-**Tu viens d'Epic Pen ? Tes raccourcis fonctionnent déjà.** `Ctrl+Maj+3` stylo, `Ctrl+Maj+4`
-surligneur, `Ctrl+Maj+5` gomme, `Ctrl+E` tout effacer. Rien à réapprendre, et tout est
-remplaçable si tu veux tes propres touches.
+**Tu viens d'Epic Pen ? Tes raccourcis fonctionnent déjà**, et même pendant que ton jeu a le
+focus : `Ctrl+Maj+3` stylo, `Ctrl+Maj+4` surligneur, `Ctrl+Maj+5` gomme, `Ctrl+Maj+6` annuler,
+`Ctrl+Maj+X` tout effacer. Rien à réapprendre, et tout est remplaçable si tu veux tes propres
+touches. (`Ctrl+E` et `Ctrl+H` répondent en mode dessin seulement : Hexa refuse de les confisquer
+à ton navigateur et à VLC.)
 
 ## En quoi c'est mieux qu'Epic Pen
 
@@ -59,6 +61,11 @@ remplaçable si tu veux tes propres touches.
 pastilles reliées (1 → 2 → 3), règle de mesure, tampon d'image (Ctrl+V colle ta capture), gomme
 par trait entier. Plus le **laser** et le **projecteur**, à maintenir, pour montrer sans laisser
 de trace.
+
+**Quatre outils qui travaillent sur l'image de ton écran** — **loupe** grossissante qui suit la
+souris et se fige où tu veux (`A`), **gel d'image** pour annoter une photo pendant que le jeu
+continue (`V`), **masque flou** pour cacher un pseudo ou une notification (`B`, et il ne saute
+jamais par accident), **avant/après** avec une poignée à glisser (`U`).
 
 **Ça s'efface tout seul.** Chaque annotation se dissout en traînée de comète après 2, 4 ou
 8 secondes — ou jamais, en **mode ∞**, quand tu veux construire un schéma pièce par pièce.
@@ -185,8 +192,11 @@ des traits, pas de ressource réseau, pas de police externe.
    *fenêtré sans bordure*.
 2. **Ne jamais voler le focus** : `focusable: false` en permanence, sauf pendant le mode dessin.
 3. **Mise à l'échelle DPI** : tout est travaillé en pixels physiques.
-4. **Raccourcis globaux** : éviter `F1`–`F5` (sorts alliés dans League of Legends), et ne jamais
-   confisquer `Ctrl+Z`, `Ctrl+C`, `Ctrl+V` au système — voir `NEVER_GLOBAL` dans `src/keymap.ts`.
+4. **Raccourcis globaux** : `RegisterHotKey` est EXCLUSIF — ce qu'on réserve, on le prend à tous
+   les autres logiciels. Éviter `F1`–`F5` (sorts alliés dans League of Legends), et ne jamais
+   confisquer `Ctrl+Z`, `Ctrl+C`, `Ctrl+V`, ni `Ctrl+E`/`Ctrl+H` (barre de recherche et historique
+   du navigateur) — voir `NEVER_GLOBAL` dans `src/keymap.ts`. Ce qui part réellement au système par
+   défaut : `Ctrl+Maj+2`…`8`, `F8` et la touche panique, qu'aucun autre logiciel n'utilise.
 5. **Garder l'accélération matérielle** : la désactiver rend l'overlay inutilisable en jeu.
    `app.disableHardwareAcceleration()` est banni du dépôt.
 6. **Tester avec le jeu qui tourne**, jamais sur un bureau vide.

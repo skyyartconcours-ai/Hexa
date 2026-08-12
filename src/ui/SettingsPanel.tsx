@@ -783,7 +783,7 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
               Dans OBS : <b>+</b> sous « Sources » → <b>Navigateur</b> (Browser) → colle cette
               adresse → Largeur <b>{canvas.width}</b>, Hauteur <b>{canvas.height}</b> → OK. Le fond
               est déjà transparent, il n'y a rien d'autre à cocher.{' '}
-              <span className="hx-status" data-status={serverTone}>
+              <span className="hx-chip-status" data-status={serverTone}>
                 {serverLine}
               </span>
             </p>
@@ -794,7 +794,7 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
                 <i>
                   Optionnel. Hexa est parfait sans OBS : s'il n'est pas là, on retente doucement,
                   rien ne bloque.{' '}
-                  <span className="hx-status" data-status={wsStatus}>
+                  <span className="hx-chip-status" data-status={wsStatus}>
                     {statusLabel(wsStatus)}
                   </span>
                 </i>

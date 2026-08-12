@@ -1408,7 +1408,7 @@ export class HexaEngine {
       const a = c.points[c.points.length - 2]
       speed = clamp(dist(a.x, a.y, pt.x, pt.y) / Math.max(1, pt.t - a.t), 0, 1.6)
     }
-    const count = Math.max(1, Math.round((0.7 + speed * 0.6) * boost))
+    const count = Math.max(1, Math.round((0.9 + speed * 0.7) * boost))
     const spread = this.opts.size * 2.4 + 3
     for (let i = 0; i < count; i++) {
       // une braise sur quinze porte un éclat en croix (une sur cinq avant :
@@ -1902,9 +1902,9 @@ export class HexaEngine {
       // allumage franc, extinction douce : c'est ce qui fait la braise
       const a = Math.min(1, age * 9) * k * k
       const sprite = emberSprite(p.color)
-      const R = p.size * 2.8 * (1 + age * 0.5)
+      const R = p.size * 3.8 * (1 + age * 0.5)
       if (sprite) {
-        ctx.globalAlpha = Math.min(1, a * 0.95 * boost)
+        ctx.globalAlpha = Math.min(1, a * 1.15 * boost)
         ctx.drawImage(sprite, p.x - R, p.y - R, R * 2, R * 2)
         ctx.globalAlpha = 1
       }

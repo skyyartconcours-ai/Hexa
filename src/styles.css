@@ -15,6 +15,17 @@
   --radius-btn: 12px;
   /* rayon des cartes et panneaux (la barre garde --radius-ui) */
   --radius-card: 16px;
+  /* ---- TOKENS DE SILHOUETTE (§ thèmes) ------------------------------
+     Un thème n'est pas une recoloration : c'est une SILHOUETTE. Ces trois
+     tokens portent ce que la couleur ne peut pas dire — l'épaisseur du trait,
+     la forme des pastilles, la densité — et TOUTES les feuilles de composants
+     les consomment (réglages, aide-mémoire, roue, pastilles d'état, widgets).
+     Sans eux, les huit thèmes se ressemblaient au pixel près dès qu'on
+     quittait la barre d'outils : même panneau, même touche, même puce.
+     ⚠️ Toute nouvelle feuille doit les utiliser plutôt que `1px` / `999px`. */
+  --border-w: 1px;
+  --chip-radius: 999px;
+  --panel-pad: 14px;
   --shadow-ui:
     0 12px 42px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);

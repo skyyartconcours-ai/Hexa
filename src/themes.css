@@ -59,6 +59,9 @@
   --track-bg: rgba(255, 255, 255, 0.16);
   --thumb: #ffffff;
   --swatch-clip: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  --border-w: 1px;
+  --chip-radius: 999px;
+  --panel-pad: 14px;
 }
 
 /* filet lumineux sur l'arête haute : le détail qui fait « cher » */
@@ -138,6 +141,10 @@
   --track-bg: rgba(24, 62, 116, 0.14);
   --thumb: #ffffff;
   --swatch-clip: circle(50% at 50% 50%);
+  /* la pilule partout : c'est la signature de Glacier */
+  --border-w: 1px;
+  --chip-radius: 999px;
+  --panel-pad: 15px;
 }
 
 /* la pilule : silhouette signature de Glacier */

@@ -94,8 +94,11 @@ dedans. Pour l'avoir en permanence sous les yeux, **attrape-le avec la souris et
 | Ce que tu veux | Ce que tu fais |
 | --- | --- |
 | Dessiner sur mon écran | Appuie sur **F8** (ou clique une fois sur l'icône près de l'horloge) |
-| Tout effacer d'un coup | **Ctrl + E** |
+| Tout effacer d'un coup | **Ctrl + Maj + X** — la touche panique, elle répond même en pleine partie |
 | Arrêter de dessiner, rendre la souris au jeu | Appuie de nouveau sur **F8** |
+
+*(Le **Ctrl + E** d'Epic Pen efface lui aussi, mais seulement quand le mode dessin est allumé :
+Hexa refuse de confisquer cette touche à ton navigateur. Le mode d'emploi explique pourquoi.)*
 
 Un **liseré lumineux** apparaît tout autour de ton écran quand le mode dessin est actif.
 C'est ton seul repère : liseré allumé = ce que tu fais avec la souris dessine ; liseré éteint =
