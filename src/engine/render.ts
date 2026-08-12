@@ -2,9 +2,8 @@ import { getStroke } from 'perfect-freehand'
 import type { Stroke, StrokePoint } from './types'
 import { clamp, easeOutCubic, lerp, rgba, whiteMix } from './geometry'
 import {
-  arrowHeadLen,
   easeOutBack,
-  neonHead,
+  partialPoly,
   renderCurvedArrow,
   renderShape,
   shapeBox,
@@ -292,84 +291,39 @@ function igniteOn(
   paintIgnite(ctx, path.trace, path.len, s.color, s.size, ign, st.alpha)
 }
 
+/**
+ * Flèche — droite ou courbe, c'est la MÊME géométrie (src/engine/arrow.ts) :
+ * corps fuselé qui s'épaissit vers la pointe, pointe orientée sur la tangente
+ * finale de la courbe, ailerons incurvés, pop élastique.
+ * Une flèche à deux points n'est qu'une flèche dont la courbe est droite.
+ */
 function renderArrow(ctx: CanvasRenderingContext2D, s: Stroke, st: RenderState): void {
   // pulsation optionnelle d'une flèche posée (mode « boucle ») et sur-éclat
   // de l'allumage : les deux ne font que moduler le halo
   const ign = igniteAt(s, st.now)
   const pulse = arrowPulseK(s, st.now) * (ign ? ign.boost : 1)
   const sp = pulse === 1 ? st : { ...st, glowBoost: st.glowBoost * pulse }
-  // geste courbe : la flèche épouse la courbe au lieu de forcer la ligne (§4.2.2)
-  if (s.points.length > 2) {
-    const path = pathOf(s, 0, st.now)
-    if (path) paintInkShadow(ctx, path.trace, s.color, s.size, st.alpha)
-    renderCurvedArrow(ctx, s, sp)
-    if (path) {
-      paintCoreFix(ctx, path.trace, s.color, s.size, st.alpha, CORE_MIX)
-      igniteOn(ctx, s, st, path, ign)
-    }
-    return
-  }
   const a = s.points[0]
   const bRaw = s.points[s.points.length - 1]
-  if (!a || !bRaw || (a.x === bRaw.x && a.y === bRaw.y)) return
-
-  let t = 1
-  let headK = 1
-  if (s.anim) {
-    const p = clamp((st.now - s.anim.start) / s.anim.duration, 0, 1)
-    if (s.anim.kind === 'head') {
-      // morph d'une forme intelligente : le fût est déjà là, la pointe éclot
-      headK = easeOutBack(p)
-    } else {
-      t = easeOutCubic(p)
-      // la pointe se dessine APRÈS le fût, avec un pop élastique (§4.2.1)
-      headK = easeOutBack(clamp((p - 0.68) / 0.32, 0, 1))
-    }
-  }
-  const b = { x: a.x + (bRaw.x - a.x) * t, y: a.y + (bRaw.y - a.y) * t }
-  const ang = Math.atan2(b.y - a.y, b.x - a.x)
-  const headLen = arrowHeadLen(s.size) * Math.max(headK, 0.001)
-  const shaftEnd = {
-    x: b.x - Math.cos(ang) * headLen * 0.72,
-    y: b.y - Math.sin(ang) * headLen * 0.72,
-  }
-
-  const traceShaft = (c: CanvasRenderingContext2D) => {
-    c.beginPath()
-    c.moveTo(a.x, a.y)
-    c.lineTo(shaftEnd.x, shaftEnd.y)
-  }
-  paintInkShadow(ctx, traceShaft, s.color, s.size, st.alpha)
-
-  ctx.save()
-  ctx.globalCompositeOperation = 'lighter'
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-  const g = st.glowBoost * pulse
-
-  const shaft = (w: number, style: string | CanvasGradient) => {
-    ctx.strokeStyle = style
-    ctx.lineWidth = w
-    traceShaft(ctx)
-    ctx.stroke()
-  }
-  shaft(s.size * 3.6, haloPaint(ctx, a, shaftEnd, s.color, 0.13 * st.alpha * g))
-  shaft(s.size * 1.9, haloPaint(ctx, a, shaftEnd, s.color, 0.3 * st.alpha * g))
-  shaft(s.size, depthPaint(ctx, a, shaftEnd, s.color, coreMix(CORE_MIX), 0.95 * st.alpha))
-
-  ctx.restore()
-  // pointe : même recette néon, avec le pop élastique
-  neonHead(ctx, b, ang, s.size, s.color, st.alpha, g, headK * (pulse === 1 ? 1 : 1 + (pulse - 1) * 0.18))
+  if (!a || !bRaw || (s.points.length < 3 && a.x === bRaw.x && a.y === bRaw.y)) return
+  const path = pathOf(s, 0, st.now)
+  if (path) paintInkShadow(ctx, path.trace, s.color, s.size, st.alpha)
+  renderCurvedArrow(ctx, s, sp)
+  if (path) igniteOn(ctx, s, st, path, ign)
   // éclair sec au moment exact où la pointe claque : c'est ce qui rend le
   // geste « posé » et non « dessiné »
   if (s.anim) {
     const p = clamp((st.now - s.anim.start) / s.anim.duration, 0, 1)
     const q = s.anim.kind === 'head' ? p : clamp((p - 0.68) / 0.32, 0, 1)
-    if (q > 0 && q < 1) tipSpark(ctx, b.x, b.y, s.color, s.size, q, st.alpha)
+    if (q > 0 && q < 1) {
+      const drawn = partialPoly(
+        s.points.map((pt) => ({ x: pt.x, y: pt.y })),
+        s.anim.kind === 'head' ? 1 : easeOutCubic(p),
+      )
+      const tip = drawn[drawn.length - 1]
+      tipSpark(ctx, tip.x, tip.y, s.color, s.size, q, st.alpha)
+    }
   }
-
-  const path = pathOf(s, 0, st.now)
-  if (path) igniteOn(ctx, s, st, path, ign)
 }
 
 /** micro-éclat blanc au bout d'une flèche qui vient de claquer */

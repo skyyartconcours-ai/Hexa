@@ -1,5 +1,7 @@
 import type { Stroke } from './types'
 import { clamp, dist, easeOutCubic, lerp, rgba, whiteMix } from './geometry'
+import { arrowGeom, headOutline } from './arrow'
+import { coreMix, needsCoreFix } from './ink-fx'
 
 /**
  * Formes vectorielles de Hexa : rectangles, ellipses, flèches courbes,
@@ -239,10 +241,19 @@ export function trimEnd(pts: Pt[], by: number): Pt[] {
   return partialPoly(pts, (total - by) / total)
 }
 
-/** longueur de la pointe d'une flèche — partagée par toutes les flèches */
-export const arrowHeadLen = (size: number): number => clamp(size * 4.4, 15, 58)
+/** longueur de la pointe d'une flèche — une seule définition, dans arrow.ts */
+export { arrowHeadLen } from './arrow'
 
-/** pointe de flèche néon, avec facteur d'échelle (pop élastique) */
+/** trace un contour fermé déjà calculé (corps fuselé, pointe…) */
+function traceOutline(ctx: CanvasRenderingContext2D, poly: Pt[]): void {
+  ctx.beginPath()
+  if (poly.length === 0) return
+  ctx.moveTo(poly[0].x, poly[0].y)
+  for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y)
+  ctx.closePath()
+}
+
+/** pointe de flèche néon aux ailerons incurvés, avec pop élastique */
 export function neonHead(
   ctx: CanvasRenderingContext2D,
   tip: Pt,
@@ -254,19 +265,8 @@ export function neonHead(
   scale: number,
 ): void {
   if (scale <= 0.01) return
-  const headLen = arrowHeadLen(size) * scale
-  const headW = headLen * 0.5
-  const nx = -Math.sin(ang)
-  const ny = Math.cos(ang)
-  const bx = tip.x - Math.cos(ang) * headLen
-  const by = tip.y - Math.sin(ang) * headLen
-  const tri = () => {
-    ctx.beginPath()
-    ctx.moveTo(tip.x, tip.y)
-    ctx.lineTo(bx + nx * headW, by + ny * headW)
-    ctx.lineTo(bx - nx * headW, by - ny * headW)
-    ctx.closePath()
-  }
+  const poly = headOutline(tip, ang, size, scale)
+  const tri = () => traceOutline(ctx, poly)
   ctx.save()
   ctx.globalCompositeOperation = 'lighter'
   ctx.lineJoin = 'round'
@@ -289,6 +289,9 @@ export function neonHead(
  * `anim.kind === 'head'` : le fût est déjà là, seule la pointe éclot
  * (cas du morph des formes intelligentes).
  * Sinon : animation de trajet de A vers B (§4.2.3) puis pop de la pointe.
+ *
+ * Le corps fuselé et la pointe sont remplis d'un SEUL contour : la jonction
+ * est invisible, sans trou ni surbrillance de recouvrement.
  */
 export function renderCurvedArrow(ctx: CanvasRenderingContext2D, s: Stroke, st: ShapeState): void {
   const pts: Pt[] = s.points.map((p) => ({ x: p.x, y: p.y }))
@@ -306,13 +309,45 @@ export function renderCurvedArrow(ctx: CanvasRenderingContext2D, s: Stroke, st: 
   }
   const drawn = partialPoly(pts, t)
   if (drawn.length < 2) return
-  const last = drawn[drawn.length - 1]
-  const prev = drawn[Math.max(0, drawn.length - 2)]
-  const ang = Math.atan2(last.y - prev.y, last.x - prev.x)
-  const headLen = arrowHeadLen(s.size)
-  const shaft = t >= 1 || headK > 0 ? trimEnd(drawn, headLen * 0.72 * Math.max(headK, 0.001)) : drawn
-  neonStroke(ctx, (c) => tracePoly(c, shaft, false), s.color, s.size, st.alpha, st.glowBoost)
-  neonHead(ctx, last, ang, s.size, s.color, st.alpha, st.glowBoost, headK)
+  const g = arrowGeom(drawn, s.size, headK)
+  if (st.alpha <= 0.003) return
+  ctx.save()
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  // halos : deux passes larges pour le fût, deux passes serrées pour la pointe
+  const a1 = 0.13 * st.alpha * st.glowBoost
+  const a2 = 0.3 * st.alpha * st.glowBoost
+  const halo = (w: number, a: number, trace: () => void) => {
+    ctx.strokeStyle = rgba(s.color, a)
+    ctx.lineWidth = w
+    trace()
+    ctx.stroke()
+  }
+  const body = () => tracePoly(ctx, g.body, false)
+  halo(s.size * 3.6, a1, body)
+  halo(s.size * 1.9, a2, body)
+  // la pointe reçoit SES halos, plus serrés : un halo de fût sur une surface
+  // aussi petite la délaverait en blanc
+  if (headK > 0.01) {
+    const head = () => traceOutline(ctx, g.head)
+    halo(s.size * 2.4, 0.16 * st.alpha * st.glowBoost, head)
+    halo(s.size * 1.1, a2, head)
+  }
+  // cœur : corps + pointe d'un seul tenant
+  ctx.fillStyle = whiteMix(s.color, CORE, 0.95 * st.alpha)
+  traceOutline(ctx, g.outline)
+  ctx.fill()
+  ctx.restore()
+  // sur fond clair, le cœur additif se délave : on le repose en source-over
+  if (needsCoreFix() && st.alpha > 0.02) {
+    ctx.save()
+    ctx.globalCompositeOperation = 'source-over'
+    ctx.fillStyle = whiteMix(s.color, coreMix(CORE), 0.92 * st.alpha)
+    traceOutline(ctx, g.outline)
+    ctx.fill()
+    ctx.restore()
+  }
 }
 
 /* ------------------------------------------------------------------ */

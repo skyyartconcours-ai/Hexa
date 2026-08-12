@@ -29,6 +29,7 @@ import {
   easeOutBack,
 } from './shapes'
 import type { MorphAnim, Pt } from './shapes'
+import { beautifyArrow, pathLen } from './arrow'
 import { recognize } from './recognizer'
 import { Handwriting, clearMorphs } from './handwriting'
 import { GuideOverlay, buildAnchors, snapPoint } from './guides'
@@ -91,7 +92,14 @@ interface Ping {
 
 /** outils qui démarrent un tracé au clic gauche */
 const FREEHAND_TOOLS = new Set(['pen', 'highlight'])
-const TWO_POINT_TOOLS = new Set(['line', 'arrow', 'rect', 'ellipse', 'measure'])
+const TWO_POINT_TOOLS = new Set(['line', 'rect', 'ellipse', 'measure'])
+/**
+ * Outils dont le GESTE ENTIER est capturé puis embelli (§4.2.2). La flèche
+ * en fait partie : on trace sa courbe à main levée, elle l'épouse. Shift
+ * maintenu la redresse. Capture à la main levée, mais ni comète ni
+ * dissolution en queue : ces flèches restent des objets nets.
+ */
+const GESTURE_TOOLS = new Set(['arrow'])
 /** outils qui posent une annotation d'un seul clic */
 const CLICK_TOOLS = new Set(['text', 'badge', 'stamp'])
 
@@ -135,6 +143,8 @@ export class HexaEngine {
   private pointer = { x: -200, y: -200 }
   private shiftHeld = false
   private altHeld = false
+  /** geste brut d'une flèche en cours — `current.points` porte la version embellie */
+  private gesture: StrokePoint[] = []
 
   /** pings en cours (§5.4) — effet éphémère, hors undo et hors fondu auto */
   private pings: Ping[] = []
@@ -240,6 +250,24 @@ export class HexaEngine {
     const paste = (e: ClipboardEvent) => this.onPaste(e)
     window.addEventListener('paste', paste)
     this.detachFns.push(() => window.removeEventListener('paste', paste))
+    // Shift pressé ou relâché SANS bouger la souris doit redresser (ou
+    // recourber) la flèche en cours immédiatement : le clavier ne produit
+    // aucun pointermove, il faut donc l'écouter. Rien ne se réveille en
+    // dehors d'un geste en cours.
+    const shiftWatch = (e: KeyboardEvent) => {
+      if (e.key !== 'Shift' || !this.current || !GESTURE_TOOLS.has(this.current.tool)) return
+      const held = e.type === 'keydown'
+      if (held === this.shiftHeld) return
+      this.shiftHeld = held
+      this.refreshGesture(this.current)
+      this.wake()
+    }
+    window.addEventListener('keydown', shiftWatch)
+    window.addEventListener('keyup', shiftWatch)
+    this.detachFns.push(() => {
+      window.removeEventListener('keydown', shiftWatch)
+      window.removeEventListener('keyup', shiftWatch)
+    })
     // une image qui finit de charger doit relancer un rendu (jamais de boucle)
     setImageInvalidate(() => {
       this.staticDirty = true
@@ -652,13 +680,13 @@ export class HexaEngine {
       return
     }
 
-    if (FREEHAND_TOOLS.has(t) || TWO_POINT_TOOLS.has(t)) {
+    if (FREEHAND_TOOLS.has(t) || TWO_POINT_TOOLS.has(t) || GESTURE_TOOLS.has(t)) {
       this.redoStack = []
       this.fx = new OneEuro()
       this.fy = new OneEuro()
       const first: StrokePoint = { ...pt, x: this.fx.filter(pt.x, pt.t), y: this.fy.filter(pt.y, pt.t) }
       // le point de DÉPART s'accroche aussi aux points remarquables
-      if (TWO_POINT_TOOLS.has(t) && this.guidesOn()) {
+      if ((TWO_POINT_TOOLS.has(t) || GESTURE_TOOLS.has(t)) && this.guidesOn()) {
         const snapped = snapPoint(null, first, this.anchorList())
         first.x = snapped.x
         first.y = snapped.y
@@ -677,6 +705,12 @@ export class HexaEngine {
         this.current.points.push({ ...first })
         // Alt = forme remplie translucide (rect / ellipse)
         if ((t === 'rect' || t === 'ellipse') && e.altKey) this.current.filled = true
+      }
+      // la flèche mémorise son geste brut à part : `points` ne porte que la
+      // courbe embellie, recalculée à chaque déplacement
+      if (GESTURE_TOOLS.has(t)) {
+        this.gesture = [{ ...first }]
+        this.current.points.push({ ...first })
       }
       this.emitActivity()
       this.wake()
@@ -829,7 +863,9 @@ export class HexaEngine {
         this.staticDirty = true
       } else if (this.current) {
         const c = this.current
-        if (TWO_POINT_TOOLS.has(c.tool)) {
+        if (GESTURE_TOOLS.has(c.tool)) {
+          this.pushGesture(c, pt)
+        } else if (TWO_POINT_TOOLS.has(c.tool)) {
           c.points[c.points.length - 1] = this.resolveTwoPoint(c, pt)
         } else {
           const fpt: StrokePoint = {
@@ -876,6 +912,48 @@ export class HexaEngine {
     ) {
       this.wake()
     }
+  }
+
+  /**
+   * Flèche en cours de tracé : le geste brut est accumulé de son côté
+   * (lissage One Euro, même filtre que le stylo) et `points` reçoit la
+   * courbe EMBELLIE recalculée dans la foulée. C'est ce qui rend le retour
+   * visuel immédiat, Shift compris.
+   */
+  private pushGesture(c: Stroke, pt: StrokePoint): void {
+    const fpt: StrokePoint = {
+      ...pt,
+      x: this.fx ? this.fx.filter(pt.x, pt.t) : pt.x,
+      y: this.fy ? this.fy.filter(pt.y, pt.t) : pt.y,
+    }
+    const last = this.gesture[this.gesture.length - 1]
+    if (last && dist(last.x, last.y, fpt.x, fpt.y) <= 0.7) return
+    this.gesture.push(fpt)
+    this.refreshGesture(c)
+  }
+
+  /** recalcule la courbe embellie de la flèche `c` depuis son geste brut */
+  private refreshGesture(c: Stroke): void {
+    const g = this.gesture
+    if (g.length < 2) return
+    const origin = g[0]
+    let raw: Pt[] = g
+    if (this.shiftHeld) {
+      // Shift : flèche parfaitement droite, ET accroche aux angles de 15°
+      this.overlay.clear(performance.now())
+      const end = this.maybeSnap(origin, g[g.length - 1])
+      raw = [origin, end]
+    } else if (this.guidesOn()) {
+      // guides magnétiques sur le point d'ARRIVÉE seulement (`origin` à null :
+      // imposer un angle remarquable n'aurait aucun sens sur une courbe)
+      const res = snapPoint(null, g[g.length - 1], this.anchorList())
+      this.overlay.set(res.guides, performance.now())
+      raw = [...g.slice(0, -1), { ...g[g.length - 1], x: res.x, y: res.y }]
+    } else {
+      this.overlay.clear(performance.now())
+    }
+    const curve = beautifyArrow(raw, this.shiftHeld)
+    c.points = curve.map((p) => ({ x: p.x, y: p.y, p: 0.5, t: origin.t }))
   }
 
   /** accroche d'un outil posé au clic + affichage des guides correspondants */
@@ -976,6 +1054,26 @@ export class HexaEngine {
     this.overlay.clear(now)
     c.done = true
     c.endedAt = now
+    if (GESTURE_TOOLS.has(c.tool)) {
+      const gesture = this.gesture
+      this.gesture = []
+      // geste trop court : on n'ajoute rien (mesuré sur la LONGUEUR PARCOURUE,
+      // une flèche peut légitimement revenir près de son point de départ)
+      if (gesture.length < 2 || pathLen(gesture) < 14) {
+        this.emitActivity()
+        this.wake()
+        return
+      }
+      // Shift est revérifié au relâché : le dernier état pressé fait foi
+      this.refreshGesture(c)
+      this.overlay.clear(now)
+      if (c.points.length < 2) {
+        this.emitActivity()
+        this.wake()
+        return
+      }
+      c.anim = { start: now, duration: 300 }
+    }
     if (TWO_POINT_TOOLS.has(c.tool)) {
       const a = c.points[0]
       const b = c.points[c.points.length - 1]
@@ -984,8 +1082,7 @@ export class HexaEngine {
         this.wake()
         return // geste trop court : on n'ajoute rien
       }
-      if (c.tool === 'arrow') c.anim = { start: now, duration: 300 }
-      else if (c.tool === 'rect' || c.tool === 'ellipse') c.anim = { start: now, duration: 220 }
+      if (c.tool === 'rect' || c.tool === 'ellipse') c.anim = { start: now, duration: 220 }
     }
     // Mode écriture : le trait rejoint la file d'analyse. Les formes
     // intelligentes sont volontairement mises en veille pendant ce mode —
@@ -1011,7 +1108,9 @@ export class HexaEngine {
   private applySmartShape(c: Stroke, now: number): void {
     const rec = recognize(c.points)
     if (!rec) return
-    const target: Pt[] = rec.points
+    // une flèche née d'un crochet passe par LE MÊME embellissement que la
+    // flèche tracée à la main : une seule géométrie pour toutes les flèches
+    const target: Pt[] = rec.kind === 'arrow' ? beautifyArrow(rec.points) : rec.points
     const from = resample(
       c.points.map((p) => ({ x: p.x, y: p.y })),
       MORPH_SAMPLES,
