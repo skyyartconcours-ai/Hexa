@@ -43,6 +43,11 @@ async function essai(echelle) {
     cwd: RACINE,
     executablePath: join(RACINE, 'node_modules', 'electron', 'dist', 'electron'),
     timeout: 60000,
+    // Une seule fenêtre par écran (§S11) : sans ça, `firstWindow()` attrape au
+    // hasard la couche encre ou la couche interface, et ce fichier échoue une
+    // fois sur deux sans qu'aucun code applicatif ne soit en cause. Voir la
+    // note détaillée dans harness.mjs.
+    env: { ...process.env, HEXA_FUSION: '1' },
   })
   const win = await app.firstWindow({ timeout: 30000 })
   const err = []

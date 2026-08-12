@@ -35,6 +35,13 @@ import { clamp, rgba, whiteMix } from '../geometry'
 import { resampleCloud, type TplPoint } from './templates'
 import { recognizeChar } from './recognizer'
 import {
+  aligner,
+  corrigerMot,
+  OPTIONS_DEFAUT,
+  type Correction,
+  type OptionsLexique,
+} from './lexique'
+import {
   boxOf,
   estimateSlant,
   height,
@@ -75,10 +82,21 @@ const REOPEN_MS = 900
 const LETTER_MS = 380
 /** décalage entre deux lettres (cascade, pour une réécriture de mot entier) */
 const CASCADE_MS = 40
-/** durée du dé-morph (premier Ctrl+Z) */
-const DEMORPH_MS = 330
+/** durée du dé-morph (premier Ctrl+Z) et de sa marche avant (Ctrl+Y).
+ *  Exportée : le moteur en fait l'animation d'apparition du mot, faute de quoi
+ *  le calque consolidé fige l'image intermédiaire du morph. */
+export const DEMORPH_MS = 330
+/**
+ * Durée de la réécriture d'un mot par le lexique. Courte et douce : les
+ * lettres justes GLISSENT vers leur place définitive, les fausses se
+ * croisent en fondu. Ce n'est pas un remplacement, c'est une correction —
+ * et on doit pouvoir la suivre à l'œil sans qu'elle retarde le live.
+ */
+const CORRECTION_MS = 250
 /** durée de vie du chip de confirmation */
 const CHIP_MS = 800
+/** durée de vie du chip de correction (plus long : il y a un mot à lire) */
+const CHIP_MOT_MS = 1500
 
 /**
  * Confiance minimale pour transformer une lettre. Choisie sur la courbe
@@ -100,6 +118,13 @@ const MAX_STROKES_PER_LETTER = 5
 export interface HwSwap {
   remove: Stroke[]
   add: Stroke[]
+  /**
+   * Cet échange est la seconde moitié d'un Ctrl+Z (dé-morph terminé, mot
+   * corrigé rendu à ses lettres). Le moteur ne doit alors PAS vider la pile de
+   * rétablissement : il y dépose au contraire la marche avant, pour que Ctrl+Y
+   * rende la typographie (§182).
+   */
+  undo?: boolean
   /**
    * Traits du mot EN COURS dont il faut repousser le fondu automatique.
    * Sans ça, écrire « SYNDRA » avec un fondu à 4 s ferait disparaître le S
@@ -188,12 +213,50 @@ interface GlyphMorph {
 /** morphs en cours, indexés par identifiant de trait */
 const morphs = new Map<number, GlyphMorph>()
 
+/* ------------------------------------------------------------------ *
+ * Réécriture d'un mot par le lexique — la transition douce
+ *
+ * Corriger « SYNDPA » en « Syndra » n'est PAS un remplacement : la plupart
+ * des lettres sont déjà justes et déjà à l'écran. On les fait donc glisser
+ * vers leur place définitive pendant que les seules lettres fautives se
+ * croisent en fondu. C'est ce qui permet à l'utilisateur de VOIR ce qui a
+ * été corrigé, au lieu de constater qu'un mot en a remplacé un autre.
+ * ------------------------------------------------------------------ */
+
+interface LettreTween {
+  /** lettre déjà posée à l'écran (null : elle apparaît) */
+  de: { text: string; x: number; y: number; taille: number } | null
+  /** sa place dans le mot corrigé (null : elle disparaît) */
+  vers: { text: string; x: number; y: number; taille: number } | null
+}
+
+interface MotTween {
+  lettres: LettreTween[]
+  /** gribouillis jamais transformés du mot : ils s'effacent en douceur */
+  encre: Stroke[]
+  slant: number
+  start: number
+  duration: number
+}
+
+/** réécritures en cours, indexées par l'identifiant du mot corrigé */
+const tweens = new Map<number, MotTween>()
+
+/**
+ * Mémoire du dernier état AVANT correction, pour que Ctrl+Z rende le mot
+ * non corrigé (et un second Ctrl+Z les gribouillis). Hors du Stroke, donc
+ * jamais sérialisée : une session exportée ne contient que le résultat.
+ */
+const corrections = new Map<number, Stroke[]>()
+
 interface Chip {
   text: string
   x: number
   y: number
   color: string
   start: number
+  /** pastille de correction lexicale : plus large, avec sa baguette */
+  baguette?: boolean
 }
 
 /* ------------------------------------------------------------------ */
@@ -353,6 +416,14 @@ export function renderGlyph(
       slant: s.slant ?? 0,
     })
 
+  // réécriture par le lexique : les lettres glissent, seules les fautives
+  // se croisent en fondu (§ MotTween)
+  const tw = tweens.get(s.id)
+  if (tw) {
+    if (renderTween(ctx, s, tw, st)) return
+    tweens.delete(s.id)
+  }
+
   if (!m) {
     finalText()
     return
@@ -430,6 +501,115 @@ export function renderGlyph(
   }
 }
 
+/**
+ * Une image de la réécriture d'un mot. Renvoie false quand c'est fini —
+ * l'appelant retombe alors sur le rendu normal du texte définitif.
+ *
+ * Le principe tient en une phrase : ce qui ne change pas ne clignote pas.
+ * Une lettre déjà juste se contente de glisser (et de changer de casse sans
+ * qu'on la voie faire, puisqu'un « S » et un « s » se recouvrent), une
+ * lettre corrigée se croise en fondu à sa place définitive.
+ */
+function renderTween(
+  ctx: CanvasRenderingContext2D,
+  s: Stroke,
+  tw: MotTween,
+  st: GlyphRenderState,
+): boolean {
+  const t = (st.now - tw.start) / tw.duration
+  if (t >= 1) return false
+  const e = easeOutQuint(clamp(t, 0, 1))
+  // les gribouillis restés tels quels s'effacent en premier
+  const encreAlpha = clamp(1 - t / 0.5, 0, 1)
+  if (encreAlpha > 0.004) {
+    for (const k of tw.encre) neonInk(ctx, k, encreAlpha * st.alpha, st.glowBoost, 1)
+  }
+  // léger sursaut de halo : la correction se remarque sans crier
+  const boost = st.glowBoost * (1 + 0.5 * Math.sin(Math.PI * clamp(t, 0, 1)))
+  for (const l of tw.lettres) {
+    const de = l.de
+    const vers = l.vers
+    if (de && vers) {
+      const x = de.x + (vers.x - de.x) * e
+      const y = de.y + (vers.y - de.y) * e
+      const taille = de.taille + (vers.taille - de.taille) * e
+      if (de.text === vers.text) {
+        // même lettre : un simple glissement, aucun fondu (pas de clignotement)
+        renderNeonText(ctx, {
+          text: vers.text,
+          x,
+          y,
+          fontSize: taille,
+          color: s.color,
+          alpha: st.alpha,
+          glow: boost,
+          slant: tw.slant,
+        })
+      } else {
+        // lettre corrigée : croisement de fondu, exactement au même endroit
+        const sortie = clamp(1 - t / 0.55, 0, 1)
+        if (sortie > 0.004) {
+          renderNeonText(ctx, {
+            text: de.text,
+            x,
+            y,
+            fontSize: taille,
+            color: s.color,
+            alpha: sortie * st.alpha,
+            glow: boost,
+            slant: tw.slant,
+          })
+        }
+        const entree = easeOutQuint(clamp((t - 0.35) / 0.65, 0, 1))
+        if (entree > 0.004) {
+          renderNeonText(ctx, {
+            text: vers.text,
+            x,
+            y,
+            fontSize: taille,
+            color: s.color,
+            alpha: entree * st.alpha,
+            glow: boost,
+            slant: tw.slant,
+          })
+        }
+      }
+    } else if (de) {
+      // lettre en trop : elle s'efface en reculant vers la ligne
+      const sortie = clamp(1 - t / 0.6, 0, 1)
+      if (sortie > 0.004) {
+        renderNeonText(ctx, {
+          text: de.text,
+          x: de.x,
+          y: de.y,
+          fontSize: de.taille * (1 - 0.15 * e),
+          color: s.color,
+          alpha: sortie * st.alpha,
+          glow: boost,
+          slant: tw.slant,
+        })
+      }
+    } else if (vers) {
+      // lettre restituée par le lexique (l'apostrophe de Kai'Sa, la lettre
+      // que le reconnaisseur n'avait pas su lire) : elle s'allume sur place
+      const entree = easeOutQuint(clamp((t - 0.3) / 0.7, 0, 1))
+      if (entree > 0.004) {
+        renderNeonText(ctx, {
+          text: vers.text,
+          x: vers.x,
+          y: vers.y,
+          fontSize: vers.taille,
+          color: s.color,
+          alpha: entree * st.alpha,
+          glow: boost * 1.15,
+          slant: tw.slant,
+        })
+      }
+    }
+  }
+  return true
+}
+
 /* ------------------------------------------------------------------ */
 /* Session d'écriture                                                   */
 /* ------------------------------------------------------------------ */
@@ -455,7 +635,7 @@ export class Handwriting {
   /** échanges décidés hors tick (rattrapage), à rendre au moteur */
   private queued: HwSwap[] = []
   /** réécritures demandées par le lexique */
-  private rewrites: { id: number; text: string }[] = []
+  private rewrites: { id: number; text: string; correction: Correction | null }[] = []
   private chips: Chip[] = []
   private dueAt: number | null = null
   /** un saut de mot est à consommer une fois la lettre en attente jugée */
@@ -468,10 +648,19 @@ export class Handwriting {
   private baseline = 0
   /** bord droit de la dernière lettre posée : sert à ne pas les empiler */
   private lastRight = 0
+  /** inclinaison courante de l'écriture (tangente), moyennée sur le mot */
+  private slant = 0
   private lastAt = 0
 
   /** le mot vient de changer (lettre ajoutée) ou d'être clos — pour le lexique */
   onWord?: (w: HwWord) => void
+
+  /**
+   * Réglages du correcteur lexical, poussés par l'interface (interrupteur,
+   * catégories, mots personnels). Remplacés en bloc : l'index du lexique se
+   * reconstruit tout seul quand ils changent.
+   */
+  lexique: OptionsLexique = OPTIONS_DEFAUT
 
   /* ---------------- entrée ---------------- */
 
@@ -546,6 +735,7 @@ export class Handwriting {
     this.cap = 0
     this.baseline = 0
     this.lastRight = 0
+    this.slant = 0
   }
 
   /** prochaine échéance à programmer par le moteur (aucune boucle ici) */
@@ -562,7 +752,12 @@ export class Handwriting {
     // sinon la boucle s'endort sur la dernière image qui la contient encore et
     // la pastille reste figée à l'écran (la couche live n'est repeinte que
     // pendant que la boucle tourne).
-    for (const c of this.chips) if (now - c.start < CHIP_MS + 100) return true
+    for (const c of this.chips) {
+      if (now - c.start < (c.baguette ? CHIP_MOT_MS : CHIP_MS) + 100) return true
+    }
+    for (const t of tweens.values()) {
+      if (now - t.start < t.duration) return true
+    }
     for (const m of morphs.values()) {
       if (now - m.start < m.duration) return true
     }
@@ -580,7 +775,7 @@ export class Handwriting {
     for (const [id, m] of morphs) {
       if (!m.reverse || now - m.start < m.duration) continue
       morphs.delete(id)
-      swaps.push({ remove: [m.stroke], add: m.ink })
+      swaps.push({ remove: [m.stroke], add: m.ink, undo: true })
     }
     if (this.queued.length > 0) {
       swaps.push(...this.queued)
@@ -621,7 +816,7 @@ export class Handwriting {
     // réécritures demandées par le lexique
     while (this.rewrites.length > 0) {
       const r = this.rewrites.shift()!
-      const sw = this.applyRewrite(r.id, r.text, now, live, ctx)
+      const sw = this.applyRewrite(r.id, r.text, r.correction, now, live, ctx)
       if (sw) swaps.push(sw)
     }
     this.dueAt = null
@@ -645,7 +840,7 @@ export class Handwriting {
    */
   rewrite(id: number, text: string): boolean {
     if (id !== this.wordId || this.done.length === 0) return false
-    this.rewrites.push({ id, text })
+    this.rewrites.push({ id, text, correction: null })
     return true
   }
 
@@ -666,7 +861,7 @@ export class Handwriting {
       box,
       capHeight: this.cap,
       baseline: this.baseline,
-      slant: estimateSlant(strokes, this.cap || 24),
+      slant: this.slant,
       color: first?.color ?? '#ffffff',
       size: strokes.reduce((a, s) => Math.max(a, s.size), 4),
       closed,
@@ -682,7 +877,38 @@ export class Handwriting {
     if (this.done.length === 0 || this.wordClosed) return
     this.wordClosed = true
     this.lastRight = 0
+    this.corriger()
     this.emit(true)
+  }
+
+  /**
+   * Le mot est fini : le lexique le devine et le remet en forme.
+   *
+   * Deux garde-fous ici, en plus de tous ceux du lexique lui-même :
+   *
+   *  — on ne réécrit RIEN si aucune lettre n'a été transformée. Un mot resté
+   *    entièrement en gribouillis, c'est un dessin, pas un mot ;
+   *  — une simple mise en forme de la casse (sans entrée du lexique) ne
+   *    s'applique que si TOUTES les lettres ont été lues. Sinon on
+   *    inventerait la lettre manquante — exactement ce qu'on s'interdit.
+   *    Quand le lexique, lui, reconnaît le mot en entier, il a le droit de
+   *    combler le trou : c'est tout l'intérêt d'avoir un dictionnaire.
+   */
+  private corriger(): void {
+    if (!this.lexique.actif) return
+    if (this.done.length < 2) return
+    if (!this.done.some((l) => l.glyph)) return
+    const lettres = this.done.map((l) => ({ char: l.char, score: l.score }))
+    const r = corrigerMot(lettres, this.lexique)
+    if (!r.texte) return
+    // Toutes les lettres ont été lues : le mot est recomposé en UN seul bloc,
+    // même quand son texte ne change pas (« GG » reste « GG »). Un mot fini
+    // est un objet, pas une file de lettres — il prend la chasse de la police
+    // au lieu de l'espacement approximatif de la main, on l'attrape d'un clic
+    // droit d'un seul tenant, et la gomme l'emporte en entier.
+    const complet = r.brut.length === this.done.length
+    if (r.source !== 'lexique' && !complet) return
+    this.rewrites.push({ id: this.wordId, text: r.texte, correction: r })
   }
 
   /* ---------------- segmentation en direct ---------------- */
@@ -703,7 +929,13 @@ export class Handwriting {
     if (this.done.length === 0) return false
     let wb = this.done[0].box
     for (const l of this.done) wb = merge(wb, l.box)
-    if (box.x0 > wb.x1 + cap * 0.55) return true
+    // 0,85 hauteur de capitale, et pas 0,55 : la décision se prend sur le
+    // PREMIER trait de la lettre suivante, or ce trait n'est pas toujours son
+    // bord gauche. Le fût du I se trace au milieu de sa case, la barre du T
+    // aussi — à 0,55 un « PIZZA » se coupait en « P » puis « IZZA », et un
+    // mot coupé en deux ne peut plus être reconnu par le lexique. Une VRAIE
+    // espace, elle, fait plus d'une hauteur de capitale : elle passe encore.
+    if (box.x0 > wb.x1 + cap * 0.85) return true
     if (box.x1 < wb.x0 - cap * 0.4) return true
     const yc = (box.y0 + box.y1) / 2
     const wc = (wb.y0 + wb.y1) / 2
@@ -744,6 +976,18 @@ export class Handwriting {
    */
   demorph(s: Stroke, now: number): boolean {
     if (!s.ink || s.ink.length === 0) return false
+    // 1er Ctrl+Z sur un mot CORRIGÉ par le lexique : on rend le mot tel qu'il
+    // avait été lu, lettre par lettre. C'est la marche arrière la plus utile
+    // qui soit : l'utilisateur voit passer « Syndra », ce n'était pas ce
+    // qu'il voulait, une touche et il retrouve ses lettres — le second
+    // Ctrl+Z, lui, redonnera les gribouillis.
+    const avant = corrections.get(s.id)
+    if (avant) {
+      corrections.delete(s.id)
+      tweens.delete(s.id)
+      this.queued.push({ remove: [s], add: avant, undo: true })
+      return true
+    }
     const existing = morphs.get(s.id)
     if (existing?.reverse) return false
     const rebuilt = existing ?? this.rebuildMorph(s, now)
@@ -760,6 +1004,27 @@ export class Handwriting {
       if (this.done.length === 0) this.wordClosed = false
       else this.emit(this.wordClosed)
     }
+    return true
+  }
+
+  /**
+   * Ctrl+Y après le Ctrl+Z ci-dessus : le morph repart à l'ENDROIT, le
+   * gribouillis redevient un mot typographié. Rattrape aussi un dé-morph
+   * encore en vol — la marche arrière s'arrête net et repart en avant, sans
+   * saut : c'est exactement le film à l'endroit.
+   *
+   * Renvoie false si le mot ne peut plus être reconstruit (encre gommée,
+   * dissoute…) : l'appelant se contente alors de reposer le texte net.
+   */
+  remorph(s: Stroke, now: number): boolean {
+    if (!s.ink || s.ink.length === 0) return false
+    const existing = morphs.get(s.id)
+    const rebuilt = existing ?? this.rebuildMorph(s, now)
+    if (!rebuilt) return false
+    rebuilt.reverse = false
+    rebuilt.start = now
+    rebuilt.duration = DEMORPH_MS
+    morphs.set(s.id, rebuilt)
     return true
   }
 
@@ -927,7 +1192,13 @@ export class Handwriting {
     // celle du mot sinon (une barre écrasée ne doit pas rapetisser la lettre)
     const capPx = this.cap > 0 && (h < this.cap * 0.55 || h > this.cap * 1.7) ? this.cap : h
     const fontSize = capPx / capRatio()
-    const slant = estimateSlant(ink, capPx)
+    // L'inclinaison est celle du MOT, pas de la lettre : une lettre isolée
+    // n'offre parfois aucun fût vertical (le O, le S), et un mot dont chaque
+    // lettre penche différemment a l'air bâclé. On ne met la moyenne à jour
+    // que quand la lettre a vraiment quelque chose à dire.
+    const own = estimateSlant(ink, capPx)
+    if (own !== 0) this.slant = this.slant === 0 ? own : this.slant * 0.7 + own * 0.3
+    const slant = this.slant
     const w = textWidth(char, fontSize)
     const cx = (box.x0 + box.x1) / 2
     // centrée sur son gribouillis… mais jamais À CHEVAL sur la lettre
@@ -984,6 +1255,7 @@ export class Handwriting {
   private applyRewrite(
     id: number,
     text: string,
+    correction: Correction | null,
     now: number,
     live: readonly Stroke[],
     ctx: HwContext,
@@ -991,20 +1263,31 @@ export class Handwriting {
     if (id !== this.wordId || this.done.length === 0 || !text) return null
     const w = this.snapshot(this.wordClosed)
     const remove: Stroke[] = []
+    const encre: Stroke[] = []
     for (const l of this.done) {
       if (l.glyph && live.includes(l.glyph)) remove.push(l.glyph)
-      for (const k of l.ink) if (live.includes(k)) remove.push(k)
+      for (const k of l.ink) {
+        if (!live.includes(k)) continue
+        remove.push(k)
+        if (!l.glyph) encre.push(k)
+      }
     }
     if (remove.length === 0) return null
     const capPx = this.cap > 0 ? this.cap : height(w.box)
     const fontSize = capPx / capRatio()
+    // le mot corrigé démarre là où démarre la PREMIÈRE lettre déjà posée :
+    // sa lettre initiale ne bouge alors pas d'un pixel, et tout le reste
+    // semble s'aligner sur elle
+    const premier = this.done.find((l) => l.glyph)?.glyph
+    const x0 = premier ? premier.points[0].x : w.box.x0
+    const baseline = premier ? premier.points[0].y : w.baseline || w.box.y1
     const total = LETTER_MS + (text.length - 1) * CASCADE_MS
     const glyph: Stroke = {
       id: ctx.nextId(),
       tool: 'glyph',
       color: w.color,
       size: w.size,
-      points: [{ x: w.box.x0, y: w.baseline || w.box.y1, p: 0.5, t: now }],
+      points: [{ x: x0, y: baseline, p: 0.5, t: now }],
       simulatePressure: false,
       done: true,
       startedAt: now,
@@ -1014,12 +1297,94 @@ export class Handwriting {
       h: fontSize,
       slant: w.slant,
       ink: this.done.flatMap((l) => l.ink),
-      anim: { start: now, duration: total },
+      anim: { start: now, duration: correction ? CORRECTION_MS : total },
+    }
+    if (correction) {
+      this.armerTween(glyph, text, x0, baseline, fontSize, encre, now)
+      // mémoire du « avant », pour que Ctrl+Z rende le mot NON corrigé.
+      // Bornée : on ne garde que les derniers mots corrigés, sinon une
+      // longue session finirait par retenir toute son encre.
+      corrections.set(glyph.id, [...remove])
+      while (corrections.size > 8) {
+        const vieux = corrections.keys().next().value
+        if (vieux === undefined) break
+        corrections.delete(vieux)
+      }
+      if (correction.source === 'lexique' && correction.entree) {
+        this.chips.push({
+          text: correction.entree,
+          x: x0 + textWidth(text, fontSize) / 2,
+          y: baseline + capPx * 0.45,
+          color: w.color,
+          start: now + CORRECTION_MS * 0.6,
+          baguette: true,
+        })
+        if (this.chips.length > 5) this.chips.shift()
+      }
     }
     this.done = []
     this.wordClosed = false
     this.wordId = ++this.wordSeq
     return { remove, add: [glyph] }
+  }
+
+  /**
+   * Prépare la transition de correction : chaque lettre déjà à l'écran est
+   * appariée à sa place dans le mot corrigé (§ aligner), les lettres en trop
+   * sont marquées comme sortantes et les lettres rendues par le lexique
+   * (l'apostrophe de Kai'Sa, une lettre jamais lue) comme entrantes.
+   */
+  private armerTween(
+    glyph: Stroke,
+    text: string,
+    x0: number,
+    baseline: number,
+    fontSize: number,
+    encre: Stroke[],
+    now: number,
+  ): void {
+    // une lettre restée illisible ne doit ressembler à rien : « ~ » n'est
+    // ni une lettre ni un chiffre, il ne peut donc s'apparier avec rien
+    const lu = this.done.map((l) => l.char || '~').join('')
+    const map = aligner(lu, text)
+    const offsets = letterOffsets(text, fontSize)
+    const lettres: LettreTween[] = []
+    const pris = new Set<number>()
+    for (let i = 0; i < this.done.length; i++) {
+      const g = this.done[i].glyph
+      if (!g) continue
+      const de = {
+        text: g.text ?? '',
+        x: g.points[0].x,
+        y: g.points[0].y,
+        taille: g.h ?? fontSize,
+      }
+      const j = map[i]
+      if (j == null) {
+        lettres.push({ de, vers: null })
+        continue
+      }
+      pris.add(j)
+      lettres.push({
+        de,
+        vers: { text: text[j], x: x0 + offsets[j], y: baseline, taille: fontSize },
+      })
+    }
+    // ce que personne n'a écrit et que le lexique restitue
+    for (let j = 0; j < text.length; j++) {
+      if (pris.has(j) || text[j] === ' ') continue
+      lettres.push({
+        de: null,
+        vers: { text: text[j], x: x0 + offsets[j], y: baseline, taille: fontSize },
+      })
+    }
+    tweens.set(glyph.id, {
+      lettres,
+      encre,
+      slant: glyph.slant ?? 0,
+      start: now,
+      duration: CORRECTION_MS,
+    })
   }
 
   /* ---------------- chip de confirmation ---------------- */
@@ -1034,12 +1399,13 @@ export class Handwriting {
     if (this.chips.length === 0) return
     let alive = 0
     for (const c of this.chips) {
+      const vie = c.baguette ? CHIP_MOT_MS : CHIP_MS
       const age = now - c.start
-      if (age > CHIP_MS) continue
+      if (age > vie) continue
       this.chips[alive++] = c
       if (age < 0) continue
       const enter = clamp(age / 150, 0, 1)
-      const exit = clamp((CHIP_MS - age) / 240, 0, 1)
+      const exit = clamp((vie - age) / 240, 0, 1)
       const alpha = Math.min(easeOutQuint(enter), exit)
       const rise = (1 - easeOutQuint(enter)) * -7
 
@@ -1048,7 +1414,8 @@ export class Handwriting {
       const label = c.text
       const tw = ctx.measureText(label).width
       const h = 24
-      const w = Math.max(tw + 22, 30)
+      // la baguette occupe 18 px à gauche du mot corrigé
+      const w = Math.max(tw + 22 + (c.baguette ? 18 : 0), 30)
       const x = c.x - w / 2
       const y = c.y + rise
 
@@ -1071,7 +1438,9 @@ export class Handwriting {
       ctx.fillStyle = whiteMix(c.color, 0.72, 0.98 * alpha)
       ctx.textBaseline = 'middle'
       ctx.textAlign = 'center'
-      ctx.fillText(label, c.x, y + h / 2 + 0.5)
+      const decal = c.baguette ? 9 : 0
+      ctx.fillText(label, c.x + decal, y + h / 2 + 0.5)
+      if (c.baguette) baguette(ctx, x + 15, y + h / 2, c.color, alpha)
       ctx.restore()
     }
     this.chips.length = alive
@@ -1080,6 +1449,43 @@ export class Handwriting {
 
 const FONT_UI =
   "'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+
+/**
+ * Petite baguette magique tracée à la main (7 px), signe que ce mot-là vient
+ * du LEXIQUE et non de la simple lecture des lettres. Vectorielle : aucune
+ * ressource, aucune fonte d'icônes, nette à tous les facteurs d'échelle.
+ */
+function baguette(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  color: string,
+  alpha: number,
+): void {
+  ctx.save()
+  ctx.strokeStyle = whiteMix(color, 0.55, 0.95 * alpha)
+  ctx.lineWidth = 1.6
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(cx - 3.5, cy + 4.5)
+  ctx.lineTo(cx + 3, cy - 2)
+  ctx.stroke()
+  // les trois étincelles au bout
+  ctx.lineWidth = 1.2
+  for (const [dx, dy, r] of [
+    [4.5, -4.5, 2.6],
+    [1, -5.5, 1.5],
+    [6, -1, 1.5],
+  ]) {
+    ctx.beginPath()
+    ctx.moveTo(cx + dx - r, cy + dy)
+    ctx.lineTo(cx + dx + r, cy + dy)
+    ctx.moveTo(cx + dx, cy + dy - r)
+    ctx.lineTo(cx + dx, cy + dy + r)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -1105,10 +1511,12 @@ function roundRect(
 
 /** Le trait `s` est-il en cours de morph ? (le moteur y regarde pour les hit-tests) */
 export function isMorphing(id: number): boolean {
-  return morphs.has(id)
+  return morphs.has(id) || tweens.has(id)
 }
 
 /** Purge totale (effacement panique, destruction du moteur). */
 export function clearMorphs(): void {
   morphs.clear()
+  tweens.clear()
+  corrections.clear()
 }

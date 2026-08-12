@@ -99,7 +99,11 @@ export function estimateSlant(strokes: Stroke[], cap: number): number {
       let dx = p[i].x - p[i - 1].x
       let dy = p[i].y - p[i - 1].y
       if (Math.hypot(dx, dy) < minLen * 0.35) continue
-      if (Math.abs(dy) < Math.abs(dx) * 1.25) continue
+      // Seuil de verticalité SÉVÈRE : à 1,25 la diagonale d'un N (0,72 sur
+      // 0,94) passait pour un fût penché et faisait pencher la lettre de 20°.
+      // Un vrai fût, même d'une écriture très inclinée, reste deux fois plus
+      // vertical qu'horizontal.
+      if (Math.abs(dy) < Math.abs(dx) * 2.2) continue
       if (dy < 0) {
         dx = -dx
         dy = -dy

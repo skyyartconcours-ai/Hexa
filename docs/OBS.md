@@ -52,6 +52,24 @@ au-dessus dans la liste des sources (une source plus haut passe devant).
 > peut valoir « Automatique », « DXGI Desktop Duplication » ou « Windows 10 (1903 et plus) ».
 > **Les trois conviennent** : toutes captent le bureau composé par Windows, donc Hexa avec.
 
+### Et la barre d'outils, elle passe aussi ?
+
+**Non — et c'est voulu.** Hexa affiche deux couches, dans deux fenêtres distinctes :
+
+| Ce que tu vois à l'écran | Dans ta capture OBS |
+| --- | --- |
+| tes traits, flèches, formes, textes, le spotlight, le gel d'image, les masques flous, la grille, les chronos et les notes | **oui** — c'est ce que tes spectateurs doivent voir |
+| la barre d'outils, les panneaux, les bandeaux d'état, le curseur personnalisé | **non** — ça ne regarde que toi |
+
+La fenêtre d'interface est marquée « exclue des captures » (le mécanisme `WDA_EXCLUDEFROMCAPTURE`
+de Windows 10 2004 et au-delà) : elle reste **parfaitement visible sur ton écran**, mais elle
+disparaît d'OBS, du partage d'écran Discord, de Teams et des impressions d'écran. Tu peux donc
+laisser ta barre affichée en permanence pendant tout le direct.
+
+L'interrupteur est dans **Réglages → Direct et captures → « Masquer l'interface de Hexa dans les
+captures »**, activé d'origine. Coupe-le seulement si tu veux justement MONTRER l'interface, par
+exemple pour un tutoriel sur Hexa lui-même.
+
 ---
 
 ## 3. Solution 2 — la source navigateur (celle que personne d'autre ne propose)

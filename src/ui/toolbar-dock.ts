@@ -58,6 +58,58 @@ export const EDGE_LABELS: Record<ToolbarEdge, string> = {
   bottom: 'en bas',
 }
 
+/* ------------------------------------------------------------------ *
+ * Quel ÉCRAN porte la barre (§S4.2)
+ * ------------------------------------------------------------------ */
+
+/** Le strict minimum d'un `Display` Electron : de quoi trancher, rien de plus. */
+export interface DisplayLike {
+  id: number
+  bounds: { x: number; y: number; width: number; height: number }
+}
+
+/**
+ * Écran qui porte la barre d'outils.
+ *
+ * ⚠️ LE PIÈGE du multi-écrans : Hexa ouvre une fenêtre PAR ÉCRAN, et chacune
+ * monte l'interface React complète. Sans désignation d'un porteur unique, la
+ * barre s'afficherait sur TOUS les écrans — donc en plein milieu de celui que
+ * les spectateurs regardent. C'est exactement ce qu'il ne faut pas.
+ *
+ * Règle : l'écran le plus à DROITE (plus grand `bounds.x`). Le streamer joue sur
+ * l'écran principal et garde chat, Discord et OBS à droite ; la barre plaquée
+ * contre le BORD GAUCHE de cet écran de droite se retrouve à quelques
+ * centimètres de l'écran de jeu — à portée de souris, jamais par-dessus le jeu.
+ *
+ * Départages, dans l'ordre : le plus à droite, puis le plus grand, puis l'écran
+ * principal, puis le plus petit identifiant (stable d'un lancement à l'autre).
+ * Avec un seul écran, c'est forcément lui.
+ *
+ * ⚠️ Ce module est le SEUL endroit où cette règle est écrite : le processus
+ * principal (electron/main.ts) l'importe pour décider, la page s'y réfère pour
+ * l'expliquer. Deux implémentations finiraient par diverger, et l'utilisateur
+ * verrait deux barres — ou aucune.
+ */
+export function pickToolbarHost(displays: readonly DisplayLike[], primaryId: number): number {
+  if (displays.length === 0) return primaryId
+  let best = displays[0]
+  for (const d of displays.slice(1)) {
+    if (d.bounds.x !== best.bounds.x) {
+      if (d.bounds.x > best.bounds.x) best = d
+      continue
+    }
+    const aire = d.bounds.width * d.bounds.height
+    const aireBest = best.bounds.width * best.bounds.height
+    if (aire !== aireBest) {
+      if (aire > aireBest) best = d
+      continue
+    }
+    if (d.id === primaryId) best = d
+    else if (best.id !== primaryId && d.id < best.id) best = d
+  }
+  return best.id
+}
+
 export function orientationForEdge(edge: ToolbarEdge): ToolbarOrientation {
   return edge === 'left' || edge === 'right' ? 'vertical' : 'horizontal'
 }
@@ -114,8 +166,24 @@ export function offsetAlongEdge(
   return Math.min(1, Math.max(0, Math.round(value * 1000) / 1000))
 }
 
+/** Position de la barre : deux bords fixés, deux laissés libres. */
+export interface DockPlacement {
+  left: number | 'auto'
+  right: number | 'auto'
+  top: number | 'auto'
+  bottom: number | 'auto'
+}
+
 /**
- * Coin haut-gauche de la barre, en pixels CSS, TOUJOURS dans le cadre.
+ * Position de la barre, en pixels CSS, TOUJOURS dans le cadre.
+ *
+ * Le côté ANCRÉ est exprimé par sa propre propriété (`right: 12px` pour un
+ * ancrage à droite, jamais `left: largeur-mesurée`). C'est volontaire : le
+ * navigateur connaît la largeur réelle de la barre mieux que nous, et une
+ * mesure prise une image trop tôt — pendant que le thème charge, pendant la
+ * transition de 180 ms des raccourcis — décollerait la barre de son bord.
+ * Seule la coordonnée LE LONG du bord est calculée ici, et une erreur d'un
+ * pixel y est sans conséquence.
  *
  * Le bornage final n'est pas une politesse : c'est lui qui ramène la barre à
  * l'écran quand la position mémorisée vient d'un écran qui n'existe plus.
@@ -125,33 +193,27 @@ export function placeDock(
   size: { width: number; height: number },
   view: { width: number; height: number },
   margin = EDGE_MARGIN,
-): { left: number; top: number } {
+): DockPlacement {
   const { width: w, height: h } = size
   const offset = Number.isFinite(dock.offset) ? Math.min(1, Math.max(0, dock.offset)) : 0.5
-  let left: number
-  let top: number
+  const long = (span: number, taille: number) =>
+    Math.round(clamp(offset * span - taille / 2, margin, Math.max(margin, span - taille - margin)))
   switch (dock.edge) {
     case 'left':
-      left = margin
-      top = offset * view.height - h / 2
-      break
+      return { left: margin, right: 'auto', top: long(view.height, h), bottom: 'auto' }
     case 'right':
-      left = view.width - w - margin
-      top = offset * view.height - h / 2
-      break
+      return { left: 'auto', right: margin, top: long(view.height, h), bottom: 'auto' }
     case 'top':
-      left = offset * view.width - w / 2
-      top = margin
-      break
+      return { left: long(view.width, w), right: 'auto', top: margin, bottom: 'auto' }
     default:
-      left = offset * view.width - w / 2
-      top = view.height - h - margin
-      break
+      return { left: long(view.width, w), right: 'auto', top: 'auto', bottom: margin }
   }
-  return {
-    left: Math.round(clamp(left, margin, Math.max(margin, view.width - w - margin))),
-    top: Math.round(clamp(top, margin, Math.max(margin, view.height - h - margin))),
-  }
+}
+
+/** Traduction en style CSS : les `auto` doivent être écrits, pas omis. */
+export function placementStyle(p: DockPlacement): Record<string, string> {
+  const px = (v: number | 'auto') => (v === 'auto' ? 'auto' : `${v}px`)
+  return { left: px(p.left), right: px(p.right), top: px(p.top), bottom: px(p.bottom) }
 }
 
 /** Rectangle de l'aperçu d'ancrage affiché pendant le glisser. */

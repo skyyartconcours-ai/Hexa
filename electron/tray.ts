@@ -55,10 +55,12 @@ export interface TrayActions {
 /**
  * Icône de secours, embarquée en dur (PNG 32 px encodé en base64).
  *
- * Indispensable : `build/icon.png` ne fait PAS partie des fichiers empaquetés
- * par electron-builder. Dans l'installateur Windows, le fichier n'existe donc
- * pas sur le disque — sans cette copie de secours, l'utilisateur verrait un
- * carré vide près de l'horloge, ce qui est presque pire que rien.
+ * `build/icon.png` est bien déclaré dans les fichiers empaquetés (voir le champ
+ * `build.files` de package.json), mais il reste dans le dossier des ressources
+ * de fabrication : si une évolution d'electron-builder l'écartait, ou si un
+ * antivirus le mettait en quarantaine, l'utilisateur verrait un carré vide près
+ * de l'horloge — c'est-à-dire, pour lui, une application qui ne tourne pas.
+ * Cette copie de secours garantit qu'il y a TOUJOURS une icône.
  */
 const ICON_32_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAABnpJREFUWIW9l3uMVVcZxX/f3vvcx5RhhpGHvMa0RVsZhNTSVBR8EC310RCNU9tiKlQxGoIpoylRgUwLKlpDqGhrlUAjUhNGaGihLTRStKakRqCtmqittJFQaoVx5l7mzr337LM//zh3OsPMNAwgfrnnj5Nzz17rW2s/1oGLqR1q2aH2osa4oFIVVOUt7y9pDej4qgO6cPpTunC4Z5cUeNoBbbn6Gd054xnVWQdV3/uk7pz1qLZcCJFzy6ZqEAkAU57Upmw9K52y3EHeFElcAlGEtRXKzrPJd7L+0JekE4B2NbSn754/gdRT6QNvPqRLI2F15JgqpwNRZDBlcB4iAekJ5OoMpsRxW2Xtvtvl5/0kUBAdOYEdarlZEoDJh3W+C6xzjjmmAC6GKAvV5//I6S3rVBQm37ZKGq+aDUVwAXIRmF4OmQqrHvmqHABobVXb0ZGOOSIFxh3WaZGh3SmLXAymRJLJY/XVE3Rt36DFp36FJl4QEBPpuA/eSvNNK6R+7GS0SJIRrEvAebb7Ku0dbfLyCBRQaTxKQ8Zwp4O2SKiXrhAyWWOkUKZn12YtdPwEf/qk2PoxiJg+u/Bnusg2TtTmG5bRPO8OyUU56AkhnzFGeinaChtCzMaH2ukeaMcQBcYf1X2ZJm6Qk6gDcUDlwF4tPPR9qn9/AXNZvUiUg5CAgtSGsFGGOK7iS0Vtap7FtI+10fyeT4gpg6miDTmk3Mn+B78jCwbiucEErGe8/AfvgPC3P7nOzd/V8rP7wEViG8dCCJB4RPq5G2vJj30bn7zpRmwSZP+vH+HIliX62vQFOnP+Shnb1JKEIriY8YPxhiGgsTVibUC67vuWlo/sFzdmatpxkoAIgqAKYiwmiugaP4lJn7+Fbd9cSjX2XH/0z/R298qJF3cTSj26YNFOZzwqXuNzEjBJEJdYsQlqXEZMtiEFD5qCq6IYbBRRrh9Nec5cPvDlxXz8Q7P46Suv0/2bpymcPo2oEuUbsCYSG6MuQTQOQywfQsAlBuvBegQllRxJf6qoWGw2S1fz5UxcspjbFrdS6q3w442/pLDncfLH/oEUiiBCCAmi4DziEgiJGQw3jAIBbJJefXNVENCAGovJ5+maeS3zVt/FR+e2sOvRZ3nhZ1upe/4o2Z4zJN4DgjEWAUSlryGMH4I/jAIerAwkIICiYjC5PN3XvZ9P33s3V06ewPfW3E/c0UHTv/9FiD0EfXNp9r0rQXExuATCSAjYgQogiEjqeTaiq2Umn1q/hinjx/DDtnsY9cQe8j1nCD6VmtrKGLjp9ingPIQhUxCGmGL92RaoKtY5ChMmcc1dbcy4Ygqbvn0vDXt3484U0djXdgIBVVBQpLZaUgKuZoEdRoGhBJKzCYixxLk8+c+2snDBbO7ftI26vY8hpRL4JFVIAbRmVz+wiiDKmwrYESkQAi4loIJgrKPnXe/mc3fcwsHnXqLw8MPkisWzwGuQNfBUfxUwWAwQxaiNwfmhJ/MQAi4xahPUBQTvtVzqZMz7rieZ0sjvH9xKw4njJN4PAq/Nl5oKgsFgKMcFQuLVJkjkUZuYIUfyMBuRRNaQGA9X3LrWuWy9nnpiN9tePSaj/nAYqcagmsrb7z5ougJELLHvIQlepzcv5CNXf0NsFW8TwEt0TgIu4Y3cZThfQEdPnsE1y38hp557XF/Z8wPtPvkSUVQn1mVRDWf5bowlCTHVSpdOaJrJvJY2WibeKKYCpoIdbZGi543BeEOO4w9vpcFluDOT0BZBvRZDyEbGUKrwz4Nb9OXfPkC5+Lpk8o0YatFPlXKlm1F1b9fZ07/CdVd+QerIEXpDqFdjpEpRqmwoV9m44uA5juO+WrBZp+WU9iiwyHmgQpJ32PJrJ/jr0z/SYy/uIIRY0u4jnf7Om5kz42syLj+JUCLJJdgoBhOzXWLal+0bUSCp1YBI1rpJ50fKuhzM0WK6lPIGTh07wuHfrVcJMHf2SnnHuGsJJYhiGKWgFQ5pzKoVj9UiGWo7OI9IBiq0I32pdvF6XZrxrM4rU30hkJVaKI0hG0B7A6PFoGWOG8/ar+9MQ2k7ato531A6sAZE6y+u0KZ8HSszMcuzCfmkROLSji1VytaHTb2dZn37vjSWp+AXGssH1cBUu2KZtuSEe7IJn4likCq7fA9r1uyUvwz+7/+8Wlv7v3rWLNGFd9/e/2k28NklLpX0eqv7/1O1tqq92K7/C+w4Bp+S1TQ8AAAAAElFTkSuQmCC'

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { HexaEngine } from './engine/engine'
+import { setInkTuning } from './engine/ink-fx'
 import { FxLayer } from './engine/fx-capture'
-import type { ToolId } from './engine/types'
+import type { SessionExport, ToolId } from './engine/types'
 import { COLORS, useUiStore } from './store'
-import { Toolbar } from './ui/Toolbar'
+import { Toolbar, useToolbarHost } from './ui/Toolbar'
 import { StageGrid, StageWidgets, spawnClock, spawnNote } from './ui/StageWidgets'
 import { RadialMenu } from './ui/RadialMenu'
 import { sfx } from './audio'
@@ -12,13 +13,13 @@ import { HelpPanel } from './ui/HelpPanel'
 import { StatusHud } from './ui/StatusHud'
 import { ReplayBar } from './ui/ReplayBar'
 import { Onboarding } from './ui/Onboarding'
-import { signalTour } from './ui/tour'
+import { onTourSignal, signalTour, type TourSignal } from './ui/tour'
 import { ObsBridge } from './obs/ObsBridge'
-import { recorder } from './replay/recorder'
+import { queueReplay, recorder } from './replay/recorder'
 import { obsLink } from './obs/link'
 import { setFxIntensity } from './replay/paint'
 import { themeFromQuery } from './themes'
-import { bridge, isElectron } from './bridge'
+import { bridge, isElectron, type CommandeEncre, type EtatEncre } from './bridge'
 import {
   buildLookup,
   isKeyCaptureActive,
@@ -27,6 +28,20 @@ import {
   type KeymapAction,
 } from './keymap'
 import { claimAction, useGlobalShortcuts } from './globalShortcuts'
+// §S11 — séparation en deux fenêtres : l'encre (capturée par OBS) et
+// l'interface (exclue des captures). Voir src/couches.ts pour le raisonnement.
+import {
+  annoncerEtatEncre,
+  brancherExecuteur,
+  coucheSeparee,
+  demarrerSynchro,
+  ecouterEtatEncre,
+  envoyerCommande,
+  porteEncre,
+  porteInterface,
+} from './couches'
+import { useInterfaceCliquable } from './ui/interactivite'
+import { CurseurHexa } from './ui/CurseurHexa'
 
 const TOOL_LABELS: Record<string, string> = {
   pen: 'Pinceau',
@@ -48,6 +63,22 @@ const TOOL_LABELS: Record<string, string> = {
   eraser: 'Gomme',
 }
 
+/**
+ * Écrit la session vive dans un fichier JSON. Exécuté par la couche ENCRE :
+ * c'est elle qui détient le moteur, et sur deux écrans une seule couche répond
+ * — sinon on obtiendrait autant de fichiers que d'écrans branchés.
+ */
+function telechargerSession(engine: HexaEngine): void {
+  const data = JSON.stringify(engine.exportSession(), null, 2)
+  const blob = new Blob([data], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `hexa-session-${Date.now()}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function App() {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const staticRef = useRef<HTMLCanvasElement | null>(null)
@@ -59,6 +90,12 @@ export default function App() {
   const heldKeyRef = useRef<{ key: string; code: string } | null>(null)
   /** premier rendu : pas de son de sélection au démarrage */
   const mountedRef = useRef(false)
+  /**
+   * Dernier instantané de session reçu de la couche encre (§S11). Le panneau de
+   * réglages le lit de façon synchrone : il est rafraîchi à chaque ouverture du
+   * panneau — moment où l'on ne dessine pas, par construction.
+   */
+  const sessionRef = useRef<SessionExport | null>(null)
 
   const tool = useUiStore((s) => s.tool)
   const color = useUiStore((s) => s.color)
@@ -69,8 +106,13 @@ export default function App() {
   const guides = useUiStore((s) => s.guides)
   const linkBadges = useUiStore((s) => s.linkBadges)
   const handwriting = useUiStore((s) => s.handwriting)
+  const lexicon = useUiStore((s) => s.lexicon)
+  const lexiconCategories = useUiStore((s) => s.lexiconCategories)
+  const lexiconWords = useUiStore((s) => s.lexiconWords)
   const theme = useUiStore((s) => s.theme)
   const effectIntensity = useUiStore((s) => s.effectIntensity)
+  /** flèches pulsantes : réglage d'apparence des traits déjà posés (ink-fx) */
+  const arrowPulse = useUiStore((s) => s.arrowPulse)
   const spotlightRadius = useUiStore((s) => s.spotlightRadius)
   const sound = useUiStore((s) => s.sound)
   const soundVolume = useUiStore((s) => s.soundVolume)
@@ -78,6 +120,9 @@ export default function App() {
   const cheatsheetOpen = useUiStore((s) => s.cheatsheetOpen)
   const replayOpen = useUiStore((s) => s.replayOpen)
   const toolbarVisible = useUiStore((s) => s.toolbarVisible)
+  const onboarded = useUiStore((s) => s.onboarded)
+  /** masquer l'interface de Hexa dans les captures (OBS, Discord, impr. écran) */
+  const hideUiFromCapture = useUiStore((s) => s.hideUiFromCapture)
   const keymapPreset = useUiStore((s) => s.keymapPreset)
   const keymapOverrides = useUiStore((s) => s.keymapOverrides)
   const globalShortcutsOn = useUiStore((s) => s.globalShortcutsOn)
@@ -89,8 +134,11 @@ export default function App() {
   /** état des effets de capture — mis à jour sur événement, jamais par image */
   const [fxState, setFxState] = useState({ frozen: false, compare: false })
 
-  // création du moteur (une seule fois)
+  // création du moteur (une seule fois) — COUCHE ENCRE uniquement.
+  // Dans la fenêtre d'interface il n'y a ni canvas ni moteur : elle pilote
+  // celui de l'autre fenêtre par commandes (§S11).
   useEffect(() => {
+    if (!porteEncre) return
     const engine = new HexaEngine(stageRef.current!, staticRef.current!, liveRef.current!)
     engineRef.current = engine
     // Couche des effets de capture (§5.5, §5.6, §5.7, §6) : loupe, gel d'image,
@@ -129,8 +177,12 @@ export default function App() {
       pushActivity()
     })
     // la barre allume ses boutons « gel » et « avant/après » quand ils sont
-    // vraiment actifs : sur un écran figé, on doit VOIR pourquoi rien ne bouge
-    fx.onChange = (s) => setFxState({ frozen: s.frozen, compare: s.compare })
+    // vraiment actifs : sur un écran figé, on doit VOIR pourquoi rien ne bouge.
+    // La barre vit dans l'autre fenêtre : l'état lui est annoncé (§S11).
+    fx.onChange = (s) => {
+      setFxState({ frozen: s.frozen, compare: s.compare })
+      annoncerEtatEncre({ quoi: 'fx', frozen: s.frozen, compare: s.compare })
+    }
     // collage d'une image (§4.10) : le moteur demande le passage au tampon
     engine.onRequestTool = (t) => useUiStore.getState().setTool(t)
     engine.onWheelCb = (e) => {
@@ -145,12 +197,44 @@ export default function App() {
       recorder.observe(strokes, current)
       obsLink.publish(strokes, current)
     }
-    // §8.2 : le moteur a détecté un clic droit maintenu 220 ms dans le vide
+    /** coupe le relais du geste de la roue (posé plus bas, le temps du geste) */
+    let detacherRoue: () => void = () => undefined
+
+    /**
+     * §8.2 : le moteur a détecté un clic droit maintenu 220 ms dans le vide.
+     *
+     * La ROUE est de l'interface : elle s'affiche donc dans l'autre fenêtre,
+     * hors caméra. Mais le GESTE, lui, se déroule ici — c'est cette fenêtre-ci
+     * qui a le bouton droit enfoncé. Electron ne transmet que les MOUVEMENTS de
+     * souris aux fenêtres traversantes, jamais les relâchements : sans relais,
+     * la roue s'ouvrirait dans l'autre fenêtre et ne se refermerait jamais.
+     * On relaie donc le geste, le temps du geste, et rien de plus.
+     */
     engine.onRadial = (x, y) => {
-      setRadial({ x, y })
       // la découverte guidée valide son étape « clic droit » sur l'ouverture
       // réelle de la roue — pas sur une heuristique de durée
       signalTour('radial')
+      if (!coucheSeparee) {
+        setRadial({ x, y })
+        return
+      }
+      annoncerEtatEncre({ quoi: 'radial', x, y })
+      const bouge = (e: PointerEvent) =>
+        annoncerEtatEncre({ quoi: 'radial-move', x: e.clientX, y: e.clientY })
+      const fini = () => {
+        detacherRoue()
+        annoncerEtatEncre({ quoi: 'radial-up' })
+      }
+      detacherRoue()
+      window.addEventListener('pointermove', bouge)
+      window.addEventListener('pointerup', fini)
+      window.addEventListener('pointercancel', fini)
+      detacherRoue = () => {
+        detacherRoue = () => undefined
+        window.removeEventListener('pointermove', bouge)
+        window.removeEventListener('pointerup', fini)
+        window.removeEventListener('pointercancel', fini)
+      }
     }
     // touche panique : la roue et le spotlight se referment avec le reste
     engine.onPanic = () => {
@@ -173,11 +257,60 @@ export default function App() {
     bridge.on('set-draw', (drawing) => setPassthrough(!drawing))
     // « Réglages… » du menu de l'icône près de l'horloge
     bridge.on('open-settings', () => useUiStore.getState().setSettingsOpen(true))
-    // « Replacer la barre d'outils » (§S4.3) : la barre revient à son ancrage
-    // par défaut et redevient visible. Écouté ICI et non dans la barre :
-    // masquée, elle n'est plus montée, et c'est justement le moment où l'on a
-    // le plus besoin de la faire revenir.
-    bridge.on('toolbar-reset', () => useUiStore.getState().resetToolbarDock())
+
+    /* ---- §S11 : ce que la barre d'outils demande au moteur -------------- *
+     * La barre vit dans l'autre fenêtre : « annuler » ne peut plus être un
+     * appel de fonction. Un canal de commandes FERMÉ (neuf ordres, pas un de
+     * plus) évite d'ouvrir une porte d'entrée dans le moteur. En démo
+     * navigateur, `envoyerCommande` appelle directement cet exécuteur : même
+     * code, aucun IPC, aucune latence.                                       */
+    const executer = (c: CommandeEncre) => {
+      switch (c.nom) {
+        case 'undo':
+          engine.undo()
+          signalTour('erase')
+          break
+        case 'redo':
+          engine.redo()
+          break
+        case 'clear':
+          engine.clear()
+          signalTour('erase')
+          break
+        case 'export':
+          telechargerSession(engine)
+          break
+        case 'freeze':
+          fx.toggleFreeze()
+          break
+        case 'compare':
+          fx.toggleCompare()
+          break
+        case 'radial-close':
+          engine.closeRadial()
+          break
+        case 'session-get':
+          annoncerEtatEncre({ quoi: 'session', session: engine.exportSession() })
+          break
+        case 'session-load':
+          engine.loadSession(c.session as SessionExport)
+          break
+        case 'replay-queue':
+          // La barre de rejeu, montée juste après par la synchronisation de
+          // `replayOpen`, viendra chercher ce fichier à son montage (§11).
+          queueReplay(c.session as SessionExport)
+          break
+        default:
+          break
+      }
+    }
+    brancherExecuteur(executer)
+    const stopCommandes = bridge.on('commande', (c) => executer(c))
+    // La découverte guidée est affichée par la couche interface : les gestes
+    // qu'elle attend (effacer, rendre la souris au jeu) ont lieu ici.
+    const stopTour = coucheSeparee
+      ? onTourSignal((signal) => annoncerEtatEncre({ quoi: 'tour', signal }))
+      : () => undefined
 
     // ---- écrans et DPI qui changent EN COURS DE PARTIE (S9, §12.3) --------
     // Brancher un second écran, changer la résolution ou passer Windows de
@@ -218,11 +351,149 @@ export default function App() {
     return () => {
       unsubWidgets()
       unsubDisplay()
+      stopCommandes()
+      stopTour()
+      detacherRoue()
+      brancherExecuteur(null)
       dprQuery?.removeEventListener('change', onDpr)
       fx.destroy()
       engine.destroy()
     }
   }, [])
+
+  /* ================================================================== *
+   * COUCHE INTERFACE — la fenêtre que le direct ne voit jamais (§S11)
+   * ================================================================== */
+
+  // Les deux stores se tiennent au courant l'un l'autre. Sans effet en démo
+  // navigateur : il n'y a qu'une page, donc qu'un seul store.
+  useEffect(() => demarrerSynchro(), [])
+
+  // Cette fenêtre porte-t-elle la barre ? Sur les autres écrans, la couche
+  // interface n'a rien à montrer : elle reste cachée, donc gratuite (§2.5).
+  const isHost = useToolbarHost()
+
+  // Un panneau ouvert : la fenêtre interface devient cliquable PARTOUT et
+  // accepte la frappe clavier. Sinon, elle n'est cliquable qu'au survol d'un
+  // bouton — tout le reste des clics part au jeu ou à la couche encre.
+  // `isHost` est indispensable : sur deux écrans, l'état des panneaux est
+  // partagé, mais SEUL l'écran porteur les affiche. Sans ce garde-fou, la
+  // fenêtre d'interface vide du second écran réclamerait le focus clavier en
+  // même temps que le panneau s'ouvre sur le premier.
+  // (La barre de rejeu, elle, vit dans la couche encre : la rendre « modale »
+  // ici rendrait ses propres commandes inatteignables.)
+  useInterfaceCliquable(isHost && (settingsOpen || cheatsheetOpen))
+
+  // Ce que la couche encre annonce : gel d'image, roue, geste de la roue,
+  // gestes de la découverte guidée, instantané de session.
+  useEffect(() => {
+    if (!porteInterface || !coucheSeparee) return
+    return ecouterEtatEncre((m: EtatEncre) => {
+      if (m.quoi === 'fx') setFxState({ frozen: m.frozen, compare: m.compare })
+      else if (m.quoi === 'radial') setRadial({ x: m.x, y: m.y })
+      else if (m.quoi === 'radial-move')
+        // La roue écoute la fenêtre ; le geste, lui, se déroule dans l'autre.
+        // On rejoue donc l'événement ici, à l'identique.
+        window.dispatchEvent(new PointerEvent('pointermove', { clientX: m.x, clientY: m.y }))
+      else if (m.quoi === 'radial-up') window.dispatchEvent(new PointerEvent('pointerup'))
+      else if (m.quoi === 'tour') signalTour(m.signal as TourSignal)
+      else if (m.quoi === 'session') sessionRef.current = m.session as SessionExport
+    })
+  }, [])
+
+  // Mode dessin : dans la couche interface, le moteur n'est pas là pour
+  // l'écouter. Elle l'apprend directement du processus principal — c'est ce qui
+  // fait disparaître le curseur personnalisé quand la souris repart au jeu.
+  useEffect(() => {
+    if (porteEncre) return
+    const stopSet = bridge.on('set-draw', (drawing) => setPassthrough(!drawing))
+    const stopToggle = bridge.on('toggle-draw', () => setPassthrough((p) => !p))
+    return () => {
+      stopSet()
+      stopToggle()
+    }
+  }, [])
+
+  /**
+   * LE RÉGLAGE DU DIRECT : la fenêtre d'interface est-elle exclue des captures ?
+   * Appliqué par la couche interface elle-même, une fois au démarrage puis à
+   * chaque changement. La couche encre, elle, n'y touche jamais : elle DOIT
+   * rester capturée.
+   */
+  useEffect(() => {
+    if (!porteInterface || !coucheSeparee) return
+    void bridge.setProtectionCapture(hideUiFromCapture)
+  }, [hideUiFromCapture])
+
+  /**
+   * §2.5 appliqué à la couche interface : elle se cache quand elle n'a
+   * strictement rien à montrer (barre masquée, aucun panneau) et sur tous les
+   * écrans qui ne portent pas la barre. Une fenêtre cachée ne coûte rien au
+   * compositeur — c'est la règle de performance numéro un du projet.
+   */
+  useEffect(() => {
+    if (!porteInterface || !coucheSeparee) return
+    const contenu =
+      isHost &&
+      (toolbarVisible || settingsOpen || cheatsheetOpen || replayOpen || radial !== null || !onboarded)
+    bridge.notifyActivity(contenu)
+  }, [isHost, toolbarVisible, settingsOpen, cheatsheetOpen, replayOpen, radial, onboarded])
+
+  /**
+   * Le curseur personnalisé est repris par la couche interface (il renseigne le
+   * streamer, pas ses spectateurs) : celui du moteur s'efface donc — mais
+   * UNIQUEMENT sur l'écran qui porte la barre, seul écran où la fenêtre
+   * d'interface est affichée. Sur les autres, le moteur garde le sien : mieux
+   * vaut un curseur visible à l'antenne que pas de curseur du tout.
+   */
+  useEffect(() => {
+    if (!porteEncre || !coucheSeparee) return
+    document.body.classList.toggle('barre-hote', isHost)
+  }, [isHost])
+
+  // Le panneau de réglages exporte la session VIVE, qui vit dans l'autre
+  // fenêtre : on en redemande un instantané à chaque ouverture.
+  useEffect(() => {
+    if (!porteInterface || !coucheSeparee || !settingsOpen) return
+    envoyerCommande({ nom: 'session-get' })
+  }, [settingsOpen])
+
+  /**
+   * Clavier de la couche interface. Quand un panneau est ouvert, c'est CETTE
+   * fenêtre qui a le focus : sans ces quelques touches, Échap ne fermerait plus
+   * rien et l'utilisateur serait coincé devant un panneau qu'il ne peut plus
+   * quitter qu'à la souris.
+   */
+  useEffect(() => {
+    if (!porteInterface || porteEncre) return
+    const onKey = (e: KeyboardEvent) => {
+      const cible = e.target as HTMLElement | null
+      if (cible && (cible.tagName === 'INPUT' || cible.tagName === 'TEXTAREA')) return
+      if (cible?.isContentEditable || isKeyCaptureActive()) return
+      if (e.key !== 'Escape') return
+      const s = useUiStore.getState()
+      if (!s.settingsOpen && !s.cheatsheetOpen && !s.replayOpen) return
+      e.preventDefault()
+      s.setSettingsOpen(false)
+      s.setCheatsheetOpen(false)
+      s.setReplayOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  /**
+   * « Replacer la barre d'outils » (§S4.3), demandé depuis l'icône près de
+   * l'horloge.
+   *
+   * Effet AUTONOME, et c'est tout l'enjeu : il doit vivre dans les DEUX couches
+   * (§S11). La barre habite la fenêtre d'interface, qui ne crée aucun moteur —
+   * l'abonnement ne pouvait donc pas rester dans l'effet du moteur, réservé à
+   * la couche encre. Et il ne peut pas non plus vivre dans la barre elle-même :
+   * masquée, elle n'est plus montée, et c'est précisément le moment où l'on a
+   * besoin de la faire revenir.
+   */
+  useEffect(() => bridge.on('toolbar-reset', () => useUiStore.getState().resetToolbarDock()), [])
 
   // outil et couleur d'accent de la couche d'effets (anneau de la loupe,
   // cadres des masques, poignée de l'avant/après)
@@ -261,6 +532,19 @@ export default function App() {
     effectIntensity,
   ])
 
+  // correcteur lexical du mode écriture (§S3) : il vit dans la session
+  // d'écriture, pas dans les options du moteur — le moteur n'a pas à savoir
+  // ce qu'est un dictionnaire.
+  useEffect(() => {
+    const hw = engineRef.current?.writing
+    if (!hw) return
+    hw.lexique = {
+      actif: lexicon,
+      categories: lexiconCategories,
+      perso: lexiconWords,
+    }
+  }, [lexicon, lexiconCategories, lexiconWords])
+
   // rayon du spotlight (§5.2) : réglé à la molette, mémorisé, réappliqué
   useEffect(() => {
     engineRef.current?.setSpotRadius(spotlightRadius)
@@ -279,6 +563,14 @@ export default function App() {
     setFxIntensity(effectIntensity)
     document.documentElement.style.setProperty('--fx-intensity', String(effectIntensity))
   }, [effectIntensity])
+
+  // encre vivante : les réglages qui changent l'apparence des traits DÉJÀ
+  // POSÉS. C'est l'application qui les POUSSE — le moteur n'a pas à connaître
+  // le store, sinon la source navigateur d'OBS traînerait toute la table des
+  // raccourcis et le schéma des réglages pour dessiner trois traits.
+  useEffect(() => {
+    setInkTuning({ intensity: effectIntensity, arrowPulse, theme: themeFromQuery() ?? theme })
+  }, [effectIntensity, arrowPulse, theme])
 
   // thème (8 designs, appliqués par attribut sur <html>)
   useEffect(() => {
@@ -342,6 +634,11 @@ export default function App() {
   // compatibilité Epic Pen) et les remaps utilisateur pilotent tout.
   // ---------------------------------------------------------------
   useEffect(() => {
+    // §S11 : le clavier complet appartient à la couche ENCRE, celle qui tient
+    // le moteur. La couche interface n'a que sa touche Échap (plus haut) : deux
+    // fenêtres qui joueraient la même touche doubleraient chaque action
+    // relative (épaisseur, fondu).
+    if (!porteEncre) return
     const bindings = resolveKeymap(keymapPreset, keymapOverrides)
     const lookup = buildLookup(bindings)
     const st = () => useUiStore.getState()
@@ -350,6 +647,7 @@ export default function App() {
     const HOLD_TOOLS: Partial<Record<KeymapAction, ToolId>> = {
       'hold.laser': 'laser',
       'hold.spotlight': 'spotlight',
+      'hold.ping': 'ping',
       'hold.magnifier': 'magnifier',
       'hold.freeze': 'freeze',
     }
@@ -368,50 +666,19 @@ export default function App() {
       'tool.eraser': 'eraser',
     }
 
-    /** Raccourcis de la vague « formes » pas encore décrits par la table
-     *  centrale. On ne les traite que si la touche n'est prise par personne :
-     *  le jour où keymap.ts les intègre, ce repli devient inerte tout seul. */
-    const extraKey = (e: KeyboardEvent): boolean => {
-      // §5.8 — éléments posés à l'écran. Combinaisons volontairement à
-      // l'écart des réflexes Epic Pen (Ctrl+Maj+3…8) et des touches maison.
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey) {
-        const c = e.key.toLowerCase()
-        if (c === 'g') st().cycleGrid()
-        else if (c === 'y') spawnClock('chrono')
-        else if (c === 'b') spawnNote()
-        else return false
-        e.preventDefault()
-        return true
-      }
+    /**
+     * Entrée : transcrire tout de suite l'écriture en attente (§S3).
+     *
+     * Volontairement HORS de la table des raccourcis : ce n'est pas une
+     * commande, c'est la validation d'une saisie en cours. Elle ne s'applique
+     * que s'il y a vraiment du manuscrit à transcrire, et laisse passer la
+     * touche dans tous les autres cas — un raccourci remappable sur Entrée
+     * volerait la validation du champ de texte.
+     */
+    const toucheEntree = (e: KeyboardEvent): boolean => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return false
-      const k = e.key.toLowerCase()
-      // §8.5 — maintien de touche : Q = ping momentané. On appuie, un ping
-      // part aussitôt sous le curseur ; on relâche, l'outil précédent revient.
-      // (Z laser et X spotlight sont déjà décrits par la table centrale.)
-      if (k === 'q') {
-        e.preventDefault()
-        if (e.repeat || heldToolRef.current != null) return true
-        heldToolRef.current = st().tool
-        heldKeyRef.current = { key: 'q', code: e.code }
-        st().setTool('ping')
-        engineRef.current?.ping()
-        return true
-      }
-      if (k === 'm') st().setTool('measure')
-      else if (k === 'w') st().toggleSmartShapes()
-      else if (k === 'g') st().toggleGuides()
-      // B : masque flou (§5.6). Bascule — on repose des masques tant que
-      // l'outil est choisi, on revient au pinceau quand on a fini.
-      else if (k === 'b') st().setTool(st().tool === 'blur' ? 'pen' : 'blur')
-      // U : comparateur avant/après (§5.7). S'il n'y a pas encore de photo,
-      // il la prend lui-même — l'utilisateur n'a pas à connaître l'ordre.
-      else if (k === 'u') fxRef.current?.toggleCompare()
-      // mode écriture : bascule (J) et transcription immédiate (Entrée).
-      // Entrée n'est capturée que s'il y a vraiment de l'écriture en attente.
-      else if (k === 'j') st().toggleHandwriting()
-      else if (k === 'enter') {
-        if (!engineRef.current?.transcribeNow()) return false
-      } else return false
+      if (e.key !== 'Enter') return false
+      if (!engineRef.current?.transcribeNow()) return false
       e.preventDefault()
       return true
     }
@@ -428,7 +695,7 @@ export default function App() {
       if (!eng) return
       const hit = matchAction(lookup, e)
       if (!hit) {
-        extraKey(e)
+        toucheEntree(e)
         return
       }
       const { action } = hit
@@ -459,6 +726,10 @@ export default function App() {
         heldToolRef.current = st().tool
         heldKeyRef.current = { key: e.key.toLowerCase(), code: e.code }
         st().setTool(holdTool)
+        // Le ping est le seul outil momentané qui AGIT à l'appui : on appuie,
+        // un repère part aussitôt sous le curseur, on relâche, l'outil
+        // précédent revient. Sans ça, maintenir la touche ne ferait rien.
+        if (holdTool === 'ping') eng.ping()
         return
       }
 
@@ -518,6 +789,35 @@ export default function App() {
         case 'toggle.linkBadges':
           e.preventDefault()
           st().toggleLinkBadges()
+          break
+        case 'toggle.handwriting':
+          e.preventDefault()
+          st().toggleHandwriting()
+          break
+        // Masque flou (§5.6) : bascule. On repose des masques tant que l'outil
+        // est choisi, la même touche revient au pinceau quand on a fini.
+        case 'tool.blur':
+          e.preventDefault()
+          st().setTool(st().tool === 'blur' ? 'pen' : 'blur')
+          setPassthrough(false)
+          break
+        // Avant/après (§5.7) : s'il n'y a pas encore de photo, il la prend
+        // lui-même — l'utilisateur n'a pas à connaître l'ordre des gestes.
+        case 'fx.compare':
+          e.preventDefault()
+          fxRef.current?.toggleCompare()
+          break
+        case 'stage.grid':
+          e.preventDefault()
+          st().cycleGrid()
+          break
+        case 'stage.clock':
+          e.preventDefault()
+          spawnClock('chrono')
+          break
+        case 'stage.note':
+          e.preventDefault()
+          spawnNote()
           break
         case 'ui.toolbar':
           e.preventDefault()
@@ -609,18 +909,12 @@ export default function App() {
     }
   }, [keymapPreset, keymapOverrides])
 
-  const exportSession = () => {
-    const eng = engineRef.current
-    if (!eng) return
-    const data = JSON.stringify(eng.exportSession(), null, 2)
-    const blob = new Blob([data], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `hexa-session-${Date.now()}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
+  /**
+   * Le bouton vit dans la couche interface, le moteur dans la couche encre :
+   * l'export part donc en COMMANDE. En démo navigateur, la commande est
+   * exécutée sur place — même chemin, aucun détour.
+   */
+  const exportSession = () => envoyerCommande({ nom: 'export' })
 
   return (
     <div className={isElectron ? 'app' : 'app demo'}>
@@ -687,103 +981,129 @@ export default function App() {
         </div>
       )}
 
-      {/* Grille / règle des tiers (§5.8.1) : AVANT la scène dans le document,
-          donc peinte sous les annotations. Du CSS pur — zéro image de rendu. */}
-      <StageGrid />
+      {/* ============================================================ *
+          COUCHE ENCRE — CAPTURÉE PAR OBS.
+          Tout ce qui est ici part dans le direct : c'est exactement ce que
+          les spectateurs doivent voir, et rien d'autre.
+          ============================================================ */}
+      {porteEncre && (
+        <>
+          {/* Grille / règle des tiers (§5.8.1) : AVANT la scène dans le document,
+              donc peinte sous les annotations. Du CSS pur — zéro image de rendu. */}
+          <StageGrid />
 
-      <div ref={stageRef} className="stage" data-tool={tool}>
-        <canvas ref={staticRef} />
-        <canvas ref={liveRef} />
-      </div>
+          <div ref={stageRef} className="stage" data-tool={tool}>
+            <canvas ref={staticRef} />
+            <canvas ref={liveRef} />
+          </div>
 
-      {/* Chronos, comptes à rebours et notes posés à l'écran (§5.8.2, §5.8.3).
-          Les notes sont immunisées au fondu et à la touche panique : elles
-          vivent dans le store, pas dans la liste des annotations. */}
-      <StageWidgets />
+          {/* Chronos, comptes à rebours et notes posés à l'écran (§5.8.2, §5.8.3).
+              Les notes sont immunisées au fondu et à la touche panique : elles
+              vivent dans le store, pas dans la liste des annotations. */}
+          <StageWidgets />
 
-      {/* liseré lumineux : seul repère indiquant que le mode dessin est actif (brief §9.7) */}
-      {!passthrough && <div className="edge-glow" aria-hidden />}
+          {/* Rejeu de session (§11) : calque dédié, la session vive reste intacte.
+              Il vit du côté du MOTEUR, avec l'enregistreur qui le nourrit — et
+              parce qu'un rejeu se regarde : il doit passer à l'antenne comme
+              n'importe quelle annotation. Seule sa réglette de commandes est
+              donc visible dans le direct, le temps du rejeu. */}
+          {replayOpen && <ReplayBar onClose={() => useUiStore.getState().setReplayOpen(false)} />}
 
-      {indicator && (
-        <div className="tool-indicator" key={indicator}>
-          {indicator}
-        </div>
+          {/* Miroir OBS + obs-websocket (§10.2, §7.3) — silencieux par défaut.
+              Il regarde le moteur travailler : il vit donc du côté du moteur. */}
+          <ObsBridge onSceneChange={() => engineRef.current?.clear()} />
+        </>
       )}
 
-      {/* Pastille d'état (barre masquée) et messages éphémères de changement
-          de mode : à aucun moment l'utilisateur ne doit se demander « qu'est-ce
-          qui se passe » ni « comment je reviens en arrière ». */}
-      <StatusHud passthrough={passthrough} />
+      {/* ============================================================ *
+          COUCHE INTERFACE — INVISIBLE DANS LES CAPTURES.
+          Barre d'outils, panneaux, bandeaux, roue, curseur : tout ce qui
+          renseigne le streamer et n'a RIEN à faire dans son direct.
+          Sur plusieurs écrans, seul l'écran porteur de la barre l'affiche.
+          ============================================================ */}
+      {porteInterface && isHost && (
+        <>
+          {/* liseré lumineux : seul repère indiquant que le mode dessin est actif
+              (brief §9.7) — repère pour l'utilisateur, donc hors caméra */}
+          {!passthrough && <div className="edge-glow" aria-hidden />}
 
-      {toolbarVisible && (
-        <Toolbar
-          onUndo={() => {
-            engineRef.current?.undo()
-            signalTour('erase')
-          }}
-          onRedo={() => engineRef.current?.redo()}
-          onClear={() => {
-            engineRef.current?.clear()
-            signalTour('erase')
-          }}
-          onExport={exportSession}
-          onFreeze={() => fxRef.current?.toggleFreeze()}
-          onCompare={() => fxRef.current?.toggleCompare()}
-          frozen={fxState.frozen}
-          comparing={fxState.compare}
-        />
+          {indicator && (
+            <div className="tool-indicator" key={indicator}>
+              {indicator}
+            </div>
+          )}
+
+          {/* Pastille d'état (barre masquée) et messages éphémères de changement
+              de mode : à aucun moment l'utilisateur ne doit se demander « qu'est-ce
+              qui se passe » ni « comment je reviens en arrière ». */}
+          <StatusHud passthrough={passthrough} />
+
+          {toolbarVisible && (
+            <Toolbar
+              onUndo={() => envoyerCommande({ nom: 'undo' })}
+              onRedo={() => envoyerCommande({ nom: 'redo' })}
+              onClear={() => envoyerCommande({ nom: 'clear' })}
+              onExport={exportSession}
+              onFreeze={() => envoyerCommande({ nom: 'freeze' })}
+              onCompare={() => envoyerCommande({ nom: 'compare' })}
+              frozen={fxState.frozen}
+              comparing={fxState.compare}
+            />
+          )}
+
+          {/* Menu radial (§8.2) : clic droit maintenu 220 ms dans le vide.
+              Le moteur (autre fenêtre) décide de l'ouverture et relaie le geste,
+              la roue gère le choix et se referme elle-même au relâché. */}
+          {radial && (
+            <RadialMenu
+              x={radial.x}
+              y={radial.y}
+              onClose={() => {
+                envoyerCommande({ nom: 'radial-close' })
+                setRadial(null)
+              }}
+            />
+          )}
+
+          {/* Réglages complets : thèmes, hygiène à l'écran, session et exports,
+              OBS, profils, raccourcis. Le panneau embarque ProfilesPanel et
+              KeymapEditor, qui sont autonomes. */}
+          {settingsOpen && (
+            <SettingsPanel
+              getSession={() =>
+                coucheSeparee ? sessionRef.current : (engineRef.current?.exportSession() ?? null)
+              }
+              loadSession={(s) => envoyerCommande({ nom: 'session-load', session: s })}
+              onClose={() => useUiStore.getState().setSettingsOpen(false)}
+            />
+          )}
+
+          {/* Aide (touche ?) : les gestes, la table complète du clavier actif, la
+              marche à suivre pour le stream, et un onglet « au secours » qui
+              répond aux vrais symptômes. La fiche imprimable s'ouvre depuis là. */}
+          {cheatsheetOpen && (
+            <HelpPanel
+              onClose={() => useUiStore.getState().setCheatsheetOpen(false)}
+              onEdit={() => {
+                useUiStore.getState().setCheatsheetOpen(false)
+                useUiStore.getState().setSettingsOpen(true)
+              }}
+              onReplayTour={() => {
+                useUiStore.getState().setCheatsheetOpen(false)
+                useUiStore.getState().setOnboarded(false)
+              }}
+            />
+          )}
+
+          {/* Découverte guidée — premier lancement seulement (ou ?onboarding=1) */}
+          <Onboarding />
+
+          {/* Curseur personnalisé (§9.5). Dans la fenêtre d'interface seulement :
+              c'est un repère pour le streamer. Le moteur garde le sien sur les
+              écrans qui ne portent pas la barre (voir l'effet `barre-hote`). */}
+          {coucheSeparee && <CurseurHexa />}
+        </>
       )}
-
-      {/* Menu radial (§8.2) : clic droit maintenu 220 ms dans le vide.
-          Le moteur décide de l'ouverture, la roue gère le geste et se referme
-          elle-même au relâché. */}
-      {radial && (
-        <RadialMenu
-          x={radial.x}
-          y={radial.y}
-          onClose={() => {
-            engineRef.current?.closeRadial()
-            setRadial(null)
-          }}
-        />
-      )}
-
-      {/* Réglages complets : thèmes, hygiène à l'écran, session et exports,
-          OBS, profils, raccourcis. Le panneau embarque ProfilesPanel et
-          KeymapEditor, qui sont autonomes. */}
-      {settingsOpen && (
-        <SettingsPanel
-          getSession={() => engineRef.current?.exportSession() ?? null}
-          loadSession={(s) => engineRef.current?.loadSession(s)}
-          onClose={() => useUiStore.getState().setSettingsOpen(false)}
-        />
-      )}
-
-      {/* Aide (touche ?) : les gestes, la table complète du clavier actif, la
-          marche à suivre pour le stream, et un onglet « au secours » qui
-          répond aux vrais symptômes. La fiche imprimable s'ouvre depuis là. */}
-      {cheatsheetOpen && (
-        <HelpPanel
-          onClose={() => useUiStore.getState().setCheatsheetOpen(false)}
-          onEdit={() => {
-            useUiStore.getState().setCheatsheetOpen(false)
-            useUiStore.getState().setSettingsOpen(true)
-          }}
-          onReplayTour={() => {
-            useUiStore.getState().setCheatsheetOpen(false)
-            useUiStore.getState().setOnboarded(false)
-          }}
-        />
-      )}
-
-      {/* Rejeu de session (§11) : calque dédié, la session vive reste intacte */}
-      {replayOpen && <ReplayBar onClose={() => useUiStore.getState().setReplayOpen(false)} />}
-
-      {/* Miroir OBS + obs-websocket (§10.2, §7.3) — silencieux par défaut */}
-      <ObsBridge onSceneChange={() => engineRef.current?.clear()} />
-
-      {/* Découverte guidée — premier lancement seulement (ou ?onboarding=1) */}
-      <Onboarding />
     </div>
   )
 }

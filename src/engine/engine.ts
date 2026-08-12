@@ -16,7 +16,8 @@ import {
   regionUsable,
   type SpotRegion,
 } from './stream-fx'
-import { fxKeepsAlive, inkLayer, setInkInvalidate } from './ink-fx'
+import { emberSprite, fxKeepsAlive, inkLayer, setInkInvalidate } from './ink-fx'
+import { dissolveDuration, emberAt, panicDying } from './dissolve'
 import { OneEuro } from './oneEuro'
 import { sfx } from '../audio'
 import {
@@ -31,7 +32,7 @@ import {
 import type { MorphAnim, Pt } from './shapes'
 import { beautifyArrow, cumLen, pathLen } from './arrow'
 import { recognize } from './recognizer'
-import { Handwriting, clearMorphs } from './handwriting'
+import { DEMORPH_MS, Handwriting, clearMorphs } from './handwriting'
 import { GuideOverlay, buildAnchors, snapPoint } from './guides'
 import type { Anchor } from './guides'
 import {
@@ -47,7 +48,6 @@ import {
 
 /** durée de vie de la traînée laser (§5.3) — une vraie comète, pas un pointillé */
 const LASER_TTL = 650
-const DISSOLVE_MIN = 420
 const SNAP_RAD = (15 * Math.PI) / 180
 /** durée du morph entre le tracé brut et la forme parfaite (§4.1.5) */
 const MORPH_MS = 150
@@ -103,6 +103,47 @@ const GESTURE_TOOLS = new Set(['arrow'])
 /** outils qui posent une annotation d'un seul clic */
 const CLICK_TOOLS = new Set(['text', 'badge', 'stamp'])
 
+/** nombre d'effacements complets qu'on sait encore rendre (§64 : Ctrl+Z) */
+const CLEAR_HISTORY = 8
+
+/**
+ * Une entrée de la pile de RÉTABLISSEMENT (Ctrl+Y).
+ *
+ * Annuler, dans Hexa, ne se résume pas à retirer un trait : le premier Ctrl+Z
+ * défait aussi un redressement de forme, une transcription d'écriture ou un
+ * effacement complet. Chacun de ces gestes doit donc avoir sa marche avant,
+ * sinon la moitié des annulations n'a aucun retour possible — le brief §182
+ * promet « annuler et rétablir, illimités ».
+ */
+type RedoEntry =
+  /** trait retiré de la scène : on le repose tel quel */
+  | { kind: 'stroke'; stroke: Stroke }
+  /** forme rendue à son gribouillis (§4.1.5) : on rejoue le redressement */
+  | { kind: 'reshape'; id: number }
+  /** mode écriture : on refait l'échange encre → mot typographié */
+  | { kind: 'swap'; remove: Stroke[]; add: Stroke[] }
+  /** touche panique annulée : on refait l'effacement */
+  | { kind: 'clear' }
+  /** coup de gomme annulé : on regomme exactement les mêmes traits */
+  | { kind: 'erase'; strokes: Stroke[] }
+
+/**
+ * Un lot de traits retirés d'un coup — touche panique ou passage de gomme —
+ * gardé le temps qu'un Ctrl+Z puisse les rendre (§64, « undo parfait »).
+ */
+interface RemovedBatch {
+  /** traits retirés, avec leur place d'origine dans la pile de rendu */
+  strokes: { s: Stroke; i: number }[]
+  /**
+   * Compteur d'identifiants à l'instant du retrait : tout trait dont
+   * l'identifiant est supérieur a été posé APRÈS, et s'annule donc AVANT lui.
+   * C'est ce qui garde l'ordre de l'historique juste sans pile globale.
+   */
+  seq: number
+  /** la panique se refait d'un bloc (Ctrl+Y), la gomme trait par trait */
+  mode: 'panic' | 'erase'
+}
+
 /**
  * Moteur de rendu et d'interaction de Hexa.
  *
@@ -133,7 +174,15 @@ export class HexaEngine {
   }
 
   private strokes: Stroke[] = []
-  private redoStack: Stroke[] = []
+  private redoStack: RedoEntry[] = []
+  /** retraits encore annulables : touche panique et coups de gomme */
+  private cleared: RemovedBatch[] = []
+  /** lot de la gomme EN COURS : tout un passage s'annule d'un seul Ctrl+Z */
+  private eraseLot: RemovedBatch | null = null
+  /** mode écriture : mot dont le dé-morph (Ctrl+Z) est encore en vol.
+   *  Un Ctrl+Y pendant ces ~340 ms doit le rattraper au vol, pas se tromper
+   *  d'entrée dans la pile. */
+  private hwUndoing: Stroke | null = null
   private current: Stroke | null = null
   private particles: Spark[] = []
   private laser: LaserPoint[] = []
@@ -353,8 +402,19 @@ export class HexaEngine {
     if ('handwriting' in patch && this.opts.handwriting !== true) this.hw.reset()
     if ('fadeDelay' in patch && this.opts.fadeDelay !== prevFade) {
       const now = performance.now()
+      // RATTRAPAGE — allonger le fondu (ou le couper) alors qu'un schéma
+      // commence à s'effacer doit le SAUVER : c'est le geste réflexe « non non,
+      // garde ça à l'écran ! » pendant qu'on parle encore dessus. Seules les
+      // dissolutions dues au fondu automatique sont rattrapées : ce que la
+      // gomme ou la touche panique viennent d'emporter reste emporté.
+      const rattrape =
+        this.opts.fadeDelay == null || prevFade == null || this.opts.fadeDelay > prevFade
       for (const s of this.strokes) {
-        if (s.dying) continue
+        if (s.dying) {
+          if (!rattrape || s.dying.cause !== 'fade') continue
+          s.dying = undefined
+          this.staticDirty = true
+        }
         s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
       }
       this.wake()
@@ -416,19 +476,26 @@ export class HexaEngine {
     for (let i = this.strokes.length - 1; i >= 0; i--) {
       const s = this.strokes[i]
       if (s.dying) continue
+      // Un effacement complet plus RÉCENT que ce trait passe d'abord : sans ce
+      // test, Ctrl+Z rongerait le tableau restauré avant de rendre l'effacement.
+      if (this.undoCleared(s)) return
       // 1er Ctrl+Z après une transcription : on REND LE GRIBOUILLIS, le morph
       // se rejoue à l'envers (mode écriture). L'échange effectif est fait par
-      // la boucle quand le dé-morph est terminé.
+      // la boucle quand le dé-morph est terminé — c'est là que la marche avant
+      // (Ctrl+Y) est empilée, quand on sait exactement ce qui a été échangé.
       if (s.tool === 'glyph' && s.ink) {
         if (this.hw.demorph(s, performance.now())) {
-          s.anim = { start: performance.now(), duration: 340 }
+          s.anim = { start: performance.now(), duration: DEMORPH_MS }
+          this.hwUndoing = s
           this.staticDirty = true
           this.wake()
           return
         }
         continue
       }
-      // 1er Ctrl+Z après un redressement : on rend le TRACÉ BRUT (§4.1.5)
+      // 1er Ctrl+Z après un redressement : on rend le TRACÉ BRUT (§4.1.5).
+      // Le rétablissement rejoue la reconnaissance sur ce même tracé : elle
+      // est déterministe, donc Ctrl+Y redonne exactement la même forme.
       if (s.raw) {
         const now = performance.now()
         this.morphs.delete(s.id)
@@ -438,25 +505,137 @@ export class HexaEngine {
         s.filled = undefined
         s.anim = undefined
         s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
+        this.redoStack.push({ kind: 'reshape', id: s.id })
         this.anchorsDirty = true
         this.staticDirty = true
         this.wake()
         return
       }
       this.strokes.splice(i, 1)
-      this.redoStack.push(s)
+      this.redoStack.push({ kind: 'stroke', stroke: s })
       if (s.tool === 'badge') this.syncBadgeSeq()
       this.anchorsDirty = true
       this.staticDirty = true
       this.wake()
       return
     }
+    // plus aucun trait vivant : reste peut-être un effacement complet à rendre
+    this.undoCleared(null)
+  }
+
+  /** enregistre un lot retiré, en bornant la mémoire de l'historique */
+  private pousserLot(lot: RemovedBatch): void {
+    this.cleared.push(lot)
+    if (this.cleared.length > CLEAR_HISTORY) this.cleared.shift()
+  }
+
+  /**
+   * Rend le dernier lot retiré (touche panique ou coup de gomme) s'il est plus
+   * récent que `plusRecent`, le dernier trait encore à l'écran. Renvoie false
+   * s'il n'y a rien à rendre ou si un trait posé APRÈS doit s'annuler d'abord.
+   */
+  private undoCleared(plusRecent: Stroke | null): boolean {
+    const lot = this.cleared[this.cleared.length - 1]
+    if (!lot) return false
+    if (plusRecent && plusRecent.id >= lot.seq) return false
+    this.cleared.pop()
+    if (lot === this.eraseLot) this.eraseLot = null
+    const now = performance.now()
+    const revenus = new Set(lot.strokes.map((e) => e.s))
+    // les exemplaires encore en cours de dissolution sont retirés puis remis
+    // À LEUR PLACE : un trait gommé par erreur revient SOUS ceux qui le
+    // recouvraient, jamais par-dessus. La pile de rendu retrouve sa profondeur.
+    const liste = this.strokes.filter((s) => !revenus.has(s))
+    for (const e of [...lot.strokes].sort((a, b) => a.i - b.i)) {
+      e.s.dying = undefined
+      e.s.anim = undefined
+      e.s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
+      liste.splice(Math.min(e.i, liste.length), 0, e.s)
+    }
+    this.strokes = liste
+    this.redoStack.push(
+      lot.mode === 'panic' ? { kind: 'clear' } : { kind: 'erase', strokes: lot.strokes.map((e) => e.s) },
+    )
+    this.syncBadgeSeq()
+    this.anchorsDirty = true
+    this.staticDirty = true
+    this.emitActivity()
+    this.wake()
+    return true
   }
 
   redo(): void {
-    const s = this.redoStack.pop()
-    if (!s) return
-    s.dieAt = this.opts.fadeDelay == null ? undefined : performance.now() + this.opts.fadeDelay
+    // un dé-morph d'écriture encore en vol : on le rattrape avant de lire la
+    // pile, sinon Ctrl+Y rétablirait une action bien plus ancienne
+    if (this.hwUndoing) {
+      const g = this.hwUndoing
+      this.pumpHandwriting(performance.now())
+      if (this.hwUndoing === g) {
+        this.hwUndoing = null
+        const t = performance.now()
+        if (this.hw.remorph(g, t)) g.anim = { start: t, duration: DEMORPH_MS }
+        this.staticDirty = true
+        this.wake()
+        return
+      }
+    }
+    const e = this.redoStack.pop()
+    if (!e) return
+    const now = performance.now()
+    if (e.kind === 'clear') {
+      this.clear()
+      return
+    }
+    if (e.kind === 'erase') {
+      // on regomme, exactement comme la gomme elle-même l'avait fait
+      const lot: RemovedBatch = { strokes: [], seq: this.idSeq, mode: 'erase' }
+      for (const s of e.strokes) {
+        const i = this.strokes.indexOf(s)
+        if (i < 0 || s.dying) continue
+        s.dying = { start: now, duration: 160, mode: 'pop', cause: 'erase' }
+        lot.strokes.push({ s, i })
+      }
+      if (lot.strokes.length > 0) this.pousserLot(lot)
+      this.anchorsDirty = true
+      this.staticDirty = true
+      this.wake()
+      return
+    }
+    if (e.kind === 'reshape') {
+      const s = this.strokes.find((k) => k.id === e.id && !k.dying)
+      // le trait a pu être gommé ou dissous entre-temps : on passe au suivant
+      if (!s || s.raw) {
+        this.redo()
+        return
+      }
+      this.applySmartShape(s, now)
+      this.anchorsDirty = true
+      this.staticDirty = true
+      this.wake()
+      return
+    }
+    if (e.kind === 'swap') {
+      const partis = new Set(e.remove)
+      this.strokes = this.strokes.filter((s) => !partis.has(s))
+      for (const s of e.add) {
+        s.dying = undefined
+        s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
+        // le mot se réécrit devant l'utilisateur, comme à la transcription.
+        // L'animation est OBLIGATOIRE : sans elle le calque consolidé prendrait
+        // le mot pour un trait posé et figerait l'image intermédiaire du morph.
+        if (s.tool === 'glyph' && this.hw.remorph(s, now)) {
+          s.anim = { start: now, duration: DEMORPH_MS }
+        }
+        this.strokes.push(s)
+      }
+      this.anchorsDirty = true
+      this.staticDirty = true
+      this.emitActivity()
+      this.wake()
+      return
+    }
+    const s = e.stroke
+    s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
     this.strokes.push(s)
     if (s.tool === 'badge') this.syncBadgeSeq()
     this.anchorsDirty = true
@@ -477,19 +656,42 @@ export class HexaEngine {
     this.lastBadgeId = last
   }
 
-  /** touche panique : tout part en dissolution, léger décalage en cascade */
+  /**
+   * Touche panique : tout part en dissolution, léger décalage en cascade.
+   *
+   * Deux règles non négociables ici (§169 du brief, « efface tout
+   * instantanément, avec un fondu de 200 ms ») :
+   *
+   *  1. le décalage est PLAFONNÉ et le fondu est court : 150 annotations
+   *     quittent l'écran en moins d'une demi-seconde, comme 3. Cette touche
+   *     existe pour faire disparaître MAINTENANT ce qui ne doit pas rester à
+   *     l'antenne — jamais pour offrir un joli balayage de 7 secondes ;
+   *  2. l'effacement est UNE entrée d'historique : Ctrl+Z le rend (§64,
+   *     « undo parfait »), et la pile de rétablissement est vidée pour qu'un
+   *     Ctrl+Y réflexe ne puisse PAS repeindre à l'écran ce que l'on vient de
+   *     faire disparaître devant les spectateurs.
+   */
   clear(): void {
     const now = performance.now()
-    let i = 0
-    for (const s of this.strokes) {
+    const efface: { s: Stroke; i: number }[] = []
+    let n = 0
+    for (let i = 0; i < this.strokes.length; i++) {
+      const s = this.strokes[i]
       if (s.dying) continue
-      s.dying = { start: now + i * 45, duration: this.dissolveDuration(s), mode: 'dissolve' }
-      i++
+      s.dying = panicDying(n, now)
+      efface.push({ s, i })
+      n++
     }
+    this.eraseLot = null
+    if (efface.length > 0) this.pousserLot({ strokes: efface, seq: this.idSeq, mode: 'panic' })
+    // rien ne survit à la panique dans la pile de rétablissement : ce qui a
+    // été annulé AVANT n'a plus aucune raison de pouvoir revenir APRÈS
+    this.redoStack = []
     this.badgeSeq = 1
     this.lastBadgeId = null
     this.anchorsDirty = true
     // mode écriture : la file d'analyse en attente part avec le reste
+    this.hwUndoing = null
     this.hw.reset()
     // la touche panique nettoie AUSSI les effets vivants : roue, spotlight,
     // pings, traînée laser, étincelles. Un seul geste, écran net.
@@ -521,6 +723,9 @@ export class HexaEngine {
   loadSession(data: SessionExport): void {
     if (data.app !== 'hexa' || !Array.isArray(data.strokes)) return
     const now = performance.now()
+    // importer, c'est une action neuve : un Ctrl+Y ne doit pas faire réapparaître
+    // par-dessus un trait annulé dans la session précédente
+    this.redoStack = []
     const remap = new Map<number, number>()
     const loaded = structuredClone(data.strokes)
     for (const s of loaded) {
@@ -541,10 +746,6 @@ export class HexaEngine {
     this.staticDirty = true
     this.emitActivity()
     this.wake()
-  }
-
-  private dissolveDuration(s: Stroke): number {
-    return clamp(DISSOLVE_MIN + s.points.length * 2.2, DISSOLVE_MIN, 1200)
   }
 
   private toLocal(e: { clientX: number; clientY: number; pressure?: number }): StrokePoint {
@@ -1072,6 +1273,9 @@ export class HexaEngine {
       return
     }
     this.erasing = false
+    // fin du passage de gomme : le lot est clos, le prochain geste en ouvrira
+    // un nouveau (un coup de gomme = une annulation)
+    this.eraseLot = null
     const c = this.current
     if (!c) return
     this.current = null
@@ -1099,7 +1303,16 @@ export class HexaEngine {
         this.wake()
         return
       }
-      c.anim = { start: now, duration: 300 }
+      // LA POINTE ÉCLOT, LE FÛT NE S'EFFONDRE PAS.
+      // Sans `kind: 'head'`, `renderCurvedArrow` repart de t = 0 et redessine
+      // la flèche depuis son point de départ : au relâché, l'aperçu complet —
+      // que le streamer vient de voir pendant tout son geste — disparaissait
+      // d'un coup (−31 % d'encre en une image) et repoussait en 300 ms. À
+      // l'antenne, ça se lit comme un bug de l'overlay, pas comme un effet.
+      // C'est exactement ce que fait déjà la branche des formes intelligentes.
+      // (Le tracé progressif reste disponible pour le « mode trajet » §4.2.3,
+      // qui est un MODE, pas le comportement par défaut.)
+      c.anim = { start: now, duration: 260, kind: 'head' }
     }
     if (TWO_POINT_TOOLS.has(c.tool)) {
       const a = c.points[0]
@@ -1154,12 +1367,24 @@ export class HexaEngine {
       rec.kind === 'arrow' ? { start: now + MORPH_MS, duration: 260, kind: 'head' } : undefined
   }
 
+  /**
+   * Gomme le trait sous le pointeur. Tout un PASSAGE de gomme forme un seul
+   * lot : le Ctrl+Z du « oups, pas celui-là » rend d'un coup ce que le geste a
+   * emporté, et à sa place exacte dans la pile de rendu.
+   */
   private eraseAt(pt: StrokePoint): void {
     const s = this.strokeAt(pt.x, pt.y)
-    if (s) {
-      s.dying = { start: performance.now(), duration: 160, mode: 'pop' }
-      this.wake()
+    if (!s) return
+    s.dying = { start: performance.now(), duration: 160, mode: 'pop', cause: 'erase' }
+    const i = this.strokes.indexOf(s)
+    if (!this.eraseLot) {
+      this.eraseLot = { strokes: [], seq: this.idSeq, mode: 'erase' }
+      this.pousserLot(this.eraseLot)
     }
+    this.eraseLot.strokes.push({ s, i })
+    // la gomme est une action neuve : plus rien à rétablir derrière elle
+    this.redoStack = []
+    this.wake()
   }
 
   private pushLaser(pt: StrokePoint, pressed: boolean): void {
@@ -1168,12 +1393,14 @@ export class HexaEngine {
   }
 
   /**
-   * Étincelles du tracé. Nettement plus présentes qu'avant : la densité suit
-   * la VITESSE du geste (un trait rapide crache des braises), et une étincelle
-   * sur cinq est un éclat à quatre branches. Toujours borné, toujours élégant.
+   * Étincelles du tracé : la densité suit la VITESSE du geste (un trait rapide
+   * crache des braises), la population est bornée, et l'ensemble s'éteint en
+   * moins d'une demi-seconde — le trait doit rester la vedette.
    */
   private spawnSparkles(pt: StrokePoint): void {
-    if (this.particles.length > 420) return
+    // Plafond ramené de 420 à 90 : au-delà, ce n'est plus une gerbe de braises,
+    // c'est un voile qui recouvre le trait.
+    if (this.particles.length > 90) return
     const boost = this.opts.effects ?? 1
     const c = this.current
     let speed = 0
@@ -1181,17 +1408,21 @@ export class HexaEngine {
       const a = c.points[c.points.length - 2]
       speed = clamp(dist(a.x, a.y, pt.x, pt.y) / Math.max(1, pt.t - a.t), 0, 1.6)
     }
-    const count = Math.max(1, Math.round((1.8 + speed * 0.9) * boost))
+    const count = Math.max(1, Math.round((0.7 + speed * 0.6) * boost))
     const spread = this.opts.size * 2.4 + 3
     for (let i = 0; i < count; i++) {
-      const glint = Math.random() < 0.2 ? 1 : 0
+      // une braise sur quinze porte un éclat en croix (une sur cinq avant :
+      // le cliché du sprite d'étincelle sautait aux yeux)
+      const glint = Math.random() < 0.065 ? 1 : 0
       this.particles.push({
         x: pt.x + (Math.random() - 0.5) * spread,
         y: pt.y + (Math.random() - 0.5) * spread,
         vx: (Math.random() - 0.5) * (140 + speed * 110),
         vy: -28 - Math.random() * 105,
         born: pt.t,
-        life: 460 + Math.random() * 620,
+        // 300 à 480 ms au lieu de 460 à 1080 : plus rien ne traîne à l'écran
+        // une seconde après la fin du geste
+        life: 300 + Math.random() * 180,
         size: (glint ? 1.5 + Math.random() * 1.6 : 0.8 + Math.random() * 1.8) * (0.8 + boost * 0.3),
         color: this.opts.color,
         glint,
@@ -1370,7 +1601,7 @@ export class HexaEngine {
     // déclencher les dissolutions programmées (fondu auto)
     for (const s of this.strokes) {
       if (!s.dying && s.dieAt != null && now >= s.dieAt) {
-        s.dying = { start: now, duration: this.dissolveDuration(s), mode: 'dissolve' }
+        s.dying = { start: now, duration: dissolveDuration(s), mode: 'dissolve', cause: 'fade' }
       }
     }
     // purger les traits entièrement dissous
@@ -1505,6 +1736,10 @@ export class HexaEngine {
       drawing: this.current != null,
     })
     if (swaps.length === 0) return
+    // Une transcription est une action NEUVE : elle invalide le rétablissement.
+    // Le retour d'un dé-morph, lui, est la seconde moitié d'un Ctrl+Z : il doit
+    // au contraire DÉPOSER sa marche avant, sans effacer la pile.
+    if (swaps.some((sw) => sw.undo !== true)) this.redoStack = []
     for (const swap of swaps) {
       for (const s of swap.remove) {
         const i = this.strokes.indexOf(s)
@@ -1526,10 +1761,13 @@ export class HexaEngine {
           s.dieAt = now + this.opts.fadeDelay + (s.anim?.duration ?? 0)
         }
       }
+      // marche avant du Ctrl+Z qui vient d'atterrir : refaire l'échange dans
+      // l'autre sens rend le mot typographié (§182 — rétablir, illimité)
+      if (swap.undo === true) {
+        if (this.hwUndoing && swap.remove.includes(this.hwUndoing)) this.hwUndoing = null
+        this.redoStack.push({ kind: 'swap', remove: [...swap.add], add: [...swap.remove] })
+      }
     }
-    // une transcription remplace l'encre : rétablir le gribouillis passe par
-    // le dé-morph (Ctrl+Z), pas par la pile de rétablissement
-    this.redoStack = []
     this.anchorsDirty = true
     this.staticDirty = true
     this.emitActivity()
@@ -1602,8 +1840,9 @@ export class HexaEngine {
           const head = !comet
             ? s.points[s.points.length - 1]
             : s.points[Math.min(from, s.points.length - 1)]
-          const r = Math.max(6, s.size * (1.7 + Math.sin(now * 0.02) * 0.35))
-          renderEmber(ctx, head.x, head.y, r, s.color, 1 - p * 0.4)
+          const e = emberAt(p)
+          const r = Math.max(6, s.size * (1.7 + Math.sin(now * 0.02) * 0.35)) * e.scale
+          renderEmber(ctx, head.x, head.y, r, s.color, e.alpha)
         }
       }
       if (gk !== 1) ctx.restore()
@@ -1640,7 +1879,17 @@ export class HexaEngine {
     this.hw.renderChip(ctx, now)
   }
 
-  /** étincelles : halo large + halo serré + cœur blanchi, et éclats en croix */
+  /**
+   * Étincelles du tracé.
+   *
+   * ⚠️ UNE ÉTINCELLE N'A PAS DE BORD. Chaque particule était peinte en TROIS
+   * disques pleins concentriques (`arc` + `fill` à opacité constante) : trois
+   * bords circulaires NETS, c'est-à-dire une bulle de savon, et jusqu'à 39 px
+   * de diamètre autour d'un cœur de trait de 4 px. Le trait — l'argument
+   * numéro un du produit — finissait enterré sous du bokeh.
+   * Ici, une seule braise à dégradé radial (la MÊME que la dissolution, via
+   * `emberSprite`) : elle fond dans le fond, elle ne le tache pas.
+   */
   private renderSparks(ctx: CanvasRenderingContext2D, now: number): void {
     const boost = this.opts.effects ?? 1
     ctx.save()
@@ -1652,26 +1901,22 @@ export class HexaEngine {
       const k = 1 - age
       // allumage franc, extinction douce : c'est ce qui fait la braise
       const a = Math.min(1, age * 9) * k * k
-      const r = p.size * 1.5 * (1 + age * 0.4)
-      ctx.fillStyle = rgba(p.color, 0.3 * a * boost)
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, r * 5, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.fillStyle = rgba(p.color, 0.55 * a)
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, r * 2.1, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.fillStyle = whiteMix(p.color, 0.86, a)
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, r * 0.9, 0, Math.PI * 2)
-      ctx.fill()
+      const sprite = emberSprite(p.color)
+      const R = p.size * 2.8 * (1 + age * 0.5)
+      if (sprite) {
+        ctx.globalAlpha = Math.min(1, a * 0.95 * boost)
+        ctx.drawImage(sprite, p.x - R, p.y - R, R * 2, R * 2)
+        ctx.globalAlpha = 1
+      }
       if (p.glint === 1) {
-        const l = r * 7.5 * k
+        // éclat en croix : court et discret, pas le sprite d'étincelle du
+        // catalogue. Il ne doit se remarquer qu'une fois sur quinze.
+        const l = R * 1.5 * k
         ctx.save()
         ctx.translate(p.x, p.y)
         ctx.rotate(p.rot + age * 1.1)
-        ctx.strokeStyle = whiteMix(p.color, 0.6, 0.62 * a)
-        ctx.lineWidth = Math.max(0.7, r * 0.42)
+        ctx.strokeStyle = whiteMix(p.color, 0.6, 0.5 * a)
+        ctx.lineWidth = Math.max(0.6, p.size * 0.36)
         ctx.beginPath()
         ctx.moveTo(-l, 0)
         ctx.lineTo(l, 0)

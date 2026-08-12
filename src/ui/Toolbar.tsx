@@ -13,11 +13,14 @@ import {
 } from '../keymap'
 import {
   EDGE_LABELS,
+  EDGE_MARGIN,
   edgePreviewStyle,
   nearestEdge,
   offsetAlongEdge,
   placeDock,
+  placementStyle,
   resolveOrientation,
+  type DockPlacement,
   type ToolbarEdge,
 } from './toolbar-dock'
 import { bridge } from '../bridge'
@@ -148,7 +151,14 @@ const TOOLS: ToolButton[] = [
     action: 'hold.laser',
     hold: true,
   },
-  { id: 'ping', icon: <IconPing />, label: 'Ping : un clic, un repère qui bat', kbd: 'Q' },
+  {
+    id: 'ping',
+    icon: <IconPing />,
+    label: 'Ping : un clic, un repère qui bat',
+    kbd: 'Q',
+    action: 'hold.ping',
+    hold: true,
+  },
   {
     id: 'spotlight',
     icon: <IconSpotlight />,
@@ -171,8 +181,9 @@ const TOOLS: ToolButton[] = [
     id: 'blur',
     icon: <IconBlur />,
     label:
-      'Masque flou : trace un rectangle sur ce qu’il ne faut pas montrer (B · clic droit : déplacer · la croix le retire)',
+      'Masque flou : trace un rectangle sur ce qu’il ne faut pas montrer (clic droit : déplacer · la croix le retire)',
     kbd: 'B',
+    action: 'tool.blur',
   },
 ]
 
@@ -236,7 +247,7 @@ function IconOrient({ vertical }: { vertical: boolean }): ReactElement {
  * la barre est confinée. En démo navigateur il n'y a pas de passerelle : on
  * affiche la barre, évidemment.
  */
-function useToolbarHost(): boolean {
+export function useToolbarHost(): boolean {
   const [host, setHost] = useState(() => bridge.display?.toolbarHost !== false)
   useEffect(
     () =>
@@ -368,28 +379,41 @@ export function Toolbar({
     }
   }, [hintCombos])
 
+  /**
+   * Nom court : le libellé de la barre coupé à sa première ponctuation
+   * (« Flèche (trace ta courbe…) » → « Flèche »), à défaut celui de la table
+   * des raccourcis. Dans cet ordre : le libellé de la barre est écrit pour être
+   * lu ICI, celui de la table pour être lu dans l'éditeur de raccourcis.
+   */
   const nomCourt = (label: string, action?: KeymapAction): string => {
-    const officiel = action ? KEYMAP_BY_ACTION[action]?.label : undefined
-    if (officiel) return officiel
-    return label.split(/\s+[(—:·]/)[0]
+    const court = label.split(/\s+[(—:·]/)[0].trim()
+    if (court) return court
+    return (action ? KEYMAP_BY_ACTION[action]?.label : undefined) ?? label
   }
 
-  /** Pastille « (Ctrl + Maj + 3) » glissée dans le bouton tant que Fin est tenue. */
+  /**
+   * Rappel posé dans le bouton tant que la touche Fin est tenue.
+   *
+   * En vertical, le nom s'affiche même sans raccourci : sinon la moitié des
+   * lignes resteraient de simples icônes au milieu de lignes légendées, et la
+   * colonne aurait l'air trouée. En horizontal il n'y a place que pour la
+   * touche : un bouton sans raccourci ne montre donc rien.
+   */
   const rappel = (label: string, action?: KeymapAction, repli?: string): ReactNode => {
     if (!hints) return null
     const k = touche(action, repli)
-    if (!k) return null
+    if (!k && !vertical) return null
     return (
       <span className="tb-hint">
         <span className="tb-hint-name">{nomCourt(label, action)}</span>
-        <span className="tb-hint-key">({k})</span>
+        {k && <span className="tb-hint-key">({k})</span>}
       </span>
     )
   }
 
   /* ---------------- Placement : ancrage, glisser, bornage (§S4.2-3) ------- */
   const barRef = useRef<HTMLDivElement | null>(null)
-  const [place, setPlace] = useState<{ left: number; top: number } | null>(null)
+  const [place, setPlace] = useState<DockPlacement | null>(null)
   const [drag, setDrag] = useState<{ left: number; top: number; edge: ToolbarEdge } | null>(null)
 
   /**
@@ -402,14 +426,23 @@ export function Toolbar({
   const replacer = useCallback(() => {
     const el = barRef.current
     if (!el) return
-    const r = el.getBoundingClientRect()
-    if (r.width === 0 && r.height === 0) return
-    setPlace(
-      placeDock(
-        { edge: toolbarEdge, offset: toolbarOffset },
-        { width: r.width, height: r.height },
-        viewport(),
-      ),
+    // offsetWidth/Height et NON getBoundingClientRect : le rectangle client est
+    // le rectangle TRANSFORMÉ. Pendant l'animation d'entrée (scale 0.97) il
+    // annonce une barre 3 % plus petite qu'elle ne sera, et la barre se posait
+    // vingt pixels trop bas — un décalage que rien ne venait ensuite corriger,
+    // puisque la taille de mise en page, elle, n'avait pas bougé.
+    const width = el.offsetWidth
+    const height = el.offsetHeight
+    if (width === 0 && height === 0) return
+    setPlace(placeDock({ edge: toolbarEdge, offset: toolbarOffset }, { width, height }, viewport()))
+    // Place réellement occupée EN BAS de l'écran, publiée pour le reste de
+    // l'interface (indicateur d'outil, messages de la loupe). Elle valait
+    // 92 px en dur dans styles.css, calés sur une barre d'un seul rang : dès
+    // que la barre se repliait sur deux rangs, l'indicateur tombait dedans et
+    // masquait la moitié de la palette à chaque changement d'outil.
+    document.documentElement.style.setProperty(
+      '--hexa-tb-bas',
+      toolbarEdge === 'bottom' ? `${Math.round(height) + EDGE_MARGIN}px` : '0px',
     )
   }, [toolbarEdge, toolbarOffset])
 
@@ -424,6 +457,8 @@ export function Toolbar({
     return () => {
       ro?.disconnect()
       window.removeEventListener('resize', replacer)
+      // barre masquée (Ctrl+H) : plus rien n'est réservé en bas de l'écran
+      document.documentElement.style.removeProperty('--hexa-tb-bas')
     }
   }, [replacer, orient, hints])
 
@@ -467,10 +502,12 @@ export function Toolbar({
   if (!isHost) return null
 
   const pose: CSSProperties = drag
-    ? { left: drag.left, top: drag.top, right: 'auto', bottom: 'auto', transform: 'none' }
+    ? { left: drag.left, top: drag.top, right: 'auto', bottom: 'auto' }
     : place
-      ? { left: place.left, top: place.top, right: 'auto', bottom: 'auto', transform: 'none' }
-      : { visibility: 'hidden' }
+      ? (placementStyle(place) as CSSProperties)
+      : // Avant la toute première mesure, mieux vaut invisible qu'au mauvais
+        // endroit : personne ne doit voir la barre sauter à l'ouverture.
+        { visibility: 'hidden' }
 
   return (
     <div
@@ -516,7 +553,6 @@ export function Toolbar({
           onClick={toggleToolbarOrientation}
         >
           <IconOrient vertical={vertical} />
-          {rappel('Barre verticale / horizontale', 'ui.toolbar.orient')}
         </button>
       </div>
 
@@ -617,6 +653,7 @@ export function Toolbar({
           onClick={toggleSparkles}
         >
           <IconSparkles />
+          {rappel('Étincelles')}
         </button>
         <button
           className={`tbtn ${smartShapes ? 'active' : ''}`}
@@ -644,18 +681,27 @@ export function Toolbar({
         </button>
         <button
           className={`tbtn ${handwriting ? 'active' : ''}`}
-          title="Mode écriture — J : écris tes CAPITALES à la main, chaque lettre est retracée en typographie juste après (Entrée : tout de suite · annuler rend le gribouillis)"
+          title={bulle(
+            'Mode écriture : écris tes CAPITALES à la main, chaque lettre est retracée en typographie juste après (Entrée : tout de suite · annuler rend le gribouillis)',
+            'toggle.handwriting',
+            'J',
+          )}
           onClick={toggleHandwriting}
         >
           <IconScript />
-          {rappel('Mode écriture', undefined, 'J')}
+          {rappel('Mode écriture', 'toggle.handwriting', 'J')}
         </button>
         <button
           className={`tbtn ${comparing ? 'active' : ''}`}
-          title="Avant / après — U : à gauche l’écran photographié, à droite le direct. Glisse le curseur."
+          title={bulle(
+            'Avant / après : à gauche l’écran photographié, à droite le direct. Glisse le curseur.',
+            'fx.compare',
+            'U',
+          )}
           onClick={onCompare}
         >
           <IconCompare />
+          {rappel('Avant / après', 'fx.compare', 'U')}
         </button>
         <button
           className={`tbtn ${sound ? 'active' : ''}`}
@@ -667,6 +713,7 @@ export function Toolbar({
           onClick={toggleSound}
         >
           {sound ? <IconSound /> : <IconMute />}
+          {rappel('Sons')}
         </button>
         {sound && (
           <span className="vol-group" title="Volume des sons">
@@ -689,25 +736,39 @@ export function Toolbar({
       <div className="group">
         <button
           className={`tbtn ${gridMode !== 'off' ? 'active' : ''}`}
-          title={`Cadrage : ${GRID_LABELS[gridMode]} — Ctrl+Maj+G pour changer, molette sur ce bouton pour la discrétion (${Math.round(gridOpacity * 100)} %)`}
+          title={bulle(
+            `Cadrage : ${GRID_LABELS[gridMode]} — molette sur ce bouton pour la discrétion (${Math.round(
+              gridOpacity * 100,
+            )} %) · ce bouton fait défiler les cadrages`,
+            'stage.grid',
+          )}
           onClick={cycleGrid}
           onWheel={(e) => setGridOpacity(gridOpacity + (e.deltaY < 0 ? 0.02 : -0.02))}
         >
           <IconGrid />
+          {rappel('Cadrage', 'stage.grid')}
         </button>
         <button
           className="tbtn"
-          title="Poser un chrono — Ctrl+Maj+Y (le bouton ↓ de la carte le passe en compte à rebours)"
+          title={bulle(
+            'Poser un chrono (le bouton ↓ de la carte le passe en compte à rebours)',
+            'stage.clock',
+          )}
           onClick={() => spawnClock('chrono')}
         >
           <IconStopwatch />
+          {rappel('Chrono', 'stage.clock')}
         </button>
         <button
           className="tbtn"
-          title="Poser une note — Ctrl+Maj+B : elle reste à l’écran, même après un « tout effacer »"
+          title={bulle(
+            'Poser une note : elle reste à l’écran, même après un « tout effacer »',
+            'stage.note',
+          )}
           onClick={spawnNote}
         >
           <IconNote />
+          {rappel('Note', 'stage.note')}
         </button>
       </div>
 
@@ -741,6 +802,7 @@ export function Toolbar({
           onClick={onExport}
         >
           <IconExport />
+          {rappel('Exporter')}
         </button>
         <button
           className="tbtn"

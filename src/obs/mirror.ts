@@ -11,7 +11,8 @@
  * envers le jeu qui tourne à côté.
  */
 import type { Stroke } from '../engine/types'
-import { dissolveDuration, paintStrokes } from '../replay/paint'
+import { dissolveDuration, panicDying } from '../engine/dissolve'
+import { paintStrokes } from '../replay/paint'
 import type { ObsMessage, ObsMode } from './protocol'
 
 export class ObsMirror {
@@ -96,14 +97,15 @@ export class ObsMirror {
         for (const id of msg.ids) this.drop(id)
         break
       case 'clear': {
-        // même geste que la touche panique : dissolution en cascade, pas un
-        // effacement brutal — le spectateur voit une sortie propre
+        // EXACTEMENT le même geste que la touche panique côté overlay — même
+        // cascade plafonnée, même fondu court (src/engine/dissolve.ts). Ce qui
+        // quitte l'écran du coach quitte le stream au même instant.
         const now = performance.now()
         let i = 0
         for (const id of this.order) {
           const s = this.map.get(id)
           if (!s || s.dying) continue
-          s.dying = { start: now + i * 45, duration: dissolveDuration(s), mode: 'dissolve' }
+          s.dying = panicDying(i, now)
           i++
         }
         break
@@ -191,7 +193,7 @@ export class ObsMirror {
     for (const id of this.order) {
       const s = this.map.get(id)
       if (s && !s.dying && s.dieAt != null && now >= s.dieAt) {
-        s.dying = { start: now, duration: dissolveDuration(s), mode: 'dissolve' }
+        s.dying = { start: now, duration: dissolveDuration(s), mode: 'dissolve', cause: 'fade' }
       }
     }
     // purge des traits entièrement dissous

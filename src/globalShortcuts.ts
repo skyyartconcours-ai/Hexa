@@ -17,6 +17,7 @@
  */
 import { useEffect, useRef } from 'react'
 import { bridge, isElectron } from './bridge'
+import { porteEncre } from './couches'
 import { useUiStore } from './store'
 import {
   globalAccelerators,
@@ -160,7 +161,17 @@ export interface UseGlobalShortcutsOptions {
   engine: () => ShortcutEngine | null
 }
 
-/** Réponse du processus principal, volontairement tolérante. */
+/**
+ * Réponse du processus principal, volontairement tolérante.
+ *
+ * La SOURCE DE VÉRITÉ est `accelerators` : la table réellement en vigueur côté
+ * système. Elle peut différer de ce qu'on a demandé — quand Windows refuse la
+ * combinaison du mode dessin, le processus principal se replie sur F8 tout seul
+ * (c'est indispensable : sans mode dessin, l'utilisateur est prisonnier de son
+ * jeu). Recopier la combinaison DEMANDÉE reviendrait à certifier « réservé
+ * auprès de Windows » pour une touche morte, et l'utilisateur martèlerait sa
+ * combinaison toute la soirée devant son chat.
+ */
 function readResult(
   value: unknown,
   asked: Partial<Record<KeymapAction, string>>,
@@ -174,9 +185,17 @@ function readResult(
         ) as string[])
       : [],
   )
+  const reels = (value as { accelerators?: Record<string, unknown> } | null)?.accelerators ?? {}
   for (const [action, accel] of Object.entries(asked) as [KeymapAction, string][]) {
-    if (ok.has(action)) registered[action] = accel
-    else failed[action] = accel
+    if (!ok.has(action)) {
+      failed[action] = accel
+      continue
+    }
+    const brut = reels[action]
+    const reel = typeof brut === 'string' && brut.length > 0 ? brut : accel
+    registered[action] = reel
+    // Pris, mais PAS sur la touche demandée : l'éditeur doit le signaler.
+    if (reel !== accel) failed[action] = accel
   }
   return { supported: true, registered, failed }
 }
@@ -189,6 +208,10 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
   // (1) exécution des actions poussées par le processus principal
   useEffect(() => {
     if (!isElectron) return
+    // §S11 : SEULE la couche encre exécute. Deux fenêtres par écran qui
+    // joueraient la même action doubleraient tout ce qui est relatif —
+    // « épaisseur + 2 » deviendrait « + 4 », le fondu sauterait un cran.
+    if (!porteEncre) return
     return bridge.on('action', (action) => {
       const a = action as KeymapAction
       if (!claimAction(a, 'system')) return
@@ -200,8 +223,10 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
   useEffect(() => {
     if (!isElectron) return
     // Une seule fenêtre pilote les raccourcis : sinon chaque écran réécrirait
-    // la même table à la suite des autres.
+    // la même table à la suite des autres. Et parmi les deux couches d'un même
+    // écran (§S11), c'est l'encre qui parle — celle qui tient le moteur.
     if (bridge.display && !bridge.display.primary) return
+    if (!porteEncre) return
 
     const bindings = resolveKeymap(preset, overrides)
     const all = globalAccelerators(bindings)

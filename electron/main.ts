@@ -37,11 +37,17 @@ import {
   logFailure,
   logFilePath,
   markStarted,
+  setFatalNotifier,
 } from './logger'
 // Icône près de l'horloge : la seule prise que l'utilisateur ait sur Hexa.
 import { createHexaTray, destroyTray, notifyAlreadyRunning, refreshTray } from './tray'
-// Bandeau d'accueil natif : la preuve visuelle que Hexa tourne.
-import { closeToast, showToast } from './welcome'
+// Règle de choix de l'écran porteur de la barre (§S4.2) : source unique,
+// partagée avec la page. Module pur — esbuild l'inline dans le bundle du
+// processus principal, il n'entraîne ni React ni DOM avec lui.
+import { pickToolbarHost } from '../src/ui/toolbar-dock'
+// Bandeau d'accueil natif : la preuve visuelle que Hexa tourne — et qui, lui
+// non plus, n'a rien à faire dans le direct (§S11).
+import { closeToast, setToastProtection, showToast } from './welcome'
 // Garde-fou Windows (§S9) : écrans branchés à chaud, DPI, veille, plein écran
 // exclusif, niveau « toujours au-dessus », libération des écouteurs.
 import {
@@ -77,10 +83,34 @@ app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
  * ------------------------------------------------------------------ */
 
 interface Overlay {
+  /**
+   * Fenêtre ENCRE : les canvas d'annotation, et rien d'autre. Elle est
+   * CAPTURÉE par OBS — c'est elle que les spectateurs voient.
+   */
   win: BrowserWindow
+  /**
+   * Fenêtre INTERFACE : barre d'outils, panneaux, bandeaux, roue, curseur.
+   * Marquée `setContentProtection(true)` : visible pour l'utilisateur, ABSENTE
+   * de toute capture (OBS, Discord, impression d'écran). null si sa création a
+   * échoué — Hexa doit rester utilisable, quitte à perdre le masquage.
+   */
+  ui: BrowserWindow | null
   displayId: number
   /** la couche contient-elle quelque chose de vivant (trait, laser, effet) ? */
   hasContent: boolean
+  /** la couche interface a-t-elle quelque chose à montrer (barre, panneau) ? */
+  uiHasContent: boolean
+  /** minuterie de grâce avant ui.hide() */
+  uiHideTimer: NodeJS.Timeout | null
+  /** la fenêtre interface est-elle cliquable en ce moment (survol d'un bouton) ? */
+  uiCliquable: boolean
+  /**
+   * Un panneau est ouvert : la fenêtre interface a pris le focus pour la
+   * frappe clavier. La perte de focus de la fenêtre encre qui en découle ne
+   * doit PAS rendre la souris au jeu — sinon ouvrir les réglages coupe le mode
+   * dessin.
+   */
+  uiModale: boolean
   /** true = clics traversants (mode jeu) ; false = mode dessin */
   passthrough: boolean
   /** horodatage de la dernière entrée en mode dessin (anti blur parasite) */
@@ -103,6 +133,12 @@ interface Overlay {
    * même bataille perdue d'avance, avec le clignotement que ça implique.
    */
   boundsRefusees: boolean
+  /** nombre de relances déjà tentées après une perte du processus de rendu */
+  relances: number
+  /** minuterie de relance de la couche encre (jamais un intervalle) */
+  relanceTimer: NodeJS.Timeout | null
+  /** minuterie de relance de la couche interface (sert aussi de « déjà prévue ») */
+  uiRelanceTimer: NodeJS.Timeout | null
 }
 
 /**
@@ -140,6 +176,21 @@ let shortcuts: ShortcutMap = { ...DEFAULT_SHORTCUTS }
 
 const isSpike = process.env.HEXA_SPIKE === '1'
 const devServerUrl = process.env.VITE_DEV_SERVER_URL
+
+/**
+ * MODE FUSIONNÉ (HEXA_FUSION=1) — une seule fenêtre par écran, qui porte à la
+ * fois les annotations et l'interface, comme avant la séparation (§S11).
+ *
+ * Deux usages, et deux seulement :
+ *  - le REPLI : sur une plateforme qui ne sait pas exclure une fenêtre des
+ *    captures, la séparation n'apporte rien de plus ; quelqu'un qui préfère
+ *    l'ancien comportement (une seule fenêtre dans le gestionnaire des tâches)
+ *    peut le retrouver sans perdre une seule fonction ;
+ *  - la campagne de tests bout en bout, qui pilote UNE fenêtre.
+ * Ce n'est PAS le mode par défaut : par défaut, l'interface de Hexa ne part
+ * jamais dans le direct.
+ */
+const fusion = process.env.HEXA_FUSION === '1'
 
 /**
  * Mise en veille demandée depuis l'icône (« Masquer Hexa ») : plus AUCUNE
@@ -181,8 +232,20 @@ const WELCOME_FIRST_RUN_MS = 12000
 
 function overlayFor(win: BrowserWindow | null): Overlay | undefined {
   if (!win) return undefined
-  for (const o of overlays.values()) if (o.win === win) return o
+  // Un écran = DEUX fenêtres (encre + interface) : les deux répondent du même
+  // overlay, sinon un message venu de la barre d'outils ne serait rattaché à
+  // aucun écran.
+  for (const o of overlays.values()) if (o.win === win || o.ui === win) return o
   return undefined
+}
+
+/** Le message vient-il de la fenêtre INTERFACE de cet overlay ? */
+function vientDeInterface(o: Overlay, e: { sender: WebContents }): boolean {
+  try {
+    return o.ui != null && !o.ui.isDestroyed() && o.ui.webContents.id === e.sender.id
+  } catch {
+    return false
+  }
 }
 
 /** Fonctionne pour ipcMain.on comme pour ipcMain.handle (même forme d'événement). */
@@ -201,11 +264,52 @@ function overlayUnderCursor(): Overlay | undefined {
   }
 }
 
+/**
+ * Un message d'état part vers les DEUX couches de l'écran.
+ *
+ * C'est volontaire et c'est ce qui garde le code d'appel inchangé : « mode
+ * dessin activé », « écran recalibré », « ouvre les réglages » concernent
+ * autant les canvas que la barre d'outils, qui vivent maintenant dans deux
+ * fenêtres. Chaque couche ne s'abonne qu'à ce qui la regarde.
+ */
+/**
+ * Quelle couche ENCRE doit répondre à une demande qui n'admet qu'une réponse
+ * (instantané de session, export de fichier) ?
+ *
+ * Dans l'ordre : l'écran qui porte réellement des annotations, sinon celui de
+ * la fenêtre qui demande, sinon l'écran principal. Sans cette règle, un export
+ * lancé depuis la barre produirait autant de fichiers que d'écrans branchés.
+ */
+function coucheEncrePrincipale(e: { sender: WebContents }): BrowserWindow | null {
+  const vivant = [...overlays.values()].find((o) => o.hasContent && !o.win.isDestroyed())
+  if (vivant) return vivant.win
+  const propre = overlayFor(BrowserWindow.fromWebContents(e.sender))
+  if (propre && !propre.win.isDestroyed()) return propre.win
+  const principal = overlays.get(screen.getPrimaryDisplay().id)
+  if (principal && !principal.win.isDestroyed()) return principal.win
+  const premier = overlays.values().next().value
+  return premier && !premier.win.isDestroyed() ? premier.win : null
+}
+
 function send(o: Overlay, channel: string, ...args: unknown[]): void {
   try {
     if (!o.win.isDestroyed()) o.win.webContents.send(`hexa:${channel}`, ...args)
   } catch {
     /* fenêtre en cours de destruction : rien à faire */
+  }
+  try {
+    if (o.ui && !o.ui.isDestroyed()) o.ui.webContents.send(`hexa:${channel}`, ...args)
+  } catch {
+    /* idem */
+  }
+}
+
+/** Message adressé à UNE couche précise (relais des canaux §S11). */
+function sendTo(win: BrowserWindow | null | undefined, channel: string, ...args: unknown[]): void {
+  try {
+    if (win && !win.isDestroyed()) win.webContents.send(`hexa:${channel}`, ...args)
+  } catch {
+    /* ignore */
   }
 }
 
@@ -262,6 +366,57 @@ function refreshVisibility(o: Overlay): void {
   }, HIDE_GRACE_MS)
 }
 
+/**
+ * Visibilité de la couche INTERFACE, qui suit une règle DIFFÉRENTE de l'encre.
+ *
+ * L'encre disparaît dès qu'elle est vide (§2.5) : c'est ce qui rend Hexa
+ * gratuit pour le jeu. L'interface, elle, reste à l'écran tant qu'elle a
+ * quelque chose à montrer — la barre d'outils, justement, que l'utilisateur
+ * veut voir EN PERMANENCE maintenant qu'elle ne part plus dans son direct.
+ *
+ * La règle de performance n'est pas perdue pour autant : quand la barre est
+ * masquée (Ctrl+H) et qu'aucun panneau n'est ouvert, la page annonce « rien à
+ * montrer » et cette fenêtre-là se cache aussi. Sur un second écran sans barre,
+ * elle ne s'affiche jamais.
+ */
+function refreshVisibiliteInterface(o: Overlay): void {
+  const ui = o.ui
+  if (!ui || ui.isDestroyed()) return
+  if (eclipsed) {
+    if (o.uiHideTimer) {
+      clearTimeout(o.uiHideTimer)
+      o.uiHideTimer = null
+    }
+    return
+  }
+  const shouldShow = !suspended && o.uiHasContent
+  if (shouldShow) {
+    if (o.uiHideTimer) {
+      clearTimeout(o.uiHideTimer)
+      o.uiHideTimer = null
+    }
+    try {
+      if (!ui.isVisible()) ui.showInactive()
+      // L'interface doit rester AU-DESSUS de l'encre : entre deux fenêtres
+      // « toujours au-dessus », c'est la dernière qui l'a réclamé qui gagne.
+      reassertTopmost(ui)
+    } catch (err) {
+      logError('fenêtre', `interface non affichable (écran ${o.displayId})`, err)
+    }
+    return
+  }
+  if (o.uiHideTimer) return
+  o.uiHideTimer = setTimeout(() => {
+    o.uiHideTimer = null
+    if (!suspended && o.uiHasContent) return
+    try {
+      if (!ui.isDestroyed() && ui.isVisible()) ui.hide()
+    } catch {
+      /* ignore */
+    }
+  }, HIDE_GRACE_MS)
+}
+
 function showOverlay(o: Overlay): void {
   try {
     if (o.win.isDestroyed() || eclipsed) return
@@ -272,6 +427,10 @@ function showOverlay(o: Overlay): void {
     // On réaffirme donc le niveau à chaque réapparition (détail dans
     // windows-guard.ts, reassertTopmost).
     reassertTopmost(o.win)
+    // L'encre vient de repasser devant : on remet l'interface par-dessus, sinon
+    // la barre d'outils se retrouverait DERRIÈRE les annotations (et derrière
+    // le voile du spotlight, qui assombrit tout l'écran).
+    if (o.ui && !o.ui.isDestroyed() && o.ui.isVisible()) reassertTopmost(o.ui)
   } catch (err) {
     // Si l'overlay refuse de s'afficher, l'utilisateur ne verra JAMAIS Hexa :
     // c'est exactement le genre de panne qui doit finir dans le journal.
@@ -457,6 +616,9 @@ function setSuspended(value: boolean): void {
     } else {
       refreshVisibility(o)
     }
+    // « Masquer Hexa » masque TOUT, barre d'outils comprise : sinon la mise en
+    // veille laisserait une barre flottante toute seule à l'écran.
+    refreshVisibiliteInterface(o)
   }
   refreshTray()
 }
@@ -508,6 +670,14 @@ function setEclipsed(value: boolean, raison: string): void {
           send(o, 'set-draw', false)
         }
         if (!o.win.isDestroyed() && o.win.isVisible()) o.win.hide()
+        // La couche interface rentre avec l'encre : une surface transparente
+        // laissée composée pendant une bascule de bureau est exactement ce qui
+        // revient en grand rectangle noir au réveil.
+        if (o.uiHideTimer) {
+          clearTimeout(o.uiHideTimer)
+          o.uiHideTimer = null
+        }
+        if (o.ui && !o.ui.isDestroyed() && o.ui.isVisible()) o.ui.hide()
       } catch (err) {
         logError('veille', `mise en retrait impossible (écran ${o.displayId})`, err)
       }
@@ -529,6 +699,7 @@ function setEclipsed(value: boolean, raison: string): void {
   for (const o of overlays.values()) {
     reassertTopmost(o.win)
     refreshVisibility(o)
+    refreshVisibiliteInterface(o)
   }
   refreshTray()
 }
@@ -650,41 +821,358 @@ function runWelcome(): void {
  * s'afficherait sur TOUS les écrans — donc en plein milieu de celui que les
  * spectateurs regardent. C'est exactement ce qu'il fallait éviter.
  *
- * Règle : l'écran le plus à DROITE (plus grand `bounds.x`). Le streamer joue sur
- * l'écran principal, regarde son chat et ses outils à droite ; la barre plaquée
- * contre le BORD GAUCHE de cet écran de droite se retrouve à un centimètre de
- * l'écran de jeu — à portée de souris, et jamais par-dessus le jeu.
- *
- * Départages, dans l'ordre : le plus à droite, puis le plus grand, puis l'écran
- * principal, puis le plus petit identifiant (stable d'un lancement à l'autre).
- * Avec un seul écran, c'est forcément lui.
+ * La RÈGLE elle-même (le plus à droite, départages compris) vit dans
+ * src/ui/toolbar-dock.ts, module pur sans Electron, sans DOM et sans React :
+ * elle est partagée avec la page, qui l'explique à l'utilisateur dans les
+ * réglages. Deux implémentations finiraient par diverger, et l'on verrait alors
+ * deux barres d'outils — ou aucune.
  */
 /** Dernier écran porteur annoncé aux fenêtres (-1 = rien d'annoncé encore). */
 let hostBarre = -1
 
 function toolbarHostId(): number {
   try {
-    const displays = screen.getAllDisplays()
-    if (displays.length === 0) return screen.getPrimaryDisplay().id
-    const primaryId = screen.getPrimaryDisplay().id
-    let best = displays[0]
-    for (const d of displays.slice(1)) {
-      if (d.bounds.x !== best.bounds.x) {
-        if (d.bounds.x > best.bounds.x) best = d
-        continue
-      }
-      const aireD = d.bounds.width * d.bounds.height
-      const aireBest = best.bounds.width * best.bounds.height
-      if (aireD !== aireBest) {
-        if (aireD > aireBest) best = d
-        continue
-      }
-      if (d.id === primaryId) best = d
-      else if (best.id !== primaryId && d.id < best.id) best = d
-    }
-    return best.id
+    return pickToolbarHost(screen.getAllDisplays(), screen.getPrimaryDisplay().id)
   } catch {
     return -1
+  }
+}
+
+/**
+ * PROTECTION DE CAPTURE — le cœur de la demande.
+ *
+ * `setContentProtection(true)` pose WDA_EXCLUDEFROMCAPTURE sur la fenêtre
+ * (Windows 10 2004 et au-delà) : elle reste parfaitement visible sur l'écran de
+ * l'utilisateur mais DISPARAÎT de tout ce qui capture l'écran — OBS (capture
+ * d'écran comme capture de fenêtre), partage Discord, impression d'écran,
+ * Teams. macOS a l'équivalent (sharingType = none). Sous Linux, l'appel existe
+ * mais ne masque rien : on ne le cache pas, les réglages le disent.
+ *
+ * Activé par défaut : quelqu'un qui lance Hexa en direct ne doit pas avoir à
+ * découvrir un interrupteur pour que sa barre d'outils cesse de partir à
+ * l'antenne.
+ */
+let protectionCapture = true
+
+/** La plateforme sait-elle réellement exclure une fenêtre des captures ? */
+function protectionSupportee(): boolean {
+  return process.platform === 'win32' || process.platform === 'darwin'
+}
+
+/** Applique (ou retire) la protection sur UNE fenêtre d'interface. */
+function appliquerProtection(win: BrowserWindow | null, on: boolean): boolean {
+  try {
+    if (!win || win.isDestroyed()) return false
+    win.setContentProtection(on)
+    return true
+  } catch (err) {
+    // Ne JAMAIS faire tomber l'application pour ça : sans protection, Hexa
+    // reste entièrement utilisable — la barre est simplement visible à l'antenne.
+    logError('capture', 'protection de contenu refusée par le système', err)
+    return false
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Reprise après un plantage du rendu
+ * ------------------------------------------------------------------ */
+
+/** Nombre de relances automatiques avant d'abandonner et de le dire. */
+const RELANCE_MAX = 3
+/** Attente avant chaque relance : on laisse le pilote graphique respirer. */
+const RELANCE_ATTENTE = [1000, 3000, 8000]
+
+/**
+ * Le processus de rendu de la couche ENCRE vient de mourir (GPU perdu, mémoire,
+ * bogue). C'est LE moment le plus dangereux de toute l'application :
+ *
+ *  1. si on était en mode dessin, la fenêtre plein écran mange encore TOUS les
+ *     clics alors que plus personne ne dessine — le streamer est prisonnier de
+ *     son propre overlay, en pleine partie. On rend donc la souris AVANT tout ;
+ *  2. une boîte de dialogue bloquante ici gèlerait le processus principal :
+ *     icône près de l'horloge, raccourcis globaux et menu « Quitter » morts,
+ *     avec la boîte cachée derrière le jeu. On ne prévient donc jamais avec
+ *     `showErrorBox` une fois l'application lancée (voir logger.ts) ;
+ *  3. sans rechargement, la couche encre reste morte jusqu'au redémarrage
+ *     manuel : on la relance, trois fois, en espaçant les tentatives.
+ */
+function relancerCoucheEncre(o: Overlay, raison: string): void {
+  // (1) LA SOURIS D'ABORD — avant le journal, avant le message, avant tout.
+  if (!o.passthrough) applyPassthrough(o, true)
+  o.hasContent = false
+  try {
+    if (!o.win.isDestroyed() && o.win.isVisible()) o.win.hide()
+  } catch {
+    /* ignore */
+  }
+  refreshTray()
+
+  if (o.relanceTimer) return
+  if (o.relances >= RELANCE_MAX) {
+    // Non bloquant : `fatalDialog` passe par le bandeau une fois Hexa lancé.
+    fatalDialog(
+      'l’affichage s’est interrompu',
+      `Le module d’affichage de Hexa s’est arrêté ${RELANCE_MAX} fois de suite (${raison}). ` +
+        `Tes clics sont bien rendus à ton jeu. Quitte Hexa depuis son icône près de ` +
+        `l’horloge, puis relance-le.`,
+    )
+    return
+  }
+
+  const attente = RELANCE_ATTENTE[Math.min(o.relances, RELANCE_ATTENTE.length - 1)]
+  o.relances++
+  log('renderer', `relance de la couche encre (écran ${o.displayId})`, {
+    tentative: o.relances,
+    dans: `${attente} ms`,
+    raison,
+  })
+  showToast(
+    'Hexa redémarre son module de dessin',
+    'Une panne d’affichage est survenue. Tes clics repartent dans ton jeu le temps de la ' +
+      'remise en route ; les annotations en cours sont perdues.',
+    4200,
+  )
+  o.relanceTimer = setTimeout(() => {
+    o.relanceTimer = null
+    try {
+      if (o.win.isDestroyed() || quitting) return
+      o.win.webContents.reload()
+    } catch (err) {
+      logError('renderer', `relance impossible (écran ${o.displayId})`, err)
+    }
+  }, attente)
+}
+
+/**
+ * Rend la souris au jeu, tout de suite, pour une fenêtre donnée.
+ *
+ * Appelé quand une couche ne répond plus : le pire état possible pour un
+ * overlay plein écran est de rester cliquable sans plus personne derrière.
+ */
+function libererLaSouris(win: BrowserWindow, raison: string): void {
+  try {
+    if (win.isDestroyed()) return
+    win.setIgnoreMouseEvents(true, { forward: true })
+    win.setFocusable(false)
+    if (win.isVisible()) win.hide()
+    log('fenêtre', `souris rendue au jeu — ${raison}`)
+  } catch (err) {
+    logError('fenêtre', `libération de la souris impossible — ${raison}`, err)
+  }
+}
+
+/** Un seul avertissement « pas de barre d'outils » par session. */
+let interfaceSignalee = false
+
+/**
+ * La couche INTERFACE n'a pas pu se charger : ni barre d'outils, ni panneaux, ni
+ * découverte guidée. À l'écran, c'est rigoureusement indiscernable d'une
+ * application morte — et c'est exactement la panne « fenêtre vide » que
+ * l'utilisateur a déjà vécue. On le DIT, toujours, avec la marche à suivre.
+ */
+function signalerInterfaceMuette(detail: string): void {
+  if (interfaceSignalee || quitting || isSpike) return
+  interfaceSignalee = true
+  logError('interface', 'aucune barre d’outils : installation probablement incomplète', detail)
+  showToast(
+    'Hexa tourne, mais sans sa barre d’outils',
+    'Un fichier de l’installation manque. Tu peux encore dessiner avec <kbd>F8</kbd> et ' +
+      'piloter Hexa depuis son icône près de l’horloge — pour retrouver la barre et les ' +
+      'panneaux, réinstalle Hexa.',
+    11000,
+  )
+}
+
+/**
+ * Fenêtre INTERFACE d'un écran : mêmes bounds que la fenêtre encre, posée juste
+ * au-dessus. Elle est traversante en permanence et ne devient cliquable que le
+ * temps du survol d'un bouton (voir 'hexa:interface-cliquable' plus bas).
+ */
+function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindow | null {
+  const { bounds } = display
+  try {
+    const ui = new BrowserWindow({
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+      transparent: true,
+      frame: false,
+      backgroundColor: '#00000000',
+      resizable: false,
+      movable: false,
+      minimizable: false,
+      maximizable: false,
+      fullscreenable: false,
+      skipTaskbar: true,
+      hasShadow: false,
+      // §12.2 : une fenêtre d'overlay ne prend JAMAIS le focus de sa propre
+      // initiative. Elle ne devient focusable que le temps d'un panneau ouvert,
+      // pour permettre la frappe clavier (voir 'hexa:interface-modale').
+      focusable: false,
+      show: false,
+      acceptFirstMouse: true,
+      roundedCorners: false,
+      thickFrame: false,
+      title: 'Hexa Interface',
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.cjs'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        // BAC À SABLE DU SYSTÈME : le renderer perd tout accès direct à Node,
+        // et le preload lui-même tourne confiné. C'est gratuit ici — la
+        // passerelle n'utilise que `contextBridge`, `ipcRenderer` et
+        // `process.argv` (rempli par `additionalArguments`), tous disponibles
+        // dans un preload confiné.
+        sandbox: true,
+        backgroundThrottling: false,
+        devTools: !app.isPackaged,
+        additionalArguments: [
+          `--hexa-display=${encodeURIComponent(
+            JSON.stringify({
+              id: display.id,
+              scaleFactor: display.scaleFactor,
+              bounds: display.bounds,
+              primary: display.id === screen.getPrimaryDisplay().id,
+              // La barre d'outils ne vit que sur UN écran (§S4.2) : sur les
+              // autres, cette fenêtre restera vide, donc cachée, donc gratuite.
+              toolbarHost: display.id === toolbarHostId(),
+            }),
+          )}`,
+          '--hexa-couche=interface',
+        ],
+      },
+    })
+
+    reassertTopmost(ui)
+    ui.setMenuBarVisibility(false)
+    // LA LIGNE QUI RÈGLE LE PROBLÈME : cette fenêtre-ci disparaît des captures.
+    const applique = appliquerProtection(ui, protectionCapture)
+    // Traversante dès la naissance : sans ça, elle avalerait tous les clics
+    // destinés au jeu et à la couche encre.
+    ui.setIgnoreMouseEvents(true, { forward: true })
+
+    ui.on('closed', () => {
+      if (overlay.uiHideTimer) {
+        clearTimeout(overlay.uiHideTimer)
+        overlay.uiHideTimer = null
+      }
+      if (overlay.uiRelanceTimer) {
+        clearTimeout(overlay.uiRelanceTimer)
+        overlay.uiRelanceTimer = null
+      }
+      if (overlay.ui === ui) overlay.ui = null
+    })
+
+    // Un panneau ouvert peut avoir pris le focus ; s'il le perd, il ne doit pas
+    // rester focusable, sinon la fenêtre entrerait dans l'Alt+Tab du joueur.
+    ui.on('blur', () => {
+      if (!overlay.uiModale) return
+      try {
+        if (!ui.isDestroyed()) ui.setFocusable(false)
+      } catch {
+        /* ignore */
+      }
+      overlay.uiModale = false
+    })
+
+    const wc = ui.webContents
+    wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
+      if (code === -3) return
+      logError(
+        'interface',
+        `couche interface non chargée (écran ${display.id})`,
+        `${code} ${description} · ${url}`,
+      )
+      // Pas de boîte de dialogue BLOQUANTE ici : sans barre d'outils Hexa reste
+      // pilotable au clavier et par l'icône près de l'horloge. Mais le silence
+      // n'est pas une option — un overlay muet ressemble à un overlay mort.
+      if (isMainFrame) signalerInterfaceMuette(`${code} ${description}`)
+    })
+    /**
+     * La couche interface est morte. DANGER IMMÉDIAT : si elle était cliquable
+     * au moment de la panne (le pointeur survolait un bouton), cette fenêtre
+     * PLEIN ÉCRAN continue d'avaler tous les clics — le joueur ne peut plus
+     * rien cliquer nulle part, et il n'y a même pas de raccourci pour s'en
+     * sortir. On la rend traversante et on la rentre AVANT tout le reste.
+     */
+    wc.on('render-process-gone', (_e, details) => {
+      logError('interface', `couche interface perdue (écran ${display.id})`, details)
+      overlay.uiCliquable = false
+      overlay.uiModale = false
+      overlay.uiHasContent = false
+      libererLaSouris(ui, `interface perdue (écran ${display.id})`)
+      if (quitting || details.reason === 'clean-exit' || overlay.uiRelanceTimer) return
+      overlay.uiRelanceTimer = setTimeout(() => {
+        overlay.uiRelanceTimer = null
+        try {
+          if (!ui.isDestroyed() && !quitting) {
+            log('interface', `relance de la couche interface (écran ${display.id})`)
+            ui.webContents.reload()
+          }
+        } catch (err) {
+          logError('interface', `relance impossible (écran ${display.id})`, err)
+        }
+      }, 1200)
+    })
+
+    /**
+     * Fenêtre figée (import de session monstrueux, pilote graphique qui rame).
+     * Même raisonnement : une fenêtre plein écran cliquable ET gelée est un
+     * mur devant le jeu. On rend la souris ; la page redemandera à être
+     * cliquable au prochain survol quand elle sera revenue à elle.
+     */
+    ui.on('unresponsive', () => {
+      if (!overlay.uiCliquable) return
+      overlay.uiCliquable = false
+      libererLaSouris(ui, `interface figée (écran ${display.id})`)
+    })
+    wc.on('console-message', (details) => {
+      if (details.level !== 'error' && details.level !== 'warning') return
+      if (details.sourceId.startsWith('node:electron/')) return
+      logError(
+        'interface',
+        `${details.level} · ${details.sourceId}:${details.lineNumber}`,
+        details.message,
+      )
+    })
+    wc.on('did-finish-load', () => {
+      log('interface', `couche interface chargée (écran ${display.id})`, {
+        protectionCapture: protectionCapture && applique,
+        plateforme: process.platform,
+      })
+    })
+
+    if (devServerUrl) {
+      const url = new URL('ui.html', devServerUrl).toString()
+      logFailure('interface', `loadURL ${url}`, ui.loadURL(url))
+    } else {
+      const page = path.join(__dirname, '..', 'dist', 'ui.html')
+      if (!fs.existsSync(page)) {
+        // Symétrie avec la couche encre : un fichier d'installation absent est
+        // une panne d'INSTALLATION, elle mérite une vraie phrase en français.
+        fatalDialog(
+          'installation incomplète',
+          `Le fichier de la barre d’outils est absent de l’installation :\n${page}\n\n` +
+            `Hexa va démarrer, mais sans barre d’outils ni panneaux. Réinstalle-le avec ` +
+            `l’installateur pour restaurer les fichiers manquants.`,
+        )
+        signalerInterfaceMuette(`fichier absent : ${page}`)
+      }
+      logFailure('interface', `loadFile ${page}`, ui.loadFile(page))
+    }
+
+    overlay.ui = ui
+    log('interface', `fenêtre d’interface créée (écran ${display.id})`, {
+      protection: protectionCapture ? 'demandée' : 'désactivée',
+      supportee: protectionSupportee(),
+    })
+    return ui
+  } catch (err) {
+    // Hexa doit rester utilisable : sans cette fenêtre, l'interface manque,
+    // mais le dessin fonctionne toujours.
+    logError('interface', `création de la couche interface impossible (écran ${display.id})`, err)
+    return null
   }
 }
 
@@ -722,7 +1210,11 @@ function createOverlay(display: Display): Overlay | null {
         preload: path.join(__dirname, 'preload.cjs'),
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: false,
+        // Confiné, comme la couche interface : cette fenêtre-ci charge le
+        // moteur de dessin et, un jour, une session importée d'ailleurs. Le bac
+        // à sable du système est la dernière barrière si quoi que ce soit
+        // s'exécutait dans la page.
+        sandbox: true,
         // Sans ça, Chromium bride la boucle rAF d'une fenêtre non focus — donc
         // la nôtre, en permanence.
         backgroundThrottling: false,
@@ -739,6 +1231,9 @@ function createOverlay(display: Display): Overlay | null {
               toolbarHost: display.id === toolbarHostId(),
             }),
           )}`,
+          // §S11 : cette fenêtre ne porte que l'ENCRE — sauf en mode fusionné,
+          // où elle porte tout, comme avant la séparation.
+          `--hexa-couche=${fusion ? 'complet' : 'encre'}`,
         ],
       },
     })
@@ -749,11 +1244,13 @@ function createOverlay(display: Display): Overlay | null {
     // réapparition et après chaque réveil.
     reassertTopmost(win)
     win.setMenuBarVisibility(false)
-    // EXPLICITE, et c'est tout l'enjeu du stream : la protection de contenu
-    // (l'équivalent du « écran noir » de Netflix) rendrait la fenêtre INVISIBLE
-    // dans OBS. Elle est déjà désactivée par défaut ; on l'affirme quand même,
-    // pour qu'aucune évolution d'Electron ni aucun réglage hérité ne puisse
-    // faire disparaître les annotations à l'antenne sans qu'on le voie.
+    // EXPLICITE, et c'est tout l'enjeu du stream, dans les deux sens :
+    // la protection de contenu rend une fenêtre INVISIBLE dans OBS. Sur la
+    // couche ENCRE, ce serait la catastrophe — les spectateurs ne verraient
+    // plus une seule annotation. On l'affirme donc à false pour qu'aucune
+    // évolution d'Electron, aucun réglage hérité et aucune erreur de copie
+    // depuis la fenêtre d'interface ne puisse l'activer ici par accident.
+    // (C'est la fenêtre INTERFACE, créée juste après, qui la reçoit à true.)
     try {
       win.setContentProtection(false)
     } catch {
@@ -764,18 +1261,42 @@ function createOverlay(display: Display): Overlay | null {
 
     const overlay: Overlay = {
       win,
+      ui: null,
       displayId: display.id,
       hasContent: false,
+      uiHasContent: false,
+      uiHideTimer: null,
+      uiCliquable: false,
+      uiModale: false,
       passthrough: true,
       drawEnteredAt: 0,
       hideTimer: null,
       scaleFactor: display.scaleFactor,
       wantedBounds: { ...bounds },
       boundsRefusees: false,
+      relances: 0,
+      relanceTimer: null,
+      uiRelanceTimer: null,
     }
 
     win.on('closed', () => {
       if (overlay.hideTimer) clearTimeout(overlay.hideTimer)
+      if (overlay.uiHideTimer) clearTimeout(overlay.uiHideTimer)
+      if (overlay.relanceTimer) {
+        clearTimeout(overlay.relanceTimer)
+        overlay.relanceTimer = null
+      }
+      if (overlay.uiRelanceTimer) {
+        clearTimeout(overlay.uiRelanceTimer)
+        overlay.uiRelanceTimer = null
+      }
+      // La couche interface n'a plus rien à surmonter : elle part avec l'encre.
+      try {
+        if (overlay.ui && !overlay.ui.isDestroyed()) overlay.ui.destroy()
+      } catch {
+        /* ignore */
+      }
+      overlay.ui = null
       // ATTENTION : 'closed' peut arriver APRÈS qu'un nouvel overlay a été créé
       // pour le même identifiant d'écran (moniteur éteint puis rallumé, Windows
       // qui réutilise l'id). Supprimer aveuglément l'entrée effacerait le NOUVEL
@@ -796,6 +1317,11 @@ function createOverlay(display: Display): Overlay | null {
       // Fenêtre de grâce : sous Windows, passer focusable puis appeler focus()
       // peut produire un blur parasite juste après l'entrée en mode dessin.
       if (Date.now() - overlay.drawEnteredAt < 400) return
+      // Le focus n'est pas parti dans le jeu : il est passé à NOTRE fenêtre
+      // d'interface, parce qu'un panneau vient de s'ouvrir et attend la frappe
+      // clavier. Rendre la souris au jeu ici couperait le mode dessin chaque
+      // fois qu'on ouvre les réglages.
+      if (overlay.uiModale) return
       applyPassthrough(overlay, true)
       send(overlay, 'set-draw', false)
     })
@@ -824,11 +1350,7 @@ function createOverlay(display: Display): Overlay | null {
     wc.on('render-process-gone', (_e, details) => {
       logError('renderer', `processus de rendu perdu (écran ${display.id})`, details)
       if (quitting || details.reason === 'clean-exit') return
-      fatalDialog(
-        'l’affichage s’est interrompu',
-        `Le module d’affichage de Hexa s’est arrêté (${details.reason}).\n\n` +
-          `Hexa reste disponible près de l’horloge : quitte-le depuis son icône, puis relance-le.`,
-      )
+      relancerCoucheEncre(overlay, details.reason)
     })
 
     wc.on('preload-error', (_e, preloadPath, error) => {
@@ -851,9 +1373,28 @@ function createOverlay(display: Display): Overlay | null {
 
     wc.on('did-finish-load', () => {
       log('renderer', `interface chargée (écran ${display.id})`)
+      const revientDePanne = overlay.relances > 0
+      // La couche a retrouvé ses esprits : le budget de relances repart à neuf,
+      // sinon un plantage isolé au bout de trois heures ne serait plus réparé.
+      overlay.relances = 0
       // À partir d'ici, l'application est réellement lancée : une exception
       // isolée n'a plus à interrompre l'utilisateur avec une boîte de dialogue.
       markStarted()
+      if (revientDePanne) {
+        // La page qui redémarre se remet en mode dessin toute seule, comme à
+        // n'importe quel lancement. Sauf qu'ici l'utilisateur n'a RIEN demandé :
+        // il jouait quand l'affichage est tombé. On lui rend donc la souris,
+        // une fois la page réellement debout.
+        if (overlay.relanceTimer) clearTimeout(overlay.relanceTimer)
+        overlay.relanceTimer = setTimeout(() => {
+          overlay.relanceTimer = null
+          if (quitting || overlay.win.isDestroyed() || overlay.passthrough) return
+          applyPassthrough(overlay, true)
+          send(overlay, 'set-draw', false)
+          log('renderer', `couche encre relancée : clics rendus au jeu (écran ${display.id})`)
+        }, 700)
+        return
+      }
       // Premier chargement réussi : on se montre, sinon l'utilisateur ne saura
       // jamais que Hexa tourne.
       runWelcome()
@@ -881,10 +1422,16 @@ function createOverlay(display: Display): Overlay | null {
       logFailure('renderer', `loadFile ${page}`, win.loadFile(page))
     }
 
+    // LA SECONDE FENÊTRE : l'interface, exclue des captures. Jamais pendant le
+    // spike (§14), qui charge une page autonome et n'a pas d'interface, ni en
+    // mode fusionné, où la fenêtre ci-dessus porte déjà tout.
+    if (!isSpike && !fusion) creerFenetreInterface(display, overlay)
+
     overlays.set(display.id, overlay)
     log('écrans', `overlay créé pour l’écran ${display.id}`, {
       taille: `${bounds.width}×${bounds.height}`,
       echelle: display.scaleFactor,
+      interface: overlay.ui ? 'oui' : 'non',
     })
     return overlay
   } catch (err) {
@@ -944,6 +1491,12 @@ function rebuildOverlays(raison = 'démarrage'): void {
       if (boundsChangees) {
         existing.wantedBounds = { ...d.bounds }
         existing.boundsRefusees = !applyBounds(existing.win, d.bounds, `écran ${d.id}`)
+        // La couche interface couvre exactement le même écran : elle suit la
+        // même pose, sinon la barre d'outils se retrouverait hors champ après
+        // un changement de résolution.
+        if (existing.ui && !existing.ui.isDestroyed()) {
+          applyBounds(existing.ui, d.bounds, `interface écran ${d.id}`)
+        }
         repose++
       }
       if (echelleChangee || boundsChangees) {
@@ -962,6 +1515,10 @@ function rebuildOverlays(raison = 'démarrage'): void {
         })
         // Une fenêtre reposée repart parfois derrière : on réaffirme le niveau.
         reassertTopmost(existing.win)
+        // …et l'interface repasse au-dessus de l'encre, dans cet ordre.
+        if (existing.ui && !existing.ui.isDestroyed() && existing.ui.isVisible()) {
+          reassertTopmost(existing.ui)
+        }
       }
     }
 
@@ -976,6 +1533,10 @@ function rebuildOverlays(raison = 'démarrage'): void {
         clearTimeout(o.hideTimer)
         o.hideTimer = null
       }
+      if (o.uiHideTimer) {
+        clearTimeout(o.uiHideTimer)
+        o.uiHideTimer = null
+      }
       // Le miroir OBS parlait peut-être depuis cet écran : sans cet oubli, la
       // vue OBS resterait figée sur un émetteur mort jusqu'au redémarrage.
       try {
@@ -984,6 +1545,10 @@ function rebuildOverlays(raison = 'démarrage'): void {
         obsSender = null
       }
       try {
+        // La couche interface part AVANT l'encre : détruire l'encre déclenche
+        // son 'closed', qui irait chercher une fenêtre déjà libérée.
+        if (o.ui && !o.ui.isDestroyed()) o.ui.destroy()
+        o.ui = null
         if (!o.win.isDestroyed()) o.win.destroy()
       } catch (err) {
         logError('écrans', `libération de l’overlay ${id} impossible`, err)
@@ -1185,18 +1750,171 @@ function registerIpc(): void {
   ipcMain.on('hexa:set-passthrough', (e, value: unknown) => {
     const o = overlayFromEvent(e)
     if (!o) return
+    // La couche interface ne pilote JAMAIS le clic traversant de la couche
+    // encre par ce canal : elle a le sien (hexa:interface-cliquable), fondé sur
+    // le survol. Sans ce garde-fou, la barre d'outils rendrait la souris au jeu
+    // en même temps qu'elle demande à être cliquable.
+    if (vientDeInterface(o, e)) return
     applyPassthrough(o, value !== false)
   })
 
   // §2.5 : le renderer nous dit si sa couche est vivante. C'est le signal qui
   // décide de cacher la fenêtre (coût compositeur nul) ou de la rendre.
+  // Les DEUX couches parlent ici, chacune pour la sienne : l'encre se cache dès
+  // qu'elle est vide, l'interface dès qu'elle n'a plus rien à montrer.
   ipcMain.on('hexa:activity', (e, active: unknown) => {
     const o = overlayFromEvent(e)
     if (!o) return
+    if (vientDeInterface(o, e)) {
+      o.uiHasContent = active === true
+      refreshVisibiliteInterface(o)
+      return
+    }
     o.hasContent = active === true
     // L'utilisateur dessine : la séquence d'accueil n'a plus rien à imposer.
     if (o.hasContent) cancelWelcome()
     refreshVisibility(o)
+  })
+
+  /* ---- §S11 : les deux couches se parlent ------------------------- */
+
+  /**
+   * Patch d'état d'interface : on le relaie à TOUTES les autres fenêtres, et
+   * jamais à son émetteur (c'est ce qui interdit la boucle infinie).
+   *
+   * Pourquoi toutes, et pas seulement la couche jumelle ? Parce que la barre
+   * d'outils ne vit que sur UN écran (§S4.2) : sur deux écrans, elle doit
+   * pouvoir changer l'outil de l'écran où l'on dessine, qui n'est pas le sien.
+   * Chaque fenêtre garde son store, la mutation locale est instantanée, et les
+   * autres reçoivent le patch dans la milliseconde.
+   */
+  ipcMain.on('hexa:sync', (e, patch: unknown) => {
+    if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return
+    for (const o of overlays.values()) {
+      for (const win of [o.win, o.ui]) {
+        if (!win || win.isDestroyed()) continue
+        if (win.webContents.id === e.sender.id) continue
+        sendTo(win, 'sync', patch)
+      }
+    }
+  })
+
+  /**
+   * Commande de la barre d'outils au MOTEUR, qui vit dans l'autre fenêtre.
+   *
+   * « Annuler », « tout effacer » et « geler » partent vers TOUTES les couches
+   * encre : sur deux écrans, la barre est sur celui de droite alors que le
+   * dessin est à gauche — une commande qui ne toucherait que l'écran de la
+   * barre ne ferait jamais rien. Les demandes qui produisent une RÉPONSE ou un
+   * fichier (session, export) ne visent qu'une seule couche, sinon on aurait
+   * autant de fichiers que d'écrans.
+   */
+  ipcMain.on('hexa:commande', (e, commande: unknown) => {
+    const c = commande as { nom?: unknown } | null
+    if (!c || typeof c.nom !== 'string') return
+    const unique = c.nom === 'export' || c.nom === 'session-get' || c.nom === 'session-load'
+    if (unique) {
+      const cible = coucheEncrePrincipale(e)
+      sendTo(cible, 'commande', commande)
+      return
+    }
+    for (const o of overlays.values()) {
+      if (o.win.isDestroyed() || o.win.webContents.id === e.sender.id) continue
+      sendTo(o.win, 'commande', commande)
+    }
+  })
+
+  /** État du moteur (gel, avant/après, roue, session) → couches interface. */
+  ipcMain.on('hexa:etat-encre', (e, message: unknown) => {
+    if (!message || typeof message !== 'object') return
+    for (const o of overlays.values()) {
+      if (!o.ui || o.ui.isDestroyed() || o.ui.webContents.id === e.sender.id) continue
+      sendTo(o.ui, 'etat-encre', message)
+    }
+  })
+
+  /**
+   * LE POINT LE PLUS DÉLICAT DE TOUTE LA SÉPARATION.
+   *
+   * La fenêtre d'interface couvre tout l'écran mais ne doit intercepter la
+   * souris QUE sur ses boutons. Elle reste donc traversante en permanence, et
+   * la page nous prévient quand le pointeur entre sur un élément cliquable
+   * (src/ui/interactivite.ts). `forward: true` est ce qui rend la manœuvre
+   * possible : même traversante, la fenêtre continue de recevoir les
+   * mouvements de souris, donc de savoir quand elle est survolée.
+   */
+  ipcMain.on('hexa:interface-cliquable', (e, value: unknown) => {
+    const o = overlayFromEvent(e)
+    if (!o || !o.ui || o.ui.isDestroyed() || !vientDeInterface(o, e)) return
+    const cliquable = value === true
+    if (o.uiCliquable === cliquable) return
+    o.uiCliquable = cliquable
+    try {
+      o.ui.setIgnoreMouseEvents(!cliquable, { forward: true })
+    } catch (err) {
+      logError('interface', 'bascule du clic sur la couche interface impossible', err)
+    }
+  })
+
+  /**
+   * Un panneau est ouvert : la fenêtre d'interface doit accepter la frappe
+   * clavier (nom de profil, capture d'un raccourci). C'est le SEUL moment où
+   * elle prend le focus — et la fenêtre encre sait alors ne pas rendre la
+   * souris au jeu pour autant (voir le 'blur' de la couche encre).
+   */
+  ipcMain.on('hexa:interface-modale', (e, value: unknown) => {
+    const o = overlayFromEvent(e)
+    if (!o || !o.ui || o.ui.isDestroyed() || !vientDeInterface(o, e)) return
+    const modale = value === true
+    if (o.uiModale === modale) return
+    o.uiModale = modale
+    try {
+      o.ui.setFocusable(modale)
+      if (modale) {
+        o.ui.focus()
+      } else {
+        o.ui.blur()
+        // Le panneau se referme : si l'utilisateur était en train de dessiner,
+        // on lui rend le clavier de la couche encre. Sans ça, il fermerait ses
+        // réglages et se retrouverait avec des touches sans effet.
+        if (!o.passthrough && !o.win.isDestroyed()) o.win.focus()
+      }
+    } catch (err) {
+      logError('interface', 'focus de la couche interface impossible', err)
+    }
+  })
+
+  /**
+   * « Masquer l'interface de Hexa dans les captures ». Renvoie ce qui a
+   * RÉELLEMENT été appliqué : les réglages doivent dire la vérité plutôt que
+   * de laisser croire à une protection inexistante.
+   */
+  ipcMain.handle('hexa:protection-capture', (_e, value: unknown) => {
+    protectionCapture = value === true
+    // Le bandeau d'accueil suit la même règle : c'est lui qui annonçait
+    // « tes clics repartent dans ton jeu » au milieu du direct.
+    setToastProtection(protectionCapture)
+    let applique = false
+    let fenetres = 0
+    for (const o of overlays.values()) {
+      if (!o.ui || o.ui.isDestroyed()) continue
+      fenetres++
+      if (appliquerProtection(o.ui, protectionCapture)) applique = true
+      // La couche ENCRE reste capturable, toujours : c'est elle que les
+      // spectateurs regardent. On le réaffirme à chaque bascule.
+      appliquerProtection(o.win, false)
+    }
+    log('capture', `protection de l’interface ${protectionCapture ? 'activée' : 'désactivée'}`, {
+      fenetres,
+      applique,
+      plateforme: process.platform,
+      supportee: protectionSupportee(),
+    })
+    return {
+      applique: applique && protectionCapture,
+      supporte: protectionSupportee(),
+      plateforme: process.platform,
+    }
   })
 
   // Journalisation demandée par la page (erreurs du renderer, diagnostics).
@@ -1397,9 +2115,40 @@ if (!gotLock) {
 } else {
   initLogger()
   installCrashHandlers()
+  // Après le démarrage, une panne se raconte dans un bandeau qui ne bloque
+  // RIEN : une boîte de dialogue modale gèlerait le processus principal, donc
+  // l'icône près de l'horloge, les raccourcis globaux et le menu « Quitter ».
+  setFatalNotifier((titre, explication) => showToast(titre, explication, 11000))
   log('cycle', `démarrage de Hexa ${app.getVersion()}`, {
     journal: logFilePath(),
     arguments: process.argv.slice(1).join(' ') || '(aucun)',
+  })
+
+  /**
+   * VERROU DE NAVIGATION, pour toutes les fenêtres présentes et à venir.
+   *
+   * Hexa n'ouvre aucun lien et ne navigue jamais : ses pages sont chargées une
+   * fois par le processus principal, un point c'est tout. On refuse donc, par
+   * construction, qu'une page puisse ouvrir une fenêtre (`window.open`),
+   * partir vers une autre adresse ou attacher un `<webview>`. Sans ce verrou,
+   * une seule ligne injectée dans le renderer suffirait à sortir de l'overlay
+   * — alors que la passerelle expose la capture d'écran complète du bureau.
+   */
+  app.on('web-contents-created', (_e, contents) => {
+    contents.setWindowOpenHandler(({ url }) => {
+      log('sécurité', 'ouverture de fenêtre refusée', url.slice(0, 200))
+      return { action: 'deny' }
+    })
+    contents.on('will-navigate', (event, url) => {
+      // Le rechargement de la MÊME page est légitime (relance après plantage).
+      if (url === contents.getURL()) return
+      event.preventDefault()
+      logError('sécurité', 'navigation refusée', url.slice(0, 200))
+    })
+    contents.on('will-attach-webview', (event) => {
+      event.preventDefault()
+      logError('sécurité', 'webview refusée')
+    })
   })
 
   /** Horodatage du dernier signalement, pour ne pas empiler les bandeaux. */
@@ -1536,7 +2285,14 @@ if (!gotLock) {
     }
     for (const o of overlays.values()) {
       if (o.hideTimer) clearTimeout(o.hideTimer)
+      if (o.uiHideTimer) clearTimeout(o.uiHideTimer)
+      if (o.relanceTimer) clearTimeout(o.relanceTimer)
+      if (o.uiRelanceTimer) clearTimeout(o.uiRelanceTimer)
       try {
+        // L'interface d'abord : détruire l'encre déclenche son 'closed', qui
+        // irait chercher une fenêtre d'interface déjà libérée.
+        if (o.ui && !o.ui.isDestroyed()) o.ui.destroy()
+        o.ui = null
         if (!o.win.isDestroyed()) o.win.destroy()
       } catch {
         /* ignore */

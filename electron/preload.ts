@@ -38,6 +38,16 @@ const INBOUND = [
    * elle a fini hors champ — écran débranché, résolution changée.
    */
   'toolbar-reset',
+  /**
+   * §S11 — séparation en deux fenêtres (encre capturée / interface exclue des
+   * captures). Ces trois canaux sont la colonne vertébrale de la liaison :
+   *  - 'sync'       : patch d'état d'interface venu de l'autre fenêtre ;
+   *  - 'commande'   : ordre de la barre d'outils au moteur ;
+   *  - 'etat-encre' : état du moteur que l'interface doit refléter.
+   */
+  'sync',
+  'commande',
+  'etat-encre',
 ] as const
 type Inbound = (typeof INBOUND)[number]
 
@@ -70,9 +80,29 @@ function readDisplayInfo(): DisplayInfo | null {
 
 const displayInfo = readDisplayInfo()
 
+/**
+ * §S11 — quelle COUCHE cette fenêtre porte-t-elle ?
+ *  'encre'     : les canvas d'annotation (fenêtre capturée par OBS) ;
+ *  'interface' : barre, panneaux, curseur (fenêtre exclue des captures) ;
+ *  'complet'   : les deux dans la même fenêtre (mode fusionné, HEXA_FUSION=1).
+ * Le processus principal le déclare : c'est plus sûr que de le deviner depuis
+ * l'adresse de la page.
+ */
+function readCouche(): string | null {
+  try {
+    const arg = process.argv.find((a) => a.startsWith('--hexa-couche='))
+    return arg ? arg.slice('--hexa-couche='.length) : null
+  } catch {
+    return null
+  }
+}
+
 const api = {
   /** Vraie valeur : permet au renderer de savoir qu'il tourne en overlay. */
   isOverlay: true,
+
+  /** Couche portée par cette fenêtre : 'encre', 'interface' ou 'complet'. */
+  couche: readCouche(),
 
   /**
    * Écran porteur (pixels logiques + facteur d'échelle DPI, §12.3).
@@ -175,6 +205,68 @@ const api = {
   /** Emplacement du journal, à afficher dans les réglages (« Où est le journal ? »). */
   logPath(): Promise<string> {
     return ipcRenderer.invoke('hexa:log-path').catch(() => '')
+  },
+
+  /* ---- §S11 : les deux couches se parlent ---------------------------- *
+   * Le processus principal sert de concentrateur : il relaie aux AUTRES
+   * fenêtres, jamais à l'émetteur — c'est ce qui interdit la boucle infinie
+   * entre deux stores qui se répondent.                                    */
+
+  /** Diffuse un patch d'état d'interface à l'autre couche. */
+  pousserSynchro(patch: Record<string, unknown>): void {
+    try {
+      if (patch && typeof patch === 'object') ipcRenderer.send('hexa:sync', patch)
+    } catch {
+      /* un patch perdu se rattrape au patch suivant : jamais d'exception ici */
+    }
+  },
+
+  /** La couche interface commande le moteur (annuler, effacer, geler…). */
+  envoyerCommande(commande: unknown): void {
+    try {
+      ipcRenderer.send('hexa:commande', commande)
+    } catch {
+      /* ignore */
+    }
+  },
+
+  /** La couche encre annonce un état à l'interface (gel, roue, session). */
+  annoncerEtatEncre(message: unknown): void {
+    try {
+      ipcRenderer.send('hexa:etat-encre', message)
+    } catch {
+      /* ignore */
+    }
+  },
+
+  /**
+   * Fenêtre d'interface cliquable (le pointeur survole un bouton) ou
+   * traversante (les clics repartent au jeu). Voir src/ui/interactivite.ts.
+   */
+  setInterfaceCliquable(value: boolean): void {
+    try {
+      ipcRenderer.send('hexa:interface-cliquable', value === true)
+    } catch {
+      /* ignore */
+    }
+  },
+
+  /** Un panneau est ouvert : la fenêtre interface accepte la frappe clavier. */
+  setInterfaceModale(value: boolean): void {
+    try {
+      ipcRenderer.send('hexa:interface-modale', value === true)
+    } catch {
+      /* ignore */
+    }
+  },
+
+  /**
+   * Masquer l'interface de Hexa dans les captures (OBS, Discord, impressions
+   * d'écran). Renvoie ce qui a été RÉELLEMENT appliqué : la page doit pouvoir
+   * dire la vérité à l'utilisateur, jamais promettre une protection absente.
+   */
+  setProtectionCapture(on: boolean): Promise<unknown> {
+    return ipcRenderer.invoke('hexa:protection-capture', on === true).catch(() => null)
   },
 
   /** Diffuse un message du miroir OBS (déjà sérialisé) aux vues connectées. */

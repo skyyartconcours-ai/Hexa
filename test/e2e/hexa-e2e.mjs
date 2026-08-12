@@ -20,11 +20,12 @@
  *   xvfb-run -a --server-args="-screen 0 1600x900x24"
  */
 
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   ABSENT,
   CAPTURES,
+  RACINE,
   KO,
   NON_TESTE,
   OK,
@@ -91,13 +92,19 @@ if (actif('demarrage')) {
         boutons: barre.querySelectorAll('button').length,
         outils: barre.querySelector('.group')?.querySelectorAll('.tbtn').length ?? 0,
         couleurs: barre.querySelectorAll('.swatch').length,
-        visible: r.width > 200 && r.height > 20,
+        largeur: Math.round(r.width),
+        hauteur: Math.round(r.height),
+        // La barre est VERTICALE depuis §S4 (collée au bord gauche) : ce test
+        // vérifie qu'elle occupe une vraie surface à l'écran, pas qu'elle est
+        // couchée. Les deux orientations passent — son orientation, elle, a son
+        // propre test (s4-barre-verticale).
+        visible: r.width > 40 && r.height > 40 && Math.max(r.width, r.height) > 200,
       }
     })
     if (!d) return { statut: ABSENT, detail: 'aucun élément .toolbar dans la page' }
     return {
       statut: d.visible && d.outils >= 12 && d.couleurs === 7 ? OK : KO,
-      detail: `${d.boutons} boutons dont ${d.outils} outils et ${d.couleurs} couleurs`,
+      detail: `${d.boutons} boutons dont ${d.outils} outils et ${d.couleurs} couleurs · ${d.largeur}×${d.hauteur} px`,
     }
   })
 
@@ -501,6 +508,51 @@ if (actif('mecaniques')) {
     }
   })
 
+  /**
+   * NON-RÉGRESSION — un coup de gomme est une action comme une autre : Ctrl+Z
+   * doit rendre LE TRAIT GOMMÉ. Il supprimait à la place l'annotation d'à côté
+   * (la gomme ne laissait aucune trace dans l'historique) : le « oups, pas
+   * celui-là » coûtait donc DEUX annotations au lieu de zéro.
+   */
+  await rapport.test(win, 'mec-gomme-annuler', 'Gomme : Ctrl+Z rend le trait gommé', async (capturer) => {
+    await toutEffacer(win)
+    await win.keyboard.press('p')
+    if ((await etat(win)).smartShapes !== false) await win.keyboard.press('w')
+    await win.waitForTimeout(150)
+    await tracer(win, segment(400, 300, 900, 300, 12)) // celui du haut
+    await tracer(win, segment(400, 500, 900, 500, 12)) // celui du bas
+    await win.waitForTimeout(500)
+    const deux = await encre(win)
+    await win.keyboard.press('e')
+    await win.waitForTimeout(200)
+    await tracer(win, segment(640, 296, 660, 304, 3), { pauseMs: 25 }) // on gomme le haut
+    await win.waitForTimeout(700)
+    const gomme = await encre(win)
+    await capturer('1-gomme')
+    await win.keyboard.press('Control+z')
+    await win.waitForTimeout(900)
+    const rendu = await encre(win)
+    await capturer('2-rendu')
+    await win.keyboard.press('w')
+    const haut = (b) => (b ? b.y : -1)
+    const bas = (b) => (b ? b.y + b.h : -1)
+    // gommé : il ne reste que le trait du bas · rendu : les deux sont là
+    const ok =
+      deux.boite &&
+      gomme.boite &&
+      rendu.boite &&
+      haut(gomme.boite) > haut(deux.boite) + 100 &&
+      haut(rendu.boite) === haut(deux.boite) &&
+      bas(rendu.boite) === bas(deux.boite) &&
+      rendu.statique > gomme.statique
+    return {
+      statut: ok ? OK : KO,
+      detail:
+        `2 traits y ${haut(deux.boite)}→${bas(deux.boite)} · gommé y ${haut(gomme.boite)}→${bas(gomme.boite)} ` +
+        `· Ctrl+Z y ${haut(rendu.boite)}→${bas(rendu.boite)} (${rendu.statique} px, gommé ${gomme.statique})`,
+    }
+  })
+
   await rapport.test(win, 'mec-undo-redo', 'Annuler / Rétablir', async () => {
     await toutEffacer(win)
     await win.keyboard.press('p')
@@ -547,6 +599,87 @@ if (actif('mecaniques')) {
     }
   })
 
+  /**
+   * NON-RÉGRESSION — la touche panique doit vider l'écran TOUT DE SUITE, même
+   * sur un gros tableau. La cascade de dissolution était proportionnelle au
+   * nombre de traits : 150 annotations mettaient 7,3 s à quitter l'écran, sur
+   * une touche dont la raison d'être est de faire disparaître MAINTENANT ce
+   * qui ne doit pas rester à l'antenne (§169).
+   */
+  await rapport.test(win, 'mec-panique-vite', 'Touche panique : écran net tout de suite, même chargé', async (capturer) => {
+    await toutEffacer(win)
+    await win.keyboard.press('p')
+    const e0 = await etat(win)
+    if (e0.smartShapes !== false) await win.keyboard.press('w') // 90 segments ≠ 90 lignes
+    await win.waitForTimeout(150)
+    for (let i = 0; i < 90; i++) {
+      const y = 150 + (i % 18) * 38
+      const x = 300 + Math.floor(i / 18) * 230
+      await tracer(win, segment(x, y, x + 190, y + 16, 3), { pauseMs: 0 })
+    }
+    await win.waitForTimeout(600)
+    const charge = await encreTotale(win)
+    await capturer('1-tableau-charge')
+    const t0 = Date.now()
+    await win.keyboard.press('c')
+    let net = -1
+    for (let k = 0; k < 40; k++) {
+      await win.waitForTimeout(75)
+      if ((await encreTotale(win)) === 0) {
+        net = Date.now() - t0
+        break
+      }
+    }
+    await capturer('2-ecran-net')
+    await win.keyboard.press('w') // formes intelligentes rendues
+    // le pire cas théorique est 6 × 45 ms + 200 ms de fondu ; on laisse une
+    // marge confortable pour le temps de mesure d'un écran 1600×900
+    return {
+      statut: charge > 5000 && net >= 0 && net < 1500 ? OK : KO,
+      detail: `90 annotations (${charge} px) · écran net en ${net < 0 ? '> 3 s' : `${net} ms`} (attendu < 1500 ms)`,
+    }
+  })
+
+  /**
+   * NON-RÉGRESSION — la touche panique est UNE entrée d'historique.
+   *  · Ctrl+Y après la panique ne doit RIEN ressusciter (un trait annulé
+   *    avant l'effacement revenait à l'écran devant les spectateurs) ;
+   *  · Ctrl+Z, lui, rend le tableau effacé (§64, « undo parfait »).
+   */
+  await rapport.test(win, 'mec-panique-histoire', 'Touche panique : hors de portée de Ctrl+Y, rendue par Ctrl+Z', async (capturer) => {
+    await toutEffacer(win)
+    await win.keyboard.press('p')
+    const e0 = await etat(win)
+    if (e0.smartShapes !== false) await win.keyboard.press('w')
+    await win.waitForTimeout(150)
+    await tracer(win, segment(420, 300, 900, 300, 12))
+    await tracer(win, segment(420, 420, 900, 420, 12))
+    await win.waitForTimeout(500)
+    // le second trait part dans la pile de rétablissement…
+    await win.keyboard.press('Control+z')
+    await win.waitForTimeout(1200)
+    const unTrait = await encreTotale(win)
+    // …puis tout est effacé : il ne doit plus jamais revenir
+    await win.keyboard.press('c')
+    await win.waitForTimeout(900)
+    const efface = await encreTotale(win)
+    await win.keyboard.press('Control+y')
+    await win.waitForTimeout(900)
+    const zombie = await encreTotale(win)
+    await capturer('1-ctrl-y-ne-ressuscite-rien')
+    // Ctrl+Z rend l'effacement, et seulement lui
+    await win.keyboard.press('Control+z')
+    await win.waitForTimeout(900)
+    const rendu = await encreTotale(win)
+    await capturer('2-ctrl-z-rend-le-tableau')
+    await win.keyboard.press('w')
+    const ok = unTrait > 500 && efface === 0 && zombie === 0 && rendu === unTrait
+    return {
+      statut: ok ? OK : KO,
+      detail: `1 trait ${unTrait} px · panique ${efface} · Ctrl+Y ${zombie} (0 attendu) · Ctrl+Z ${rendu} (${unTrait} attendu)`,
+    }
+  })
+
   await rapport.test(win, 'mec-formes', 'Formes intelligentes : le gribouillis se redresse', async (capturer) => {
     await toutEffacer(win)
     await win.keyboard.press('p')
@@ -571,6 +704,39 @@ if (actif('mecaniques')) {
       detail:
         `bord haut après morph : écart-type ${droit ? droit.ecartType.toFixed(2) : '?'} px (rectangle net attendu < 1,5) · ` +
         `après Ctrl+Z : ${encreBrute} px d'encre, écart-type ${brut ? brut.ecartType.toFixed(2) : '?'} px (gribouillis attendu > 2,5)`,
+    }
+  })
+
+  /**
+   * NON-RÉGRESSION — Ctrl+Z rend le gribouillis, Ctrl+Y REDONNE la forme.
+   * La branche « forme intelligente » de l'annulation ne déposait rien dans la
+   * pile de rétablissement : la forme nette était perdue définitivement, alors
+   * que le brief §182 promet « annuler et rétablir, illimités ».
+   */
+  await rapport.test(win, 'mec-formes-retablir', 'Formes intelligentes : Ctrl+Y redonne la forme nette', async (capturer) => {
+    await toutEffacer(win)
+    await win.keyboard.press('p')
+    if ((await etat(win)).smartShapes === false) await win.keyboard.press('w')
+    await win.waitForTimeout(150)
+    await tracer(win, rectangleTremble(430, 280, 420, 260), { pauseMs: 6 })
+    await win.waitForTimeout(1600)
+    const net = await planeiteHaut(win)
+    await capturer('1-forme-nette')
+    await win.keyboard.press('Control+z')
+    await win.waitForTimeout(1400)
+    const brut = await planeiteHaut(win)
+    await capturer('2-gribouillis')
+    await win.keyboard.press('Control+y')
+    await win.waitForTimeout(1400)
+    const refait = await planeiteHaut(win)
+    const encreRefaite = await encreTotale(win)
+    await capturer('3-forme-retablie')
+    const ok =
+      net && brut && refait && net.ecartType < 1.5 && brut.ecartType > 2.5 && refait.ecartType < 1.5 && encreRefaite > 500
+    const dire = (m) => (m ? m.ecartType.toFixed(2) : '?')
+    return {
+      statut: ok ? OK : KO,
+      detail: `bord haut : morph ${dire(net)} px → Ctrl+Z ${dire(brut)} (gribouillis) → Ctrl+Y ${dire(refait)} px, ${encreRefaite} px d'encre`,
     }
   })
 
@@ -851,14 +1017,23 @@ if (actif('mecaniques')) {
     const apres = await encre(win)
     await win.keyboard.press('w') // formes intelligentes remises
     await win.keyboard.press('j') // mode écriture éteint pour la suite
-    // la typo PLEINE remplace un tracé filaire : sur le canevas des annotations
-    // (hors étincelles), l'encre bondit franchement
-    const transcrit = apres.statique > avant.statique * 1.4
+    // La typo PLEINE remplace un tracé filaire : l'encre bondit franchement.
+    // Deux mesures, parce qu'une seule ne suffit plus (§S3) : depuis que le
+    // MOT fini est recomposé d'un seul tenant, il prend la chasse de la police
+    // au lieu de l'espacement de la main — il se resserre (330 → 245 px de
+    // large sur « VAL »), donc les halos de ses lettres se recouvrent et le
+    // simple compte de pixels allumés monte moins. On regarde donc aussi la
+    // DENSITÉ dans la boîte, qui est ce que « plein contre filaire » veut
+    // vraiment dire, et qui, elle, ne dépend pas de l'espacement.
+    const aire = (e) => Math.max(1, (e.boite?.w ?? 1) * (e.boite?.h ?? 1))
+    const densite = apres.statique / aire(apres) / (avant.statique / aire(avant))
+    const transcrit = apres.statique > avant.statique * 1.2 && densite > 1.3
     return {
       statut: transcrit ? OK : KO,
       detail:
         `manuscrit ${avant.statique} px (boîte ${avant.boite?.w}×${avant.boite?.h}) → ` +
-        `typo ${apres.statique} px (boîte ${apres.boite?.w}×${apres.boite?.h}) — le mot « VAL » doit passer en typographie pleine`,
+        `typo ${apres.statique} px (boîte ${apres.boite?.w}×${apres.boite?.h}), ` +
+        `densité ×${densite.toFixed(2)} — le mot « VAL » doit passer en typographie pleine`,
     }
   })
 }
@@ -1491,6 +1666,219 @@ if (actif('performance')) {
     }
   })
 }
+
+/* ================================================================== *
+ * S4 — la barre d'outils : orientation, placement, raccourcis à la demande
+ * ================================================================== */
+
+/**
+ * La fenêtre qui PORTE la barre d'outils.
+ *
+ * Deux raisons de la chercher au lieu de la supposer : Hexa ouvre une fenêtre
+ * par écran et une seule affiche la barre (§S4.2), et depuis §S11 l'interface
+ * vit dans une fenêtre distincte de l'encre. On interroge donc le DOM plutôt
+ * que de parier sur un ordre d'ouverture.
+ */
+async function fenetreBarre() {
+  for (const w of app.windows()) {
+    try {
+      if (await w.evaluate(() => !!document.querySelector('.toolbar'))) return w
+    } catch {
+      /* fenêtre non scriptable (bandeau d'accueil natif) : on passe */
+    }
+  }
+  return win
+}
+
+const winBarre = await fenetreBarre()
+
+await rapport.test(winBarre, 's4-barre-verticale', 'La barre est verticale, collée au bord gauche', async () => {
+  await etatDeDepart(winBarre)
+  const m = await winBarre.evaluate(() => {
+    const tb = document.querySelector('.toolbar')
+    const r = tb.getBoundingClientRect()
+    return {
+      classes: tb.className,
+      x: Math.round(r.x),
+      largeur: Math.round(r.width),
+      hauteur: Math.round(r.height),
+      ecranH: window.innerHeight,
+      deborde: tb.scrollHeight > tb.clientHeight + 1,
+      colonnes: getComputedStyle(tb.querySelector('.group')).gridTemplateColumns.split(' ').length,
+    }
+  })
+  const vertical = /\bvertical\b/.test(m.classes) && /\bedge-left\b/.test(m.classes)
+  const colle = m.x <= 16
+  const tient = !m.deborde && m.hauteur <= m.ecranH
+  return {
+    statut: vertical && colle && tient && m.largeur < 260 ? OK : KO,
+    detail: `${m.classes.trim()} · ${m.largeur}×${m.hauteur} px à x=${m.x} · ${m.colonnes} colonnes · ${
+      m.deborde ? 'DÉBORDE' : 'tient dans la hauteur'
+    }`,
+  }
+})
+
+await rapport.test(winBarre, 's4-barre-fin', 'Fin maintenue : chaque outil montre son raccourci du preset actif', async () => {
+  const avant = await winBarre.evaluate(() => document.querySelectorAll('.tb-hint').length)
+  await winBarre.keyboard.down('End')
+  await win.waitForTimeout(320)
+  const pendant = await winBarre.evaluate(() => {
+    const tb = document.querySelector('.toolbar')
+    const lu = (sel) => document.querySelector(sel)?.textContent ?? ''
+    const boutons = [...tb.querySelectorAll('.group .tbtn')]
+    const pinceau = boutons.find((b) => (b.getAttribute('title') ?? '').startsWith('Pinceau'))
+    return {
+      n: tb.querySelectorAll('.tb-hint').length,
+      hints: /\bhints\b/.test(tb.className),
+      pinceau: pinceau?.textContent ?? '',
+      premier: lu('.tb-hint'),
+      deborde: tb.scrollHeight > tb.clientHeight + 1,
+    }
+  })
+  await winBarre.keyboard.up('End')
+  await win.waitForTimeout(280)
+  const apres = await winBarre.evaluate(() => document.querySelectorAll('.tb-hint').length)
+  // Preset Epic Pen actif : le pinceau DOIT annoncer Ctrl + Maj + 3, jamais « P ».
+  const juste = /Ctrl \+ Maj \+ 3/.test(pendant.pinceau)
+  return {
+    statut: avant === 0 && pendant.n > 20 && juste && apres === 0 && !pendant.deborde ? OK : KO,
+    detail: `${avant} → ${pendant.n} → ${apres} rappels · pinceau : « ${pendant.pinceau.trim()} » (preset Epic Pen) · ${
+      pendant.deborde ? 'DÉBORDE' : 'tient dans la hauteur'
+    }`,
+  }
+})
+
+await rapport.test(winBarre, 's4-barre-ancrage', 'On saisit la barre et elle s’aimante au bord du bas', async () => {
+  const gb = await winBarre.evaluate(() => {
+    const r = document.querySelector('.brand.grip').getBoundingClientRect()
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: window.innerWidth, h: window.innerHeight }
+  })
+  await winBarre.mouse.move(gb.x, gb.y)
+  await winBarre.mouse.down()
+  await winBarre.mouse.move(gb.w / 2, gb.h / 2, { steps: 6 })
+  await win.waitForTimeout(120)
+  const apercu = await winBarre.evaluate(() => ({
+    visible: !!document.querySelector('.dock-preview-edge'),
+    mot: document.querySelector('.dock-preview-word')?.textContent ?? '',
+  }))
+  await winBarre.mouse.move(gb.w / 2, gb.h - 24, { steps: 8 })
+  await win.waitForTimeout(120)
+  const cible = await winBarre.evaluate(() => document.querySelector('.dock-preview-word')?.textContent ?? '')
+  await winBarre.mouse.up()
+  await win.waitForTimeout(420)
+  const apres = await winBarre.evaluate(() => {
+    const tb = document.querySelector('.toolbar')
+    const r = tb.getBoundingClientRect()
+    const persiste = JSON.parse(localStorage.getItem('hexa-ui') ?? '{}').state ?? {}
+    return {
+      classes: tb.className,
+      bas: Math.round(window.innerHeight - r.bottom),
+      dansLEcran: r.x >= -1 && r.y >= -1 && r.bottom <= window.innerHeight + 1,
+      edge: persiste.toolbarEdge,
+      orientation: persiste.toolbarOrientation,
+    }
+  })
+  const ok =
+    apercu.visible &&
+    cible === 'en bas' &&
+    /\bhorizontal\b/.test(apres.classes) &&
+    apres.edge === 'bottom' &&
+    apres.dansLEcran &&
+    apres.bas <= 20
+  return {
+    statut: ok ? OK : KO,
+    detail: `aperçu « ${apercu.mot} » → « ${cible} » · après le lâcher : ${apres.classes.trim()} à ${apres.bas} px du bas · mémorisé : ${apres.edge}/${apres.orientation}`,
+  }
+})
+
+await rapport.test(winBarre, 's4-barre-hors-champ', 'Une position mémorisée impossible ramène la barre dans le cadre', async () => {
+  // Le cas réel : l'écran de droite est débranché, la position enregistrée
+  // ne désigne plus rien. La barre doit revenir, pas disparaître.
+  await etatDeDepart(winBarre, { toolbarEdge: 'right', toolbarOffset: 4.2, toolbarOrientation: 'auto' })
+  const m = await winBarre.evaluate(() => {
+    const r = document.querySelector('.toolbar').getBoundingClientRect()
+    return {
+      dansLEcran:
+        r.x >= -1 && r.y >= -1 && r.right <= window.innerWidth + 1 && r.bottom <= window.innerHeight + 1,
+      droite: Math.round(window.innerWidth - r.right),
+      y: Math.round(r.y),
+    }
+  })
+  await etatDeDepart(winBarre)
+  return {
+    statut: m.dansLEcran && m.droite <= 20 ? OK : KO,
+    detail: `barre entièrement visible, à ${m.droite} px du bord droit (y=${m.y}) malgré une proportion mémorisée de 4,2`,
+  }
+})
+
+await rapport.test(winBarre, 's4-barre-themes', 'Les 8 thèmes tiennent en orientation verticale', async (capturer) => {
+  // Les identifiants viennent de la source du produit, pas d'une liste recopiée
+  // ici : ajouter un neuvième thème doit AUTOMATIQUEMENT le mettre à l'épreuve.
+  const themes = [
+    ...new Set(
+      [...readFileSync(join(RACINE, 'src/themes.ts'), 'utf8').matchAll(/^\s*id: '([\w-]+)',/gm)].map(
+        (m) => m[1],
+      ),
+    ),
+  ]
+  const defauts = []
+  for (const id of themes) {
+    await etatDeDepart(winBarre, { theme: id })
+    const m = await winBarre.evaluate(() => {
+      const tb = document.querySelector('.toolbar')
+      const r = tb.getBoundingClientRect()
+      return {
+        h: Math.round(r.height),
+        w: Math.round(r.width),
+        x: Math.round(r.x),
+        deborde: tb.scrollHeight > tb.clientHeight + 1,
+        pageDeborde: document.documentElement.scrollWidth > window.innerWidth + 1,
+        dansLEcran: r.bottom <= window.innerHeight + 1 && r.right <= window.innerWidth + 1,
+        sepCouche: (() => {
+          const s = tb.querySelector('.sep')
+          if (!s) return true
+          const b = s.getBoundingClientRect()
+          return b.width >= b.height
+        })(),
+      }
+    })
+    await capturer(`theme-${id}`)
+    if (m.deborde || m.pageDeborde || !m.dansLEcran || !m.sepCouche || m.x > 16 || m.w > 260)
+      defauts.push(`${id} (${m.w}×${m.h}${m.deborde ? ' DÉBORDE' : ''}${m.sepCouche ? '' : ' séparateur debout'})`)
+  }
+  await etatDeDepart(winBarre)
+  return {
+    statut: defauts.length === 0 ? OK : KO,
+    detail:
+      defauts.length === 0
+        ? `${themes.length} thèmes vérifiés en vertical : barre entière, séparateurs couchés, aucun débordement`
+        : `à revoir : ${defauts.join(' · ')}`,
+  }
+})
+
+await rapport.test(winBarre, 's4-ecran-porteur', 'La barre n’existe que sur l’écran désigné par le processus principal', async () => {
+  const vu = await winBarre.evaluate(() => ({
+    host: window.hexa?.display?.toolbarHost,
+    id: window.hexa?.display?.id,
+    barre: !!document.querySelector('.toolbar'),
+  }))
+  const ecrans = await app.evaluate(({ screen }) => ({
+    n: screen.getAllDisplays().length,
+    x: screen.getAllDisplays().map((d) => d.bounds.x),
+    principal: screen.getPrimaryDisplay().id,
+    plusADroite: screen
+      .getAllDisplays()
+      .reduce((a, b) => (b.bounds.x > a.bounds.x ? b : a)).id,
+  }))
+  // Un seul écran ici : le porteur est forcément le principal. La règle
+  // « le plus à droite » est vérifiée à part (pickToolbarHost), mais on
+  // contrôle quand même qu'aucune fenêtre ne montre la barre sans mandat.
+  const ok = vu.host === true && vu.barre && vu.id === ecrans.plusADroite
+  return {
+    statut: ok ? OK : KO,
+    detail: `${ecrans.n} écran(s) x=[${ecrans.x.join(', ')}] · porteur annoncé : ${vu.id} · le plus à droite : ${ecrans.plusADroite} · barre montée : ${vu.barre}`,
+  }
+})
 
 /* ================================================================== *
  * Sortie

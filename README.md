@@ -193,11 +193,12 @@ des traits, pas de ressource réseau, pas de police externe.
 
 ## Ce qui n'est pas encore fait
 
-- **loupe, gel d'image, flou de masquage** : les identifiants d'outils existent
-  (`src/engine/types.ts`) et l'aide-mémoire les affiche, mais il n'y a pas d'implémentation.
-  Le module manquant est `src/engine/fx-capture.ts`.
-- **avant/après**, **mode Coach** : prévus, non commencés.
+- **mode Coach** (§10.3 du brief : un second PC qui annote l'écran du premier à distance) :
+  prévu, non commencé.
 - **macOS et Linux** : l'application démarre, mais rien n'y est validé.
+
+> Loupe, gel d'image, flou de masquage et avant/après **sont livrés** et fonctionnent
+> (`src/engine/fx-capture.ts`, monté par `src/App.tsx`) : touches `A`, `V`, `B`, `U`.
 
 ## Dépendances
 

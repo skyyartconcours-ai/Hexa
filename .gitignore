@@ -7,3 +7,4 @@ src-tauri/gen/
 dist-electron/
 release/
 test/e2e/captures/
+test/e2e/captures-couches/

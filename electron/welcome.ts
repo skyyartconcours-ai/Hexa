@@ -18,6 +18,23 @@ let toast: BrowserWindow | null = null
 /** Minuterie de fermeture (setTimeout à un coup, jamais setInterval). */
 let timer: NodeJS.Timeout | null = null
 
+/**
+ * Le bandeau part-il dans les captures ? NON par défaut (§S11) : il s'adresse
+ * au streamer, jamais à ses spectateurs. Suit le même réglage que la fenêtre
+ * d'interface — « Masquer l'interface de Hexa dans les captures ».
+ */
+let protectionCapture = true
+
+/** Aligne le bandeau sur le réglage de protection de capture. */
+export function setToastProtection(on: boolean): void {
+  protectionCapture = on
+  try {
+    if (toast && !toast.isDestroyed()) toast.setContentProtection(on)
+  } catch {
+    /* plateforme sans protection de contenu */
+  }
+}
+
 const LARGEUR = 460
 const HAUTEUR = 132
 
@@ -110,6 +127,23 @@ export function showToast(titre: string, texte: string, dureeMs = 5200): void {
     // Purement informatif : les clics vont au jeu, comme si rien n'était là.
     toast.setIgnoreMouseEvents(true, { forward: false })
     toast.setMenuBarVisibility(false)
+    /**
+     * §S11 — CE BANDEAU NE DOIT JAMAIS PARTIR DANS LE DIRECT.
+     *
+     * C'est lui qui annonçait « Hexa se met en retrait — tes clics repartent
+     * dans ton jeu » au beau milieu du stream : un message adressé au streamer,
+     * que ses spectateurs recevaient en pleine figure. Comme la fenêtre
+     * d'interface, il est donc exclu des captures (WDA_EXCLUDEFROMCAPTURE sous
+     * Windows). Il reste parfaitement visible sur l'écran de l'utilisateur, et
+     * s'efface tout seul au bout de quelques secondes.
+     */
+    if (protectionCapture) {
+      try {
+        toast.setContentProtection(true)
+      } catch {
+        /* plateforme sans protection de contenu : le bandeau reste visible */
+      }
+    }
 
     const fenetre = toast
     fenetre.once('ready-to-show', () => {
@@ -127,7 +161,13 @@ export function showToast(titre: string, texte: string, dureeMs = 5200): void {
       .loadURL(
         'data:text/html;charset=utf-8,' + encodeURIComponent(page(titre, texte, dureeMs)),
       )
-      .catch((err: unknown) => logError('accueil', 'chargement du bandeau impossible', err))
+      .catch((err: unknown) => {
+        // Cas normal et fréquent : un second message est arrivé pendant le
+        // chargement du premier, qui a donc été détruit en cours de route. Ce
+        // n'est pas une panne, ça n'a rien à faire dans le journal.
+        if (fenetre.isDestroyed()) return
+        logError('accueil', 'chargement du bandeau impossible', err)
+      })
 
     timer = setTimeout(() => {
       timer = null

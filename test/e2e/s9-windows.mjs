@@ -38,6 +38,19 @@ const app = await electron.launch({
   cwd: RACINE,
   executablePath: join(RACINE, 'node_modules', 'electron', 'dist', 'electron'),
   timeout: 60000,
+  /**
+   * MODE FUSIONNÉ, comme la campagne principale (voir harness.mjs).
+   *
+   * Depuis la séparation en deux fenêtres (§S11), Hexa ouvre PAR ÉCRAN une
+   * couche encre et une couche interface. `firstWindow()` en attrapait une au
+   * hasard : une fois sur deux, ce fichier mourait au premier test en
+   * attendant un canevas dans la fenêtre de la barre d'outils — un FAUX ROUGE
+   * qui condamnait tout le filet de sécurité Windows. Ici on veut mesurer le
+   * comportement des FENÊTRES (bounds, topmost, veille, DPI) : une seule
+   * fenêtre par écran, c'est exactement ce qu'il faut. La séparation elle-même
+   * a ses propres tests (test/e2e/couches.mjs).
+   */
+  env: { ...process.env, HEXA_FUSION: '1' },
 })
 
 const win = await app.firstWindow({ timeout: 30000 })

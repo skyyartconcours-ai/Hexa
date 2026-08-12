@@ -166,11 +166,14 @@
   background: var(--hover-bg);
 }
 
+/* Thème CLAIR : l'accent pur sur une pastille blanche est illisible dès que
+   l'encre est claire (blanc, jaune). Le glyphe garde la TEINTE de l'encre mais
+   la profondeur du texte ; l'anneau, lui, reste franchement accentué. */
 [data-theme='glacier'] .tbtn.active {
   filter: none;
-  color: var(--accent, var(--logo-a));
+  color: color-mix(in srgb, var(--accent, var(--logo-a)) 42%, var(--text-1));
   background: color-mix(in srgb, var(--accent, var(--logo-a)) 15%, #fff);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent, var(--logo-a)) 55%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent, var(--logo-a)) 72%, #7b8ea3);
 }
 
 /* sur fond clair, une pastille blanche doit rester visible : on la détoure
@@ -277,9 +280,25 @@
     linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  animation: hexaIrisSpin 14s linear infinite;
   pointer-events: none;
   opacity: 0.9;
+}
+
+/* ⚠️ L'ANNEAU NE TOURNE PLUS TOUT SEUL.
+   Un dégradé CONIQUE masqué en contour n'est pas une animation composable :
+   chaque image demande une re-rastérisation complète de la barre. Mesuré sur
+   l'application : 60 recalculs de style par seconde et ~5 % de processeur en
+   permanence, écran vide, pendant toute la partie — alors que les 7 autres
+   thèmes coûtent exactement 0. Le compteur d'images de rendu, lui, restait à
+   zéro : rien ne pouvait le voir.
+   L'anneau irisé figé reste le même bijou ; il se met à tourner quand la souris
+   arrive sur la barre, c'est-à-dire quand le streamer la regarde — et il
+   s'arrête tout seul dès qu'elle repart. */
+[data-theme='holo-iris'] .toolbar:hover::before,
+[data-theme='holo-iris'] .toolbar:focus-within::before,
+[data-theme='holo-iris'] .hint-card:hover::before,
+[data-theme='holo-iris'] .onb-card:hover::before {
+  animation: hexaIrisSpin 9s linear infinite;
 }
 
 /* le prisme : la barre porte un voile irisé, et chaque outil son caisson —
@@ -325,6 +344,15 @@
   border-radius: 2px;
   background: linear-gradient(to bottom, #ff5fd2, #5ce1ff);
   opacity: 0.5;
+}
+
+/* Le liseré irisé déborde de 1,5 px tout autour de la barre. En orientation
+   VERTICALE, celle-ci borne sa hauteur et défile en dernier recours : ces
+   1,5 px de trop suffisaient à faire apparaître une barre de défilement
+   parasite sur une barre qui, elle, tenait parfaitement. On ramène donc le
+   liseré à l'intérieur — à l'œil, c'est le même bijou. */
+[data-theme='holo-iris'] .toolbar.vertical::before {
+  inset: 0;
 }
 
 [data-theme='holo-iris'] .swatch {
@@ -549,11 +577,15 @@
   background: var(--hover-bg);
 }
 
+/* Même règle que Glacier : sur ce pastel, un glyphe à 82 % d'encre blanche
+   mesurait 1,45:1. On garde la teinte, on rend la lisibilité. */
 [data-theme='sakura'] .tbtn.active {
   filter: none;
-  color: color-mix(in srgb, var(--accent, var(--logo-a)) 82%, #3a1a2c);
+  color: color-mix(in srgb, var(--accent, var(--logo-a)) 40%, var(--text-1));
   background: color-mix(in srgb, var(--accent, var(--logo-a)) 26%, #fff);
-  box-shadow: 0 10px 18px -8px color-mix(in srgb, var(--accent, var(--logo-a)) 75%, transparent);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--accent, var(--logo-a)) 70%, #c98aa6),
+    0 10px 18px -8px color-mix(in srgb, var(--accent, var(--logo-a)) 75%, transparent);
 }
 
 /* séparateurs : de simples pétales ponctuels */
@@ -681,11 +713,14 @@
   border-bottom-color: rgba(232, 196, 106, 0.45);
 }
 
+/* Royal marque l'outil actif par son FILET doré, à la manière d'un onglet de
+   reliure : pas d'anneau intérieur ici, il écraserait la signature. */
 [data-theme='royal'] .tbtn.active {
   filter: none;
-  color: var(--accent, var(--logo-a));
+  color: color-mix(in srgb, var(--accent, var(--logo-a)) 62%, var(--text-1));
   background: color-mix(in srgb, var(--accent, var(--logo-a)) 14%, transparent);
   border-bottom-color: var(--accent, var(--logo-a));
+  box-shadow: none;
 }
 
 [data-theme='royal'] .chip-label {
@@ -944,10 +979,13 @@
   transform: none;
 }
 
+/* Stealth ne fait AUCUN halo et aucun anneau : l'outil actif se lit à son
+   aplat, un ton au-dessus du reste. C'est tout l'esprit du thème. */
 [data-theme='stealth'] .tbtn.active {
   filter: none;
-  color: var(--accent, var(--logo-a));
+  color: color-mix(in srgb, var(--accent, var(--logo-a)) 70%, var(--text-1));
   background: color-mix(in srgb, var(--accent, var(--logo-a)) 16%, transparent);
+  box-shadow: none;
 }
 
 [data-theme='stealth'] .swatches {
@@ -1012,8 +1050,9 @@
   opacity: 0.85;
 }
 
+/* plus de `bottom` en dur : la hauteur réelle de la barre est publiée par
+   `--hexa-tb-bas`, ce thème n'a plus rien de particulier à rattraper */
 [data-theme='stealth'] .tool-indicator {
-  bottom: 76px;
   padding: 4px 10px;
   font-size: 10.5px;
   font-weight: 500;
@@ -1082,4 +1121,40 @@ body.passthrough .onb-card::before {
   [data-theme='holo-iris'] .onb-card::before {
     animation: none;
   }
+}
+
+/* ================================================================== *
+ * Séparateurs de la barre en orientation VERTICALE (§S4)
+ *
+ * En se mettant debout, la barre couche ses séparateurs. La règle générale
+ * (src/styles.css) en fait des filets de 30 × 1 px ; chaque thème récupère ici
+ * sa signature, qui était portée par la HAUTEUR et par un dégradé vertical —
+ * deux choses qui n'ont plus de sens une fois le trait couché.
+ * ================================================================== */
+
+[data-theme='neon-nuit'] .toolbar.vertical .sep {
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.16), transparent);
+}
+
+/* le dégradé irisé tourne avec le trait */
+[data-theme='holo-iris'] .toolbar.vertical .sep {
+  height: 2px;
+  background: linear-gradient(to right, #ff5fd2, #5ce1ff);
+}
+
+/* le filet doré des reliures */
+[data-theme='royal'] .toolbar.vertical .sep {
+  background: linear-gradient(to right, transparent, rgba(232, 196, 106, 0.55), transparent);
+}
+
+/* le pétale : un point rond marche dans les deux sens, on le garde tel quel */
+[data-theme='sakura'] .toolbar.vertical .sep {
+  width: 5px;
+  height: 5px;
+}
+
+/* le trait d'encre épais du dessin animé perdrait tout son caractère à 1 px */
+[data-theme='toon'] .toolbar.vertical .sep {
+  width: 28px;
+  height: 3px;
 }

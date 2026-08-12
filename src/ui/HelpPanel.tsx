@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type { ReactElement } from 'react'
 import {
   CATEGORY_LABELS,
+  CATEGORY_ORDER,
   KEYMAP_ENTRIES,
   KEYMAP_PRESETS,
   formatCombo,
@@ -39,15 +40,6 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'clavier', label: 'Raccourcis' },
   { id: 'stream', label: 'Sur mon stream' },
   { id: 'secours', label: 'Au secours' },
-]
-
-const CATEGORY_ORDER: KeymapCategory[] = [
-  'outils',
-  'momentanes',
-  'couleurs',
-  'edition',
-  'interface',
-  'systeme',
 ]
 
 /* ------------------------------------------------------------------ *

@@ -167,7 +167,16 @@ function commun(a, b) {
 preparerCaptures()
 const rapport = new Rapport()
 const { app, win } = await lancerHexa({ profil: 's2' })
-await etatDeDepart(win, { handwriting: true, fadeDelay: null, size: 5, smartShapes: false })
+// Correcteur lexical COUPÉ : cette campagne-ci mesure la lecture des LETTRES.
+// Le lexique, lui, réécrit le mot entier (« SYNDRA » → « Syndra ») et a sa
+// propre campagne (test/e2e/s3-lexique.mjs).
+await etatDeDepart(win, {
+  handwriting: true,
+  fadeDelay: null,
+  size: 5,
+  smartShapes: false,
+  lexicon: false,
+})
 await win.evaluate(HOOK)
 
 if (veut('mots')) {

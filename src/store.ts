@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { ToolId } from './engine/types'
 import { GRID_MODES, type GridMode, type StageClock, type StageNote } from './engine/stream-fx'
 import { OBS_DEFAULT_PORT, type ObsMode } from './obs/protocol'
+import { CATEGORIES_DEFAUT, type CategorieId } from './engine/handwriting/mots'
 import { DEFAULT_PRESET, type KeymapAction, type KeymapPresetId } from './keymap'
 import {
   DEFAULT_DOCK,
@@ -85,6 +86,17 @@ export interface UiState extends ObsSettings {
    * ou d'un bouton, au moment où l'on veut écrire — et se coupe pareil.
    */
   handwriting: boolean
+  /**
+   * Correcteur lexical du mode écriture : à la fin d'un mot, la suite de
+   * lettres lues est confrontée au lexique embarqué, et « SYNDRA » devient
+   * « Syndra ». ACTIVÉ par défaut — c'est ce qui rend le mode écriture
+   * utilisable en live, et il s'abstient dès qu'il doute (§ lexique.ts).
+   */
+  lexicon: boolean
+  /** catégories du lexique effectivement chargées */
+  lexiconCategories: CategorieId[]
+  /** mots ajoutés par l'utilisateur : pseudos, équipes, jargon maison */
+  lexiconWords: string[]
   /** identifiant du thème visuel (8 designs) */
   theme: string
   /** la séquence de découverte a déjà été jouée (premier lancement seulement) */
@@ -118,6 +130,18 @@ export interface UiState extends ObsSettings {
    * null = on suit la décision d'Electron (écran de droite en multi-écrans).
    */
   toolbarDisplayId: number | null
+  /**
+   * Masquer l'interface de Hexa dans les captures (§S11).
+   *
+   * ACTIVÉ PAR DÉFAUT, et c'est le réglage le plus important pour un streamer :
+   * la barre d'outils, les panneaux, les bandeaux d'état et le curseur vivent
+   * dans une SECONDE fenêtre, que Windows sait exclure de toute capture
+   * (WDA_EXCLUDEFROMCAPTURE). Ils restent parfaitement visibles sur l'écran de
+   * l'utilisateur et disparaissent d'OBS, de Discord et des impressions
+   * d'écran. Les ANNOTATIONS, elles, restent toujours capturées : ce sont
+   * elles que les spectateurs doivent voir.
+   */
+  hideUiFromCapture: boolean
   /** preset de raccourcis actif (Epic Pen par défaut, ou clavier maison Hexa) */
   keymapPreset: KeymapPresetId
   /** l'utilisateur a choisi son preset lui-même : on ne le lui reprend jamais */
@@ -127,11 +151,17 @@ export interface UiState extends ObsSettings {
   /**
    * Raccourcis CONFISQUÉS au système entier (actifs même sans le focus).
    *
-   * DÉSACTIVÉ PAR DÉFAUT, et ce n'est pas un détail : RegisterHotKey de Windows
-   * est exclusif. Tant que Hexa tenait Ctrl+E et Ctrl+H, plus aucune autre
-   * application ne les recevait — impossible de mettre en pause sur YouTube ou
-   * dans VLC en commentant une vidéo. F8 et la touche panique restent globaux
-   * en permanence (ALWAYS_GLOBAL) : ce sont les seuls indispensables.
+   * ACTIVÉ PAR DÉFAUT : c'est la demande centrale du projet — « les raccourcis
+   * Epic Pen par défaut ». Un raccourci qui n'agit que lorsque la fenêtre d'Hexa
+   * a le focus ne sert à rien quand on annote PAR-DESSUS un jeu : appuyer sur
+   * Ctrl+Maj+3 doit sortir le stylo pendant qu'on joue, sans étape préalable.
+   *
+   * Le garde-fou n'est pas cet interrupteur, il est dans la table : RegisterHotKey
+   * de Windows étant exclusif, `NEVER_GLOBAL` (src/keymap.ts) interdit de voler
+   * au système les combinaisons universelles — Ctrl+Z, Ctrl+C… et Ctrl+E et
+   * Ctrl+H, qui appartiennent au navigateur et à VLC. Ce qui part réellement au
+   * système, ce sont les Ctrl+Maj+2…8, F8 et la touche panique, qu'aucun autre
+   * logiciel n'utilise.
    */
   globalShortcutsOn: boolean
   /** true dès que l'utilisateur a lui-même touché à l'interrupteur ci-dessus :
@@ -159,6 +189,9 @@ export interface UiState extends ObsSettings {
   toggleGuides: () => void
   toggleLinkBadges: () => void
   toggleHandwriting: () => void
+  toggleLexicon: () => void
+  toggleLexiconCategory: (id: CategorieId) => void
+  setLexiconWords: (words: string[]) => void
   setTheme: (theme: string) => void
   setOnboarded: (onboarded: boolean) => void
   setEffectIntensity: (value: number) => void
@@ -180,6 +213,8 @@ export interface UiState extends ObsSettings {
   /** « replacer la barre » : retour au bord gauche, orientation automatique */
   resetToolbarDock: () => void
   setToolbarDisplayId: (id: number | null) => void
+  /** masquer (ou non) l'interface de Hexa dans les captures d'écran */
+  setHideUiFromCapture: (on: boolean) => void
   setKeymapPreset: (preset: KeymapPresetId) => void
   setBinding: (action: KeymapAction, combo: string | null) => void
   resetBinding: (action: KeymapAction) => void
@@ -211,6 +246,9 @@ export const useUiStore = create<UiState>()(
       guides: true,
       linkBadges: true,
       handwriting: false,
+      lexicon: true,
+      lexiconCategories: [...CATEGORIES_DEFAUT],
+      lexiconWords: [],
       theme: 'neon-nuit',
       onboarded: false,
       effectIntensity: 1,
@@ -227,11 +265,15 @@ export const useUiStore = create<UiState>()(
       toolbarOffset: DEFAULT_DOCK.offset,
       toolbarOrientation: 'auto',
       toolbarDisplayId: null,
+      // Personne ne devrait avoir à découvrir un interrupteur pour que sa barre
+      // d'outils cesse de partir dans son direct : c'est vrai dès le premier
+      // lancement.
+      hideUiFromCapture: true,
       ...OBS_DEFAULTS,
       keymapPreset: DEFAULT_PRESET,
       keymapPresetChosen: false,
       keymapOverrides: {},
-      globalShortcutsOn: false,
+      globalShortcutsOn: true,
       globalShortcutsChosen: false,
       profileId: DEFAULT_PROFILE_ID,
       customProfiles: [],
@@ -252,6 +294,14 @@ export const useUiStore = create<UiState>()(
       toggleGuides: () => set((s) => ({ guides: !s.guides })),
       toggleLinkBadges: () => set((s) => ({ linkBadges: !s.linkBadges })),
       toggleHandwriting: () => set((s) => ({ handwriting: !s.handwriting })),
+      toggleLexicon: () => set((s) => ({ lexicon: !s.lexicon })),
+      toggleLexiconCategory: (id) =>
+        set((s) => ({
+          lexiconCategories: s.lexiconCategories.includes(id)
+            ? s.lexiconCategories.filter((c) => c !== id)
+            : [...s.lexiconCategories, id],
+        })),
+      setLexiconWords: (words) => set({ lexiconWords: words }),
       setTheme: (theme) => set({ theme }),
       setOnboarded: (onboarded) => set({ onboarded }),
       setEffectIntensity: (value) =>
@@ -288,6 +338,7 @@ export const useUiStore = create<UiState>()(
           toolbarVisible: true,
         }),
       setToolbarDisplayId: (toolbarDisplayId) => set({ toolbarDisplayId }),
+      setHideUiFromCapture: (hideUiFromCapture) => set({ hideUiFromCapture }),
 
       // ---- raccourcis clavier (source de vérité : src/keymap.ts) ----
       // Choisir son preset est un acte volontaire : on le mémorise pour ne
@@ -361,6 +412,9 @@ export const useUiStore = create<UiState>()(
         guides: s.guides,
         linkBadges: s.linkBadges,
         handwriting: s.handwriting,
+        lexicon: s.lexicon,
+        lexiconCategories: s.lexiconCategories,
+        lexiconWords: s.lexiconWords,
         theme: s.theme,
         onboarded: s.onboarded,
         effectIntensity: s.effectIntensity,
@@ -373,6 +427,7 @@ export const useUiStore = create<UiState>()(
         toolbarOffset: s.toolbarOffset,
         toolbarOrientation: s.toolbarOrientation,
         toolbarDisplayId: s.toolbarDisplayId,
+        hideUiFromCapture: s.hideUiFromCapture,
         // réglages OBS (le mot de passe reste strictement local, comme le reste
         // du store : aucune télémétrie, aucun envoi, aucun journal)
         obsMirror: s.obsMirror,
@@ -425,12 +480,15 @@ export const useUiStore = create<UiState>()(
       merge: (persisted, current) => {
         const merged = { ...current, ...((persisted ?? {}) as Partial<UiState>) }
         if (merged.keymapPresetChosen !== true) merged.keymapPreset = DEFAULT_PRESET
-        // Les premières versions confisquaient les raccourcis au système entier,
-        // ce qui privait YouTube et VLC de Ctrl+E et Ctrl+H. On rend les touches
-        // une bonne fois aux installations existantes ; si l'utilisateur
-        // réactive l'option ensuite, son choix est marqué et jamais réécrasé.
+        // Même règle que pour le preset : le défaut du moment s'applique TANT
+        // QUE l'utilisateur n'a pas actionné l'interrupteur lui-même. Une
+        // installation existante récupère donc les raccourcis Epic Pen actifs
+        // en jeu, et un « non » explicite n'est jamais réécrasé. Ce qui protégeait
+        // vraiment YouTube et VLC — Ctrl+E et Ctrl+H rendus au système — vit
+        // désormais dans NEVER_GLOBAL (src/keymap.ts), donc quel que soit l'état
+        // de cet interrupteur.
         const p = (persisted ?? {}) as Partial<UiState> & { globalShortcutsChosen?: boolean }
-        if (p.globalShortcutsChosen !== true) merged.globalShortcutsOn = false
+        if (p.globalShortcutsChosen !== true) merged.globalShortcutsOn = true
         // Placement de la barre : un état écrit par une version antérieure (ou
         // trafiqué à la main) ne doit JAMAIS pouvoir envoyer la barre hors champ.
         // Le bornage à l'écran réel est fait au rendu ; ici on garantit juste

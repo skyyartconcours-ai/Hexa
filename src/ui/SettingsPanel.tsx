@@ -13,10 +13,15 @@
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { SessionExport } from '../engine/types'
+// `isElectron` est déjà calculé localement plus bas dans ce fichier.
+import { bridge, type ProtectionCapture } from '../bridge'
 import { FADE_STEPS, useUiStore } from '../store'
 import { THEMES } from '../themes'
+import { CATEGORIES } from '../engine/handwriting/mots'
+import { tailleLexique } from '../engine/handwriting/lexique'
 import { KeymapEditor } from './KeymapEditor'
 import { ProfilesPanel } from './ProfilesPanel'
+import { EDGE_LABELS } from './toolbar-dock'
 import { recorder, queueReplay } from '../replay/recorder'
 import {
   download,
@@ -147,7 +152,20 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
   const setEffectIntensity = useUiStore((s) => s.setEffectIntensity)
   const arrowPulse = useUiStore((s) => s.arrowPulse)
   const toggleArrowPulse = useUiStore((s) => s.toggleArrowPulse)
+  const lexicon = useUiStore((s) => s.lexicon)
+  const toggleLexicon = useUiStore((s) => s.toggleLexicon)
+  const lexiconCategories = useUiStore((s) => s.lexiconCategories)
+  const toggleLexiconCategory = useUiStore((s) => s.toggleLexiconCategory)
+  const lexiconWords = useUiStore((s) => s.lexiconWords)
+  const setLexiconWords = useUiStore((s) => s.setLexiconWords)
+  const toolbarEdge = useUiStore((s) => s.toolbarEdge)
+  const toolbarOrientation = useUiStore((s) => s.toolbarOrientation)
+  const setToolbarDock = useUiStore((s) => s.setToolbarDock)
+  const setToolbarOrientation = useUiStore((s) => s.setToolbarOrientation)
+  const resetToolbarDock = useUiStore((s) => s.resetToolbarDock)
   const setReplayOpen = useUiStore((s) => s.setReplayOpen)
+  const hideUiFromCapture = useUiStore((s) => s.hideUiFromCapture)
+  const setHideUiFromCapture = useUiStore((s) => s.setHideUiFromCapture)
 
   const obsMirror = useUiStore((s) => s.obsMirror)
   const obsMode = useUiStore((s) => s.obsMode)
@@ -159,6 +177,23 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
   const obsWsPassword = useUiStore((s) => s.obsWsPassword)
   const obsClearOnScene = useUiStore((s) => s.obsClearOnScene)
   const setObs = useUiStore((s) => s.setObs)
+
+  /**
+   * Ce que le système a RÉELLEMENT accordé pour la protection de capture. On
+   * demande l'état à l'ouverture du panneau : promettre une invisibilité qui
+   * n'existe pas serait le pire service à rendre à quelqu'un en direct.
+   */
+  const [protection, setProtection] = useState<ProtectionCapture | null>(null)
+  useEffect(() => {
+    if (!isElectron) return
+    let vivant = true
+    void bridge.setProtectionCapture(useUiStore.getState().hideUiFromCapture).then((r) => {
+      if (vivant) setProtection(r)
+    })
+    return () => {
+      vivant = false
+    }
+  }, [])
 
   const panelRef = useRef<HTMLElement | null>(null)
   const [scale, setScale] = useState<PngScale>(2)
@@ -443,6 +478,159 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
                 on={arrowPulse}
                 onChange={toggleArrowPulse}
               />
+            </div>
+          </Section>
+
+          {/* ---------------- Écriture manuscrite (§S3) ---------------- */}
+          <Section
+            title="Écriture manuscrite"
+            hint="En mode écriture (touche J), chaque capitale tracée est reconnue et retracée. À la fin du mot, le lexique le devine et rétablit son orthographe : « SYNDRA » devient « Syndra », « KAISA » devient « Kai'Sa »."
+          >
+            <Switch
+              label="Corriger les mots avec le lexique"
+              hint="En cas de doute, le mot est laissé tel qu'il a été lu : jamais de correction hasardeuse en plein direct."
+              on={lexicon}
+              onChange={toggleLexicon}
+            />
+
+            <div className="hx-field">
+              <div className="hx-field-text">
+                <b>Vocabulaires chargés</b>
+                <i>
+                  {lexicon
+                    ? `${tailleLexique({ actif: true, categories: lexiconCategories, perso: lexiconWords })} mots reconnus.`
+                    : 'Le correcteur est éteint.'}
+                </i>
+              </div>
+            </div>
+
+            <div className="hx-grid2">
+              {CATEGORIES.map((c) => (
+                <Switch
+                  key={c.id}
+                  label={c.nom}
+                  hint={c.id === 'perso' ? `${lexiconWords.length} mot(s) à vous.` : c.detail}
+                  on={lexiconCategories.includes(c.id)}
+                  onChange={() => toggleLexiconCategory(c.id)}
+                />
+              ))}
+            </div>
+
+            <label className="hx-labeled">
+              <span>Mes mots — un par ligne (pseudos, équipes, jargon)</span>
+              <textarea
+                className="hx-input hx-area"
+                rows={4}
+                spellCheck={false}
+                placeholder={'Caps\nKarmine\nDouble kill'}
+                value={lexiconWords.join('\n')}
+                onChange={(e) =>
+                  setLexiconWords(
+                    e.target.value
+                      .split('\n')
+                      .map((w) => w.trim())
+                      .filter((w) => w.length > 0),
+                  )
+                }
+              />
+            </label>
+          </Section>
+
+          {/* ---------------- Barre d'outils (§S4) ---------------- */}
+          <Section
+            title="Barre d'outils"
+            hint="Sur deux écrans, la barre ne vit que sur celui de droite, collée à son bord gauche : à portée de souris, jamais par-dessus ce que les spectateurs regardent."
+          >
+            <div className="hx-field">
+              <div className="hx-field-text">
+                <b>Orientation</b>
+                <i>
+                  « Automatique » suit le bord d'ancrage : verticale à gauche et à droite,
+                  horizontale en haut et en bas.
+                </i>
+              </div>
+              <Segmented
+                options={['auto', 'vertical', 'horizontal'] as const}
+                value={toolbarOrientation}
+                onChange={(v) => setToolbarOrientation(v)}
+                render={(v) =>
+                  v === 'auto' ? 'Automatique' : v === 'vertical' ? 'Verticale' : 'Horizontale'
+                }
+              />
+            </div>
+
+            <div className="hx-field">
+              <div className="hx-field-text">
+                <b>Bord d'ancrage</b>
+                <i>
+                  On peut aussi saisir la barre par son logo et la faire glisser : elle s'aimante
+                  au bord le plus proche.
+                </i>
+              </div>
+              <Segmented
+                options={['left', 'top', 'bottom', 'right'] as const}
+                value={toolbarEdge}
+                onChange={(v) => setToolbarDock(v, 0.5)}
+                render={(v) => EDGE_LABELS[v]}
+              />
+            </div>
+
+            <div className="hx-field">
+              <div className="hx-field-text">
+                <b>Replacer la barre</b>
+                <i>
+                  Retour au bord gauche, à mi-hauteur, et barre visible. À utiliser si elle a fini
+                  hors champ — un écran débranché, une résolution divisée par deux. La même
+                  commande existe dans le menu de l'icône près de l'horloge.
+                </i>
+              </div>
+              <button className="hx-btn" onClick={resetToolbarDock}>
+                Replacer
+              </button>
+            </div>
+          </Section>
+
+          {/* ---------------- Direct et captures (§S11) ---------------- */}
+          <Section
+            title="Direct et captures"
+            hint="Hexa affiche deux couches : tes ANNOTATIONS, que tes spectateurs doivent voir, et l'INTERFACE (barre, panneaux, curseur), qui ne regarde que toi."
+          >
+            <Switch
+              label="Masquer l'interface de Hexa dans les captures"
+              hint="Barre d'outils, panneaux, bandeaux d'état et curseur restent parfaitement visibles sur ton écran, mais disparaissent d'OBS, du partage d'écran Discord et des impressions d'écran. Tes annotations, elles, restent toujours visibles pour tes spectateurs."
+              on={hideUiFromCapture}
+              onChange={() => {
+                const on = !hideUiFromCapture
+                setHideUiFromCapture(on)
+                if (isElectron) void bridge.setProtectionCapture(on).then(setProtection)
+              }}
+            />
+            <div className="hx-note">
+              {!isElectron ? (
+                <>
+                  Démo navigateur : les deux couches cohabitent dans la même page. Le masquage
+                  n'existe que dans l'application Hexa.
+                </>
+              ) : protection && !protection.supporte ? (
+                <>
+                  <b>Sans effet sur cette plateforme</b> ({protection.plateforme}) : ton système ne
+                  sait pas exclure une fenêtre des captures, l'interface y restera donc visible.
+                  Sous Windows 10 (2004 et au-delà) et sur macOS, elle disparaît réellement.
+                </>
+              ) : hideUiFromCapture ? (
+                <>
+                  <b>Actif</b> : la fenêtre d'interface est exclue des captures. Restent visibles
+                  dans ton direct — et c'est voulu — tes traits, flèches, formes et textes, le
+                  spotlight, le gel d'image, les masques flous, la grille, les chronos et les notes
+                  posées à l'écran.
+                </>
+              ) : (
+                <>
+                  <b>Désactivé</b> : ta barre d'outils et tes panneaux repartent dans le direct,
+                  exactement comme n'importe quelle fenêtre. À n'utiliser que si tu veux justement
+                  montrer l'interface (tutoriel, démonstration de Hexa).
+                </>
+              )}
             </div>
           </Section>
 

@@ -21,10 +21,15 @@ export default defineConfig({
     target: 'es2022',
     outDir: 'dist',
     rollupOptions: {
-      // Deux pages : l'overlay (index.html) et la vue browser source OBS
-      // (obs.html), qui partagent le même moteur de rendu (brief §10.2).
+      // Trois pages :
+      //  - index.html : la couche ENCRE (canvas d'annotation), capturée par OBS ;
+      //  - ui.html    : la couche INTERFACE (barre, panneaux, curseur), exclue
+      //                 des captures par le processus principal (§S11) ;
+      //  - obs.html   : la vue browser source OBS (brief §10.2).
+      // Les trois partagent le même moteur de rendu et le même store.
       input: {
         main: at('./index.html'),
+        ui: at('./ui.html'),
         obs: at('./obs.html'),
       },
     },

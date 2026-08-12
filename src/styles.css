@@ -322,10 +322,18 @@ button {
   transform: translateY(0) scale(0.96);
 }
 
+/* L'ICÔNE N'EST JAMAIS PEINTE EN --accent PUR.
+   `--accent` est la COULEUR D'ENCRE choisie par l'utilisateur : sur un thème
+   clair, l'encre blanche (touche 7) donnait un glyphe blanc sur une pastille
+   blanche — contraste mesuré 1,00:1, le pinceau devenait un disque vide et le
+   coach ne savait plus quel outil était armé. Le glyphe est donc toujours la
+   couleur de TEXTE du thème teintée d'accent (≥ 3:1 partout, minimum WCAG pour
+   un composant d'interface), et c'est l'ANNEAU qui porte l'accent pur. */
 .tbtn.active {
-  color: var(--accent, var(--logo-a));
+  color: color-mix(in srgb, var(--accent, var(--logo-a)) 42%, var(--text-1));
   background: color-mix(in srgb, var(--accent, var(--logo-a)) 14%, transparent);
-  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent, var(--logo-a)) 70%, transparent));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent, var(--logo-a)) 62%, transparent);
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent, var(--logo-a)) 40%, transparent));
 }
 
 .tbtn.danger:hover {
@@ -445,10 +453,18 @@ button {
 
 /* ---------- indicateur discret de changement d'outil (brief §9.6) ---------- */
 
+/* `--hexa-tb-bas` est publiée par la barre elle-même (src/ui/Toolbar.tsx) :
+   c'est la place qu'elle occupe RÉELLEMENT en bas de l'écran, mesurée par le
+   ResizeObserver qui la replace déjà. Le `bottom: 92px` en dur qu'il y avait ici
+   était calé sur une barre d'un seul rang (26 + 60 px) : dès qu'elle se repliait
+   sur deux rangs — c'est-à-dire dès 1600 px de large — l'indicateur tombait
+   DEDANS et masquait quatre pastilles de couleur sur sept, à chaque changement
+   d'outil. Hors ancrage bas, la variable vaut 0 et l'indicateur reprend sa place
+   basse habituelle. */
 .tool-indicator {
   position: fixed;
   left: 50%;
-  bottom: 92px;
+  bottom: calc(var(--hexa-tb-bas, 0px) + 40px);
   transform: translateX(-50%);
   padding: 6px 14px;
   border-radius: 999px;
@@ -541,6 +557,29 @@ body.passthrough .cursor-dot {
 
 /* le curseur custom disparaît au-dessus de l'UI */
 body.over-ui .cursor-dot {
+  opacity: 0 !important;
+}
+
+/* ============================================================
+   §S11 — DEUX FENÊTRES : encre (capturée) et interface (invisible
+   dans les captures). Voir src/couches.ts.
+   ============================================================ */
+
+/* LA RAISON D'ÊTRE DE LA SÉPARATION : dans la fenêtre d'interface, la barre
+   reste affichée même quand la souris est rendue au jeu. Elle ne part plus dans
+   le direct, donc plus rien n'oblige à la faire disparaître — et le streamer
+   garde en permanence sous les yeux l'outil, la couleur et le mode actifs.
+   (Elle n'est cliquable qu'au survol : ui/interactivite.ts.) */
+body.hexa-interface.passthrough .toolbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Le curseur personnalisé est repris par la fenêtre d'interface : celui du
+   moteur s'efface — mais UNIQUEMENT sur l'écran qui porte la barre, seul écran
+   où la fenêtre d'interface est affichée. Sur les autres écrans, le moteur
+   garde le sien : mieux vaut un curseur visible à l'antenne que pas de curseur. */
+body.hexa-encre.barre-hote .cursor-dot {
   opacity: 0 !important;
 }
 
@@ -798,8 +837,9 @@ body.over-ui .cursor-dot {
 .fx-toast {
   position: absolute;
   left: 50%;
-  /* au-dessus de l'indicateur d'outil (bottom ~90 px), jamais par-dessus */
-  bottom: 150px;
+  /* toujours AU-DESSUS de l'indicateur d'outil, quelle que soit la place prise
+     par la barre en bas de l'écran (voir `--hexa-tb-bas`) */
+  bottom: calc(var(--hexa-tb-bas, 0px) + 110px);
   transform: translate(-50%, 10px);
   max-width: 460px;
   padding: 10px 16px;
@@ -977,10 +1017,14 @@ body.passthrough .fx-toast {
   padding: 2px 6px 3px;
 }
 
-/* Deux colonnes : seize outils en une colonne, c'est 700 px de haut. */
+/* TROIS colonnes. Seize outils en une colonne font 700 px de haut, en deux
+   colonnes la barre frôle encore le bas d'un 1080p une fois les couleurs, le
+   fondu, les chronos et l'édition empilés dessous. À trois, l'ensemble tient
+   largement — y compris sur un portable 900 px — et la barre reste un ruban
+   étroit d'environ 130 px. */
 .toolbar.vertical .group {
   display: grid;
-  grid-template-columns: repeat(2, auto);
+  grid-template-columns: repeat(3, auto);
   justify-content: center;
   align-items: center;
   gap: 4px;
@@ -996,18 +1040,31 @@ body.passthrough .fx-toast {
   height: var(--tb-icon);
 }
 
-/* Un bouton seul sur sa ligne (fondu, gel…) reste centré au lieu de coller
-   à gauche : la colonne resterait visiblement bancale. */
+/* Un bouton seul sur sa ligne reste centré au lieu de coller à gauche : la
+   colonne aurait l'air bancale. Deux cas : le groupe n'a qu'un bouton, ou le
+   dernier bouton ouvre une nouvelle rangée à lui tout seul (seize outils sur
+   trois colonnes : le seizième). */
 .toolbar.vertical .group > *:only-child {
   grid-column: 1 / -1;
   justify-self: center;
 }
 
+/* `:not(:has(.chip))` : dans le groupe du fondu, la pastille « 4s / ∞ » occupe
+   déjà une rangée entière. Y compter les cellules à partir du premier enfant
+   décalerait tout et ouvrirait un trou au milieu de la grille. */
+.toolbar.vertical .group:not(:has(.chip)) > *:last-child:nth-child(3n + 1) {
+  grid-column: 2;
+}
+
+/* La pastille du fondu (« 4s », « ∞ ») est plus large qu'un bouton : elle
+   prend la ligne entière au lieu d'élargir toute la colonne. */
 .toolbar.vertical .tbtn.chip {
-  width: 100%;
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: auto;
   justify-content: center;
-  padding: 0 6px;
-  gap: 4px;
+  padding: 0 10px;
+  gap: 5px;
 }
 
 /* Le séparateur se couche : c'est le signe le plus lisible que la barre a
@@ -1020,7 +1077,7 @@ body.passthrough .fx-toast {
 }
 
 .toolbar.vertical .swatches {
-  grid-template-columns: repeat(2, auto);
+  grid-template-columns: repeat(3, auto);
   gap: 5px 8px;
   padding: 1px 0;
 }
@@ -1045,16 +1102,14 @@ body.passthrough .fx-toast {
   padding: 2px 0;
 }
 
-.toolbar.vertical .size-group input[type='range'] {
-  width: calc(var(--tb-size) * 2 + 4px);
-}
-
+.toolbar.vertical .size-group input[type='range'],
 .toolbar.vertical .vol-group input[type='range'] {
-  width: calc(var(--tb-size) * 2 + 4px);
+  width: calc(var(--tb-size) * 3 + 8px);
 }
 
-/* Écran court : on resserre plutôt que de faire défiler. */
-@media (max-height: 1000px) {
+/* Écran court (portable 900 px, thème aux gros boutons) : on resserre plutôt
+   que de faire défiler. Le défilement interne reste le dernier recours. */
+@media (max-height: 900px) {
   .toolbar {
     --tb-size: 31px;
     --tb-icon: 17px;
@@ -1062,17 +1117,17 @@ body.passthrough .fx-toast {
 
   .toolbar.vertical {
     row-gap: 5px;
-    padding: 7px 7px;
+    padding: 7px;
   }
 
   .toolbar.vertical .swatch {
-    transform: scale(0.86);
+    transform: scale(0.88);
   }
 }
 
-@media (max-height: 820px) {
+@media (max-height: 760px) {
   .toolbar {
-    --tb-size: 28px;
+    --tb-size: 27px;
     --tb-icon: 15px;
   }
 
@@ -1152,6 +1207,15 @@ body.passthrough .fx-toast {
 /* En VERTICAL il y a la place : « Pinceau (Ctrl + Maj + 3) » en toutes lettres
    à côté de l'icône. On garde les deux colonnes — passer à une seule ferait
    déborder la barre par le bas. */
+/* Les lignes deviennent LARGES : on repasse donc à deux colonnes, et on les
+   raccourcit (26 px suffisent pour une icône de 15 px et un texte de 10 px).
+   Résultat : la barre s'élargit pendant l'appui, mais ne grandit pas — elle
+   tient toujours dans la hauteur de l'écran. */
+.toolbar.vertical.hints {
+  --tb-size: 26px;
+  --tb-icon: 15px;
+}
+
 .toolbar.vertical.hints .group {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px 5px;
@@ -1168,6 +1232,13 @@ body.passthrough .fx-toast {
   padding: 0 6px;
 }
 
+.toolbar.vertical.hints .tbtn.chip {
+  grid-column: auto;
+  justify-self: stretch;
+  justify-content: flex-start;
+  padding: 0 6px;
+}
+
 .toolbar.vertical.hints .tbtn svg {
   flex: none;
 }
@@ -1181,6 +1252,11 @@ body.passthrough .fx-toast {
 
 .toolbar.vertical.hints .swatches {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 5px;
+}
+
+.toolbar.vertical.hints .swatch {
+  flex: none;
 }
 
 .toolbar.vertical.hints .sep {
@@ -1189,10 +1265,14 @@ body.passthrough .fx-toast {
 
 /* ---- aperçu d'ancrage pendant le déplacement ---- */
 
+/* Au-DESSUS de la barre (z-index 60 contre 50) : pendant le déplacement, savoir
+   où elle va se coller compte plus que voir les quelques pixels qu'elle
+   recouvre. Sinon, lâcher la barre près du bas cacherait justement l'aperçu du
+   bas derrière la barre elle-même. */
 .dock-preview {
   position: fixed;
   inset: 0;
-  z-index: 49;
+  z-index: 60;
   pointer-events: none;
   animation: hintIn 0.14s ease both;
 }
@@ -1200,14 +1280,11 @@ body.passthrough .fx-toast {
 .dock-preview-edge {
   position: absolute;
   border-radius: 999px;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    var(--accent, var(--logo-a)),
-    transparent
-  );
-  box-shadow: 0 0 26px 4px color-mix(in srgb, var(--accent, var(--logo-a)) 55%, transparent);
-  opacity: 0.9;
+  background: var(--accent, var(--logo-a));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent, var(--logo-a)) 45%, transparent),
+    0 0 34px 8px color-mix(in srgb, var(--accent, var(--logo-a)) 60%, transparent);
+  opacity: 0.95;
 }
 
 .dock-preview-word {

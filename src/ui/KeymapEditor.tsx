@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import type { CSSProperties } from 'react'
 import {
   CATEGORY_LABELS,
+  CATEGORY_ORDER,
   KEYMAP_ENTRIES,
   KEYMAP_PRESETS,
   buildLookup,
@@ -29,6 +30,7 @@ import {
   comboSafety,
   findConflicts,
   formatCombo,
+  isNeverGlobal,
   isRegistrableCombo,
   normalizeCombo,
   resolveKeymap,
@@ -48,15 +50,6 @@ function swatchOf(action: KeymapAction): string | null {
   const m = /^color\.([1-7])$/.exec(action)
   return m ? (COLORS[parseInt(m[1], 10) - 1] ?? null) : null
 }
-
-const CATEGORY_ORDER: KeymapCategory[] = [
-  'outils',
-  'momentanes',
-  'couleurs',
-  'edition',
-  'interface',
-  'systeme',
-]
 
 export function KeymapEditor() {
   const keymapPreset = useUiStore((s) => s.keymapPreset)
@@ -247,8 +240,8 @@ export function KeymapEditor() {
           <b>Raccourcis actifs même quand le jeu a le focus</b>
           <i>
             {globalShortcutsOn
-              ? 'Hexa réserve auprès de Windows les combinaisons marquées « global ». C’est indispensable pour annoter par-dessus un jeu.'
-              : 'Seuls le mode dessin et la touche panique restent globaux. Les autres combinaisons redeviennent disponibles pour tes autres logiciels.'}
+              ? 'Actif : Hexa réserve auprès de Windows les combinaisons marquées « global » (Ctrl+Maj+2 à 8, F8, touche panique). C’est ce qui fait marcher tes réflexes Epic Pen pendant que tu joues. Ctrl+E et Ctrl+H, eux, ne sont JAMAIS confisqués : ils restent à ton navigateur et à VLC.'
+              : 'Seuls le mode dessin et la touche panique restent globaux. Tout le reste ne répond que lorsque Hexa a le focus — donc pas pendant que tu joues.'}
           </i>
         </span>
         <span className="kme-global-track">
@@ -286,6 +279,16 @@ export function KeymapEditor() {
                 entry.category === 'systeme' &&
                 combos.length > 0 &&
                 !combos.some(isRegistrableCombo)
+              // Action annoncée « global » mais dont AUCUNE combinaison ne part
+              // au système parce qu'Hexa refuse de la voler aux autres logiciels
+              // (Ctrl+E du navigateur, Ctrl+H de l'historique…). Dire pourquoi,
+              // sinon la pastille grise passe pour une panne.
+              const rendueAuSysteme =
+                entry.global === true &&
+                !registeredAccel &&
+                combos.length > 0 &&
+                combos.some(isNeverGlobal) &&
+                !combos.some(isRegistrableCombo)
               const rowWarning = warning?.action === entry.action ? warning.risk.message : null
               return (
                 <div key={entry.action}>
@@ -312,7 +315,9 @@ export function KeymapEditor() {
                         title={
                           registeredAccel
                             ? `Réservé auprès de Windows (${registeredAccel}) : marche en jeu.`
-                            : 'Actif seulement quand la fenêtre d’Hexa a le focus.'
+                            : rendueAuSysteme
+                              ? 'Laissé à tes autres logiciels : actif quand Hexa a le focus, donc en mode dessin.'
+                              : 'Actif seulement quand la fenêtre d’Hexa a le focus.'
                         }
                       >
                         global
@@ -380,6 +385,13 @@ export function KeymapEditor() {
                     <div className="kme-warn">
                       ⚠ Sans Ctrl, Alt ou une touche F6–F12, ce raccourci ne marchera que si la
                       fenêtre d’Hexa a le focus — pas par-dessus un jeu.
+                    </div>
+                  )}
+                  {!failedAccel && rendueAuSysteme && globalShortcutsOn && (
+                    <div className="kme-warn">
+                      ⚠ {formatCombo(combos[0])} appartient à tes autres logiciels (navigateur,
+                      VLC…) : Hexa refuse de la leur confisquer. Elle marche en mode dessin. Pour
+                      nettoyer l’écran pendant que le jeu a le focus, c’est la touche panique.
                     </div>
                   )}
                 </div>

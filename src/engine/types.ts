@@ -44,6 +44,12 @@ export interface StrokePoint {
 
 export type DyingMode = 'dissolve' | 'pop'
 
+/** Pourquoi ce trait est en train de mourir. Sert au rattrapage : rallonger
+ *  le fondu automatique doit SAUVER un trait qui s'efface (« non, garde ça à
+ *  l'écran ! »), sans jamais ressusciter ce que la gomme ou la touche panique
+ *  viennent d'emporter. */
+export type DyingCause = 'fade' | 'panic' | 'erase'
+
 export interface Stroke {
   id: number
   tool: StrokeTool
@@ -76,7 +82,7 @@ export interface Stroke {
   slant?: number
   /** timestamp auquel le trait commence à se dissoudre (mode fade auto) */
   dieAt?: number
-  dying?: { start: number; duration: number; mode: DyingMode }
+  dying?: { start: number; duration: number; mode: DyingMode; cause?: DyingCause }
   /** animation d'apparition (flèches : draw-on, formes : morph…)
    *  kind 'head' : le fût est déjà posé, seule la pointe éclot */
   anim?: { start: number; duration: number; kind?: 'draw' | 'head' }

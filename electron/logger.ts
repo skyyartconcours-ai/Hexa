@@ -29,6 +29,18 @@ let fatalShown = false
 /** L'interface s'est-elle affichée au moins une fois ? */
 let started = false
 
+/**
+ * Comment prévenir l'utilisateur SANS bloquer, une fois l'application lancée.
+ * Injecté par le processus principal (bandeau natif de welcome.ts) plutôt
+ * qu'importé : le journal ne doit dépendre d'aucun autre module.
+ */
+let notifier: ((titre: string, explication: string) => void) | null = null
+
+/** Branche le bandeau non bloquant utilisé après le démarrage. */
+export function setFatalNotifier(fn: (titre: string, explication: string) => void): void {
+  notifier = fn
+}
+
 function stamp(): string {
   const d = new Date()
   const p = (n: number, w = 2) => String(n).padStart(w, '0')
@@ -138,9 +150,25 @@ export function logFailure<T>(scope: string, message: string, promise: Promise<T
 /**
  * Panne fatale : une VRAIE boîte de dialogue en français, avec l'emplacement du
  * journal. Mille fois mieux qu'une fenêtre vide et silencieuse.
+ *
+ * ⚠️ `dialog.showErrorBox` est BLOQUANT : il arrête la boucle d'événements du
+ * processus principal jusqu'au clic de l'utilisateur. Au démarrage c'est ce
+ * qu'on veut (rien d'autre ne tourne encore, et il faut absolument être lu).
+ * Une fois Hexa lancé, ce serait un piège mortel : la boîte s'ouvre DERRIÈRE le
+ * jeu en plein écran fenêtré, invisible, pendant que l'icône près de l'horloge,
+ * les raccourcis globaux et le menu « Quitter » sont gelés — plus aucune sortie.
+ * Après `markStarted()`, on passe donc par le bandeau non bloquant.
  */
 export function fatalDialog(titre: string, explication: string): void {
   logError('fatal', `${titre} — ${explication}`)
+  if (started && notifier) {
+    try {
+      notifier(titre, explication)
+    } catch {
+      /* le bandeau ne doit jamais aggraver une panne */
+    }
+    return
+  }
   if (fatalShown) return
   fatalShown = true
   const ou = filePath || '(journal indisponible)'

@@ -15,6 +15,7 @@
  * qui n'est appelé que pendant que la rAF du moteur tourne (§2.5, §13).
  */
 import type { SessionExport, Stroke } from '../engine/types'
+import { coucheSeparee, envoyerCommande, porteEncre, porteInterface } from '../couches'
 import { dissolveDuration } from './paint'
 
 /** Au-delà, on oublie les plus vieux traits : une session de stream reste bornée. */
@@ -177,6 +178,17 @@ let queued: SessionExport | null = null
 
 export function queueReplay(session: SessionExport | null): void {
   queued = session
+  /**
+   * §S11 — la barre de rejeu et l'enregistreur vivent avec le MOTEUR, dans la
+   * couche encre : un rejeu se regarde, donc il doit passer à l'antenne comme
+   * n'importe quelle annotation. Quand la demande vient du panneau de réglages,
+   * qui est dans l'autre fenêtre, on transmet la session AVANT que l'ouverture
+   * de la barre ne soit diffusée — l'ordre des messages est garanti, donc la
+   * barre trouve bien son fichier en arrivant.
+   */
+  if (coucheSeparee && porteInterface && !porteEncre && session) {
+    envoyerCommande({ nom: 'replay-queue', session })
+  }
 }
 
 /** Récupère (et consomme) la session en attente, sinon null. */

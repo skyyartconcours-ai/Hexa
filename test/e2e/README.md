@@ -36,6 +36,7 @@ Sections disponibles : `demarrage`, `outils`, `mecaniques`, `panneaux`,
 ```bash
 node test/e2e/s9-windows.mjs   # robustesse Windows : écrans à chaud, veille, arrêt
 node test/e2e/s9-dpi.mjs       # le trait tombe-t-il sous le curseur à 100/125/150/200 % ?
+node test/e2e/s10-obs.mjs      # la chaîne OBS : le trait arrive-t-il en stream, et personne d'autre ne l'écoute
 ```
 
 `s9-windows.mjs` émet les **vrais** événements système (`screen`, `powerMonitor`) sur
@@ -47,6 +48,12 @@ de branchement d'affilée (fuites), fermeture sans processus zombie.
 `s9-dpi.mjs` relance l'application pour chaque échelle avec
 `--force-device-scale-factor` et mesure l'écart entre le geste demandé et l'encre
 réellement peinte, en pixels CSS.
+
+`s10-obs.mjs` couvre le seul chemin qui n'était testé nulle part alors qu'il tourne
+à chaque lancement : le serveur local de la source navigateur. Il pose un trait sur
+l'overlay et va compter les pixels **dans la page OBS**, puis vérifie que personne
+d'autre ne peut écouter — jeton de session exigé, iframe « sandbox » (origine
+`null`) et site distant refusés, jeton jamais écrit dans le journal.
 
 Les deux sortent en code 1 si un test casse, et écrivent leurs captures dans
 `captures/s9/`.
@@ -97,6 +104,11 @@ est testé en entier, dans les deux presets.
   englobantes, gestes de souris, écriture manuscrite de test, journal des
   résultats.
 - `hexa-e2e.mjs` — la campagne elle-même, section par section.
+- `s2-ecriture.mjs` — écriture manuscrite : la lecture des LETTRES, une par une
+  (correcteur lexical coupé, pour ne mesurer que la reconnaissance).
+- `s3-lexique.mjs` — écriture manuscrite : la devinette du MOT et sa réécriture
+  (« SYNDRA » → « Syndra », « KAISA » → « Kai'Sa »), et surtout la prudence —
+  un mot absent du lexique ne doit jamais être détourné.
 
 ## Écrire un test de plus
 

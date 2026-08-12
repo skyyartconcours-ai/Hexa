@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import {
   CATEGORY_LABELS,
+  CATEGORY_ORDER,
   KEYMAP_ENTRIES,
   KEYMAP_PRESETS,
   formatCombo,
@@ -23,15 +24,6 @@ import { useUiStore } from '../store'
 import { getGlobalShortcutStatus, subscribeGlobalShortcuts } from '../globalShortcuts'
 import { isElectron } from '../bridge'
 import './shortcuts-sheet.css'
-
-const CATEGORY_ORDER: KeymapCategory[] = [
-  'outils',
-  'momentanes',
-  'couleurs',
-  'edition',
-  'interface',
-  'systeme',
-]
 
 /** Les gestes d'Epic Pen, dans l'ordre où la main les apprend. */
 const ESSENTIALS: { action: KeymapAction; label: string }[] = [

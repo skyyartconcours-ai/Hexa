@@ -33,9 +33,71 @@ export interface BridgeEvents {
    * (§S4.3) : dernier recours quand la barre a fini hors champ.
    */
   'toolbar-reset': () => void
+  /**
+   * Patch d'état d'interface venu de L'AUTRE fenêtre (§S11 — séparation en deux
+   * couches). Le processus principal ne fait que relayer : il ne renvoie jamais
+   * un patch à son émetteur, ce qui interdit la boucle.
+   */
+  sync: (patch: Record<string, unknown>) => void
+  /** État annoncé par la couche encre à la couche interface. */
+  'etat-encre': (message: EtatEncre) => void
+  /** Commande adressée par la couche interface au moteur (couche encre). */
+  commande: (message: CommandeEncre) => void
 }
 
 export type BridgeChannel = keyof BridgeEvents
+
+/**
+ * Ce que la barre d'outils demande au MOTEUR, qui vit désormais dans l'autre
+ * fenêtre. Volontairement minuscule et fermé : un canal de commandes ouvert
+ * serait une porte d'entrée dans le moteur.
+ */
+export type CommandeEncre =
+  | { nom: 'undo' }
+  | { nom: 'redo' }
+  | { nom: 'clear' }
+  | { nom: 'export' }
+  | { nom: 'freeze' }
+  | { nom: 'compare' }
+  /** la roue s'est refermée côté interface : le moteur doit oublier le geste */
+  | { nom: 'radial-close' }
+  /** l'interface réclame un instantané de la session (panneau de réglages) */
+  | { nom: 'session-get' }
+  | { nom: 'session-load'; session: unknown }
+  /**
+   * « Rejouer CE fichier » : la session choisie dans les réglages est mise en
+   * file d'attente du côté du moteur, qui est aussi celui de l'enregistreur et
+   * de la barre de rejeu (§11).
+   */
+  | { nom: 'replay-queue'; session: unknown }
+
+/** Ce que la couche encre annonce à la couche interface. */
+export type EtatEncre =
+  /** gel d'image et comparateur avant/après : les boutons doivent s'allumer */
+  | { quoi: 'fx'; frozen: boolean; compare: boolean }
+  /** clic droit maintenu dans le vide : la roue s'ouvre à ce point */
+  | { quoi: 'radial'; x: number; y: number }
+  /** le geste de la roue continue dans l'autre fenêtre (souris, relâché) */
+  | { quoi: 'radial-move'; x: number; y: number }
+  | { quoi: 'radial-up' }
+  /** un geste vient d'avoir lieu : la découverte guidée valide son étape */
+  | { quoi: 'tour'; signal: string }
+  /** instantané de session, en réponse à { nom: 'session-get' } */
+  | { quoi: 'session'; session: unknown }
+
+/**
+ * Résultat de la demande de protection de contenu, pour le dire HONNÊTEMENT
+ * dans les réglages : promettre une invisibilité qui n'existe pas serait le
+ * pire service à rendre à quelqu'un qui est en direct.
+ */
+export interface ProtectionCapture {
+  /** la protection a réellement été appliquée aux fenêtres d'interface */
+  applique: boolean
+  /** la plateforme sait-elle exclure une fenêtre des captures ? */
+  supporte: boolean
+  /** 'win32' | 'darwin' | 'linux' — pour l'explication affichée */
+  plateforme: string
+}
 
 /** Infos de l'écran porteur : bounds logiques + facteur DPI (§12.3). */
 export interface HexaDisplayInfo {
@@ -66,6 +128,12 @@ export type GlobalShortcuts = Record<string, string>
 export interface HexaBridgeApi {
   /** écran porteur au moment de la création de la fenêtre (null en démo) */
   display: HexaDisplayInfo | null
+  /**
+   * Couche portée par cette fenêtre, déclarée par le processus principal
+   * (§S11) : 'encre', 'interface', ou 'complet' quand les deux cohabitent
+   * (mode fusionné). null en démo navigateur.
+   */
+  couche: string | null
   /** écran porteur relu à l'instant : seule valeur fiable après un changement
    *  de résolution ou de mise à l'échelle Windows */
   displayInfo(): Promise<HexaDisplayInfo | null>
@@ -86,6 +154,26 @@ export interface HexaBridgeApi {
   log(scope: string, message: string): void
   /** emplacement du journal, à montrer à l'utilisateur ('' en démo navigateur) */
   logPath(): Promise<string>
+
+  /* ---- séparation en deux couches (§S11) ---- */
+  /** diffuse un patch d'état d'interface à l'autre fenêtre */
+  pousserSynchro(patch: Record<string, unknown>): void
+  /** la couche interface commande le moteur */
+  envoyerCommande(commande: CommandeEncre): void
+  /** la couche encre annonce un état à l'interface */
+  annoncerEtatEncre(message: EtatEncre): void
+  /**
+   * La fenêtre interface devient cliquable (survol d'un bouton) ou redevient
+   * traversante. Appelé UNIQUEMENT sur changement d'état.
+   */
+  setInterfaceCliquable(value: boolean): void
+  /** un panneau est ouvert : la fenêtre interface accepte la frappe clavier */
+  setInterfaceModale(value: boolean): void
+  /**
+   * Masquer l'interface de Hexa dans les captures (OBS, Discord, impressions
+   * d'écran). Renvoie ce qui a RÉELLEMENT été appliqué.
+   */
+  setProtectionCapture(on: boolean): Promise<ProtectionCapture | null>
 }
 
 declare global {
@@ -98,6 +186,7 @@ export const isElectron = typeof window !== 'undefined' && !!window.hexa
 
 export const bridge: HexaBridgeApi = {
   display: (typeof window !== 'undefined' && window.hexa?.display) || null,
+  couche: (typeof window !== 'undefined' && window.hexa?.couche) || null,
   displayInfo: async () => (window.hexa?.displayInfo ? window.hexa.displayInfo() : null),
   setPassthrough: (v) => window.hexa?.setPassthrough?.(v),
   notifyActivity: (active) => window.hexa?.notifyActivity?.(active),
@@ -109,6 +198,13 @@ export const bridge: HexaBridgeApi = {
     window.hexa?.setShortcuts ? window.hexa.setShortcuts(map) : Promise.resolve(null),
   log: (scope, message) => window.hexa?.log?.(scope, message),
   logPath: async () => (window.hexa?.logPath ? window.hexa.logPath() : ''),
+  pousserSynchro: (patch) => window.hexa?.pousserSynchro?.(patch),
+  envoyerCommande: (commande) => window.hexa?.envoyerCommande?.(commande),
+  annoncerEtatEncre: (message) => window.hexa?.annoncerEtatEncre?.(message),
+  setInterfaceCliquable: (value) => window.hexa?.setInterfaceCliquable?.(value),
+  setInterfaceModale: (value) => window.hexa?.setInterfaceModale?.(value),
+  setProtectionCapture: async (on) =>
+    window.hexa?.setProtectionCapture ? window.hexa.setProtectionCapture(on) : null,
 }
 
 /**

@@ -1,0 +1,16 @@
+{
+  "//": "Vérification de types du PROCESSUS PRINCIPAL. tsconfig.json ne couvre que src/ : electron/ n'était relu par personne (esbuild --bundle ne vérifie aucun type), et une faute de frappe dans main.ts partait droit dans l'installateur. « DOM » est dans lib parce que main.ts partage src/keymap.ts avec la page.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["electron"]
+}

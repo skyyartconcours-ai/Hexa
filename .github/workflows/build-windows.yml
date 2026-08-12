@@ -25,6 +25,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # GARDE-FOU N°1 — le piège le plus bête et le plus coûteux : un fichier
+      # créé en local, jamais « git add », donc absent du dépôt. Le build casse
+      # alors ici, en Release, avec un message illisible (« Could not resolve
+      # entry module »), et PERSONNE n'a de nouvel exécutable. On échoue tôt,
+      # bruyamment, et en français.
+      - name: Vérifier que tout le nécessaire est versionné
+        shell: bash
+        run: |
+          set -u
+          indispensables="index.html ui.html obs.html vite.config.ts tsconfig.json tsconfig.electron.json package.json package-lock.json electron/main.ts electron/preload.ts"
+          manquants=""
+          for f in $indispensables; do
+            git ls-files --error-unmatch "$f" >/dev/null 2>&1 || manquants="$manquants $f"
+          done
+          # Chaque page d'entrée charge un module racine : lui aussi doit être versionné.
+          for page in index.html ui.html obs.html; do
+            [ -f "$page" ] || continue
+            for module in $(grep -o 'src="/src/[^"]*"' "$page" | sed 's/src="\///;s/"//'); do
+              git ls-files --error-unmatch "$module" >/dev/null 2>&1 || manquants="$manquants $module"
+            done
+          done
+          if [ -n "$manquants" ]; then
+            echo "::error::Fichiers indispensables NON VERSIONNÉS :$manquants"
+            {
+              echo "## Fabrication impossible"
+              echo "Ces fichiers sont utilisés par la construction mais absents du dépôt :"
+              echo '```'
+              echo "$manquants"
+              echo '```'
+              echo "Un \`git add\` a été oublié. Aucun installateur n'a été publié."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Tous les fichiers indispensables sont versionnés."
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -35,6 +70,31 @@ jobs:
 
       - name: Fabriquer l'installateur
         run: npm run dist
+
+      # GARDE-FOU N°2 — l'installateur doit CONTENIR les trois pages. Sans
+      # dist/ui.html, Hexa se lance, dessine, mais n'a plus ni barre d'outils,
+      # ni panneaux, ni découverte guidée : un overlay muet, indiscernable d'un
+      # overlay mort. Ça ne doit jamais partir en Release.
+      - name: Vérifier le contenu de l'application
+        shell: bash
+        run: |
+          set -u
+          attendus="dist/index.html dist/ui.html dist/obs.html dist-electron/main.cjs dist-electron/preload.cjs build/icon.png"
+          manquants=""
+          for f in $attendus; do
+            [ -f "$f" ] || manquants="$manquants $f"
+          done
+          if [ -n "$manquants" ]; then
+            echo "::error::Fichiers absents de l'application construite :$manquants"
+            exit 1
+          fi
+          asar="release/win-unpacked/resources/app.asar"
+          if [ -f "$asar" ]; then
+            taille=$(wc -c < "$asar")
+            echo "app.asar : $taille octets"
+            [ "$taille" -gt 500000 ] || { echo "::error::app.asar est anormalement petit ($taille octets)"; exit 1; }
+          fi
+          echo "L'application empaquetée contient bien ses trois pages."
 
       - name: Lister ce qui a été produit
         shell: bash
@@ -64,3 +124,19 @@ jobs:
 
           L'application n'est pas signée numériquement : Windows affichera un avertissement SmartScreen au premier lancement. Cliquer sur « Informations complémentaires » puis « Exécuter quand même »." \
             --latest
+
+      # Sans ça, un échec est SILENCIEUX : personne ne voit passer la panne, et
+      # l'utilisateur attend un exécutable qui ne viendra jamais. Le résumé
+      # s'affiche en haut de la page du workflow (et part par courriel).
+      - name: Expliquer l'échec
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo "## ❌ Aucun installateur n'a été publié"
+            echo ""
+            echo "L'étape **${{ job.status }}** a échoué sur \`${{ github.sha }}\`."
+            echo ""
+            echo "Rien de nouveau n'est disponible au téléchargement : la dernière Release reste celle d'avant."
+            echo "Ouvrir le journal de l'étape en rouge ci-dessus pour la cause exacte."
+          } >> "$GITHUB_STEP_SUMMARY"

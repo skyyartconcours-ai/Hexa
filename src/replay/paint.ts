@@ -14,9 +14,7 @@
 import type { Stroke } from '../engine/types'
 import { renderEmber, renderStroke } from '../engine/render'
 import { clamp, easeInQuad } from '../engine/geometry'
-
-/** durée minimale d'une dissolution — copie de la constante du moteur */
-const DISSOLVE_MIN = 420
+import { emberAt } from '../engine/dissolve'
 
 /** seuls les tracés à main levée se consument en « comète » */
 const COMET_TOOLS = new Set(['pen', 'highlight'])
@@ -32,10 +30,13 @@ export function getFxIntensity(): number {
   return fxIntensity
 }
 
-/** Même formule que le moteur : un trait long met un peu plus de temps à mourir. */
-export function dissolveDuration(s: Stroke): number {
-  return clamp(DISSOLVE_MIN + s.points.length * 2.2, DISSOLVE_MIN, 1200)
-}
+/**
+ * Durée d'une dissolution : LA recette du moteur, pas une copie. Le rejeu,
+ * l'export et la vue OBS doivent faire mourir un trait à la milliseconde où il
+ * meurt chez le streamer — sinon le spectateur voit une annotation persister
+ * après qu'elle a disparu chez le coach.
+ */
+export { dissolveDuration } from '../engine/dissolve'
 
 export interface PaintOptions {
   /** multiplicateur de halo appliqué en plus de l'intensité globale */
@@ -89,8 +90,9 @@ export function paintStrokes(
         const head = !comet
           ? s.points[s.points.length - 1]
           : s.points[Math.min(from, s.points.length - 1)]
-        const r = Math.max(6, s.size * (1.7 + Math.sin(now * 0.02) * 0.35))
-        renderEmber(ctx, head.x, head.y, r, s.color, 1 - p * 0.4)
+        const e = emberAt(p)
+        const r = Math.max(6, s.size * (1.7 + Math.sin(now * 0.02) * 0.35)) * e.scale
+        renderEmber(ctx, head.x, head.y, r, s.color, e.alpha)
       }
     }
   }

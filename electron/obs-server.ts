@@ -11,10 +11,15 @@
  *    sur la boucle locale ne déclenche AUCUNE alerte du pare-feu Windows ;
  *  - en-tête Host vérifié : un site distant qui ferait pointer son domaine sur
  *    127.0.0.1 (attaque dite « DNS rebinding ») se fait renvoyer un 403 ;
- *  - en-tête Origin vérifié : une page web ouverte dans le navigateur du
- *    streamer NE PEUT PAS se brancher sur le WebSocket pour lire ce qu'il
- *    annote (les WebSockets ignorent CORS : sans ce contrôle, n'importe quel
- *    onglet ouvert pourrait écouter) ;
+ *  - JETON DE SESSION obligatoire sur le WebSocket. L'en-tête Origin ne suffit
+ *    PAS : une page web quelconque obtient une origine « null » en trois lignes
+ *    (`<iframe sandbox="allow-scripts">`), et les WebSockets ignorent CORS.
+ *    Sans jeton, n'importe quel onglet ouvert lisait EN DIRECT tout ce que le
+ *    streamer annote. Le jeton est tiré au hasard à chaque lancement, n'apparaît
+ *    que dans l'adresse affichée à l'utilisateur, et un navigateur ne peut pas
+ *    le deviner ni le lire (réponse d'origine croisée = opaque) ;
+ *  - en-tête Origin vérifié en plus : une page servie depuis un vrai site est
+ *    refusée d'emblée, « null » et « file:// » compris ;
  *  - aucun chemin ne sort du dossier servi (remontées « ../ » bloquées) ;
  *  - le seul message entrant accepté est « donne-moi tout » : rien de ce qui
  *    arrive du réseau ne peut piloter Hexa.
@@ -27,7 +32,7 @@
  * PERF : aucune minuterie périodique, aucun « keepalive ». Sur la boucle locale
  * une coupure TCP est vue immédiatement ; au repos ce module ne consomme rien.
  */
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
@@ -46,6 +51,40 @@ const MAX_BACKLOG = 4 * 1024 * 1024
 
 /** Hôtes considérés comme locaux (Host et Origin). */
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]', '0.0.0.0'])
+
+/**
+ * JETON DE SESSION — la seule barrière qu'un navigateur ne peut pas franchir.
+ *
+ * Tiré une fois par lancement de Hexa (jamais écrit sur le disque, jamais
+ * journalisé). Le serveur l'exige sur la requête d'upgrade WebSocket, et il le
+ * remet lui-même à la page qu'il sert, dans `window.__HEXA_OBS_WS` : c'est ce
+ * qui rend le verrou INVISIBLE pour l'utilisateur — l'adresse qu'il colle dans
+ * OBS reste `http://127.0.0.1:4787/obs.html`, rien à comprendre, rien à copier.
+ * Une page hostile, elle, ne peut ni deviner le jeton (128 bits) ni le lire :
+ * la réponse d'une requête d'origine croisée est opaque pour elle, et
+ * `frame-ancestors 'none'` lui interdit même d'encadrer la page.
+ *
+ * Le jeton ne change pas quand le port change : une source OBS déjà configurée
+ * continue de fonctionner tant que Hexa n'a pas été relancé.
+ */
+const SESSION_KEY = randomBytes(16).toString('hex')
+
+/** Le jeton présenté dans l'URL est-il le bon ? (comparaison à temps constant) */
+function keyAllowed(rawUrl: string | undefined): boolean {
+  if (!rawUrl) return false
+  let given: string | null
+  try {
+    given = new URL(rawUrl, 'http://127.0.0.1').searchParams.get('k')
+  } catch {
+    return false
+  }
+  if (typeof given !== 'string' || given.length !== SESSION_KEY.length) return false
+  try {
+    return timingSafeEqual(Buffer.from(given, 'utf8'), Buffer.from(SESSION_KEY, 'utf8'))
+  } catch {
+    return false
+  }
+}
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -105,7 +144,7 @@ let lastError: string | undefined
 let lastFullState: string | null = null
 
 function makeUrl(port: number): string {
-  return `http://127.0.0.1:${port}/obs.html`
+  return `http://127.0.0.1:${port}/obs.html?k=${SESSION_KEY}`
 }
 
 export function obsServerStatus(): ObsServerStatus {
@@ -140,17 +179,20 @@ function hostAllowed(raw: string | undefined): boolean {
 }
 
 /**
- * Vrai si l'Origin est locale, absente (client natif : script de test, OBS qui
- * n'en envoie pas) ou opaque (« null », fichier local — cas d'une browser
- * source pointée sur un fichier). Tout le reste, c'est un site web : refusé.
+ * Vrai si l'Origin est locale ou absente (une navigation ordinaire n'envoie pas
+ * d'Origin : c'est le cas de la source navigateur d'OBS qui ouvre la page).
+ *
+ * ⚠️ « null » et « file:// » NE SONT PLUS ACCEPTÉS. C'était la faille :
+ * `<iframe sandbox="allow-scripts">` donne à n'importe quel site une origine
+ * « null », donc un laissez-passer. L'accès aux annotations ne repose de toute
+ * façon plus sur ce seul contrôle — voir SESSION_KEY.
  */
 function originAllowed(raw: string | undefined): boolean {
   if (!raw) return true
   const origin = raw.trim().toLowerCase()
-  if (origin === 'null' || origin === 'file://') return true
   try {
     const u = new URL(origin)
-    if (u.protocol === 'file:') return true
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return false
     return LOCAL_HOSTS.has(u.hostname)
   } catch {
     return false
@@ -358,7 +400,7 @@ function notBuiltPage(port: number): string {
     `<h1 style="font-size:18px">Vue OBS d'Hexa — page non construite</h1>` +
     `<p>Le serveur tourne bien sur <b>127.0.0.1:${port}</b>, mais <code>dist/obs.html</code> n'existe pas.</p>` +
     `<p>Lance <code>npm run build</code> une fois, ou pointe la source navigateur sur le serveur de développement :<br>` +
-    `<code>http://localhost:5173/obs.html?ws=ws://127.0.0.1:${port}</code></p></body>`
+    `<code>http://localhost:5173/obs.html?ws=ws://127.0.0.1:${port}/?k=${SESSION_KEY}</code></p></body>`
   )
 }
 
@@ -401,11 +443,28 @@ function serveStatic(req: IncomingMessage, res: ServerResponse, root: string, po
   }
 
   if (ext === '.html') {
-    // On injecte l'adresse du WebSocket : la page n'a rien à deviner.
+    // On injecte l'adresse du WebSocket, JETON COMPRIS : la page n'a rien à
+    // deviner, et le jeton ne traverse jamais autre chose que la boucle locale.
     let html = readFileSync(target, 'utf8')
-    const tag = `<script>window.__HEXA_OBS_WS=${JSON.stringify(`ws://127.0.0.1:${port}`)}</script>`
+    // Ce petit script est le SEUL script en ligne de la page : il porte un nonce
+    // tiré à chaque réponse, ce qui permet une politique de sécurité stricte
+    // sans « unsafe-inline » (une injection future n'aurait pas le nonce).
+    const nonce = randomBytes(16).toString('base64')
+    const ws = `ws://127.0.0.1:${port}/?k=${SESSION_KEY}`
+    const tag = `<script nonce="${nonce}">window.__HEXA_OBS_WS=${JSON.stringify(ws)}</script>`
     html = html.includes('</head>') ? html.replace('</head>', `${tag}</head>`) : tag + html
-    res.writeHead(200, { 'content-type': type, ...common })
+    res.writeHead(200, {
+      'content-type': type,
+      ...common,
+      // Défense en profondeur : cette page ne charge QUE ses propres fichiers,
+      // ne parle qu'au serveur local, et ne peut pas être encadrée par un site.
+      'content-security-policy':
+        `default-src 'none'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; ` +
+        `img-src 'self' data: blob:; font-src 'self' data:; ` +
+        `connect-src ws://127.0.0.1:* ws://localhost:*; ` +
+        `base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
+      'x-frame-options': 'DENY',
+    })
     res.end(html)
     return
   }
@@ -501,11 +560,19 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
 
   srv.on('upgrade', (req, socket: Duplex) => {
     const key = req.headers['sec-websocket-key']
+    // LE contrôle qui compte : sans le jeton de session, personne n'écoute ce
+    // que le streamer annote — pas même une page qui se présenterait avec une
+    // origine « null ». Le contrôle d'hôte et d'origine reste en première ligne.
     if (
       typeof key !== 'string' ||
       !hostAllowed(req.headers.host) ||
-      !originAllowed(req.headers.origin)
+      !originAllowed(req.headers.origin) ||
+      !keyAllowed(req.url)
     ) {
+      log(
+        `connexion refusée (origine « ${req.headers.origin ?? 'absente'} », ` +
+          `jeton ${keyAllowed(req.url) ? 'valide' : 'absent ou faux'})`,
+      )
       try {
         socket.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n')
       } catch {
@@ -522,7 +589,10 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
         'Connection: Upgrade\r\n' +
         `Sec-WebSocket-Accept: ${accept}\r\n\r\n`,
     )
-    socket.setNoDelay(true)
+    // Le flux d'un upgrade est toujours une socket TCP, mais Node le déclare
+    // en simple Duplex : on demande donc l'option sans l'exiger.
+    const tcp = socket as Duplex & { setNoDelay?: (on: boolean) => void }
+    tcp.setNoDelay?.(true)
 
     const client: Client = { socket, buffer: Buffer.alloc(0), fragOp: 0, fragParts: [], fragLen: 0 }
     clients.add(client)
@@ -584,7 +654,9 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
   })
 
   server = srv
-  log(`serveur OBS en écoute sur ${makeUrl(livePort)}`)
+  // Le jeton n'est JAMAIS écrit dans le journal : ce fichier, l'utilisateur
+  // l'envoie pour se faire dépanner.
+  log(`serveur OBS en écoute sur http://127.0.0.1:${livePort}/obs.html`)
   return obsServerStatus()
 }
 

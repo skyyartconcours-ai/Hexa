@@ -28,10 +28,12 @@ export type KeymapAction =
   | 'tool.badge'
   | 'tool.measure'
   | 'tool.stamp'
+  | 'tool.blur'
   | 'tool.eraser'
   // outils momentanés (maintien de touche, §8.5)
   | 'hold.laser'
   | 'hold.spotlight'
+  | 'hold.ping'
   | 'hold.magnifier'
   | 'hold.freeze'
   // couleurs
@@ -52,6 +54,12 @@ export type KeymapAction =
   | 'toggle.smartShapes'
   | 'toggle.guides'
   | 'toggle.linkBadges'
+  | 'toggle.handwriting'
+  // écran et cadrage (§5.7, §5.8)
+  | 'fx.compare'
+  | 'stage.grid'
+  | 'stage.clock'
+  | 'stage.note'
   // interface
   | 'ui.toolbar'
   | 'ui.toolbar.orient'
@@ -64,16 +72,40 @@ export type KeymapAction =
   | 'mode.cursor'
   | 'app.panic'
 
-export type KeymapCategory = 'outils' | 'momentanes' | 'couleurs' | 'edition' | 'interface' | 'systeme'
+export type KeymapCategory =
+  | 'outils'
+  | 'momentanes'
+  | 'couleurs'
+  | 'edition'
+  | 'ecran'
+  | 'interface'
+  | 'systeme'
 
 export const CATEGORY_LABELS: Record<KeymapCategory, string> = {
   outils: 'Outils',
   momentanes: 'Outils momentanés (maintien)',
   couleurs: 'Couleurs',
   edition: 'Édition',
+  ecran: 'Écran et cadrage',
   interface: 'Interface',
   systeme: 'Système (raccourcis globaux)',
 }
+
+/**
+ * Ordre d'affichage des catégories — UNE seule fois pour tout le projet.
+ * L'éditeur, l'aide et la fiche imprimable en tenaient chacun une copie : trois
+ * listes à mettre à jour pour une seule catégorie ajoutée, donc trois occasions
+ * d'en oublier une.
+ */
+export const CATEGORY_ORDER: readonly KeymapCategory[] = [
+  'outils',
+  'momentanes',
+  'couleurs',
+  'edition',
+  'ecran',
+  'interface',
+  'systeme',
+]
 
 export interface KeymapEntry {
   action: KeymapAction
@@ -111,18 +143,54 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
     category: 'outils',
     hint: 'Ctrl+V colle directement une image du presse-papier',
   },
+  {
+    action: 'tool.blur',
+    label: 'Masque flou',
+    category: 'outils',
+    hint: 'Cache une information à l’écran · appui court : bascule vers le pinceau',
+  },
   { action: 'tool.eraser', label: 'Gomme', category: 'outils', global: true },
 
+  // ⚠️ Ces quatre-là demandent le MODE DESSIN : ce sont des lettres nues, donc
+  // des touches que Hexa ne confisque pas au système (voir isRegistrableCombo).
+  // Pendant qu'on joue, le clavier part au jeu — il faut d'abord revenir au
+  // dessin (F8, ou un outil en Ctrl+Maj+…, qui y ramène tout seul). Le dire ici
+  // plutôt que de laisser l'utilisateur marteler une touche morte.
   {
     action: 'hold.laser',
     label: 'Laser',
     category: 'momentanes',
     hold: true,
-    hint: 'Marche aussi en clic traversant, donc en pleine partie',
+    hint: 'Le trait s’efface derrière le curseur · demande le mode dessin',
   },
-  { action: 'hold.spotlight', label: 'Spotlight', category: 'momentanes', hold: true },
-  { action: 'hold.magnifier', label: 'Loupe', category: 'momentanes', hold: true },
-  { action: 'hold.freeze', label: 'Gel d’image', category: 'momentanes', hold: true },
+  {
+    action: 'hold.spotlight',
+    label: 'Spotlight',
+    category: 'momentanes',
+    hold: true,
+    hint: 'Molette : rayon du disque · demande le mode dessin',
+  },
+  {
+    action: 'hold.ping',
+    label: 'Ping',
+    category: 'momentanes',
+    hold: true,
+    hint: 'Un repère qui bat, posé sous le curseur',
+  },
+  {
+    action: 'hold.magnifier',
+    label: 'Loupe',
+    category: 'momentanes',
+    hold: true,
+    hint: 'Molette : grossissement · la touche « gel » fige le disque sur place',
+  },
+  {
+    action: 'hold.freeze',
+    label: 'Gel d’image',
+    category: 'momentanes',
+    hold: true,
+    hint: 'L’écran se fige, on annote la photo · appui court : bascule',
+  },
 
   // Les couleurs sont nommées : « Couleur 4 » ne dit rien à personne, « Vert »
   // se retrouve d'un coup d'œil dans la liste comme dans la barre.
@@ -171,6 +239,32 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
   },
   { action: 'toggle.guides', label: 'Guides magnétiques', category: 'edition' },
   { action: 'toggle.linkBadges', label: 'Relier les pastilles numérotées', category: 'edition' },
+  {
+    action: 'toggle.handwriting',
+    label: 'Mode écriture',
+    category: 'edition',
+    hint: 'Tes CAPITALES manuscrites sont retracées en typographie (§S3)',
+  },
+
+  {
+    action: 'fx.compare',
+    label: 'Avant / après',
+    category: 'ecran',
+    hint: 'À gauche l’écran photographié, à droite le direct',
+  },
+  {
+    action: 'stage.grid',
+    label: 'Cadrage : grille et règle des tiers',
+    category: 'ecran',
+    hint: 'Molette sur le bouton de la barre : discrétion du tracé',
+  },
+  { action: 'stage.clock', label: 'Poser un chrono', category: 'ecran' },
+  {
+    action: 'stage.note',
+    label: 'Poser une note',
+    category: 'ecran',
+    hint: 'Elle reste à l’écran, même après un « tout effacer »',
+  },
 
   { action: 'ui.toolbar', label: 'Afficher/masquer la barre', category: 'interface', global: true },
   {
@@ -253,10 +347,12 @@ const HEXA_BINDINGS: Bindings = {
   'tool.badge': 'n',
   'tool.measure': 'm',
   'tool.stamp': 'i',
+  'tool.blur': 'b',
   'tool.eraser': 'e',
 
   'hold.laser': 'z',
   'hold.spotlight': 'x',
+  'hold.ping': 'q',
   'hold.magnifier': 'a',
   'hold.freeze': 'v',
 
@@ -277,6 +373,15 @@ const HEXA_BINDINGS: Bindings = {
   'toggle.smartShapes': 'w',
   'toggle.guides': 'g',
   'toggle.linkBadges': 'k',
+  'toggle.handwriting': 'j',
+
+  'fx.compare': 'u',
+  // §5.8 — éléments posés à l'écran. Volontairement à l'écart des réflexes
+  // Epic Pen (Ctrl+Maj+2…8) et des lettres nues : on ne pose pas un chrono par
+  // accident en pleine partie.
+  'stage.grid': 'ctrl+shift+g',
+  'stage.clock': 'ctrl+shift+y',
+  'stage.note': 'ctrl+shift+b',
 
   'ui.toolbar': 'h',
   'ui.toolbar.orient': 'ctrl+shift+h',
@@ -291,6 +396,12 @@ const HEXA_BINDINGS: Bindings = {
   'ui.close': 'esc',
 
   'mode.draw': 'f8',
+  // « Rendre la souris au jeu » DOIT avoir une touche dans les deux presets :
+  // sans elle, le clavier maison n'offrait aucun moyen direct de sortir du mode
+  // dessin autre que la bascule F8 — et l'aide affichait « aucune touche » en
+  // face de la carte « Rendre la souris au jeu ». On reprend la combinaison
+  // d'Epic Pen : elle ne gêne rien et ne change pas d'un preset à l'autre.
+  'mode.cursor': 'ctrl+shift+2',
   'app.panic': 'ctrl+shift+x',
 }
 
@@ -635,13 +746,21 @@ export const GLOBAL_ACTIONS: readonly KeymapAction[] = KEYMAP_ENTRIES.filter((e)
 
 /**
  * Combinaisons qu'on n'a PAS le droit de confisquer au système : ce sont les
- * réflexes universels. Confisquer Ctrl+Z, ce serait casser l'annulation dans
- * Word, Photoshop et le navigateur de l'utilisateur — le genre de dégât qui
- * fait désinstaller un logiciel. Elles restent parfaitement actives dans Hexa,
- * simplement en local (quand la fenêtre a le focus).
+ * réflexes universels. `RegisterHotKey` de Windows est EXCLUSIF — un raccourci
+ * global est pris à toutes les autres applications, jamais partagé. Confisquer
+ * Ctrl+Z, ce serait casser l'annulation dans Word, Photoshop et le navigateur
+ * de l'utilisateur : le genre de dégât qui fait désinstaller un logiciel.
  *
- * Ctrl+E et Ctrl+H, eux, sont confisqués : ce sont les raccourcis d'Epic Pen,
- * c'est exactement ce que l'utilisateur demande.
+ * Ctrl+E et Ctrl+H sont dans la liste POUR LA MÊME RAISON, et c'est un retour
+ * d'usage réel : Ctrl+E ouvre la recherche de la barre d'adresse et Ctrl+H
+ * l'historique dans tous les navigateurs, et l'utilisateur commente aussi des
+ * vidéos sur YouTube et VLC. Tant qu'Hexa les tenait, ces touches ne leur
+ * arrivaient plus du tout.
+ *
+ * Toutes restent PARFAITEMENT actives dans Hexa, simplement en local — donc dès
+ * que le mode dessin est allumé, qui est le seul moment où l'on annote. Pour
+ * nettoyer l'écran pendant que le jeu a le focus, c'est la touche panique
+ * (Ctrl+Maj+X), globale en permanence.
  */
 const NEVER_GLOBAL = new Set([
   'ctrl+z',
@@ -656,7 +775,19 @@ const NEVER_GLOBAL = new Set([
   'ctrl+w',
   'ctrl+n',
   'ctrl+t',
+  'ctrl+e',
+  'ctrl+h',
 ])
+
+/**
+ * Cette combinaison est-elle volontairement laissée au système ? L'interface
+ * s'en sert pour expliquer POURQUOI une ligne n'est pas réservée auprès de
+ * Windows — « pas de modificateur » et « on refuse de te la voler » sont deux
+ * raisons très différentes, et l'utilisateur a le droit de savoir laquelle.
+ */
+export function isNeverGlobal(combo: string): boolean {
+  return NEVER_GLOBAL.has(normalizeCombo(combo))
+}
 
 /**
  * Une combinaison peut-elle être enregistrée au niveau du SYSTÈME sans nuire ?
@@ -759,6 +890,13 @@ export function comboSafety(combo: string, global = false): ComboRisk | null {
       level: 'attention',
       message:
         'Windows garde la main sur la plupart des combinaisons Windows+… : elle peut ne jamais arriver jusqu’à Hexa.',
+    }
+  }
+  if (global && NEVER_GLOBAL.has(c)) {
+    return {
+      level: 'attention',
+      message:
+        'Hexa refuse de confisquer cette combinaison à tout ton ordinateur : elle casserait Word, ton navigateur ou VLC. Elle marchera donc quand Hexa a le focus, c’est-à-dire en mode dessin.',
     }
   }
   if (global && !isRegistrableCombo(c)) {

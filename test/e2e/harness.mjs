@@ -84,6 +84,18 @@ export async function lancerHexa({ profil = 'campagne' } = {}) {
     cwd: RACINE,
     executablePath: join(RACINE, 'node_modules', 'electron', 'dist', 'electron'),
     timeout: 60000,
+    /**
+     * §S11 — MODE FUSIONNÉ pour la campagne.
+     *
+     * En usage normal, Hexa ouvre DEUX fenêtres par écran : l'encre (capturée
+     * par OBS) et l'interface (exclue des captures). Cette campagne-ci pilote
+     * UNE fenêtre où canevas et barre d'outils cohabitent : elle teste le
+     * moteur, les outils, les panneaux et le clavier, qui sont identiques dans
+     * les deux modes. La séparation elle-même a ses propres tests
+     * (test/e2e/couches.mjs), qui vérifient qu'il y a bien deux fenêtres, qui
+     * porte quoi, et que l'état reste identique entre les deux.
+     */
+    env: { ...process.env, HEXA_FUSION: '1' },
   })
 
   const journal = { erreurs: [], consoleErreurs: [] }

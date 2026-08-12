@@ -538,6 +538,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* zone multiligne : les mots personnels du lexique, un par ligne (§S3) */
+.hx-area {
+  resize: vertical;
+  min-height: 68px;
+  line-height: 1.5;
+  font-family: var(--font-ui);
+}
+
 .hx-labeled {
   display: flex;
   flex-direction: column;

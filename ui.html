@@ -4,21 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!--
-      POLITIQUE DE SÉCURITÉ DU CONTENU (§sécurité).
-      Hexa fonctionne hors ligne, point final : cette page ne peut charger aucun
-      script, aucune image et aucune police venus d'ailleurs, et ne peut ouvrir
-      AUCUNE connexion sortante — sauf vers la boucle locale, pour piloter OBS
-      (ws://127.0.0.1:4455). Si quoi que ce soit s'exécutait un jour dans cette
-      page (session importée, texte collé), il ne pourrait rien faire sortir de
-      la machine. « unsafe-inline » sur les scripts reste nécessaire au serveur
-      de développement de Vite, qui injecte son préambule en ligne ; la version
-      installée, elle, ne contient aucun script en ligne.
+      Même politique de sécurité que la couche encre : rien ne rentre depuis le
+      réseau, rien n'en sort. Voir le commentaire détaillé dans index.html.
     -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self' data: blob: ws://127.0.0.1:* ws://localhost:*; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'"
     />
-    <title>Hexa</title>
+    <title>Hexa · interface</title>
+    <!--
+      COUCHE INTERFACE — la fenêtre que le direct ne verra jamais.
+
+      Elle porte la barre d'outils, les panneaux, les bandeaux d'état, la roue
+      et le curseur personnalisé. Le processus principal la marque
+      `setContentProtection(true)` : sous Windows, elle est alors exclue de
+      TOUTE capture (OBS, partage Discord, impression d'écran) tout en restant
+      parfaitement visible sur l'écran de l'utilisateur.
+
+      Les annotations, elles, vivent dans index.html — capturée, elle.
+    -->
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 L28 9 L28 23 L16 30 L4 23 L4 9 Z' fill='none' stroke='%2300e5ff' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E"
@@ -26,6 +30,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main-ui.tsx"></script>
   </body>
 </html>
