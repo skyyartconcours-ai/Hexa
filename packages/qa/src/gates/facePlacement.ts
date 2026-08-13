@@ -38,8 +38,8 @@ const EYE_BAND = { min: 0.16, max: 0.45 };
 const MIN_PAIR_SEPARATION = 0.22;
 /** Bands within a face box, as fractions of its height. The eye band is where
  *  recognition happens; the mouth band is where expression does. */
-const EYE_BAND = { top: 0.25, bottom: 0.55 };
-const MOUTH_BAND = { top: 0.6, bottom: 0.85 };
+const EYE_ZONE = { top: 0.25, bottom: 0.55 };
+const MOUTH_ZONE = { top: 0.6, bottom: 0.85 };
 /** Share of the band a text rect must cover before it is "over the eyes". */
 const FEATURE_OVERLAP = 0.12;
 /** Relative differences below which two subjects are a dead mirror. */
@@ -132,8 +132,8 @@ export const facePlacementGate: Gate = {
       // above all else, and a headline through it makes the subject anonymous
       // while still claiming to be them.
       for (const band of [
-        { name: 'eyes', span: EYE_BAND, severity: 'fail' as const },
-        { name: 'mouth', span: MOUTH_BAND, severity: 'warn' as const },
+        { name: 'eyes', span: EYE_ZONE, severity: 'fail' as const },
+        { name: 'mouth', span: MOUTH_ZONE, severity: 'warn' as const },
       ]) {
         const feature: Rect = {
           x: rect.x,

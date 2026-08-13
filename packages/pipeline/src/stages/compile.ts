@@ -920,6 +920,38 @@ function emitShape(slot: ResolvedSlot, palette: ResolvedPalette, strength: numbe
       body = `<rect x="${t / 2}" y="${t / 2}" width="${w - t}" height="${h - t}" fill="none" stroke="${color}" stroke-width="${t.toFixed(2)}" rx="${radius}"/>`;
       break;
     }
+    case 'glyph': {
+      // A decorative oversized character — a "?" behind a controversy headline,
+      // a "#" behind a rank. Drawn as type at low opacity, because the fallback
+      // rounded rectangle turned it into a pale slab that swallowed whatever it
+      // was sitting next to.
+      const ch = String(meta['glyph'] ?? '?').slice(0, 2);
+      body =
+        `<text x="${w / 2}" y="${h * 0.5}" text-anchor="middle" dominant-baseline="central" ` +
+        `font-family="Arial Black, Helvetica, sans-serif" font-weight="900" font-size="${(h * 0.95).toFixed(1)}" ` +
+        `fill="${color}" fill-opacity="0.55">${ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch}</text>`;
+      break;
+    }
+    case 'cone': {
+      // A spill of light, not a solid wedge: opaque at the source, gone by the
+      // far end.
+      body =
+        `<linearGradient id="${id}c" x1="0" y1="0" x2="0" y2="1">` +
+        `<stop offset="0" stop-color="${withAlpha(color, 0.55)}"/>` +
+        `<stop offset="1" stop-color="${withAlpha(color, 0)}"/>` +
+        `</linearGradient><polygon points="${w * 0.42},0 ${w * 0.58},0 ${w},${h} 0,${h}" fill="url(#${id}c)"/>`;
+      break;
+    }
+    case 'callout-arrow': {
+      const t = h * 0.34;
+      body = `<polygon points="0,${h / 2 - t / 2} ${w * 0.62},${h / 2 - t / 2} ${w * 0.62},0 ${w},${h / 2} ${w * 0.62},${h} ${w * 0.62},${h / 2 + t / 2} 0,${h / 2 + t / 2}" ${paint}/>`;
+      break;
+    }
+    case 'plinth': {
+      const taper = w * 0.08;
+      body = `<polygon points="${taper},0 ${w - taper},0 ${w},${h} 0,${h}" ${paint}/>`;
+      break;
+    }
     case 'scrim': {
       // A scrim is a readability device: it must fade out, not end on a line.
       body =

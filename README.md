@@ -34,29 +34,75 @@ See [docs/IDENTITY.md](docs/IDENTITY.md) for the full reasoning, and
 
 ## Quick start
 
+You need **Node 20.11 or newer** and **pnpm**. That is the whole list: no API
+keys, no Python, and no photographs. Every step below runs offline.
+
+**1 — Get the code and build it.** The build compiles twelve packages and takes
+a minute or two.
+
 ```bash
+git clone https://github.com/skyyartconcours-ai/Hexa.git
+cd Hexa
+
+corepack enable          # installs the pnpm version this repo pins
 pnpm install
 pnpm build
-
-# What's working, what's missing, and exactly how to fix it
-node packages/cli/dist/bin.js doctor
-
-# Browse what's in the box
-node packages/cli/dist/bin.js players --team geng
-node packages/cli/dist/bin.js templates --category versus
-
-# Make one
-node packages/cli/dist/bin.js gen Peyz Viper \
-  --template versus-classic \
-  --title "RIVALS" \
-  --variants 4 \
-  --out ./out
 ```
 
-With no API keys, no Python and no photographs, that command still renders:
-backplates come from the built-in offline provider and subjects come from
-schematic placeholders. Add reference photos and the vision sidecar, and the
-same command produces the real thing.
+**2 — Give yourself the `hexa` command.** The CLI is not published to npm, so
+point a shell alias at the built entry point. Everything below assumes it.
+
+```bash
+alias hexa="node $PWD/packages/cli/dist/bin.js"
+```
+
+<sub>Prefer not to alias? `pnpm --silent hexa <args>` does the same thing.
+Keep the `--silent`: without it pnpm prints a banner that lands in `--json`
+output.</sub>
+
+**3 — Check the install.** `doctor` is the command that saves you an hour. It
+tests each part — including encoding a real image — and every line that is not
+`✔` names the exact command that fixes it.
+
+```bash
+hexa doctor
+```
+
+On a fresh clone it exits `0` with a handful of warnings. That is expected and
+correct: no photographs, no vision sidecar and no AI keys all degrade quality
+without stopping a render. It exits `1` only for something that genuinely blocks
+rendering, so CI can gate on it.
+
+**4 — Make a thumbnail.** Two player names is the whole command.
+
+```bash
+hexa gen Peyz Viper --title "RIVALS" --variants 2 --plan --out ./out/first
+```
+
+About fifteen seconds later you have `out/first/thumbnail-v01.png` and
+`-v02.png` at 1280×720, each with its `RenderPlan` beside it (`--plan`), and a
+report saying which variant scored best.
+
+**Expect the QA gates to complain on this first run.** Both subjects rendered as
+schematic placeholder silhouettes, because you have no reference photography yet
+— the run tells you so, and says what to ingest. The picture is real; the
+likeness is not there yet.
+
+**5 — Look at what you got.**
+
+```bash
+hexa qa ./out/first/thumbnail-v01.png    # every gate, scored, with fixes
+hexa players --team geng                 # who else is in the roster
+hexa templates --category versus         # what else it can make
+hexa preview hero-portrait --out ./out/first   # try a template with no arguments
+```
+
+`hexa qa` exits `9` when an image does not pass, which is what a publish job
+should block on. Full exit-code table: `hexa --help` and
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+Everything supports `--json` for scripting (stdout carries the document and
+nothing else), `--no-color`, and `NO_COLOR`.
 
 ## Adding the pieces
 
@@ -65,21 +111,28 @@ same command produces the real thing.
 ```bash
 hexa assets ingest ./lck-media-kit --player Peyz --kind portrait \
   --license press-kit --source "LCK Official Media Kit" --credit "LCK"
-hexa assets coverage
+hexa assets coverage --missing     # who still has nothing
+hexa doctor                        # coverage, per team
 ```
 
-Hexa ships no player imagery. See
-[assets/library/README.md](assets/library/README.md) for where to legitimately
-source it and what makes a good reference.
+`--source` is required and `--license` matters: nothing becomes publish-grade
+until a human passes `--cleared`, having read the terms. Hexa ships no player
+imagery — see [assets/library/README.md](assets/library/README.md) for where to
+source it legitimately and what makes a good reference.
 
-**The vision sidecar** — enables real cutouts and identity verification:
+**The vision sidecar** — enables alpha-matted cutouts, face-anchored placement
+and identity verification:
 
 ```bash
-./services/vision/run.sh     # FastAPI + InsightFace + rembg on :8765
+./services/vision/run.sh                      # FastAPI + InsightFace + rembg
+export HEXA_VISION_URL=http://127.0.0.1:8765  # the address run.sh serves on
+hexa doctor                                   # confirms it is reachable
 ```
 
-Optional. Without it, Hexa falls back to heuristic segmentation and the identity
-gate reports that verification did not happen — it never silently passes.
+Optional, and it needs Python 3.10+. Without it Hexa falls back to heuristic
+segmentation and the identity gate reports that verification did not happen — it
+never silently passes. If the sidecar is running but Hexa cannot see it,
+`hexa doctor` goes looking on the usual ports and tells you which one to set.
 
 ## Who's in the roster
 

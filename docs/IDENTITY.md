@@ -175,4 +175,10 @@ desk does. It is not a tool for fabricating imagery of people.
 
 Concretely, the codebase refuses to: generate a human face from a text prompt,
 repaint an existing face beyond recognition, or present a synthesised likeness
-as photographic. Those refusals are in the code paths, with tests.
+as photographic. Those refusals are in the code paths, with tests
+(`packages/ai/test/guard.attack.test.ts`, `identityEdit.attack.test.ts`).
+
+The one gap in that line, stated plainly: a prompt that names a real person
+without using a person-noun — "Faker at a gaming desk" — is currently allowed
+through, because the protected-name registry is never populated. Do not pass
+player names to `--bg-prompt`.

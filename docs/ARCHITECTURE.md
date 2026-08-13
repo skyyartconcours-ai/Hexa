@@ -49,8 +49,18 @@ a DAG and makes every layer independently testable.
 ## Two data structures carry the whole design
 
 **`LayoutSpec`** is resolution-independent. Every rect is in normalised 0–1
-canvas units, so one template serves 1280×720, 1920×1080 and 1080×1920 without
-a rewrite. Pixels are resolved exactly once, in `@hexa/layout`.
+canvas units, so one template serves every canvas *of its own orientation* —
+1280×720, 1920×1080, 1600×900 — without a rewrite. Pixels are resolved exactly
+once, in `@hexa/layout`.
+
+Orientation is not free, and the library does not pretend otherwise: each
+template declares the aspects it supports, and 31 of the 33 support only
+landscape. Asking one of those for `aspect: 'shorts'` warns and renders 1280×720
+instead of 1080×1920. Vertical is served by the two `shorts` templates, which
+support nothing else. A layout that works head-to-head across a 16:9 frame is a
+different design stacked in 9:16, so this is a deliberate limit rather than a
+reflow that has not been written — but it does mean "one template, every
+platform" is not true today.
 
 **`RenderPlan`** is a fully-resolved, serialisable description of every layer to
 composite — no closures, no promises. That makes a plan cacheable, diffable
@@ -63,9 +73,14 @@ tells QA where the faces are, and `plan.meta.faceRects` tells it where to crop.
 Every stochastic decision — particle placement, variant jitter, crop nudges,
 grain — draws from `createRng(plan.seed)`, forked per subsystem so one
 subsystem's draws never perturb another's. The same request with the same seed
-produces byte-identical output. This is what makes caching safe, makes visual
-regression testing possible, and lets a user reproduce a thumbnail they liked
-three months ago.
+produces byte-identical **pixels** — verified: two runs of the same
+`versus-classic` request both hash to `sha256 ad5024364c05b25d…`. This is what
+makes caching safe, makes visual regression testing possible, and lets a user
+reproduce a thumbnail they liked three months ago.
+
+The serialised *plan* is byte-identical only if you inject `now`;
+`plan.meta.createdAt` is otherwise a wall-clock timestamp, so a raw diff of two
+plan JSONs from separate runs always shows one line of noise.
 
 ## Where quality actually comes from
 
