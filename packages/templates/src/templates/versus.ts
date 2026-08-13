@@ -125,21 +125,27 @@ const versusClassic: ThumbnailTemplate = {
       // The solid-colour version put the plate at the same value as the subject
       // beside it, so the two fought; this way the white name is the brightest
       // thing in the lower band and the colour still says whose name it is.
-      shapeSlot('plate-left', { x: 0.045, y: 0.7, w: 0.315, h: 0.115 }, {
+      // The nameplate band is sized from the sidebar, not from the full frame.
+      // A name needs ~7px of cap height at 168×94 to keep its strokes, which
+      // works back to ~54px on a 1280-wide canvas — so the band is deeper than
+      // it looks like it needs to be at 100%, and the plate is wider than the
+      // type so the glyphs always have a clean dark field around them instead
+      // of sitting half on the subject's shoulder.
+      shapeSlot('plate-left', { x: 0.045, y: 0.685, w: 0.35, h: 0.145 }, {
         z: Z.shape + 1,
         opacity: 0.88,
         meta: { shape: 'bar', fill: 'dark', skew: 0.03 },
       }),
-      shapeSlot('plate-right', { x: 0.64, y: 0.7, w: 0.315, h: 0.115 }, {
+      shapeSlot('plate-right', { x: 0.605, y: 0.685, w: 0.35, h: 0.145 }, {
         z: Z.shape + 2,
         opacity: 0.88,
         meta: { shape: 'bar', fill: 'dark', skew: -0.03 },
       }),
-      shapeSlot('plate-rule-left', { x: 0.045, y: 0.693, w: 0.315, h: 0.009 }, {
+      shapeSlot('plate-rule-left', { x: 0.045, y: 0.677, w: 0.35, h: 0.009 }, {
         z: Z.shape + 3,
         meta: { shape: 'rule', fill: 'left' },
       }),
-      shapeSlot('plate-rule-right', { x: 0.64, y: 0.693, w: 0.315, h: 0.009 }, {
+      shapeSlot('plate-rule-right', { x: 0.605, y: 0.677, w: 0.35, h: 0.009 }, {
         z: Z.shape + 4,
         meta: { shape: 'rule', fill: 'right' },
       }),
@@ -147,23 +153,23 @@ const versusClassic: ThumbnailTemplate = {
         z: Z.text,
         meta: { weight: 'black', italic: true, stroke: 0.02 },
       }),
-      textSlot('left-name', { x: 0.055, y: 0.71, w: 0.295, h: 0.095 }, {
+      textSlot('left-name', { x: 0.055, y: 0.695, w: 0.33, h: 0.125 }, {
         z: Z.text + 1,
         meta: { weight: 'black', tracking: -0.01 },
       }),
-      textSlot('right-name', { x: 0.65, y: 0.71, w: 0.295, h: 0.095 }, {
+      textSlot('right-name', { x: 0.615, y: 0.695, w: 0.33, h: 0.125 }, {
         z: Z.text + 2,
         meta: { weight: 'black', tracking: -0.01 },
       }),
-      textSlot('left-team', { x: 0.055, y: 0.63, w: 0.2, h: 0.055 }, {
+      textSlot('left-team', { x: 0.055, y: 0.6, w: 0.2, h: 0.062 }, {
         z: Z.text + 3,
         meta: { weight: 'medium', tracking: 0.12 },
       }),
-      textSlot('right-team', { x: 0.745, y: 0.63, w: 0.2, h: 0.055 }, {
+      textSlot('right-team', { x: 0.745, y: 0.6, w: 0.2, h: 0.062 }, {
         z: Z.text + 4,
         meta: { weight: 'medium', tracking: 0.12 },
       }),
-      textSlot('kicker', { x: 0.315, y: 0.055, w: 0.37, h: 0.07 }, {
+      textSlot('kicker', { x: 0.3, y: 0.05, w: 0.4, h: 0.085 }, {
         z: Z.text + 5,
         meta: { weight: 'semibold', tracking: 0.22 },
       }),
@@ -181,7 +187,7 @@ const versusClassic: ThumbnailTemplate = {
       { x: 0.233, y: 0.37 },
       { x: 0.745, y: 0.423 },
       { x: 0.5, y: 0.41 },
-      { x: 0.2, y: 0.757 },
+      { x: 0.22, y: 0.757 },
     ],
     guides: [thirdsGuide(), diagonalGuide(LEAN)],
   },

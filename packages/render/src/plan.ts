@@ -82,6 +82,14 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
   const maskCache = new Map<string, Promise<{ image: RawImage; rect: PixelRect } | null>>();
   const resolving = new Set<string>();
 
+  // How many layers still need each mask. Counting them means a mask can be
+  // dropped the moment its last consumer has been composited, instead of being
+  // held for the whole render — the same memory discipline as the accumulator.
+  const maskDemand = new Map<string, number>();
+  for (const l of plan.layers) {
+    if (l.maskLayerId) maskDemand.set(l.maskLayerId, (maskDemand.get(l.maskLayerId) ?? 0) + 1);
+  }
+
   const ctx: RenderContext = {
     seed: plan.seed,
     supersample: ss,
@@ -109,6 +117,9 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
         maskCache.set(layerId, pending);
       }
       const entry = await pending;
+      const left = (maskDemand.get(layerId) ?? 1) - 1;
+      maskDemand.set(layerId, left);
+      if (left <= 0) maskCache.delete(layerId); // last consumer — release it
       if (!entry) return null;
       const out = Buffer.alloc(rect.w * rect.h, 0);
       for (let y = 0; y < rect.h; y++) {
@@ -159,6 +170,21 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
     }
     if (!rendered) continue;
     boxes.push({ id: layer.id, rect: rendered.rect, z: layer.z });
+
+    // A layer that something above it uses as a mask has, right now, exactly the
+    // pixels that mask is made of — so hand this render to the mask cache rather
+    // than rendering the layer a second time when the consumer asks. That is not
+    // a small saving: the layers templates mask against are subjects, the most
+    // expensive layers in any plan, and the versus template masks every light
+    // wrap against the subject beneath it.
+    //
+    // Safe because a mask reads *only* the alpha channel, and the one thing that
+    // differs between this render and a standalone mask render — the light wrap,
+    // which needs a backdrop a mask render is not given — writes RGB and leaves
+    // alpha exactly as it found it. `effects.test.ts` pins that invariant.
+    if (maskDemand.has(layer.id) && !maskCache.has(layer.id)) {
+      maskCache.set(layer.id, Promise.resolve(rendered));
+    }
 
     const opacity = layerOpacity(layer);
     if (opacity <= 0) {
