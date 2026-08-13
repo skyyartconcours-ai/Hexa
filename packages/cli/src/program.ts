@@ -77,7 +77,7 @@ export function buildProgram(): Command {
         .default(undefined, 'info'),
     )
     .option('--assets <dir>', 'asset library root (default: ./assets, or $HEXA_ASSETS)')
-    .option('--vision <url>', 'vision sidecar endpoint (default: $HEXA_VISION_URL or http://127.0.0.1:8000)')
+    .option('--vision <url>', 'vision sidecar endpoint (default: $HEXA_VISION_URL or http://127.0.0.1:8765)')
     .option('--seed <n>', 'deterministic seed; omit to derive one from the request', parseSeed)
     .option('--json', 'machine-readable output on stdout')
     .option('--no-color', 'disable colour output');

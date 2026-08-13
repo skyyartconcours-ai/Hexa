@@ -66,7 +66,7 @@ describe('the program', () => {
 
   it('exposes the assets subcommands', () => {
     const subs = find('assets', { live: true }).commands.map((c) => c.name()).sort();
-    expect(subs).toEqual(['clear', 'coverage', 'ingest', 'list', 'prune', 'stats']);
+    expect(subs).toEqual(['clear', 'coverage', 'embed', 'ingest', 'list', 'prune', 'stats']);
   });
 });
 

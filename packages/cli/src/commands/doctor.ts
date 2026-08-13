@@ -403,7 +403,7 @@ async function checkFonts(): Promise<Check> {
 const SIDECAR_PORTS = [8765, 8000, 8001];
 
 async function checkVision(ctx: CliContext): Promise<Check> {
-  const endpoint = ctx.visionEndpoint ?? process.env['HEXA_VISION_URL'] ?? 'http://127.0.0.1:8000';
+  const endpoint = ctx.visionEndpoint ?? process.env['HEXA_VISION_URL'] ?? process.env['HEXA_VISION_ENDPOINT'] ?? 'http://127.0.0.1:8765';
   if (await reachable(endpoint)) {
     return {
       id: 'vision',

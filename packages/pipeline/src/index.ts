@@ -110,3 +110,6 @@ export type { AssetLibrary, VisionClient } from './adapters/contracts.js';
 export { INTEGRATIONS } from './adapters/contracts.js';
 export { registerModule, clearModuleRegistry, moduleHealth } from './adapters/load.js';
 export type { ModuleHealth } from './adapters/load.js';
+
+export { enrichReferences, referenceGallery } from './enrich.js';
+export type { EnrichOptions, EnrichResult } from './enrich.js';

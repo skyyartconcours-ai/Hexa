@@ -206,7 +206,7 @@ export async function compilePlan(input: CompileInput): Promise<RenderPlan> {
   });
 
   // ── pass 6: text ──────────────────────────────────────────────────────────
-  await emitText({ resolved, input, axes, canvas, layers, textRects, warnings, backdrop });
+  await emitText({ resolved, input, axes, canvas, layers, textRects, warnings, backdrop, assignment });
 
   layers.sort((a, b) => a.z - b.z || a.id.localeCompare(b.id));
 
@@ -1242,8 +1242,10 @@ async function emitText(args: {
   textRects: TextRectRecord[];
   warnings: string[];
   backdrop: string;
+  /** The binding the subject pass actually used, so names follow the faces. */
+  assignment: SlotAssignment[];
 }): Promise<void> {
-  const { resolved, input, axes, canvas, layers, textRects, warnings } = args;
+  const { resolved, input, axes, canvas, layers, textRects, warnings, assignment } = args;
   const specs = new Map((input.template.textSlots ?? []).map((s) => [s.slotId, s]));
 
   for (const entry of resolved.slots) {
@@ -1254,7 +1256,7 @@ async function emitText(args: {
     const role = spec?.role ?? (slot.meta?.['role'] as TextRole | undefined);
     if (!role) continue;
 
-    const copy = resolveCopy(role, spec, input);
+    const copy = resolveCopy(role, spec, input, assignment);
     if (!copy) {
       if (spec?.required) {
         warnings.push(`Template "${input.template.id}" wants ${role} text and none was supplied — that slot is empty.`);
@@ -1334,9 +1336,11 @@ export function resolveCopy(
   role: TextRole,
   spec: TextSlotSpec | undefined,
   input: Pick<CompileInput, 'text' | 'subjects'>,
+  /** The slot→subject binding actually used, so names follow the faces. */
+  assignment?: SlotAssignment[],
 ): string | undefined {
   const supplied = input.text[role];
-  const derived = supplied ?? spec?.defaultText ?? deriveFromSubjects(role, input.subjects);
+  const derived = supplied ?? spec?.defaultText ?? deriveFromSubjects(role, input.subjects, assignment);
   if (!derived) return undefined;
 
   const transformed = applyTransform(derived, spec?.transform);
@@ -1346,10 +1350,51 @@ export function resolveCopy(
   return transformed;
 }
 
-function deriveFromSubjects(role: TextRole, subjects: PreparedSubject[]): string | undefined {
-  const left = subjects.find((s) => s.side === 'left') ?? subjects[0];
-  const right = subjects.find((s) => s.side === 'right') ?? subjects[1];
-  const center = subjects.find((s) => s.side === 'center') ?? left;
+/**
+ * Which subject a side-scoped nameplate is talking about.
+ *
+ * This MUST agree with `assignSubjects`, and re-deriving it independently is how
+ * they came to disagree: `assignSubjects` resolves in three passes and consumes
+ * subjects as it goes, so when several slots declare the same side — a hero plus
+ * its flankers — the hero does not necessarily receive the first left-hand
+ * subject. Picking `find(side === 'left')` here then labelled the big face with
+ * a different player's name. Mislabelling a real person is the worst thing this
+ * tool can do, and it gets worse with real photographs rather than better.
+ *
+ * So the nameplate follows the pixels: of the slots that actually received a
+ * subject on this side, take the one occupying the most area, because that is
+ * the face a viewer reads as "the left player".
+ */
+function subjectForSide(
+  side: 'left' | 'right' | 'center',
+  subjects: PreparedSubject[],
+  assignment: SlotAssignment[] | undefined,
+): PreparedSubject | undefined {
+  if (assignment?.length) {
+    const onSide = assignment.filter(
+      (a): a is SlotAssignment & { subject: PreparedSubject } =>
+        a.subject !== undefined && declaredSide(a.slot.slot) === side,
+    );
+    if (onSide.length) {
+      const primary = onSide.reduce((best, a) =>
+        a.slot.rect.w * a.slot.rect.h > best.slot.rect.w * best.slot.rect.h ? a : best,
+      );
+      return primary.subject;
+    }
+  }
+  // No slot declares this side (or no assignment was threaded through): fall
+  // back to the caller's own declaration.
+  return subjects.find((s) => s.side === side);
+}
+
+function deriveFromSubjects(
+  role: TextRole,
+  subjects: PreparedSubject[],
+  assignment?: SlotAssignment[],
+): string | undefined {
+  const left = subjectForSide('left', subjects, assignment) ?? subjects[0];
+  const right = subjectForSide('right', subjects, assignment) ?? subjects[1];
+  const center = subjectForSide('center', subjects, assignment) ?? left;
 
   switch (role) {
     case 'left-name':

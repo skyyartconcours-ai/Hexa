@@ -13,6 +13,7 @@ import { Command, Option } from 'commander';
 import { HexaError } from '@hexa/core';
 import type { AssetKind, LicenseKind, ReferenceAsset } from '@hexa/core';
 import { assets as assetsAdapter, data } from '@hexa/pipeline/integration';
+import { enrichReferences } from '@hexa/pipeline';
 import type { AssetLibrary, CoverageReport } from '@hexa/pipeline/integration';
 import { createContext, globalsFrom, type CliContext } from '../context.js';
 import { ensureReadableDir } from '../preflight.js';
@@ -208,6 +209,14 @@ Nothing is publish-grade until a human passes --cleared, having read the terms.`
         return;
       }
       if (shown.length === 0) {
+        // An empty library yields no rows, which previously printed a tick.
+        // "Nothing to report" and "everyone is covered" are opposite answers.
+        if (deps.library.all().length === 0) {
+          ctx.say(` ${ctx.ui.warn(`${ctx.glyph.warn} The library is empty — nobody has references.`)}`);
+          ctx.say(`   ${ctx.ui.dim('hexa assets ingest ./photos --player Peyz --license press-kit --source "..."')}`);
+          ctx.say(`   ${ctx.ui.dim('Pass --team <tag> to list who a given roster still needs.')}`);
+          return;
+        }
         ctx.say(ctx.ui.ok(`${ctx.glyph.ok} Every player in scope has references.`));
         return;
       }
@@ -229,6 +238,64 @@ Nothing is publish-grade until a human passes --cleared, having read the terms.`
       ctx.say(`\n ${ctx.ui.dim(`${rows.length} player(s); ${empty} with no references at all`)}`);
       if (empty > 0) {
         ctx.say(` ${ctx.ui.dim('Those render as placeholder silhouettes until you add photographs.')}`);
+      }
+    });
+
+  assets
+    .command('embed')
+    .description('Compute face embeddings so identity verification can run')
+    .option('--player <handle...>', 'limit to these players')
+    .option('--force', 'recompute embeddings that already exist')
+    .option('--batch <n>', 'images per sidecar round trip', '8')
+    .addHelpText('after', `
+Identity verification compares the rendered face against embeddings of your
+reference photographs. Ingestion does not compute them, because it must work
+without the vision sidecar — so run this once the sidecar is up, and again
+after adding photographs.
+
+  ${'$'} ./services/vision/run.sh &
+  ${'$'} hexa assets embed
+  ${'$'} hexa assets embed --player Peyz --player Viper --force
+`)
+    .action(async (o: Record<string, unknown>, command: Command) => {
+      const ctx = createContext(globalsFrom(command));
+      const deps = await ctx.deps();
+
+      const handles = (o['player'] as string[] | undefined) ?? [];
+      // resolvePlayer already throws PLAYER_NOT_FOUND with a did-you-mean hint.
+      const playerIds = await Promise.all(handles.map(async (h) => (await data.resolvePlayer(h)).id));
+
+      const spinner = ctx.spinner('embedding reference photographs');
+      let result;
+      try {
+        result = await enrichReferences(deps, {
+          ...(playerIds.length ? { playerIds } : {}),
+          force: Boolean(o['force']),
+          batchSize: Number(o['batch']) || 8,
+          onProgress: (done: number, total: number) => spinner.update(`embedding ${done}/${total}`),
+        });
+      } finally {
+        spinner.stop();
+      }
+
+      if (ctx.json) {
+        ctx.emitJson(result);
+        return;
+      }
+
+      ctx.say('');
+      ctx.say(` ${ctx.ui.ok(`${ctx.glyph.ok} embedded ${result.embedded}`)}   ${ctx.ui.dim(`skipped ${result.skipped} · no face ${result.noFace} · failed ${result.failed.length}`)}`);
+      if (result.model) ctx.say(` ${ctx.ui.dim(`model: ${result.model}`)}`);
+
+      if (result.playersReady.length) {
+        ctx.say(`\n ${ctx.ui.ok(`${result.playersReady.length} player(s) can now be verified.`)}`);
+      }
+      if (result.playersUnverifiable.length) {
+        ctx.say(` ${ctx.ui.warn(`${result.playersUnverifiable.length} player(s) have photographs but no usable face was found.`)}`);
+        ctx.say(`   ${ctx.ui.dim('A reference needs a clear, reasonably large, unobstructed face.')}`);
+      }
+      if (!result.embedded && !result.skipped) {
+        ctx.say(`\n ${ctx.ui.dim('Nothing to embed — ingest reference photographs first.')}`);
       }
     });
 

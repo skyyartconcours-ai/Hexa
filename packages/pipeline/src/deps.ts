@@ -21,7 +21,16 @@ export function resolveAssetRoot(explicit?: string): string {
 
 /** Vision sidecar endpoint. Local by default — it is a personal helper service. */
 export function resolveVisionEndpoint(explicit?: string): string {
-  return explicit ?? process.env['HEXA_VISION_URL'] ?? 'http://127.0.0.1:8000';
+  return (
+    explicit ??
+    // Both spellings are in the wild: the sidecar README and @hexa/vision
+    // document HEXA_VISION_ENDPOINT, .env.example and the CLI document
+    // HEXA_VISION_URL. Accept either rather than making the user guess.
+    process.env['HEXA_VISION_URL'] ??
+    process.env['HEXA_VISION_ENDPOINT'] ??
+    // 8765 is what services/vision/run.sh actually serves on.
+    'http://127.0.0.1:8765'
+  );
 }
 
 /**
@@ -60,6 +69,15 @@ export async function createDeps(opts: CreateDepsOptions = {}): Promise<Pipeline
   const library = await openLibrary(assetRoot);
   const vision = await createVisionClient({ endpoint });
 
+  // Teach the generative guard who it is protecting.
+  //
+  // @hexa/ai ships the machinery for refusing named individuals but cannot own
+  // the list — it must not depend on the roster. Nothing called it, so the
+  // protected set was empty at runtime and a backplate prompt naming a real
+  // player reached the model unchallenged. The roster is the natural source,
+  // and this is the one place every entry point already passes through.
+  await registerRosterAsProtected(logger);
+
   return {
     library,
     vision,
@@ -87,4 +105,34 @@ export async function completeDeps(partial?: Partial<PipelineDeps>, opts: Create
     aiProvider: partial?.aiProvider ?? built.aiProvider,
     cacheDir: partial?.cacheDir ?? built.cacheDir,
   };
+}
+
+/**
+ * Register every roster handle and legal name with the generative guard.
+ *
+ * Deliberately best-effort: a failure here must not stop a render, but it must
+ * be visible, because the failure mode is silent — the guard keeps working for
+ * generic nouns while quietly permitting the specific names it exists to
+ * refuse.
+ */
+async function registerRosterAsProtected(logger: Logger): Promise<void> {
+  try {
+    const [{ PLAYERS }, ai] = await Promise.all([import('@hexa/data'), import('@hexa/ai')]);
+    const names = new Set<string>();
+    for (const p of PLAYERS) {
+      names.add(p.handle);
+      // Legal names are protected as whole strings only. Registering the parts
+      // would blocklist common Korean family names — "Lee", "Kim", "Park" —
+      // and refuse a great many innocent prompts.
+      if (p.fullName && p.fullName.includes(' ')) names.add(p.fullName);
+      for (const alias of p.aliases ?? []) if (alias.length >= 3) names.add(alias);
+    }
+    ai.registerProtectedNames(names);
+    logger.debug('registered protected names with the generative guard', { count: names.size });
+  } catch (err) {
+    logger.warn(
+      'Could not register roster names with the generative guard — prompts naming a specific player will not be refused.',
+      { error: err instanceof Error ? err.message : String(err) },
+    );
+  }
 }
