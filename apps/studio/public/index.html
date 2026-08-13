@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hexa Studio</title>
+<style>
+  :root {
+    --bg: #0a0b0f;
+    --panel: #12141b;
+    --panel-2: #171a23;
+    --line: #242938;
+    --line-hot: #343d55;
+    --ink: #e8eaf0;
+    --ink-dim: #8b93a7;
+    --ink-faint: #5a6178;
+    --accent: #ff3b30;
+    --accent-2: #4d9fff;
+    --good: #35c46b;
+    --warn: #f5a623;
+    --bad: #ff4d4f;
+    --radius: 10px;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 20px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #14161e, #0d0f15);
+    position: sticky; top: 0; z-index: 20;
+  }
+  .logo { display: flex; align-items: baseline; gap: 9px; font-weight: 800; letter-spacing: -0.02em; font-size: 17px; }
+  .logo span { color: var(--accent); }
+  .logo small { font-weight: 500; color: var(--ink-faint); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .caps { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .chip {
+    font: 500 11px/1 var(--mono); padding: 5px 9px; border-radius: 999px;
+    border: 1px solid var(--line-hot); color: var(--ink-dim); background: var(--panel);
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .chip.ok { color: var(--good); border-color: #1e4d33; }
+  .chip.off { color: var(--warn); border-color: #4d3d18; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  main { display: grid; grid-template-columns: 340px 1fr 320px; height: calc(100vh - 57px); }
+  @media (max-width: 1200px) { main { grid-template-columns: 300px 1fr; } aside.right { display: none; } }
+  @media (max-width: 860px)  { main { grid-template-columns: 1fr; height: auto; } aside.left { border-right: 0; } }
+
+  aside, section { overflow-y: auto; }
+  aside.left { border-right: 1px solid var(--line); background: var(--panel); }
+  aside.right { border-left: 1px solid var(--line); background: var(--panel); }
+  section.stage { background: var(--bg); padding: 22px; }
+
+  .group { padding: 16px; border-bottom: 1px solid var(--line); }
+  .group h2 {
+    margin: 0 0 12px; font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 700;
+  }
+  label { display: block; font-size: 11px; color: var(--ink-dim); margin: 0 0 5px; font-weight: 500; }
+  .field { margin-bottom: 12px; }
+  input, select, textarea, button {
+    font-family: inherit; font-size: 13px; color: var(--ink);
+    background: var(--panel-2); border: 1px solid var(--line-hot);
+    border-radius: 7px; padding: 8px 10px; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-2); outline-offset: -1px; border-color: transparent; }
+  select { cursor: pointer; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; }
+
+  button.primary {
+    background: linear-gradient(180deg, #ff4a3f, #e02a20); border-color: #ff6a60;
+    font-weight: 700; letter-spacing: 0.03em; cursor: pointer; padding: 11px;
+    text-transform: uppercase; font-size: 12px;
+  }
+  button.primary:hover { filter: brightness(1.1); }
+  button.primary:disabled { opacity: 0.5; cursor: progress; filter: grayscale(0.6); }
+  button.ghost { background: var(--panel-2); cursor: pointer; font-size: 12px; }
+  button.ghost:hover { border-color: var(--accent-2); }
+
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; vertical-align: -1px; margin-right: 6px; border: 1px solid #0006; }
+  .hint { font-size: 11px; color: var(--ink-faint); margin-top: 6px; line-height: 1.45; }
+  .hint code { font-family: var(--mono); color: var(--ink-dim); }
+
+  /* Stage */
+  .canvas-wrap { display: flex; flex-direction: column; gap: 14px; }
+  .preview {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center; min-height: 300px;
+    position: relative; overflow: hidden;
+  }
+  .preview img { max-width: 100%; display: block; }
+  .empty { color: var(--ink-faint); text-align: center; padding: 60px 24px; max-width: 460px; }
+  .empty h3 { color: var(--ink-dim); margin: 0 0 8px; font-size: 15px; }
+  .empty p { margin: 0 0 6px; font-size: 13px; line-height: 1.6; }
+
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .variant {
+    border: 2px solid var(--line); border-radius: 8px; overflow: hidden; cursor: pointer;
+    background: var(--panel); transition: border-color 0.12s;
+  }
+  .variant:hover { border-color: var(--line-hot); }
+  .variant.sel { border-color: var(--accent); }
+  .variant.best::after {
+    content: "BEST"; position: absolute; top: 6px; left: 6px; font: 700 9px var(--mono);
+    background: var(--good); color: #04180c; padding: 2px 5px; border-radius: 3px; letter-spacing: 0.05em;
+  }
+  .variant { position: relative; }
+  .variant img { width: 100%; display: block; }
+  .variant .meta { display: flex; gap: 8px; padding: 7px 9px; font: 500 11px var(--mono); color: var(--ink-dim); }
+  .variant .meta b { color: var(--ink); font-weight: 700; }
+
+  /* QA panel */
+  .score { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .score b { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; }
+  .score span { font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em; }
+  .bar { height: 5px; border-radius: 3px; background: var(--panel-2); overflow: hidden; margin-bottom: 14px; }
+  .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--bad), var(--warn) 45%, var(--good)); }
+  .finding { border-left: 2px solid var(--line-hot); padding: 7px 0 7px 10px; margin-bottom: 9px; font-size: 12px; }
+  .finding.fail { border-color: var(--bad); }
+  .finding.warn { border-color: var(--warn); }
+  .finding.pass { border-color: var(--good); }
+  .finding .g { font: 600 10px var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
+  .finding .m { color: var(--ink); margin: 2px 0; line-height: 1.45; }
+  .finding .s { color: var(--ink-dim); font-size: 11px; font-style: italic; }
+  .sizes { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .sizes figure { margin: 0; text-align: center; }
+  .sizes img { display: block; border: 1px solid var(--line); border-radius: 3px; }
+  .sizes figcaption { font: 500 10px var(--mono); color: var(--ink-faint); margin-top: 4px; }
+
+  .subject-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 9px; }
+  .subject-card .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+  .subject-card .side { font: 700 10px var(--mono); letter-spacing: 0.08em; color: var(--ink-faint); text-transform: uppercase; }
+  .subject-card button { width: auto; padding: 3px 7px; font-size: 11px; }
+
+  .banner { padding: 11px 14px; border-radius: 8px; margin-bottom: 14px; font-size: 12.5px; line-height: 1.5; }
+  .banner.err { background: #2a1113; border: 1px solid #5c1f22; color: #ffb4b4; }
+  .banner.warn { background: #2a2211; border: 1px solid #5c4a1f; color: #ffdfa4; }
+  .banner b { display: block; margin-bottom: 3px; }
+  .spin { display: inline-block; width: 11px; height: 11px; border: 2px solid #fff5; border-top-color: #fff; border-radius: 50%; animation: sp 0.7s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">HEX<span>A</span> <small>Studio</small></div>
+  <div class="caps" id="caps"></div>
+</header>
+
+<main>
+  <aside class="left">
+    <div class="group">
+      <h2>Template</h2>
+      <div class="field">
+        <select id="category"></select>
+      </div>
+      <div class="field">
+        <select id="template"></select>
+        <div class="hint" id="tplHint"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Aspect</label><select id="aspect"></select></div>
+        <div class="field"><label>Variants</label><input id="variants" type="number" min="1" max="8" value="4"></div>
+      </div>
+      <div class="field"><label>Seed <span style="color:var(--ink-faint)">— blank randomises</span></label><input id="seed" type="number" placeholder="random"></div>
+    </div>
+
+    <div class="group">
+      <h2>Subjects</h2>
+      <div id="subjects"></div>
+      <button class="ghost" id="addSubject">+ Add subject</button>
+      <div class="hint">Type a handle, real name or Hangul — <code>peyz</code>, <code>Kim Su-hwan</code> and <code>김수환</code> all resolve.</div>
+    </div>
+
+    <div class="group">
+      <h2>Text</h2>
+      <div id="textFields"></div>
+    </div>
+
+    <div class="group">
+      <button class="primary" id="render">Render</button>
+      <div class="hint" id="renderHint">Runs offline. No API key needed.</div>
+    </div>
+  </aside>
+
+  <section class="stage">
+    <div id="banners"></div>
+    <div class="canvas-wrap">
+      <div class="preview" id="preview">
+        <div class="empty">
+          <h3>Nothing rendered yet</h3>
+          <p>Pick a template, name two players, hit <b>Render</b>.</p>
+          <p style="color:var(--ink-faint);margin-top:14px">With no reference photographs ingested, subjects render as schematic placeholders — every layout, light rig, grade and QA gate still runs, so you can design compositions before you have the imagery.</p>
+        </div>
+      </div>
+      <div class="gallery" id="gallery"></div>
+    </div>
+  </section>
+
+  <aside class="right">
+    <div class="group">
+      <h2>Quality report</h2>
+      <div id="qa"><div class="hint">Render something to see the gates.</div></div>
+    </div>
+    <div class="group">
+      <h2>Legibility at real sizes</h2>
+      <div id="sizes"><div class="hint">YouTube shows thumbnails as small as 168×94. Text that dies at that size is the most common thumbnail failure.</div></div>
+    </div>
+  </aside>
+</main>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') n.className = v;
+    else if (k === 'html') n.innerHTML = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else if (v !== undefined && v !== null) n.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) n.append(kid?.nodeType ? kid : document.createTextNode(String(kid ?? '')));
+  return n;
+};
+
+let BOOT = null;
+let selected = null;
+let subjects = [{ player: '', side: 'left' }, { player: '', side: 'right' }];
+
+const ASPECTS = ['youtube', 'youtube-hd', 'shorts', 'twitch', 'square', 'twitter', 'banner'];
+
+function banner(kind, title, body) {
+  $('banners').append(el('div', { class: `banner ${kind}` }, el('b', {}, title), body));
+}
+
+async function boot() {
+  try {
+    const r = await fetch('/api/bootstrap');
+    if (!r.ok) throw new Error((await r.json()).error?.message ?? r.statusText);
+    BOOT = await r.json();
+  } catch (err) {
+    banner('err', 'The pipeline failed to load', String(err.message ?? err) + ' — run `pnpm build` at the repo root, then reload.');
+    return;
+  }
+
+  // Capability chips
+  const caps = $('caps');
+  caps.append(el('span', { class: `chip ${BOOT.capabilities.vision ? 'ok' : 'off'}` },
+    el('i', { class: 'dot' }), BOOT.capabilities.vision ? 'vision online' : 'vision offline'));
+  caps.append(el('span', { class: 'chip' }, `${BOOT.players.length} players`));
+  caps.append(el('span', { class: 'chip' }, `${BOOT.templates.length} templates`));
+  if (!BOOT.capabilities.vision) {
+    banner('warn', 'Identity verification is not running',
+      'Start the vision sidecar with ./services/vision/run.sh to enable real cutouts and face-match verification. Until then Hexa uses heuristic segmentation and the identity gate reports that it could not verify — it never silently passes.');
+  }
+
+  // Categories + templates
+  const cats = [...new Set(BOOT.templates.map((t) => t.category))].sort();
+  $('category').append(el('option', { value: '' }, 'All categories'), ...cats.map((c) => el('option', { value: c }, c)));
+  $('aspect').append(...ASPECTS.map((a) => el('option', { value: a }, a)));
+  $('category').addEventListener('change', fillTemplates);
+  $('template').addEventListener('change', onTemplateChange);
+  fillTemplates();
+  renderSubjects();
+}
+
+function fillTemplates() {
+  const cat = $('category').value;
+  const list = BOOT.templates.filter((t) => !cat || t.category === cat);
+  $('template').replaceChildren(...list.map((t) => el('option', { value: t.id }, `${t.name} — ${t.subjects.min}${t.subjects.max > t.subjects.min ? '–' + t.subjects.max : ''} subj`)));
+  onTemplateChange();
+}
+
+function currentTemplate() {
+  return BOOT.templates.find((t) => t.id === $('template').value);
+}
+
+function onTemplateChange() {
+  const t = currentTemplate();
+  if (!t) return;
+  $('tplHint').textContent = t.whenToUse || t.description || '';
+  // Match subject count to what the template wants.
+  const want = t.subjects.min;
+  while (subjects.length < want) subjects.push({ player: '', side: subjects.length === 0 ? 'left' : 'right' });
+  while (subjects.length > t.subjects.max) subjects.pop();
+  renderSubjects();
+  renderTextFields();
+}
+
+function renderSubjects() {
+  const t = currentTemplate();
+  const host = $('subjects');
+  host.replaceChildren(...subjects.map((s, i) => {
+    const input = el('input', {
+      list: 'playerlist', value: s.player, placeholder: i === 0 ? 'Peyz' : 'Viper',
+      oninput: (e) => { subjects[i].player = e.target.value; },
+    });
+    const sideSel = el('select', { onchange: (e) => { subjects[i].side = e.target.value; } },
+      ...['left', 'right', 'center'].map((v) => el('option', { value: v, ...(v === s.side ? { selected: '' } : {}) }, v)));
+    return el('div', { class: 'subject-card' },
+      el('div', { class: 'top' },
+        el('span', { class: 'side' }, `Subject ${i + 1}`),
+        subjects.length > (t?.subjects.min ?? 1)
+          ? el('button', { class: 'ghost', onclick: () => { subjects.splice(i, 1); renderSubjects(); } }, 'Remove')
+          : el('span', {})),
+      input,
+      el('div', { style: 'margin-top:7px' }, sideSel));
+  }));
+  if (!document.getElementById('playerlist')) {
+    document.body.append(el('datalist', { id: 'playerlist' },
+      ...BOOT.players.map((p) => el('option', { value: p.handle }, `${p.fullName} · ${p.teamId} · ${p.role}`))));
+  }
+  $('addSubject').style.display = subjects.length < (t?.subjects.max ?? 8) ? '' : 'none';
+}
+
+function renderTextFields() {
+  const roles = ['headline', 'kicker', 'subhead', 'badge'];
+  $('textFields').replaceChildren(...roles.map((role) =>
+    el('div', { class: 'field' },
+      el('label', {}, role),
+      el('input', { id: `txt-${role}`, placeholder: role === 'headline' ? 'RIVALS' : '' }))));
+}
+
+$('addSubject').addEventListener('click', () => {
+  subjects.push({ player: '', side: subjects.length % 2 ? 'right' : 'left' });
+  renderSubjects();
+});
+
+$('render').addEventListener('click', async () => {
+  const btn = $('render');
+  btn.disabled = true;
+  btn.replaceChildren(el('span', { class: 'spin' }), ' Rendering…');
+  $('banners').replaceChildren();
+
+  const text = {};
+  for (const role of ['headline', 'kicker', 'subhead', 'badge']) {
+    const v = $(`txt-${role}`)?.value?.trim();
+    if (v) text[role] = v;
+  }
+  const seedRaw = $('seed').value.trim();
+
+  try {
+    const res = await fetch('/api/render', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        templateId: $('template').value,
+        subjects: subjects.filter((s) => s.player.trim()),
+        text,
+        aspect: $('aspect').value,
+        variants: Number($('variants').value),
+        seed: seedRaw === '' ? undefined : Number(seedRaw),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      banner('err', data.error?.code ?? 'Render failed', (data.error?.message ?? '') + (data.error?.hint ? ` — ${data.error.hint}` : ''));
+      return;
+    }
+    for (const w of data.warnings ?? []) banner('warn', 'Warning', w);
+    showResult(data);
+  } catch (err) {
+    banner('err', 'Request failed', String(err.message ?? err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Render';
+  }
+});
+
+function showResult(data) {
+  const gallery = $('gallery');
+  gallery.replaceChildren(...data.variants.map((v, i) =>
+    el('div', {
+      class: `variant${i === data.bestIndex ? ' best' : ''}`,
+      onclick: () => select(data, i),
+    },
+      el('img', { src: v.url, alt: `variant ${i + 1}`, loading: 'lazy' }),
+      el('div', { class: 'meta' },
+        el('span', {}, 'QA ', el('b', {}, Math.round(v.qaScore))),
+        el('span', {}, 'Appeal ', el('b', {}, Math.round(v.appeal))),
+        el('span', { style: 'margin-left:auto' }, `#${v.seed}`)))));
+  select(data, data.bestIndex);
+  $('renderHint').textContent = `${data.variants.length} variants in ${data.totalMs}ms`;
+}
+
+async function select(data, i) {
+  selected = { data, i };
+  const v = data.variants[i];
+  $('preview').replaceChildren(el('img', { src: v.url, alt: 'selected variant' }));
+  [...$('gallery').children].forEach((c, j) => c.classList.toggle('sel', j === i));
+
+  const report = data.qa?.find((q) => q.id === v.id)?.report;
+  const qaHost = $('qa');
+  if (report) {
+    const pct = Math.max(0, Math.min(100, report.score));
+    qaHost.replaceChildren(
+      el('div', { class: 'score' }, el('b', { style: `color:${pct >= 75 ? 'var(--good)' : pct >= 50 ? 'var(--warn)' : 'var(--bad)'}` }, Math.round(pct)), el('span', {}, report.passed ? 'passed' : 'blocked')),
+      el('div', { class: 'bar' }, el('i', { style: `width:${pct}%` })),
+      ...(report.findings ?? []).map((f) =>
+        el('div', { class: `finding ${f.severity}` },
+          el('div', { class: 'g' }, f.gate),
+          el('div', { class: 'm' }, f.message),
+          f.suggestion ? el('div', { class: 's' }, f.suggestion) : el('span', {}))));
+  }
+
+  // Small-size proof
+  const key = v.url.split('/').pop();
+  try {
+    const r = await fetch('/api/qa', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ imageKey: key }) });
+    if (!r.ok) return;
+    const { proofSheetUrl, sizes } = await r.json();
+    $('sizes').replaceChildren(
+      el('img', { src: proofSheetUrl, style: 'width:100%;border-radius:6px;border:1px solid var(--line)' }),
+      el('div', { class: 'hint' }, sizes.map((s) => `${s.label} ${s.legible ? '✓' : '✗'}`).join(' · ')));
+  } catch { /* proof sheet is a nicety, never block on it */ }
+}
+
+boot();
+</script>
+</body>
+</html>

@@ -297,6 +297,16 @@ describe('input validation', () => {
     await expect(client().detectFaces(Buffer.alloc(0))).rejects.toThrow();
   });
 
+  it('reports undecodable bytes as a typed IO_ERROR, not a raw sharp error', async () => {
+    try {
+      await client().detectFaces(Buffer.from('this is not an image at all'));
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(isHexaError(err)).toBe(true);
+      if (isHexaError(err)) expect(err.code).toBe('IO_ERROR');
+    }
+  });
+
   it('reports a missing file as IO_ERROR', async () => {
     try {
       await client().detectFaces('/definitely/not/here/nope.png');

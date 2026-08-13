@@ -85,7 +85,7 @@ resetProviders();
 
 type Capability = keyof ProviderCapabilities;
 
-function usable(p: ImageProvider | undefined, need?: Capability): p is ImageProvider {
+function usable(p: ImageProvider | undefined, need?: Capability): boolean {
   if (!p) return false;
   if (!p.isConfigured()) return false;
   if (!need || need === 'maxSize') return true;
@@ -107,7 +107,7 @@ export function resolveProvider(opts?: { prefer?: string; need?: Capability }): 
   const prefer = opts?.prefer?.trim();
   if (prefer) {
     const p = registry.get(prefer);
-    if (usable(p, need)) return p;
+    if (p && usable(p, need)) return p;
     if (!p) {
       log.warn(`Unknown AI provider "${prefer}"; falling back.`, { known: [...registry.keys()] });
     } else if (!p.isConfigured()) {
@@ -122,7 +122,7 @@ export function resolveProvider(opts?: { prefer?: string; need?: Capability }): 
   const envPref = process.env.HEXA_AI_PROVIDER?.trim();
   if (envPref) {
     const p = registry.get(envPref);
-    if (usable(p, need)) return p;
+    if (p && usable(p, need)) return p;
   }
 
   // Only reach for a hosted provider when the offline one genuinely cannot do
@@ -133,7 +133,7 @@ export function resolveProvider(opts?: { prefer?: string; need?: Capability }): 
 
   for (const id of AUTO_PRIORITY) {
     const p = registry.get(id);
-    if (usable(p, need)) return p;
+    if (p && usable(p, need)) return p;
   }
   return local;
 }

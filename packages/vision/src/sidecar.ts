@@ -137,7 +137,7 @@ export class Sidecar {
 
     try {
       return JSON.parse(text) as T;
-    } catch (cause) {
+    } catch {
       throw new ProtocolError('sidecar returned a non-JSON success body', res.status, 'BAD_RESPONSE');
     }
   }

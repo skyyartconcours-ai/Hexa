@@ -55,7 +55,17 @@ interface RawImage {
 /** EXIF-oriented source dimensions — cv2.imdecode auto-orients too, so the
  * sidecar and this path agree on the coordinate frame. */
 async function orientedSize(bytes: Buffer): Promise<{ width: number; height: number }> {
-  const meta = await sharp(bytes, { failOn: 'none' }).metadata();
+  let meta;
+  try {
+    meta = await sharp(bytes, { failOn: 'none' }).metadata();
+  } catch (cause) {
+    // sharp throws a plain Error for undecodable input; the CLI maps HexaError
+    // codes to exit statuses and remediation hints, so never let that escape.
+    throw new HexaError('IO_ERROR', `could not decode image: ${(cause as Error).message}`, {
+      hint: 'Supported inputs are what libvips can decode: JPEG, PNG, WebP, AVIF, TIFF, GIF, SVG.',
+      cause,
+    });
+  }
   const w = meta.width ?? 0;
   const h = meta.height ?? 0;
   if (!w || !h) {

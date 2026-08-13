@@ -44,7 +44,7 @@ export const clutterGate: Gate = {
     const density = edgeDensity(mag, w, h, undefined, EDGE_THRESHOLD);
 
     const { cols, rows } = analysisGrid(w, h);
-    const grid = saliencyGrid(gray, cols, rows);
+    const grid = saliencyGrid(gray, cols, rows, mag);
     const total = cols * rows;
 
     const busyThreshold = Math.max(0.12, grid.mean * 1.5);

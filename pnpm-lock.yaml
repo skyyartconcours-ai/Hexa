@@ -21,6 +21,40 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.1)
 
+  apps/studio:
+    dependencies:
+      '@hexa/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@hexa/data':
+        specifier: workspace:*
+        version: link:../../packages/data
+      '@hexa/pipeline':
+        specifier: workspace:*
+        version: link:../../packages/pipeline
+      '@hexa/qa':
+        specifier: workspace:*
+        version: link:../../packages/qa
+      '@hexa/templates':
+        specifier: workspace:*
+        version: link:../../packages/templates
+      sharp:
+        specifier: ^0.34.4
+        version: 0.34.5
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.12
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.1)
+
   packages/ai:
     dependencies:
       '@hexa/core':

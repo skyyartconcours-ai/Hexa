@@ -254,8 +254,8 @@ export interface SaliencyGrid {
   mean: number;
 }
 
-export function saliencyGrid(gray: GrayImage, cols = 16, rows = 9): SaliencyGrid {
-  const mag = sobel(gray);
+export function saliencyGrid(gray: GrayImage, cols = 16, rows = 9, precomputed?: Float32Array): SaliencyGrid {
+  const mag = precomputed ?? sobel(gray);
   const cells = new Float32Array(cols * rows);
   const cw = gray.width / cols;
   const ch = gray.height / rows;

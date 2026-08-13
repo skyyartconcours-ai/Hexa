@@ -1,0 +1,32 @@
+{
+  "name": "@hexa/studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hexa Studio — live thumbnail editor with variant gallery and QA inspector",
+  "bin": {
+    "hexa-studio": "./dist/server.js"
+  },
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/server.ts",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@hexa/core": "workspace:*",
+    "@hexa/data": "workspace:*",
+    "@hexa/pipeline": "workspace:*",
+    "@hexa/qa": "workspace:*",
+    "@hexa/templates": "workspace:*",
+    "sharp": "^0.34.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -64,7 +64,7 @@ export const particles: Generator = async (params, size, seed) => {
       .join('');
 
     const parts: string[] = [];
-    const count = Math.round(band.count * density * scale);
+    const count = Math.round(band.count * density * nScale);
     for (let i = 0; i < count; i++) {
       // Bias: raising a uniform to a power skews the population toward one
       // edge without ever producing a hard boundary.
@@ -72,7 +72,7 @@ export const particles: Generator = async (params, size, seed) => {
       const skew = bias >= 0 ? 1 - u ** (1 + Math.abs(bias) * 2.2) : u ** (1 + Math.abs(bias) * 2.2);
       const x = skew * w;
       const y = rng.next() * h;
-      const r = rng.float(band.rMin, band.rMax) * scale;
+      const r = rng.float(band.rMin, band.rMax) * rScale;
       const a = band.alpha * rng.float(0.45, 1);
       const gi = rng.int(0, palette.length - 1);
       // A few motes are stretched along their drift direction — embers rise.

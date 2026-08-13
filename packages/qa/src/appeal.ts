@@ -132,7 +132,7 @@ export async function scoreAppeal(ctx: AppealContext): Promise<AppealResult> {
 
   // ── focal clarity ─────────────────────────────────────────────────────────
   const { cols, rows } = analysisGrid(w, h);
-  const grid = saliencyGrid(gray, cols, rows);
+  const grid = saliencyGrid(gray, cols, rows, mag);
   const salient = connectedRegions(grid, Math.max(0.12, grid.mean * 1.5), 'above').filter((r) => r.size >= 2);
   const salientTotal = salient.reduce((a, r) => a + r.size, 0);
   const dominantShare = salientTotal > 0 ? salient[0]!.size / salientTotal : 0;

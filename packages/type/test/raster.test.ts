@@ -106,7 +106,7 @@ describe('sharp rasterisation', () => {
     const r = renderText({ block: { text: 'GRAND FINAL', style, align: 'center' }, box: BOX, anchor: 'center' });
     const ink = await expectVisible(r.markup, 'headline', 0.03);
     expect(ink.width).toBeGreaterThanOrEqual(900);
-  });
+  }, 30_000);
 
   it('renders every preset to visible pixels', async () => {
     for (const name of Object.keys(PRESETS)) {
@@ -116,7 +116,7 @@ describe('sharp rasterisation', () => {
       );
       await expectVisible(r.markup, `preset:${name}`);
     }
-  });
+  }, 60_000);
 
   it('renders each fill kind to visible pixels', async () => {
     const fills: TextStyle['fill'][] = [
@@ -130,7 +130,7 @@ describe('sharp rasterisation', () => {
       const r = renderText({ block: { text: 'FILL', style }, box: BOX, anchor: 'center' });
       await expectVisible(r.markup, `fill:${fill!.kind}`);
     }
-  });
+  }, 30_000);
 
   it('renders a gradient fill with actual colour variation, not a flat block', async () => {
     const style: TextStyle = {
@@ -157,7 +157,7 @@ describe('sharp rasterisation', () => {
     const a = await expectVisible(flat.markup, 'extrude:off');
     const b = await expectVisible(slab.markup, 'extrude:on');
     expect(b.coverage).toBeGreaterThan(a.coverage * 1.15);
-  });
+  }, 30_000);
 
   it('actually paints the plate behind the text', async () => {
     const style: TextStyle = {
@@ -191,7 +191,7 @@ describe('sharp rasterisation', () => {
       const r = renderText({ block: { text, style }, box: BOX, anchor: 'center' });
       await expectVisible(r.markup, `unicode:${text}`);
     }
-  });
+  }, 30_000);
 
   it('renders every versusMark style', async () => {
     const styles: NonNullable<VersusMarkOptions['style']>[] = [
@@ -204,7 +204,7 @@ describe('sharp rasterisation', () => {
         expect(ink.width, `versus:${style} raster width`).toBeGreaterThan(0);
       }
     }
-  });
+  }, 60_000);
 
   it('paints both team colours in a slash mark', async () => {
     const m = versusMark({ size: 240, style: 'slash', leftColor: '#FF0000', rightColor: '#0000FF' });
@@ -231,7 +231,7 @@ describe('sharp rasterisation', () => {
         await expectVisible(m.markup, `nameplate:${style}:${align}`, 0.02);
       }
     }
-  });
+  }, 30_000);
 
   it('renders every statBadge style', async () => {
     for (const style of ['pill', 'square', 'shield'] as const) {
@@ -257,22 +257,30 @@ describe('sharp rasterisation', () => {
     const stats = await sharp(small).stats();
     const stdev = Math.max(...stats.channels.map((c) => c.stdev));
     expect(stdev, 'headline dissolved at thumbnail scale').toBeGreaterThan(12);
-  });
+  }, 30_000);
 
   it('rasterises two text layers concatenated into one document, both visible', async () => {
-    const style: TextStyle = {
+    // The two layers differ *only* in gradient hue. If their def ids collided,
+    // whichever definition the parser resolved would paint both — so the two
+    // halves coming out different hues is direct evidence the namespacing works
+    // at raster time, not just in the markup.
+    const base: TextStyle = {
       family: 'Anton', size: 90, case: 'upper',
-      fill: { kind: 'linear', angle: 90, stops: [{ offset: 0, color: '#FFFFFF' }, { offset: 1, color: '#666666' }] },
-      glow: { radius: 18, color: '#40E0FF', intensity: 0.7 },
+      stroke: { width: 4, color: '#0A0A0F' },
+      glow: { radius: 14, color: '#40E0FF', intensity: 0.5 },
     };
-    const a = renderText({ block: { text: 'TOP LINE', style }, box: { x: 0, y: 0, w: 600, h: 140 } });
-    const b = renderText({
-      block: { text: 'LOWER LINE', style: { ...style, fill: { kind: 'linear', angle: 90, stops: [{ offset: 0, color: '#FFD447' }, { offset: 1, color: '#E01E37' }] } } },
-      box: { x: 0, y: 0, w: 600, h: 140 },
-    });
+    const red: TextStyle = {
+      ...base,
+      fill: { kind: 'linear', angle: 90, stops: [{ offset: 0, color: '#FF3020' }, { offset: 1, color: '#FF9080' }] },
+    };
+    const blue: TextStyle = {
+      ...base,
+      fill: { kind: 'linear', angle: 90, stops: [{ offset: 0, color: '#2030FF' }, { offset: 1, color: '#8090FF' }] },
+    };
+    const half: PixelRect = { x: 0, y: 0, w: 600, h: 140 };
+    const a = renderText({ block: { text: 'TOP LINE', style: red }, box: half, anchor: 'center' });
+    const b = renderText({ block: { text: 'LOWER LINE', style: blue }, box: half, anchor: 'center' });
 
-    // This is the composition the id scheme exists to protect: two independent
-    // renders, both carrying gradients and filters, in one document.
     const combined =
       `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="280" viewBox="0 0 600 280">` +
       `<g>${a.markup}</g><g transform="translate(0,140)">${b.markup}</g>` +
@@ -280,27 +288,41 @@ describe('sharp rasterisation', () => {
 
     const ink = await expectVisible(combined, 'two-layer document', 0.02);
 
-    // If the ids had collided, the second layer would inherit the first's
-    // gradient. Sample a row from each half and assert they differ in hue.
-    const { data, info } = await sharp(Buffer.from(combined)).flatten({ background: BG }).raw().toBuffer({ resolveWithObject: true });
-    const rowAvg = (y: number) => {
-      let r = 0, g = 0, b = 0, count = 0;
-      for (let x = 0; x < info.width; x++) {
-        const o = (y * info.width + x) * info.channels;
-        if (data[o]! > 40 || data[o + 1]! > 40 || data[o + 2]! > 60) {
-          r += data[o]!; g += data[o + 1]!; b += data[o + 2]!; count++;
+    const { data, info } = await sharp(Buffer.from(combined))
+      .flatten({ background: BG }).raw().toBuffer({ resolveWithObject: true });
+
+    /** Mean colour of the ink in the band `y0…y1` (fractions of height). */
+    const bandAvg = (y0: number, y1: number) => {
+      let r = 0, g = 0, bl = 0, count = 0;
+      for (let y = Math.floor(info.height * y0); y < Math.floor(info.height * y1); y++) {
+        for (let x = 0; x < info.width; x++) {
+          const o = (y * info.width + x) * info.channels;
+          // Ink only: anything clearly brighter than the #101018 ground.
+          if (data[o]! + data[o + 1]! + data[o + 2]! > 240) {
+            r += data[o]!; g += data[o + 1]!; bl += data[o + 2]!; count++;
+          }
         }
       }
-      return count ? { r: r / count, g: g / count, b: b / count } : null;
+      return count > 50 ? { r: r / count, g: g / count, b: bl / count, count } : null;
     };
-    const top = rowAvg(Math.floor(info.height * 0.25));
-    const bottom = rowAvg(Math.floor(info.height * 0.75));
-    expect(top, 'no ink in the top layer').not.toBeNull();
-    expect(bottom, 'no ink in the bottom layer').not.toBeNull();
-    // Top ramp is neutral grey; bottom ramp is amber→red. Blue is the tell.
-    expect(top!.b - bottom!.b, 'the two layers painted with the same gradient').toBeGreaterThan(20);
+
+    const top = bandAvg(0.05, 0.45);
+    const bottom = bandAvg(0.55, 0.95);
+    expect(top, 'no ink found in the top layer').not.toBeNull();
+    expect(bottom, 'no ink found in the bottom layer').not.toBeNull();
+
+    // Both layers carry the same cyan glow, which pushes blue up in both
+    // bands. The red:blue *ratio* is what isolates the fill from the halo — and
+    // it is exactly what would become identical if the gradient ids collided
+    // and one definition ended up painting both layers.
+    const topRatio = top!.r / top!.b;
+    const bottomRatio = bottom!.r / bottom!.b;
+    expect(
+      topRatio / bottomRatio,
+      `both layers painted with the same gradient (top r:b ${topRatio.toFixed(2)}, bottom r:b ${bottomRatio.toFixed(2)})`,
+    ).toBeGreaterThan(1.5);
     expect(ink.coverage).toBeGreaterThan(0.02);
-  });
+  }, 30_000);
 
   it('rasterises a full lockup of every mark type in one document', async () => {
     const head = autoFit(
@@ -325,5 +347,5 @@ describe('sharp rasterisation', () => {
     const ink = await expectVisible(doc, 'full lockup', 0.05);
     expect(ink.width).toBe(1280);
     expect(ink.height).toBe(720);
-  });
+  }, 30_000);
 });

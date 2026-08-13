@@ -484,5 +484,3 @@ export function toneLift(hex: string, amount: number): string {
   const k = Math.max(0, Math.min(1, amount));
   return toHex({ r: r + (255 - r) * k * 0.06, g: g + (255 - g) * k * 0.06, b: b + (255 - b) * k * 0.1 });
 }
-
-export { mix, shade, saturate };

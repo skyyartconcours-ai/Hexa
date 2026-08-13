@@ -41,7 +41,7 @@ export const SHORTS_BLEED = 0.03;
  * 16:9 YouTube surfaces (search results, home grid, watch-page sidebar,
  * end screens).
  */
-export const YOUTUBE_SAFE_ZONES: readonly SafeZone[] = Object.freeze([
+export const YOUTUBE_SAFE_ZONES: SafeZone[] = [
   {
     id: 'yt-duration-pill',
     // APPROX: the duration pill is inset ~4px from the bottom-right of the card
@@ -75,13 +75,13 @@ export const YOUTUBE_SAFE_ZONES: readonly SafeZone[] = Object.freeze([
     'yt',
     'Outer bleed: rounded corners on mobile cards, minor crops in embeds and the up-next rail. Keep names, scores and logo lock-ups out of this ring. APPROX.',
   ),
-]);
+];
 
 /**
  * 9:16 vertical surfaces (YouTube Shorts, and close enough for Reels/TikTok
  * to be a sane default).
  */
-export const SHORTS_SAFE_ZONES: readonly SafeZone[] = Object.freeze([
+export const SHORTS_SAFE_ZONES: SafeZone[] = [
   {
     id: 'shorts-action-rail',
     // APPROX: like / dislike / comment / share / remix / rotating sound disc,
@@ -122,14 +122,14 @@ export const SHORTS_SAFE_ZONES: readonly SafeZone[] = Object.freeze([
     'shorts',
     'Outer bleed for vertical surfaces: notches, rounded corners and per-app crops. APPROX.',
   ),
-]);
+];
 
 /**
  * Neutral zones for square-ish canvases (1:1 posts, 4:5 portraits). No known
  * platform chrome is assumed — only the outer bleed and the very bottom strip
  * many feeds overlay with captions.
  */
-export const SQUARE_SAFE_ZONES: readonly SafeZone[] = Object.freeze([
+export const SQUARE_SAFE_ZONES: SafeZone[] = [
   {
     id: 'sq-caption-strip',
     rect: { x: 0, y: 0.90, w: 1, h: 0.10 },
@@ -138,7 +138,7 @@ export const SQUARE_SAFE_ZONES: readonly SafeZone[] = Object.freeze([
       'Square feed surfaces commonly overlay a caption/handle row at the bottom. APPROX and highly platform-dependent.',
   },
   ...bleedZones(0.035, 'sq', 'Outer bleed for square crops and rounded feed cards. APPROX.'),
-]);
+];
 
 /** Aspect above which a canvas is treated as a wide/landscape surface. */
 export const WIDE_ASPECT_MIN = 1.2;

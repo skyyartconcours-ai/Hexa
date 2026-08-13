@@ -162,8 +162,19 @@ export const colorHarmonyGate: Gate = {
     }
 
     if (left && right) {
-      const d = accentDistance(left, right);
-      if (d < MIN_ACCENT_DISTANCE) {
+      let d: number | null = null;
+      try {
+        d = accentDistance(left, right);
+      } catch {
+        findings.push({
+          gate: 'color-harmony',
+          severity: 'warn',
+          message: `plan.meta.palette holds a colour that is not parseable hex (left "${left}", right "${right}"), so the two sides could not be compared`,
+          score: 0.7,
+          suggestion: 'Write palette entries as #RRGGBB — they are also what the studio UI reads to label the sides.',
+        });
+      }
+      if (d !== null && d < MIN_ACCENT_DISTANCE) {
         findings.push({
           gate: 'color-harmony',
           severity: 'warn',

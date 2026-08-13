@@ -49,6 +49,9 @@ export interface PlaceholderOptions {
 /** Ink used for construction lines and the caption plate. */
 const INK = '#0B0B0F';
 
+/** Opacity of the caption plate over the silhouette. */
+const PLATE_ALPHA = 0.72;
+
 const MIN_DIM = 16;
 const MAX_DIM = 8192;
 
@@ -94,7 +97,9 @@ export function buildPlaceholderSvg(opts: PlaceholderOptions): string {
   const top = mix(shade(accent, 0.18), '#FFFFFF', 0.12);
   const bottom = mix(shade(accent, -0.26), INK, 0.35);
   const line = withAlpha(mix(accent, '#FFFFFF', 0.7), 0.5);
-  const textColor = readableOn(shade(accent, -0.1));
+  // The label sits on the ink plate, not on the accent — pick the text colour
+  // against what is actually behind it, or a dark accent gets dark text.
+  const textColor = readableOn(mix(accent, INK, PLATE_ALPHA));
 
   const body =
     kind === 'logo'
@@ -184,7 +189,7 @@ function bustSilhouette(w: number, h: number, kind: AssetKind, rng: Rng): BodyAr
     const hipY = shoulderY + (h - shoulderY) * 0.46;
     const waistW = shoulderW * 0.76;
     const hipsW = shoulderW * 0.9;
-    const gap = shoulderW * 0.11;
+    const gap = shoulderW * 0.17;
     const legIn = gap / 2;
     torso = [
       `M ${f(headCx - neckW / 2)} ${f(neckTop)}`,
@@ -349,15 +354,17 @@ function captionPlate(w: number, h: number, label: string, stamp: string, textCo
   const plateW = Math.min(w * 0.92, text.length * fontSize * 0.72 + fontSize * 1.4);
   const plateH = fontSize * 1.7 + capSize * 1.9;
   // Full-body figures carry the plate at chest height so it never bridges the
-  // gap between the legs and muddies the silhouette.
-  const cy = kind === 'backplate' ? h * 0.5 : kind === 'fullbody' ? h * 0.46 : h * 0.83;
+  // gap between the legs and muddies the silhouette; a logo keeps it clear of
+  // the mark entirely.
+  const cy =
+    kind === 'backplate' ? h * 0.5 : kind === 'fullbody' ? h * 0.46 : kind === 'logo' ? h * 0.88 : h * 0.83;
   const x = (w - plateW) / 2;
   const y = cy - plateH / 2;
   const r = Math.min(plateH * 0.18, s * 0.02);
 
   return [
     `<g>`,
-    `<rect x="${f(x)}" y="${f(y)}" width="${f(plateW)}" height="${f(plateH)}" rx="${f(r)}" fill="${withAlpha(INK, 0.72)}" stroke="${withAlpha('#FFFFFF', 0.25)}" stroke-width="1"/>`,
+    `<rect x="${f(x)}" y="${f(y)}" width="${f(plateW)}" height="${f(plateH)}" rx="${f(r)}" fill="${withAlpha(INK, PLATE_ALPHA)}" stroke="${withAlpha('#FFFFFF', 0.25)}" stroke-width="1"/>`,
     `<text x="${f(w / 2)}" y="${f(y + fontSize * 1.28)}" text-anchor="middle" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="${f(fontSize)}" font-weight="700" letter-spacing="${f(fontSize * 0.06)}" fill="${textColor}">${esc(text)}</text>`,
     `<text x="${f(w / 2)}" y="${f(y + fontSize * 1.28 + capSize * 1.5)}" text-anchor="middle" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="${f(capSize)}" letter-spacing="${f(capSize * 0.18)}" fill="${withAlpha('#FFFFFF', 0.72)}">${esc(stamp)}</text>`,
     `</g>`,

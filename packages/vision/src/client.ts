@@ -370,6 +370,11 @@ export class VisionClient {
         const res = await this.sidecar.postJson<MetricsResponse>('/metrics', this.imageBody(img));
         for (const w of res.warnings ?? []) this.log.debug(`metrics: ${w}`);
         const { warnings: _ignored, ...metrics } = res;
+        // JSON nulls are not the same as absent optional fields — a consumer
+        // doing `if (m.landmarks)` copes, but `m.landmarks!.leftEye` would not.
+        for (const key of Object.keys(metrics) as (keyof typeof metrics)[]) {
+          if (metrics[key] === null) delete metrics[key];
+        }
         return metrics;
       } catch (err) {
         this.noteFailure(err);

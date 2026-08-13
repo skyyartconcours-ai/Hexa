@@ -41,7 +41,7 @@
  * `total` is Σ weightᵢ · partᵢ, rounded, so it lands in 0–100.
  */
 
-import type { PixelRect, QaFinding, SlotKind, Vec2 } from '@hexa/core';
+import type { PixelRect, QaFinding, SlotKind } from '@hexa/core';
 import {
   GOLDEN,
   THIRDS,
@@ -127,14 +127,12 @@ export function scoreComposition(input: ScoreCompositionInput): CompositionScore
   const textRects = input.textRects ?? [];
   const n = (r: PixelRect) => normaliseRect(r, width, height);
 
-  const parts: PartResult[] = [];
   const results: Record<string, number> = {};
   const findings: QaFinding[] = [];
 
   const register = (name: string, part: PartResult) => {
     results[name] = round3(clamp(part.score, 0, 1));
     findings.push(...part.findings);
-    parts.push(part);
   };
 
   register('faceSize', scoreFaceSize(faces, height, n));
