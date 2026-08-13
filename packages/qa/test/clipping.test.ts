@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import sharp from 'sharp';
 import { clippingGate } from '../src/gates/clipping.js';
 import { ctx, flatBackground, planWithText, textInBox, W } from './helpers.js';
 
@@ -77,6 +78,28 @@ describe('clippingGate', () => {
     const findings = await clippingGate.run(scene(image, HEAD, 'headline', 'GLOW'));
     expect(fails(findings)).toEqual([]);
     expect(findings.some((f) => f.severity === 'warn' && /NOT checked for clipping/.test(f.message))).toBe(true);
+  });
+
+  it('does NOT fire when the plan declares a text colour the compositor never painted', async () => {
+    // Straight from the sample render: the versus template records
+    // right-team.color = "#0e0d0d" for a badge whose glyphs are painted cream,
+    // so the "declared" mask lands on the dark backdrop filling the right half
+    // of the rect. That slab touches the boundary at 100%, and the gate used to
+    // report an intact badge as a sliced glyph.
+    const rect = { x: 916, y: 432, w: 333, h: 45 };
+    const base = await flatBackground('#0e0d0d');
+    const badge = await sharp({ create: { width: 150, height: 45, channels: 3, background: '#F3721F' } }).png().toBuffer();
+    const withBadge = await sharp(base).composite([{ input: badge, left: rect.x, top: rect.y }]).png().toBuffer();
+    const image = await textInBox(withBadge, { text: 'HLE', rect, inset: 12, color: '#FFF3C4' });
+
+    const findings = await clippingGate.run(
+      ctx(image, {
+        plan: planWithText([{ role: 'right-team', rect, color: '#0e0d0d', text: 'HLE' }]),
+        textRects: [{ role: 'right-team', rect }],
+      }),
+    );
+    expect(fails(findings)).toEqual([]);
+    expect(findings.some((f) => /NOT checked for clipping/.test(f.message))).toBe(true);
   });
 
   it('passes cleanly when there is no text or mark at all', async () => {

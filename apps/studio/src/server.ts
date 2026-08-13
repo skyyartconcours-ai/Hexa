@@ -35,7 +35,7 @@ import { readFile, realpath } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname, resolve, sep, isAbsolute } from 'node:path';
-import { clampInt, createLogger, isHexaError, type LogLevel } from '@hexa/core';
+import { MAX_TEXT_LENGTH, clampInt, createLogger, isHexaError, type LogLevel } from '@hexa/core';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = resolve(__dirname, '..', 'public');
@@ -68,8 +68,8 @@ const MAX_CONCURRENT_RENDERS = 2;
 const MAX_VARIANTS = 8;
 /** Subjects per request. The pipeline caps at 12; refuse earlier and cheaper. */
 const MAX_SUBJECTS = 12;
-/** Longest string accepted for any text role. */
-const MAX_TEXT_CHARS = 4096;
+/** Longest string accepted for any text role — the shared bound from core. */
+const MAX_TEXT_CHARS = MAX_TEXT_LENGTH;
 
 /**
  * Directory that `background.path` may point inside, or undefined to refuse

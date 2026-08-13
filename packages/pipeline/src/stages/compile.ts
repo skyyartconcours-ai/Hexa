@@ -1279,13 +1279,11 @@ async function emitText(args: {
             })
           : await fitText({
               text: copy,
-              rect: typographyBox(rect, canvas),
+              rect: typographyBox(rect, canvas, slot.anchor),
               role,
               color: plateFor(role, input.palette) ? readableOn(plateFor(role, input.palette)!, input.palette.light, input.palette.dark) : color,
               align: alignFor(role, axes.textArrangement),
-              // Deliberately always 'center'. See typographyBox: an edge anchor
-              // pins the glyphs against the edge that clips them.
-              anchor: 'center',
+              anchor: slot.anchor,
               maxLines: role === 'headline' || role === 'subhead' ? 2 : 1,
               ...plateStyle(role, input.palette),
             });
@@ -1417,37 +1415,43 @@ export function arrangeTextRect(
 }
 
 /**
- * Extra horizontal room handed to the type setter, as a fraction of the slot.
+ * Insurance margin on a centred text box, as a fraction of the slot.
  *
- * @hexa/type measures with its own calibrated family metrics and the rasteriser
- * draws with whatever face is actually installed. When the wanted display faces
- * (Anton, Bebas Neue, …) are missing, the substitute is consistently *wider*
- * than the metrics predict — measured here at 1.10–1.20× — so a string that
- * autofit believes fits exactly gets its last glyph sliced off by the edge of
- * its own SVG viewport. Every clipped headline in the gallery came from this.
+ * The type setter emits an SVG exactly the size of the box it was given and
+ * draws the glyphs inside it, so any disagreement between what it *measures*
+ * and what the rasteriser *draws* comes out as a severed last letter rather
+ * than as overflow. That disagreement is real whenever the wanted display faces
+ * are not the ones actually loaded — with the display stack missing, drawn
+ * width ran 10–20% over measured and every headline in the library lost its
+ * final glyph.
  *
- * The safety factor is the margin that absorbs the mismatch. It is not a fudge
- * for bad layout: font size is driven by the box *height* for every preset the
- * pipeline uses, so a wider box costs nothing in type size — it only stops the
- * glyphs colliding with the viewport.
+ * A few percent of slack costs nothing (font size is driven by the box height
+ * for every preset the pipeline uses, so a wider box does not shrink the type)
+ * and turns that failure mode from "sliced letters" into "slightly loose
+ * tracking". It is applied only to centred copy: widening an edge-anchored box
+ * would slide the type out past the plate it is supposed to sit on.
  */
-const TYPE_WIDTH_SAFETY = 1.3;
+const TYPE_WIDTH_SAFETY = 1.08;
+
+/** Anchors that pin a block to a box edge rather than centring it in one. */
+function isEdgeAnchored(anchor: string | undefined): boolean {
+  return anchor !== undefined && anchor !== 'center';
+}
 
 /**
  * The box actually handed to the type setter.
  *
- * Two corrections, both forced by the measurement mismatch above:
- *
- *  - widen around the slot's centre so drawn glyphs have somewhere to go;
- *  - centre the block rather than anchoring it to an edge. An edge anchor
- *    (`center-right`, `center-left`) pins the block flush against the very edge
- *    the overflow runs past, which turns a 10% mismatch into a visibly severed
- *    letter. Centred, the same mismatch is absorbed by the margin.
- *
- * The result is placed at the returned rect, so the type still reads as
- * belonging to its slot — it is centred on it instead of flush inside it.
+ * Centred copy gets the safety margin above. Edge-anchored copy is left exactly
+ * as the template authored it, because its alignment is the design — a left
+ * nameplate that starts flush with its plate is not the same picture as one
+ * floating in the middle of it.
  */
-export function typographyBox(rect: PixelRect, canvas: { width: number; height: number }): PixelRect {
+export function typographyBox(
+  rect: PixelRect,
+  canvas: { width: number; height: number },
+  anchor?: string,
+): PixelRect {
+  if (isEdgeAnchored(anchor)) return rect;
   const cx = rect.x + rect.w / 2;
   const wanted = Math.round(rect.w * TYPE_WIDTH_SAFETY);
   // Never wider than the canvas, and never pushed off it: if the slot sits near

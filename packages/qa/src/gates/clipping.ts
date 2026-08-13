@@ -216,12 +216,30 @@ export const clippingGate: Gate = {
 };
 
 /**
+ * Ink fraction of its own bounding box above which a mask is a filled region
+ * rather than glyphs.
+ *
+ * Measured across every text rect of the sample renders: real type masks fill
+ * 0.01–0.64 of their bbox (letterforms are strokes with counters and gaps
+ * between them), while the two masks that were really the *backdrop* — picked up
+ * because the plan recorded a text colour the compositor did not paint with —
+ * fill 0.96 and 0.97. The gap is wide enough to sit a threshold in the middle of.
+ */
+const SLAB_FILL = 0.85;
+
+/**
  * Does this mask look like type rather than like a filled box?
  *
- * A glow, a lozenge or a gradient plate painted in the declared text colour
- * produces a mask whose bounding box is the rect itself — ink on all four
- * sides — and every edge reading taken from it is meaningless. Real type is
- * inset on at least one axis, because that is what a line box is for.
+ * Two ways a mask stops being type. A glow, a lozenge or a gradient plate in the
+ * declared colour produces ink on all four sides of the rect — the bbox *is* the
+ * rect. And when the declared colour is simply wrong (this happens: the versus
+ * template records `#0e0d0d` for a badge whose glyphs are painted cream), the
+ * match lands on the backdrop instead, producing a solid slab.
+ *
+ * Both readings are worthless and both used to produce confident verdicts — the
+ * slab in particular reports "100% of the type's height is ink hard against the
+ * right edge", which is a clipped-glyph message about a badge that is perfectly
+ * intact. Refusing to answer is the only honest option.
  */
 function readsAsType(mask: NonNullable<ReturnType<typeof inkMask>>): boolean {
   const { data, rect } = mask;
@@ -238,7 +256,9 @@ function readsAsType(mask: NonNullable<ReturnType<typeof inkMask>>): boolean {
   if (maxX < 0) return false;
   const spanX = (maxX - minX + 1) / rect.w;
   const spanY = (maxY - minY + 1) / rect.h;
-  return !(spanX >= 0.95 && spanY >= 0.95);
+  if (spanX >= 0.95 && spanY >= 0.95) return false;
+  const bbox = (maxX - minX + 1) * (maxY - minY + 1);
+  return mask.count / Math.max(1, bbox) < SLAB_FILL;
 }
 
 function offCanvas(rect: PixelRect, width: number, height: number): string[] {
