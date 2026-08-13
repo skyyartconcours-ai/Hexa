@@ -168,7 +168,11 @@ export async function generateBackplate(req: BackplateRouteRequest): Promise<Gen
     strength: req.strength,
   });
 
-  const hit = await readCache(key, req.cache);
+  // Local painters are cheap and deterministic; caching them only risks
+  // serving pixels from a superseded version of the code.
+  const cacheable = !provider.local;
+
+  const hit = cacheable ? await readCache(key, req.cache) : undefined;
   if (hit) {
     log.debug(`backplate cache hit (${provider.id})`, { key });
     return hit;
@@ -176,7 +180,7 @@ export async function generateBackplate(req: BackplateRouteRequest): Promise<Gen
 
   try {
     const image = await provider.generateBackplate(stripRouting(req));
-    await writeCache(key, image, req.cache);
+    if (cacheable) await writeCache(key, image, req.cache);
     return image;
   } catch (err) {
     // A refused prompt is a caller error and must surface. Anything else — a
@@ -187,9 +191,10 @@ export async function generateBackplate(req: BackplateRouteRequest): Promise<Gen
     log.warn(`AI provider "${provider.id}" failed; painting the backplate offline instead.`, {
       error: err instanceof Error ? err.message : String(err),
     });
-    const image = await localProvider.generateBackplate(stripRouting(req));
-    await writeCache(cacheKey({ kind: 'backplate', provider: 'local', ...stripRouting(req) }), image, req.cache);
-    return image;
+    // Not cached: the fallback painter is local, and a cached fallback would
+    // outlive the outage that caused it — the next run would silently keep the
+    // offline plate instead of retrying the provider the user paid for.
+    return await localProvider.generateBackplate(stripRouting(req));
   }
 }
 

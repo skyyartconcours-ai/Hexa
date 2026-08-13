@@ -16,9 +16,12 @@ import type {
   ImageProvider,
   ProviderCapabilities,
 } from '../types.js';
+import { assertNoPersonGeneration } from '../guard.js';
 
 export class StubProvider implements ImageProvider {
   readonly id = 'stub';
+  /** Painted from code — never cached; see ImageProvider.local. */
+  readonly local = true;
 
   readonly capabilities: ProviderCapabilities = {
     backplate: true,
@@ -33,6 +36,9 @@ export class StubProvider implements ImageProvider {
   }
 
   async generateBackplate(req: BackplateRequest): Promise<GeneratedImage> {
+    // Even the test double refuses person prompts: a stub that is more
+    // permissive than production is a stub that hides a bug.
+    assertNoPersonGeneration(req.prompt ?? '');
     const width = Math.max(1, Math.round(req.width));
     const height = Math.max(1, Math.round(req.height));
     if (!Number.isFinite(width) || !Number.isFinite(height)) {

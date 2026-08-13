@@ -99,6 +99,17 @@ export interface GeneratedImage {
 export interface ImageProvider {
   readonly id: string;
   readonly capabilities: ProviderCapabilities;
+  /**
+   * True when the provider paints locally from deterministic code rather than
+   * calling a billed, latent remote service.
+   *
+   * The response cache exists to avoid paying twice for the same network call.
+   * A local painter has nothing to save — and caching it is actively harmful,
+   * because the key hashes the *request*, not the code that served it, so an
+   * improvement to the painter would keep returning the old pixels until
+   * someone thought to clear the cache by hand.
+   */
+  readonly local?: boolean;
   isConfigured(): boolean;
   generateBackplate(req: BackplateRequest): Promise<GeneratedImage>;
   identityGuidedEdit?(req: IdentityEditRequest): Promise<GeneratedImage>;

@@ -58,12 +58,18 @@ export function debugOverlaySvg(
 ): string {
   const fontSize = Math.max(11, Math.round(height * 0.016));
   const parts: string[] = [];
+  // Full-canvas layers all start at (0,0); stagger their labels down a row each
+  // so an FX stack does not collapse into one illegible smear of text.
+  const rows = new Map<string, number>();
   boxes.forEach((box, i) => {
     const hue = Math.round((i / Math.max(1, boxes.length)) * 320);
     const stroke = `hsl(${hue},95%,62%)`;
     const { x, y, w, h } = box.rect;
     const labelW = (box.id.length + 6) * fontSize * 0.58;
-    const ly = Math.max(fontSize + 2, y);
+    const key = `${Math.round(x)},${Math.round(y)}`;
+    const row = rows.get(key) ?? 0;
+    rows.set(key, row + 1);
+    const ly = Math.max(fontSize + 2, y) + row * (fontSize + 6);
     parts.push(
       `<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" fill="none" stroke="${stroke}" ` +
         `stroke-width="2" stroke-dasharray="7 5"/>`,

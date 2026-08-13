@@ -86,14 +86,22 @@ describe('LocalProvider — every style paints something distinct', () => {
       expect(isPng(out.buffer), `${style} did not produce a PNG`).toBe(true);
       expect(out.model).toBe(`procedural/${style}`);
 
+      // These bounds are the quality bar, not a smoke test. An early version of
+      // this painter passed "returns a valid PNG" while producing a near-black
+      // magenta smear for every style, so the assertions below pin the three
+      // properties that were actually missing: real tonal range, a mid-range
+      // exposure, and colour that is not just one grey wash.
       const stats = await sharp(out.buffer).stats();
-      const maxStdev = Math.max(...stats.channels.slice(0, 3).map((c) => c.stdev));
-      expect(maxStdev, `${style} is flat`).toBeGreaterThan(6);
+      const channels = stats.channels.slice(0, 3);
+      const maxStdev = Math.max(...channels.map((c) => c.stdev));
+      expect(maxStdev, `${style} has no tonal range`).toBeGreaterThan(20);
 
-      // Not a black frame and not a white one: real plates use the middle.
-      const mean = stats.channels.slice(0, 3).reduce((s, c) => s + c.mean, 0) / 3;
-      expect(mean, `${style} is crushed to black`).toBeGreaterThan(4);
-      expect(mean, `${style} is blown out`).toBeLessThan(230);
+      const mean = channels.reduce((s, c) => s + c.mean, 0) / 3;
+      expect(mean, `${style} is crushed to black`).toBeGreaterThan(25);
+      expect(mean, `${style} is blown out`).toBeLessThan(200);
+
+      const chroma = Math.max(...channels.map((c) => c.mean)) - Math.min(...channels.map((c) => c.mean));
+      expect(chroma, `${style} is grey — the palette did not reach the plate`).toBeGreaterThan(8);
 
       digests.add(out.buffer.toString('base64').slice(0, 512));
     }
@@ -135,9 +143,15 @@ describe('LocalProvider — determinism', () => {
 });
 
 describe('LocalProvider — the guard applies offline too', () => {
-  it('refuses a person-requesting prompt even with no network involved', async () => {
-    // The provider itself does not guard — routing does — but the registry
-    // entry point must, and the offline path is the one users hit by default.
+  it('refuses a person-requesting prompt when called directly', async () => {
+    // The rule is enforced by the provider itself, not only by the router, so
+    // it cannot be sidestepped by reaching past the registry.
+    await expect(
+      provider.generateBackplate({ prompt: 'a portrait of a player on the arena stage', width: 320, height: 180 }),
+    ).rejects.toMatchObject({ code: 'INVALID_REQUEST' });
+  });
+
+  it('refuses through the registry too', async () => {
     const { generateBackplate } = await import('../src/registry.js');
     await expect(
       generateBackplate({

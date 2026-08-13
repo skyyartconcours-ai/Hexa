@@ -354,11 +354,15 @@ export function skylineSvg(
   let x = -0.04 * w;
   for (let i = 0; i < opts.count && x < w; i++) {
     const bw = rng.float(0.035, 0.11) * w;
+    // Towers near the middle stay low, so the bright gap at the end of the
+    // street survives and the subject has somewhere to stand against it.
     const centreish = Math.abs(x / w + bw / w / 2 - 0.5) < clear / 2;
-    const bh = (centreish ? rng.float(opts.minH, opts.minH + (opts.maxH - opts.minH) * 0.35) : rng.float(opts.minH, opts.maxH)) * h;
+    const bh = (centreish ? rng.float(opts.minH * 0.35, opts.minH * 0.8) : rng.float(opts.minH, opts.maxH)) * h;
     const top = opts.baseline * h - bh;
+    // Stop at the baseline: running the block to the bottom of the frame paves
+    // over the road, which is where half the light in a wet-street plate lives.
     out.push(
-      `<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${(bh + h).toFixed(1)}" fill="${opts.colour}"/>`,
+      `<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${(bh + 1).toFixed(1)}" fill="${opts.colour}"/>`,
     );
     // Window grid — sparse, irregular, never a full checkerboard.
     const cols = Math.max(1, Math.floor(bw / (0.012 * w)));

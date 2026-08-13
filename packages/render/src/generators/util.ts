@@ -77,11 +77,6 @@ export async function renderSvg(markup: string): Promise<RawImage> {
   return toRaw(Buffer.from(markup));
 }
 
-/** Rasterise SVG markup straight to an RGBA PNG. */
-export async function svgToPng(markup: string): Promise<Buffer> {
-  return sharp(Buffer.from(markup)).ensureAlpha().png({ compressionLevel: 6 }).toBuffer();
-}
-
 /** Encode a raw image as an RGBA PNG (alpha forced, so every generator agrees). */
 export async function toRgbaPng(img: RawImage): Promise<Buffer> {
   return rawToSharp(img).ensureAlpha().png({ compressionLevel: 6 }).toBuffer();

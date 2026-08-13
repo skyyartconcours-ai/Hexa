@@ -14,6 +14,7 @@
  */
 
 import { promises as fs } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -308,6 +309,13 @@ async function main(): Promise<void> {
     `hero timings: total=${hero.timings.total?.toFixed(0)}ms layers=${hero.timings.layers?.toFixed(0)}ms ` +
       `downsample=${hero.timings.downsample?.toFixed(0)}ms grade=${hero.timings.grade?.toFixed(0)}ms ` +
       `export=${hero.timings.export?.toFixed(0)}ms | slowest ${slowest}`,
+  );
+
+  // Reproducibility check: the same plan and seed must give the same bytes.
+  const again = await renderPlan(plan, { buffers });
+  console.log(
+    `determinism: re-render ${again.buffer.equals(hero.buffer) ? 'byte-identical' : 'DIFFERS — BUG'} ` +
+      `(sha ${createHash('sha256').update(hero.buffer).digest('hex').slice(0, 16)})`,
   );
 
   const debug = await renderPlan(plan, { buffers, debugOverlay: true });

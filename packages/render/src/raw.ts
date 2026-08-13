@@ -85,10 +85,6 @@ export function solidRaw(width: number, height: number, color: string): RawImage
   return { data, width, height, channels: 4 };
 }
 
-export function transparentRaw(width: number, height: number): RawImage {
-  return { data: Buffer.alloc(width * height * 4, 0), width, height, channels: 4 };
-}
-
 /** Pull the alpha plane out of an RGBA image as a single-channel mask. */
 export function alphaPlane(img: RawImage): RawImage {
   const n = img.width * img.height;
@@ -96,14 +92,6 @@ export function alphaPlane(img: RawImage): RawImage {
   if (img.channels === 1) return { data: Buffer.from(img.data), width: img.width, height: img.height, channels: 1 };
   for (let i = 0, p = 3; i < n; i++, p += img.channels) out[i] = img.data[p]!;
   return { data: out, width: img.width, height: img.height, channels: 1 };
-}
-
-/** Write a single-channel mask back into an RGBA image's alpha. */
-export function setAlphaPlane(img: RawImage, mask: RawImage): RawImage {
-  const n = img.width * img.height;
-  const out = Buffer.from(img.data);
-  for (let i = 0, p = 3; i < n; i++, p += 4) out[p] = mask.data[i]!;
-  return { data: out, width: img.width, height: img.height, channels: 4 };
 }
 
 /** Multiply an RGBA image's alpha by a scalar (used for layer opacity). */

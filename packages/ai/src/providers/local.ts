@@ -29,6 +29,7 @@ import type {
   UpscaleRequest,
 } from '../types.js';
 import { isBackplateStyle } from '../types.js';
+import { assertNoPersonGeneration } from '../guard.js';
 import {
   aerial,
   a,
@@ -177,13 +178,13 @@ const PAINTERS: Record<BackplateStyle, Painter> = {
           svg:
             `<rect x="${(0.16 * size.width).toFixed(1)}" y="${((deck - 0.36) * size.height).toFixed(1)}" ` +
             `width="${(0.68 * size.width).toFixed(1)}" height="${(0.32 * size.height).toFixed(1)}" ` +
-            `fill="${a(pal.primary, 0.85)}"/>` +
+            `fill="${a(pal.primary, 0.5)}"/>` +
             `<rect x="${(0.16 * size.width).toFixed(1)}" y="${((deck - 0.05) * size.height).toFixed(1)}" ` +
             `width="${(0.68 * size.width).toFixed(1)}" height="${(0.012 * size.height).toFixed(1)}" ` +
             `fill="${a(pal.light, 0.9)}"/>` +
-            glowSvg(size, [{ cx: 0.5, cy: deck - 0.2, rx: 0.42, ry: 0.28, colour: pal.primary, alpha: 0.9 }]),
+            glowSvg(size, [{ cx: 0.5, cy: deck - 0.2, rx: 0.42, ry: 0.28, colour: pal.primary, alpha: 0.75 }]),
           blend: 'screen',
-          glow: { sigma: 7, downscale: 3 },
+          glow: { sigma: 12, downscale: 3 },
         },
         // Two side towers gelled to the opposing brand colour: the whole point
         // of a versus plate is that the two halves are lit differently.
@@ -860,31 +861,31 @@ const PAINTERS: Record<BackplateStyle, Painter> = {
       // Dense columns at the edges, clear pocket at the centre.
       {
         svg: smokeSvg(size, rng.fork(1), {
-          count: 54,
+          count: 78,
           colours: [pal.haze, pal.light, pal.primary],
-          alpha: 0.26,
+          alpha: 0.17,
           clearCentre: 0.3,
         }),
         blend: 'screen',
-        glow: { sigma: 20, downscale: 4 },
+        glow: { sigma: 42, downscale: 5 },
       },
       // Thin wisps peeling off, sharper than the body.
       {
-        svg: smokeSvg(size, rng.fork(2), { count: 26, colours: [pal.light], alpha: 0.2, clearCentre: 0.36 }),
+        svg: smokeSvg(size, rng.fork(2), { count: 34, colours: [pal.light], alpha: 0.14, clearCentre: 0.36 }),
         blend: 'screen',
-        glow: { sigma: 5, downscale: 2 },
+        glow: { sigma: 16, downscale: 3 },
       },
       // A dark near column at each edge: without one hard edge, layered smoke
       // reads as a flat wash rather than a volume.
       {
         svg: smokeSvg(size, rng.fork(3), {
-          count: 14,
+          count: 20,
           colours: [shade(pal.deep, -0.07)],
-          alpha: 0.55,
+          alpha: 0.4,
           clearCentre: 0.52,
         }),
         blend: 'over',
-        glow: { sigma: 16, downscale: 4 },
+        glow: { sigma: 34, downscale: 5 },
       },
       { svg: subjectClearanceSvg(size, subjects, 0.2), blend: 'over' },
     ],
@@ -1192,6 +1193,8 @@ function subjectCountFromPrompt(prompt: string): number {
 
 export class LocalProvider implements ImageProvider {
   readonly id = 'local';
+  /** Painted from code — never cached; see ImageProvider.local. */
+  readonly local = true;
 
   readonly capabilities: ProviderCapabilities = {
     backplate: true,
@@ -1210,6 +1213,10 @@ export class LocalProvider implements ImageProvider {
   }
 
   async generateBackplate(req: BackplateRequest): Promise<GeneratedImage> {
+    // The guard is not a network-provider concern — it is the product rule, so
+    // it holds on the offline path too. Someone calling this provider directly
+    // must hit exactly the same refusal as someone calling a hosted one.
+    assertNoPersonGeneration(req.prompt ?? '');
     return paintBackplate(req);
   }
 
