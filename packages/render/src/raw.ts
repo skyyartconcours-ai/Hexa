@@ -115,13 +115,20 @@ export function scaleAlpha(img: RawImage, factor: number): RawImage {
   return { data: out, width: img.width, height: img.height, channels: 4 };
 }
 
-/** Gaussian blur that respects premultiplication (see file header). */
+/**
+ * Gaussian blur that respects premultiplication (see file header).
+ *
+ * Single-band input needs `toColourspace('b-w')` on the way out: libvips
+ * promotes a 1-band raw image to sRGB, so without it a blurred *mask* comes
+ * back with three interleaved copies of itself and every downstream index is
+ * off by 3× — which shows up as stripes across the subject rather than as an
+ * obvious crash.
+ */
 export async function blurRaw(img: RawImage, sigma: number): Promise<RawImage> {
   if (!(sigma >= MIN_SIGMA)) return cloneRaw(img);
-  const { data, info } = await rawToSharp(img)
-    .blur(Math.min(1000, sigma))
-    .raw({ depth: 'uchar' })
-    .toBuffer({ resolveWithObject: true });
+  let pipe = rawToSharp(img).blur(Math.min(1000, sigma));
+  if (img.channels === 1) pipe = pipe.toColourspace('b-w');
+  const { data, info } = await pipe.raw({ depth: 'uchar' }).toBuffer({ resolveWithObject: true });
   return { data, width: info.width, height: info.height, channels: info.channels };
 }
 
@@ -137,17 +144,34 @@ export async function directionalBlur(img: RawImage, angleDeg: number, taps: num
   // Angles follow the light convention used everywhere in this package:
   // measured counter-clockwise from +x with y pointing *up*, so screen-space
   // direction is (cos a, −sin a) and sharp's clockwise rotate(a) aligns it.
-  const rotated = await rawToSharp(img)
-    .rotate(angleDeg, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .convolve({ width: n, height: 3, kernel, scale: n, offset: 0 })
-    .rotate(-angleDeg, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+  //
+  // Three separate pipelines on purpose: `rotate()` is a *property* of a sharp
+  // pipeline, not a queued operation, so a second call in the same chain simply
+  // replaces the first and the image comes out still rotated.
+  const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
+  const spun = await rawToSharp(img)
+    .rotate(angleDeg, { background: transparent })
     .raw({ depth: 'uchar' })
     .toBuffer({ resolveWithObject: true });
 
-  const left = Math.max(0, Math.round((rotated.info.width - img.width) / 2));
-  const top = Math.max(0, Math.round((rotated.info.height - img.height) / 2));
-  const { data, info } = await sharp(rotated.data, {
-    raw: { width: rotated.info.width, height: rotated.info.height, channels: 4 },
+  const blurred = await sharp(spun.data, {
+    raw: { width: spun.info.width, height: spun.info.height, channels: 4 },
+  })
+    .convolve({ width: n, height: 3, kernel, scale: n, offset: 0 })
+    .raw({ depth: 'uchar' })
+    .toBuffer({ resolveWithObject: true });
+
+  const back = await sharp(blurred.data, {
+    raw: { width: blurred.info.width, height: blurred.info.height, channels: 4 },
+  })
+    .rotate(-angleDeg, { background: transparent })
+    .raw({ depth: 'uchar' })
+    .toBuffer({ resolveWithObject: true });
+
+  const left = Math.max(0, Math.round((back.info.width - img.width) / 2));
+  const top = Math.max(0, Math.round((back.info.height - img.height) / 2));
+  const { data, info } = await sharp(back.data, {
+    raw: { width: back.info.width, height: back.info.height, channels: 4 },
   })
     .extract({ left, top, width: img.width, height: img.height })
     .raw({ depth: 'uchar' })

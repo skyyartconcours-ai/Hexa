@@ -304,6 +304,13 @@ describe('resolvePath', () => {
     }
   });
 
+  it('also resolves a bare library-relative string, with the same containment check', async () => {
+    const root = await scratch();
+    const lib = await open(root);
+    expect(lib.resolvePath('cutouts/a.png')).toBe(path.join(root, 'cutouts/a.png'));
+    expect(() => lib.resolvePath('../../etc/passwd')).toThrowError(/escapes the library root/);
+  });
+
   it('reports a missing cutout as ASSET_NOT_FOUND', async () => {
     const root = await scratch();
     const lib = await open(root);
@@ -412,6 +419,16 @@ describe('stats / coverage', () => {
 
     expect(ghost!.count).toBe(0);
     expect(ghost!.gaps).toEqual(['no-assets']);
+  });
+
+  it('covers every player it knows about when asked for no one in particular', async () => {
+    const root = await scratch();
+    const lib = await open(root);
+    await seed(lib, { playerId: 'zeus' }, { pattern: 'waves' });
+    await seed(lib, { playerId: 'peyz' }, { pattern: 'waves-alt' });
+    await seed(lib, { teamId: 'hle', kind: 'logo' }, { pattern: 'checker' });
+
+    expect(lib.coverage().map((c) => c.playerId)).toEqual(['peyz', 'zeus']);
   });
 });
 

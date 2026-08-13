@@ -117,7 +117,7 @@ export function versusMark(opts: VersusMarkOptions): Mark {
 
   // Each style declares its own aspect; the mark is `size` tall.
   const aspect: Record<string, number> = {
-    slash: 1.55, blade: 1.9, shield: 0.86, bolt: 0.78, circle: 1, plain: 1.3, hex: 1.1,
+    slash: 1.55, blade: 2.05, shield: 0.86, bolt: 1.05, circle: 1, plain: 1.45, hex: 1.1,
   };
   // Rounded to serialisation precision so the reported size and the size the
   // document declares are the same number.
@@ -178,11 +178,20 @@ export function versusMark(opts: VersusMarkOptions): Mark {
     // ── blade: a katana sweep, thin at the tips, colours split down the arc ──
     case 'blade': {
       const midY = h / 2;
-      const belly = h * 0.42;
+      // A katana, not a lens: a wide squared tang at the left, a spine that
+      // curves up across the length, and a real chisel point at the right. The
+      // asymmetry is the whole difference between "blade" and "ellipse".
+      const tangY0 = midY - h * 0.17;
+      const tangY1 = midY + h * 0.17;
       const blade =
-        `M 0 ${n(midY)} ` +
-        `C ${n(w * 0.18)} ${n(midY - belly)} ${n(w * 0.82)} ${n(midY - belly)} ${n(w)} ${n(midY)} ` +
-        `C ${n(w * 0.82)} ${n(midY + belly)} ${n(w * 0.18)} ${n(midY + belly)} 0 ${n(midY)} Z`;
+        `M 0 ${n(tangY0)} ` +
+        // spine: sweeps up toward the tip
+        `C ${n(w * 0.34)} ${n(midY - h * 0.46)} ${n(w * 0.72)} ${n(midY - h * 0.44)} ${n(w * 0.99)} ${n(midY - h * 0.13)} ` +
+        // chisel point
+        `L ${n(w)} ${n(midY - h * 0.02)} ` +
+        `L ${n(w * 0.9)} ${n(midY + h * 0.07)} ` +
+        // cutting edge: shallower curve back to the tang
+        `C ${n(w * 0.66)} ${n(midY + h * 0.3)} ${n(w * 0.32)} ${n(midY + h * 0.3)} 0 ${n(tangY1)} Z`;
       const clipId = scope.def('cl', (id) => `<clipPath${attrs({ id })}><path${attrs({ d: blade })}/></clipPath>`);
       const lean = 22;
       const dx = (h / 2) * Math.tan((lean * Math.PI) / 180);
@@ -192,13 +201,14 @@ export function versusMark(opts: VersusMarkOptions): Mark {
         `<polygon${attrs({ points: `${n(w / 2 + dx)},0 ${n(w)},0 ${n(w)},${n(h)} ${n(w / 2 - dx)},${n(h)}`, fill: gradFor(right, true) })}/>` +
         // The hamon line — the tempered edge that makes it read as a blade.
         `<path${attrs({
-          d: `M ${n(w * 0.06)} ${n(midY)} C ${n(w * 0.24)} ${n(midY - belly * 0.55)} ${n(w * 0.76)} ${n(midY - belly * 0.55)} ${n(w * 0.94)} ${n(midY)}`,
-          fill: 'none', stroke: '#FFFFFF', 'stroke-width': Math.max(1, size * 0.012), opacity: 0.55,
+          d: `M ${n(w * 0.04)} ${n(midY + h * 0.1)} ` +
+             `C ${n(w * 0.34)} ${n(midY - h * 0.16)} ${n(w * 0.7)} ${n(midY - h * 0.15)} ${n(w * 0.95)} ${n(midY - h * 0.02)}`,
+          fill: 'none', stroke: '#FFFFFF', 'stroke-width': Math.max(1, size * 0.014), opacity: 0.5,
         })}/>` +
         `<line${attrs({ x1: w / 2 + dx, y1: 0, x2: w / 2 - dx, y2: h, stroke: seam, 'stroke-width': bevelW })}/>` +
         `</g>` +
         `<path${attrs({ d: blade, fill: 'none', stroke: outline, 'stroke-width': strokeW, 'stroke-linejoin': 'round' })}/>` +
-        lettering(text, w / 2, h / 2, w * 0.4, h * 0.45, '#FFFFFF', outline, 16);
+        lettering(text, w * 0.46, h * 0.49, w * 0.34, h * 0.4, '#FFFFFF', outline, 16);
       break;
     }
 
@@ -238,7 +248,7 @@ export function versusMark(opts: VersusMarkOptions): Mark {
         `<line${attrs({ x1: 0, y1: h * 0.5, x2: w, y2: h * 0.5, stroke: seam, 'stroke-width': bevelW })}/>` +
         `</g>` +
         `<path${attrs({ d: bolt, fill: 'none', stroke: outline, 'stroke-width': strokeW, 'stroke-linejoin': 'miter' })}/>` +
-        lettering(text, w * 0.5, h * 0.5, w * 0.44, h * 0.26, '#FFFFFF', outline, 12);
+        lettering(text, w * 0.5, h * 0.5, w * 0.34, h * 0.2, '#FFFFFF', outline, 12);
       break;
     }
 
@@ -298,18 +308,13 @@ export function versusMark(opts: VersusMarkOptions): Mark {
         `<stop${attrs({ offset: 0.54, 'stop-color': right })}/>` +
         `</linearGradient>`,
       );
-      body = lettering(text, w / 2, h / 2, w * 0.9, h * 0.78, `url(#${gradId})`, outline, 12);
+      body = lettering(text, w / 2, h / 2, w * 0.82, h * 0.7, `url(#${gradId})`, outline, 12);
       break;
     }
   }
 
-  // A faint bottom shadow anchors the mark instead of leaving it floating.
-  const grounded =
-    `<ellipse${attrs({
-      cx: w / 2, cy: h * 0.99, rx: w * 0.38, ry: h * 0.045,
-      fill: '#000000', opacity: 0.18,
-    })}/>` + body;
-
-  const wrapped = glowId ? `<g${attrs({ filter: `url(#${glowId})` })}>${grounded}</g>` : grounded;
+  // No baked-in contact shadow: the mark composites over artwork we cannot see,
+  // and a painted-on ground ellipse reads as a smudge rather than as weight.
+  const wrapped = glowId ? `<g${attrs({ filter: `url(#${glowId})` })}>${body}</g>` : body;
   return { markup: svgDocument(w, h, scope.defs() + wrapped), width: w, height: h };
 }

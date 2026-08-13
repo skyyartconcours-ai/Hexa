@@ -16,19 +16,31 @@
 import { ensureDistinct, hexToOklab, mix, parseHex, saturate, shade, toHex } from '@hexa/core';
 import type { PreparedSubject, ResolvedPalette } from './types.js';
 
-/** Used when a request has no subjects at all (template previews). */
+/**
+ * Used when a request has no subjects at all (template previews).
+ * Written in the canonical lowercase form the resolver emits, so the constant
+ * compares equal to a resolved palette rather than merely looking equal.
+ */
 export const NEUTRAL_PALETTE: ResolvedPalette = {
-  left: '#3B6BE8',
-  right: '#E8433B',
-  accent: '#F5C542',
-  dark: '#0B0B0F',
-  light: '#F5F7FA',
+  left: '#3b6be8',
+  right: '#e8433b',
+  accent: '#f5c542',
+  dark: '#0b0b0f',
+  light: '#f5f7fa',
 };
 
 /** Below this OKLab separation two brand colours read as the same colour. */
 const MIN_SIDE_SEPARATION = 0.14;
 /** The accent has to stand apart from both sides or the VS mark disappears. */
 const MIN_ACCENT_SEPARATION = 0.1;
+/**
+ * A colour below this OKLab lightness cannot act as a light source. Plenty of
+ * brand kits list near-black as a secondary; it makes a fine fill and a useless
+ * rim, and a black rim light is indistinguishable from no rim light at all.
+ */
+const MIN_EMISSIVE_L = 0.3;
+/** The accent is drawn small and glowing, so it needs more headroom than a rim. */
+const MIN_ACCENT_L = 0.45;
 
 /**
  * Resolve the five working colours from the subjects' teams.
@@ -47,12 +59,12 @@ export function resolvePalette(
     leftSubject;
 
   if (!leftSubject) {
-    return {
+    return canonicalise({
       ...NEUTRAL_PALETTE,
       left: normalise(overrides?.left) ?? NEUTRAL_PALETTE.left,
       right: normalise(overrides?.right) ?? NEUTRAL_PALETTE.right,
       accent: normalise(overrides?.accent) ?? NEUTRAL_PALETTE.accent,
-    };
+    });
   }
 
   const leftBrand = leftSubject.team.colors;
@@ -75,12 +87,27 @@ export function resolvePalette(
 
   const accent = normalise(overrides?.accent) ?? deriveAccent(left, right, leftBrand.accent, rightBrand.accent);
 
-  return {
+  // Canonicalise on the way out. Brand kits spell the same colour `#C8102E` and
+  // `#c8102e`, and a palette is hashed into cache keys and serialised into every
+  // RenderPlan — two spellings of one colour would produce two plans that differ
+  // only in case, defeating both the cache and a plan diff.
+  return canonicalise({
     left,
     right,
     accent,
     dark: deriveDark(leftBrand.dark, rightBrand.dark),
     light: deriveLight(leftBrand.light, rightBrand.light),
+  });
+}
+
+/** Every channel of a palette in one lowercase `#rrggbb` form. */
+export function canonicalise(palette: ResolvedPalette): ResolvedPalette {
+  return {
+    left: normalise(palette.left) ?? NEUTRAL_PALETTE.left,
+    right: normalise(palette.right) ?? NEUTRAL_PALETTE.right,
+    accent: normalise(palette.accent) ?? NEUTRAL_PALETTE.accent,
+    dark: normalise(palette.dark) ?? NEUTRAL_PALETTE.dark,
+    light: normalise(palette.light) ?? NEUTRAL_PALETTE.light,
   };
 }
 

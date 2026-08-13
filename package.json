@@ -17,7 +17,19 @@
     "clean": "rm -rf packages/*/dist apps/*/dist node_modules/.cache"
   },
   "devDependencies": {
+    "@hexa/ai": "workspace:*",
+    "@hexa/assets": "workspace:*",
+    "@hexa/core": "workspace:*",
+    "@hexa/data": "workspace:*",
+    "@hexa/layout": "workspace:*",
+    "@hexa/pipeline": "workspace:*",
+    "@hexa/qa": "workspace:*",
+    "@hexa/render": "workspace:*",
+    "@hexa/templates": "workspace:*",
+    "@hexa/type": "workspace:*",
+    "@hexa/vision": "workspace:*",
     "@types/node": "^22.10.2",
+    "sharp": "^0.34.4",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

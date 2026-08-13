@@ -260,6 +260,61 @@ describe('ingestDirectory', () => {
     ).rejects.toSatisfy((e: unknown) => isHexaError(e) && e.code === 'INVALID_REQUEST');
   });
 
+  it('accepts a library root instead of an instance, and flat provenance flags', async () => {
+    const root = await scratch();
+    const drop = await scratch();
+    await writeTestImage(path.join(drop, 'a.png'), { pattern: 'waves' });
+
+    const result = await ingestDirectory(root, drop, {
+      playerId: 'peyz',
+      source: 'LCK Media Kit',
+      license: 'press-kit',
+      photographer: 'A Photographer',
+      cleared: true,
+    });
+
+    expect(result.added).toHaveLength(1);
+    expect(result.added[0]!.provenance.source).toBe('LCK Media Kit');
+    expect(result.added[0]!.provenance.cleared).toBe(true);
+    expect(result.added[0]!.provenance.addedAt).toBeTruthy();
+    expect((await AssetLibrary.open(root)).all()).toHaveLength(1);
+  });
+
+  it('splits duplicates and errors out of `skipped` for reporting', async () => {
+    const root = await scratch();
+    const drop = await scratch();
+    await writeTestImage(path.join(drop, 'a.png'), { width: 640, height: 480, pattern: 'waves' });
+    await writeTestImage(path.join(drop, 'b.jpg'), {
+      width: 640,
+      height: 480,
+      pattern: 'waves',
+      scale: 0.55,
+      format: 'jpeg',
+      quality: 62,
+    });
+    await fs.writeFile(path.join(drop, 'broken.png'), 'nope');
+
+    const lib = await AssetLibrary.open(root, { logger: recordingLogger().logger });
+    const result = await ingestDirectory(lib, drop, { provenance: testProvenance() });
+
+    expect(result.duplicates).toHaveLength(1);
+    expect(result.duplicates[0]!.existingId).toBe(result.added[0]!.id);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]!.path).toContain('broken.png');
+    expect(result.skipped.length).toBe(result.duplicates.length + result.errors.length);
+  });
+
+  it('reads metrics and hashes straight from a buffer, not just a path', async () => {
+    const d = await scratch();
+    const file = await writeTestImage(path.join(d, 'a.png'), { width: 320, height: 200, pattern: 'waves' });
+    const bytes = await fs.readFile(file);
+
+    const fromPath = await computeBasicMetrics(file);
+    const fromBuffer = await computeBasicMetrics(bytes);
+    expect(fromBuffer).toEqual(fromPath);
+    expect(await computeDHash(bytes)).toBe(await computeDHash(file));
+  });
+
   it('never ingests its own manifest', async () => {
     const root = await scratch();
     const lib = await AssetLibrary.open(root, { logger: recordingLogger().logger });

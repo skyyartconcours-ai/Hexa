@@ -171,17 +171,44 @@ export interface ResolvedFace {
   descent: number;
   unitsPerEm: number;
   exact: boolean;
+  /** Which family in the stack actually backed this face. */
+  resolvedFamily: string;
 }
 
 const faceCache = new Map<string, ResolvedFace>();
 
+/**
+ * Resolve a family to the metrics that will actually be drawn.
+ *
+ * The important part is that this walks the *whole* `fontStack`, not just the
+ * requested family. A rasteriser hands `font-family: Anton, …, "Liberation
+ * Sans", sans-serif` to fontconfig, which picks the first family that is
+ * installed — so on a machine without Anton, the glyphs on screen are
+ * Liberation Sans. Measuring the requested family's *class table* in that
+ * situation means measuring a condensed face while drawing a wide grotesque,
+ * and every right-aligned label, every centred mark and every `autoFit` result
+ * comes out ~35 % too narrow — text clipped at the box edge, at raster time,
+ * on exactly the machines that lack the design fonts.
+ *
+ * So: measure whatever the renderer will pick, and fall back to the class table
+ * only when nothing in the stack is registered at all.
+ */
 export function resolveFace(family: string, weight = 400, italic = false): ResolvedFace {
   const key = `${normFamily(family)}|${weight}|${italic}|${registry.length}`;
   const hit = faceCache.get(key);
   if (hit) return hit;
 
   const table = FAMILY_METRICS[classifyFamily(family)];
-  const reg = bestRegistration(family, weight, italic);
+  let reg: FontRegistration | null = null;
+  let resolvedFamily = family;
+  for (const candidate of fontStackFamilies(family)) {
+    const found = bestRegistration(candidate, weight, italic);
+    if (found) {
+      reg = found;
+      resolvedFamily = candidate;
+      break;
+    }
+  }
   const font = reg ? loadFont(reg.path) : null;
 
   let face: ResolvedFace;
@@ -199,6 +226,7 @@ export function resolveFace(family: string, weight = 400, italic = false): Resol
       descent: Math.abs(font.descender) / upm || table.descent,
       unitsPerEm: upm,
       exact: true,
+      resolvedFamily,
     };
   } else {
     face = {
@@ -210,6 +238,7 @@ export function resolveFace(family: string, weight = 400, italic = false): Resol
       descent: table.descent,
       unitsPerEm: 1000,
       exact: false,
+      resolvedFamily: family,
     };
   }
   faceCache.set(key, face);
@@ -233,15 +262,20 @@ export function exactAdvance(face: ResolvedFace, ch: string): number | null {
 
 // ── font stacks ──────────────────────────────────────────────────────────────
 
+// Each stack ends with the grotesques that are actually present on a bare
+// Linux box. That tail is not decoration: `resolveFace` walks the same list, so
+// whatever the rasteriser ends up picking is what we measured. Truncating the
+// tail would reintroduce the failure it exists to prevent.
+const LAST_RESORT = ['Liberation Sans', 'DejaVu Sans', 'FreeSans'];
 const CONDENSED_STACK = [
   'Anton', 'Bebas Neue', 'Oswald', 'Teko', 'Archivo Narrow', 'Impact',
   'Haettenschweiler', 'Arial Narrow', 'Liberation Sans Narrow', 'DejaVu Sans Condensed',
+  ...LAST_RESORT,
 ];
 const GROTESQUE_STACK = [
-  'Archivo Black', 'Inter', 'Helvetica Neue', 'Helvetica', 'Arial',
-  'Liberation Sans', 'DejaVu Sans', 'FreeSans',
+  'Archivo Black', 'Inter', 'Helvetica Neue', 'Helvetica', 'Arial', ...LAST_RESORT,
 ];
-const FALLBACK_STACK = ['Helvetica', 'Arial', 'Liberation Sans', 'DejaVu Sans', 'FreeSans'];
+const FALLBACK_STACK = ['Helvetica', 'Arial', ...LAST_RESORT];
 
 function quote(family: string): string {
   // Bare CSS idents are only safe for single unquoted words; quote everything
@@ -250,11 +284,13 @@ function quote(family: string): string {
 }
 
 /**
- * A CSS `font-family` list: the requested family first, then class-appropriate
- * open fallbacks, then `sans-serif`. This is what keeps output looking
- * deliberate on a machine with no display fonts installed at all.
+ * The ordered family list behind `fontStack` — the requested family, then
+ * class-appropriate open fallbacks, then the last-resort system grotesques.
+ *
+ * Both the emitted CSS and `resolveFace`'s measurement walk read this, which is
+ * what keeps the two in agreement.
  */
-export function fontStack(family: string): string {
+export function fontStackFamilies(family: string): string[] {
   const cls = classifyFamily(family);
   const tail = cls === 'condensed' ? CONDENSED_STACK : cls === 'grotesque' ? GROTESQUE_STACK : FALLBACK_STACK;
   const seen = new Set<string>();
@@ -263,10 +299,18 @@ export function fontStack(family: string): string {
     const k = normFamily(f);
     if (!k || seen.has(k)) continue;
     seen.add(k);
-    out.push(quote(f));
+    out.push(f);
   }
-  out.push('sans-serif');
-  return out.join(', ');
+  return out;
+}
+
+/**
+ * A CSS `font-family` list: the requested family first, then class-appropriate
+ * open fallbacks, then `sans-serif`. This is what keeps output looking
+ * deliberate on a machine with no display fonts installed at all.
+ */
+export function fontStack(family: string): string {
+  return [...fontStackFamilies(family).map(quote), 'sans-serif'].join(', ');
 }
 
 // ── discovery ────────────────────────────────────────────────────────────────

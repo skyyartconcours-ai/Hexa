@@ -252,8 +252,19 @@ export interface IngestDefaults {
   kind?: AssetKind;
   playerId?: PlayerId;
   teamId?: TeamId;
-  /** Provenance stamped on everything ingested in this run. `addedAt` defaults to now. */
-  provenance: Omit<AssetProvenance, 'addedAt'> & { addedAt?: string };
+  /**
+   * Provenance stamped on everything ingested in this run. `addedAt` defaults
+   * to now. Either this or the flat `source`/`license` pair below is required —
+   * a run with neither is refused, because an unsourced photo is not an asset.
+   */
+  provenance?: Omit<AssetProvenance, 'addedAt'> & { addedAt?: string };
+  /** Flat alternative to `provenance`, matching how a CLI passes flags through. */
+  source?: string;
+  license?: LicenseKind;
+  credit?: string;
+  photographer?: string;
+  capturedAt?: string;
+  cleared?: boolean;
   tags?: string[];
   /** Copy files into the library (default: copy when the source is outside the root). */
   copy?: boolean;
@@ -274,7 +285,43 @@ export interface IngestDefaults {
 
 export interface IngestResult {
   added: ReferenceAsset[];
+  /** Everything not added, with a reason: duplicate, unsupported, unreadable. */
   skipped: { path: string; reason: string }[];
+  /** The duplicate subset of `skipped`, pre-split for reporting. */
+  duplicates: { path: string; existingId: string; distance: number }[];
+  /** The failure subset of `skipped`, pre-split for reporting. */
+  errors: { path: string; message: string }[];
+}
+
+/**
+ * Normalise the two accepted provenance shapes into one record.
+ *
+ * @throws HexaError `INVALID_REQUEST` when neither shape carries a source and a
+ * licence — the one thing ingestion refuses to guess.
+ */
+function resolveProvenance(defaults: IngestDefaults): AssetProvenance {
+  const now = new Date().toISOString();
+  type Loose = Partial<AssetProvenance>;
+  const flat: Loose | undefined = defaults?.provenance
+    ? undefined
+    : defaults?.source || defaults?.license
+      ? {
+          source: defaults.source ?? 'unknown',
+          license: defaults.license ?? 'unverified',
+          ...(defaults.credit ? { credit: defaults.credit } : {}),
+          ...(defaults.photographer ? { photographer: defaults.photographer } : {}),
+          ...(defaults.capturedAt ? { capturedAt: defaults.capturedAt } : {}),
+          cleared: defaults.cleared === true,
+        }
+      : undefined;
+
+  const p: Loose | undefined = defaults?.provenance ?? flat;
+  if (!p?.source || !p?.license) {
+    throw new HexaError('INVALID_REQUEST', 'Ingestion requires provenance (source + licence)', {
+      hint: 'Every photo must record where it came from — that is the whole point of the library.',
+    });
+  }
+  return { ...p, source: p.source, license: p.license, addedAt: p.addedAt ?? now, cleared: p.cleared === true };
 }
 
 /**
@@ -289,7 +336,16 @@ export interface IngestResult {
  * The whole walk runs inside one library batch: a single atomic manifest write
  * at the end rather than one per file.
  */
-export async function ingestDirectory(lib: AssetLibrary, dir: string, defaults: IngestDefaults): Promise<IngestResult> {
+export async function ingestDirectory(
+  lib: AssetLibrary | string,
+  dir: string,
+  defaults: IngestDefaults,
+): Promise<IngestResult> {
+  // A library root is accepted in place of an instance so a CLI can ingest in
+  // one call. Imported lazily to keep the static module graph acyclic.
+  const library =
+    typeof lib === 'string' ? await (await import('./library.js')).AssetLibrary.open(lib) : lib;
+
   const root = path.resolve(dir);
   const stat = await fs.stat(root).catch((err) => {
     throw new HexaError('IO_ERROR', `Ingest directory not found: ${root}`, {
@@ -300,16 +356,14 @@ export async function ingestDirectory(lib: AssetLibrary, dir: string, defaults: 
   if (!stat.isDirectory()) {
     throw new HexaError('IO_ERROR', `Not a directory: ${root}`, { details: { dir: root } });
   }
-  if (!defaults?.provenance) {
-    throw new HexaError('INVALID_REQUEST', 'Ingestion requires provenance (source + licence)', {
-      hint: 'Every photo must record where it came from — that is the whole point of the library.',
-    });
-  }
+  const provenance = resolveProvenance(defaults);
 
   const maxDistance = defaults.duplicateDistance ?? DEFAULT_DUPLICATE_DISTANCE;
   const infer = defaults.inferFromPath !== false;
   const added: ReferenceAsset[] = [];
   const skipped: { path: string; reason: string }[] = [];
+  const duplicates: IngestResult['duplicates'] = [];
+  const errors: IngestResult['errors'] = [];
 
   const files = await listImageFiles(root, {
     recursive: defaults.recursive !== false,
@@ -319,9 +373,9 @@ export async function ingestDirectory(lib: AssetLibrary, dir: string, defaults: 
 
   // Hashes to test against: everything already in the library, plus everything
   // this run adds as it goes.
-  const seen: { id: string; phash?: string }[] = lib.all().map((a) => ({ id: a.id, phash: a.phash }));
+  const seen: { id: string; phash?: string }[] = library.all().map((a) => ({ id: a.id, phash: a.phash }));
 
-  await lib.batch(async () => {
+  await library.batch(async () => {
     let index = 0;
     for (const file of files) {
       index++;
@@ -331,6 +385,7 @@ export async function ingestDirectory(lib: AssetLibrary, dir: string, defaults: 
         const dup = findDuplicate(phash, seen, maxDistance);
         if (dup) {
           skipped.push({ path: file, reason: `duplicate-of:${dup.id} (distance ${dup.distance})` });
+          duplicates.push({ path: file, existingId: dup.id, distance: dup.distance });
           continue;
         }
 
@@ -338,13 +393,13 @@ export async function ingestDirectory(lib: AssetLibrary, dir: string, defaults: 
         const kind = defaults.kind ?? (infer ? inferKind(file, root) : undefined) ?? 'portrait';
         const playerId = defaults.playerId ?? (infer ? inferPlayerId(file, root) : undefined);
 
-        const asset = await lib.add(
+        const asset = await library.add(
           {
             path: file,
             kind,
             ...(playerId ? { playerId } : {}),
             ...(defaults.teamId ? { teamId: defaults.teamId } : {}),
-            provenance: { ...defaults.provenance, addedAt: defaults.provenance.addedAt ?? new Date().toISOString() },
+            provenance,
             tags: defaults.tags ?? [],
             ...(defaults.copy === undefined ? {} : { copy: defaults.copy }),
           },
@@ -354,12 +409,14 @@ export async function ingestDirectory(lib: AssetLibrary, dir: string, defaults: 
         added.push(asset);
         seen.push({ id: asset.id, phash });
       } catch (err) {
-        skipped.push({ path: file, reason: `error: ${err instanceof Error ? err.message : String(err)}` });
+        const message = err instanceof Error ? err.message : String(err);
+        skipped.push({ path: file, reason: `error: ${message}` });
+        errors.push({ path: file, message });
       }
     }
   });
 
-  return { added, skipped };
+  return { added, skipped, duplicates, errors };
 }
 
 /** Sorted list of ingestable image files. Deterministic order ⇒ reproducible ids. */

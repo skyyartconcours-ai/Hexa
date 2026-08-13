@@ -8,6 +8,9 @@ const BLUE = '#1B3FC8';
 /** Close enough to RED that a naive palette would render them as one colour. */
 const NEARLY_RED = '#CC1430';
 
+/** Palettes are canonicalised to lowercase; compare on that footing. */
+const canon = (hex: string) => hex.toLowerCase();
+
 function versus(leftColor: string, rightColor: string) {
   return [
     makeSubject({ index: 0, side: 'left', team: makeTeam({ id: 'L', colors: { primary: leftColor } }), accent: leftColor }),
@@ -18,8 +21,8 @@ function versus(leftColor: string, rightColor: string) {
 describe('resolvePalette', () => {
   it('takes each side from its own team', () => {
     const p = resolvePalette(versus(RED, BLUE));
-    expect(p.left).toBe(RED);
-    expect(p.right).toBe(BLUE);
+    expect(p.left).toBe(canon(RED));
+    expect(p.right).toBe(canon(BLUE));
   });
 
   it('is deterministic', () => {
@@ -35,7 +38,16 @@ describe('resolvePalette', () => {
 
   it('leaves distinct brands untouched', () => {
     const p = resolvePalette(versus(RED, BLUE));
-    expect(p.right).toBe(BLUE);
+    expect(p.right).toBe(canon(BLUE));
+  });
+
+  it('canonicalises every channel to lowercase #rrggbb', () => {
+    // A palette is hashed into cache keys and serialised into every plan, so two
+    // spellings of one colour must not produce two different plans.
+    const p = resolvePalette(versus(RED, BLUE));
+    for (const [channel, value] of Object.entries(p)) {
+      expect(value, channel).toMatch(/^#[0-9a-f]{6}$/);
+    }
   });
 
   it('derives an accent that stands apart from both sides', () => {
@@ -61,7 +73,7 @@ describe('resolvePalette', () => {
     const p = resolvePalette(versus(RED, BLUE), { left: '#010203', right: '#010204', accent: '#FFFFFF' });
     expect(p.left).toBe('#010203');
     expect(p.right).toBe('#010204');
-    expect(p.accent).toBe('#FFFFFF');
+    expect(p.accent).toBe('#ffffff');
   });
 
   it('normalises shorthand hex overrides', () => {
@@ -79,8 +91,8 @@ describe('resolvePalette', () => {
       makeSubject({ index: 0, side: 'left', team, accent: RED }),
       makeSubject({ index: 1, side: 'right', team, accent: RED }),
     ]);
-    expect(p.left).toBe(RED);
-    expect(p.right).toBe('#00A3E0');
+    expect(p.left).toBe(canon(RED));
+    expect(p.right).toBe(canon('#00A3E0'));
   });
 
   it('falls back to the neutral palette with no subjects', () => {
@@ -93,7 +105,7 @@ describe('resolvePalette', () => {
 
   it('handles a lone centre subject', () => {
     const p = resolvePalette([makeSubject({ index: 0, side: 'center', team: makeTeam({ id: 'C', colors: { primary: BLUE } }), accent: BLUE })]);
-    expect(p.left).toBe(BLUE);
+    expect(p.left).toBe(canon(BLUE));
     expect(p.right).toBeTruthy();
   });
 

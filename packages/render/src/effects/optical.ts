@@ -207,6 +207,8 @@ export async function filmGrainRaw(img: RawImage, amount: number, seed: number):
   }
   const { data: noise } = await rawToSharp({ data: small, width: gw, height: gh, channels: 1 })
     .resize(w, h, { kernel: 'cubic', fit: 'fill' })
+    // b-w or libvips hands back three interleaved copies of the field.
+    .toColourspace('b-w')
     .raw({ depth: 'uchar' })
     .toBuffer({ resolveWithObject: true });
 

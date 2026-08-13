@@ -176,14 +176,18 @@ export function nameplate(opts: NameplateOptions): Mark {
         ? `${n(w - accentW * 2.4)},0 ${n(w)},0 ${n(w)},${n(h)} ${n(w - accentW * 2.4 - lean)},${n(h)}`
         : `0,0 ${n(accentW * 2.4)},0 ${n(accentW * 2.4 + lean)},${n(h)} ${n(lean)},${n(h)}`;
       const nameSize = h * (team || role ? 0.46 : 0.58);
+      const nameMaxW = w - pad * 2 - accentW * 2.4 - lean * 2;
       body =
         `<polygon${attrs({ points: pts, fill: `url(#${plateFill})` })}/>` +
         `<polygon${attrs({ points: accentPts, fill: accent })}/>` +
-        label(name, right ? w - pad * 1.6 : pad + accentW * 3.2, h * 0.55, nameSize, textMaxW - accentW * 2, {
+        // Clear the accent slab at its *widest* point — it leans, so its
+        // bottom edge reaches accentW*2.4 + lean, which is where the metadata
+        // line sits. Starting at accentW*3.2 put the two on top of each other.
+        label(name, right ? w - pad - lean : pad + accentW * 2.4 + lean, h * 0.55, nameSize, nameMaxW, {
           family: NAME_FAMILY, weight: 400, tracking: 0.005, fill: '#FFFFFF', anchorRight: right, skewX: 10,
         }) +
         (team || role
-          ? label([team, role].filter(Boolean).join('  ·  '), right ? w - pad * 1.6 : pad + accentW * 3.2, h * 0.83, h * 0.19, textMaxW - accentW * 2, {
+          ? label([team, role].filter(Boolean).join('  ·  '), right ? w - pad - lean : pad + accentW * 2.4 + lean, h * 0.83, h * 0.19, nameMaxW, {
               family: META_FAMILY, weight: 600, tracking: 0.16, fill: accent, anchorRight: right,
             })
           : '');
@@ -205,12 +209,12 @@ export function nameplate(opts: NameplateOptions): Mark {
               family: META_FAMILY, weight: 700, tracking: 0.16, fill: onAccent, anchorRight: right,
             })
           : '') +
-        label(name, right ? w : 0, h * 0.94, h * 0.68, w, {
+        label(name, right ? w : 0, h * 0.82, h * 0.6, w, {
           family: NAME_FAMILY, weight: 400, tracking: 0, fill: '#FFFFFF',
           stroke: { color: INK, width: Math.max(2, h * 0.035) }, anchorRight: right, skewX: 8,
         }) +
         (role && team
-          ? label(role, right ? w : 0, h * 0.99 + h * 0.16, h * 0.16, w, {
+          ? label(role, right ? w : 0, h * 0.98, h * 0.15, w, {
               family: META_FAMILY, weight: 600, tracking: 0.18, fill: accent, anchorRight: right,
             })
           : '');
@@ -219,16 +223,18 @@ export function nameplate(opts: NameplateOptions): Mark {
 
     // ── minimal: a rule and a name. Nothing else. ──────────────────────────
     case 'minimal': {
-      const ruleY = h * 0.86;
+      // The rule has to clear the metadata line's ascent, or it strikes
+      // through it.
+      const ruleY = h * 0.74;
       const ruleW = Math.min(w * 0.42, h * 1.6);
       body =
-        label(name, right ? w : 0, h * 0.66, h * 0.56, w, {
+        label(name, right ? w : 0, h * 0.6, h * 0.52, w, {
           family: NAME_FAMILY, weight: 400, tracking: 0.01, fill: '#FFFFFF',
           stroke: { color: INK, width: Math.max(1.5, h * 0.028) }, anchorRight: right, skewX: 4,
         }) +
         `<rect${attrs({ x: right ? w - ruleW : 0, y: ruleY, width: ruleW, height: Math.max(2, h * 0.035), fill: accent })}/>` +
         (team || role
-          ? label([team, role].filter(Boolean).join('  ·  '), right ? w : 0, h * 0.99, h * 0.15, w, {
+          ? label([team, role].filter(Boolean).join('  ·  '), right ? w : 0, h * 0.97, h * 0.15, w, {
               family: META_FAMILY, weight: 600, tracking: 0.2, fill: '#C9CFDB', anchorRight: right,
             })
           : '');

@@ -8,9 +8,45 @@ importers:
 
   .:
     devDependencies:
+      '@hexa/ai':
+        specifier: workspace:*
+        version: link:packages/ai
+      '@hexa/assets':
+        specifier: workspace:*
+        version: link:packages/assets
+      '@hexa/core':
+        specifier: workspace:*
+        version: link:packages/core
+      '@hexa/data':
+        specifier: workspace:*
+        version: link:packages/data
+      '@hexa/layout':
+        specifier: workspace:*
+        version: link:packages/layout
+      '@hexa/pipeline':
+        specifier: workspace:*
+        version: link:packages/pipeline
+      '@hexa/qa':
+        specifier: workspace:*
+        version: link:packages/qa
+      '@hexa/render':
+        specifier: workspace:*
+        version: link:packages/render
+      '@hexa/templates':
+        specifier: workspace:*
+        version: link:packages/templates
+      '@hexa/type':
+        specifier: workspace:*
+        version: link:packages/type
+      '@hexa/vision':
+        specifier: workspace:*
+        version: link:packages/vision
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.1
+      sharp:
+        specifier: ^0.34.4
+        version: 0.34.5
       tsx:
         specifier: ^4.19.2
         version: 4.23.12
