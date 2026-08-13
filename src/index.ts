@@ -21,6 +21,19 @@ import { EventSubClient } from './twitch/eventsub.js';
 const OPT_OUT_COMMAND = '!noroast';
 const OPT_IN_COMMAND = '!roastme';
 const FORGET_COMMAND = '!forgetme';
+const INFO_COMMAND = '!hexa';
+
+/**
+ * Reponse a `!hexa`. Elle doit se suffire a elle-meme : un lien vers une page
+ * servie sur localhost ne veut rien dire pour un viewer. Limite Twitch : 500
+ * caracteres.
+ */
+const INFO_TEXT =
+  '🤖 Hexa : pendant les sessions de roast, chaque sub passe à l\'antenne avec ' +
+  'une vanne écrite et lue par une IA. Ce qui est gardé : ton pseudo et tes ' +
+  'messages du chat, 30 jours maximum, sur le PC du stream — rien n\'est revendu. ' +
+  `${OPT_OUT_COMMAND} = aucune vanne sur toi, avant comme après. ` +
+  `${FORGET_COMMAND} = tout ce qui te concerne est effacé sur-le-champ.`;
 
 async function main(): Promise<void> {
   if (!hasStoredToken()) {
@@ -60,6 +73,47 @@ async function main(): Promise<void> {
       });
     });
   }
+
+  /**
+   * L'annonce de la fenetre.
+   *
+   * Tout le format repose la-dessus : ce qui rend la vanne legitime, ce n'est
+   * pas qu'elle soit gentille, c'est que la personne qui s'abonne sache qu'elle
+   * va passer a l'antenne. Annoncer une fois au lancement ne suffit pas — un
+   * raid a la douzieme minute amene des gens qui n'ont rien entendu. D'ou le
+   * rappel periodique, qui coute quatre messages sur une fenetre de 20 minutes.
+   */
+  const ANNOUNCE_EVERY_MS = 5 * 60_000;
+  const INFO_COOLDOWN_MS = 30_000;
+  let announceTimer: NodeJS.Timeout | null = null;
+  let lastInfoAt = 0;
+
+  const announce = (text: string): void => {
+    sendChatMessage(channel.id, me.id, text).catch((error: unknown) => {
+      log.warn('Annonce en chat impossible :', error instanceof Error ? error.message : error);
+    });
+  };
+
+  queue.on('session', (payload) => {
+    if (announceTimer) clearInterval(announceTimer);
+    announceTimer = null;
+
+    if (!payload.active) {
+      announce('🎤 Session de roast terminée. Merci à tous ceux qui sont passés !');
+      return;
+    }
+
+    const open = (): void =>
+      announce(
+        `🎤 SESSION DE ROAST OUVERTE${payload.minutes ? ` pour ${payload.minutes} min` : ''} — ` +
+          "chaque sub passe à l'antenne avec une vanne écrite et lue par une IA. " +
+          `Tu ne veux pas ? Tape ${OPT_OUT_COMMAND} et tu es exclu, avant comme après. ` +
+          `Détails : ${INFO_COMMAND}`,
+      );
+
+    open();
+    announceTimer = setInterval(open, ANNOUNCE_EVERY_MS);
+  });
 
   /**
    * Photo des abonnes, via l'API officielle.
@@ -128,6 +182,15 @@ async function main(): Promise<void> {
       queue.purgeUser(message.userId);
       const removed = forgetUser(message.userId);
       log.info(`${message.userName} : ${removed} ligne(s) effacee(s) a sa demande.`);
+      return;
+    }
+    if (lower === INFO_COMMAND) {
+      // N'importe qui peut declencher cette reponse : sans garde-fou, deux
+      // trolls suffisent a faire rate-limiter le compte du stream.
+      if (Date.now() - lastInfoAt > INFO_COOLDOWN_MS) {
+        lastInfoAt = Date.now();
+        announce(INFO_TEXT);
+      }
       return;
     }
 

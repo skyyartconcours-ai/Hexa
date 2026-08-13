@@ -204,9 +204,21 @@ Tout est dans `.env` (voir `.env.example` pour la liste complète).
 ### Le gift bomb
 
 C'est le cas qui casse ce genre d'outil : 100 subs offerts = 101 événements
-Twitch en trois secondes. Hexa traite le **donateur** en priorité (c'est lui qu'on
-veut remercier), puis au maximum `GIFT_RECIPIENTS_MAX` receveurs par fenêtre de
-60 secondes. Le reste est ignoré silencieusement.
+Twitch en trois secondes.
+
+**Par défaut, seul le donateur est chambré** (`GIFT_RECIPIENTS=none`). Ce n'est
+pas qu'une question de débit. Tout le format repose sur le fait que la personne
+chambrée a fait quelque chose de volontaire : elle s'est abonnée pendant une
+fenêtre annoncée, en sachant qu'elle passerait à l'antenne. Celui qui *reçoit* un
+sub offert n'a rien fait — pas payé, pas choisi, pas forcément devant son écran.
+C'est la seule catégorie que l'outil peut chambrer sans qu'elle ait rien demandé,
+et une fenêtre à subs est précisément ce qui déclenche les vagues de gifts.
+
+Le donateur, lui, a agi. Et c'est le meilleur moment de télévision des deux : le
+type qui lâche 50 subs, c'est lui que le chat veut voir prendre une punchline.
+
+Si tu passes quand même à `limited`, au maximum `GIFT_RECIPIENTS_MAX` receveurs
+par fenêtre de 60 secondes sont traités, le reste est ignoré silencieusement.
 
 ### Choix du modèle
 

@@ -11,6 +11,13 @@
          pas Chrome/Firefox tant qu'on n'a pas clique une fois. -->
     <button id="unlock" class="unlock" hidden>Cliquer pour activer le son</button>
 
+    <!-- Visible pendant toute la fenêtre. C'est ce qui fait qu'un viewer qui
+         arrive au milieu du segment sait à quoi il s'engage en s'abonnant. -->
+    <div id="banner" class="banner">
+      <span class="banner__dot" aria-hidden="true"></span>
+      <span class="banner__text">Session de roast — chaque sub passe à l'antenne</span>
+    </div>
+
     <div id="card" class="card">
       <div class="card__glow"></div>
       <div class="card__head">
@@ -19,6 +26,10 @@
         <span id="user" class="user"></span>
       </div>
       <p id="text" class="text"></p>
+      <!-- Obligation de transparence, AI Act art. 50 : le public doit savoir
+           qu'il écoute une voix de synthèse. Affiché avec chaque vanne, donc
+           exactement au moment où l'information sert. -->
+      <p class="card__ai">Vanne écrite et voix générées par une IA</p>
     </div>
 
     <div id="status" class="status">connexion…</div>

@@ -4,6 +4,7 @@
   const textEl = document.getElementById('text');
   const badgeEl = document.getElementById('badge');
   const statusEl = document.getElementById('status');
+  const bannerEl = document.getElementById('banner');
   const unlockBtn = document.getElementById('unlock');
 
   const BADGES = {
@@ -53,6 +54,11 @@
       if (payload.type === 'play') play(payload);
       // Coupure demandée depuis la régie : on arrête net.
       if (payload.type === 'cut') cut();
+      // Le bandeau suit l'état réel de la session, pas une horloge locale :
+      // si la régie coupe avant la fin du minuteur, il disparaît aussi.
+      if (payload.type === 'state' && payload.session) {
+        bannerEl.classList.toggle('is-visible', Boolean(payload.session.active));
+      }
     });
   }
 

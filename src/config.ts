@@ -101,7 +101,22 @@ export const config = {
   },
 
   gifts: {
-    recipients: str('GIFT_RECIPIENTS', 'limited') as 'none' | 'limited',
+    /**
+     * `none` par defaut, et ce n'est pas de la prudence excessive.
+     *
+     * Le format est une fenetre annoncee : pendant 20 ou 30 minutes, s'abonner
+     * fait passer a l'antenne. Celui qui s'abonne pose donc un acte volontaire,
+     * payant, en connaissance de cause — c'est ce qui rend la vanne legitime.
+     * Le RECEVEUR d'un sub offert, lui, n'a rien fait : il n'a pas paye, pas
+     * choisi, il n'est peut-etre meme pas devant son ecran. C'est la seule
+     * categorie que l'outil peut roaster sans qu'elle ait rien demande, et une
+     * fenetre qui pousse aux subs est precisement ce qui declenche les vagues
+     * de gifts.
+     *
+     * Le donateur, lui, reste roastable : il a agi. C'est aussi le meilleur
+     * moment de television des deux.
+     */
+    recipients: str('GIFT_RECIPIENTS', 'none') as 'none' | 'limited',
     recipientsMax: int('GIFT_RECIPIENTS_MAX', 3),
   },
 

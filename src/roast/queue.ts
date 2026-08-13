@@ -58,6 +58,10 @@ export class RoastQueue extends EventEmitter {
     this.sessionTimer = setTimeout(() => this.stop('minuteur'), durationMs);
 
     log.ok(`Session de roast lancee pour ${minutes} minutes.`);
+    // C'est ce qui declenche l'annonce en chat. Elle n'est pas cosmetique :
+    // le format repose sur le fait que la personne qui s'abonne SAIT qu'elle
+    // passe a l'antenne. Sans annonce visible, ce n'est plus un choix.
+    this.emitSafely('session', { active: true, minutes, endsAt: this.session.endsAt });
     this.broadcast();
     return this.session;
   }
@@ -91,6 +95,7 @@ export class RoastQueue extends EventEmitter {
       `Session de roast terminee (${reason})` +
         (dropped ? ` — ${dropped} vanne(s) en attente jetee(s).` : '.'),
     );
+    this.emitSafely('session', { active: false, reason });
     this.broadcast();
     return this.session;
   }
@@ -499,4 +504,14 @@ export interface RoastQueue {
   on(event: 'spoken', listener: (item: QueuedRoast) => void): this;
   /** Coupe immediatement la vanne en cours cote overlay. */
   on(event: 'cut', listener: (payload: { id: string }) => void): this;
+  /** Ouverture et fermeture de la fenetre, pour annoncer en chat. */
+  on(
+    event: 'session',
+    listener: (payload: {
+      active: boolean;
+      minutes?: number;
+      endsAt?: number | null;
+      reason?: string;
+    }) => void,
+  ): this;
 }
