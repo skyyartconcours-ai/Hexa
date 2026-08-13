@@ -180,6 +180,13 @@
         head.append(delivery);
       }
 
+      if (item.warning) {
+        const warn = document.createElement('span');
+        warn.className = 'tag tag--warn';
+        warn.textContent = `⚠ ${item.warning}`;
+        head.append(warn);
+      }
+
       if (item.angle) {
         const angle = document.createElement('span');
         angle.textContent = item.angle;

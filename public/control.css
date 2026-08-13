@@ -312,6 +312,7 @@ input[type="text"],
 .tag--sev3 { color: var(--warn); }
 .tag--sev4, .tag--sev5 { color: var(--stop); }
 .tag--err { color: var(--stop); }
+.tag--warn { color: #ffc860; border-color: #ffc860; }
 
 .item__text { margin: 0; font-size: 15px; line-height: 1.45; }
 .item__text.is-pending { color: var(--muted); font-style: italic; }

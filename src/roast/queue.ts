@@ -13,6 +13,7 @@ import {
 import { log } from '../log.js';
 import { deleteAudio, synthesise } from '../tts/index.js';
 import { RefusedError, generateRoast } from './generator.js';
+import { judgeRoast } from './judge.js';
 import { checkRoast } from './safety.js';
 import type { QueuedRoast, RoastTrigger, SessionState } from '../types.js';
 
@@ -258,6 +259,16 @@ export class RoastQueue extends EventEmitter {
         return;
       }
 
+      // Deuxieme avis, avant la synthese vocale : inutile de payer un TTS pour
+      // une vanne qui va etre jetee.
+      const judged = await judgeRoast(item.trigger.userName, draft.roast);
+      if (!judged.ok) {
+        this.fail(item, `juge : ${judged.verdict} (${judged.reason})`);
+        log.warn(`Vanne rejetee par le juge pour ${item.trigger.userName} — ${judged.reason}`);
+        log.warn(`  texte jete : ${draft.roast}`);
+        return;
+      }
+
       item.text = draft.roast;
       item.angle = draft.angle;
       item.severity = draft.severity;
@@ -276,7 +287,16 @@ export class RoastQueue extends EventEmitter {
         return;
       }
 
-      item.status = this.session.autoPlay ? 'approved' : 'pending';
+      // Un juge injoignable ne vaut pas un juge satisfait : la vanne repasse par
+      // la regie meme en lecture automatique.
+      if (judged.unavailable) {
+        // `warning` et pas `error` : la vanne existe et doit rester lisible en
+        // regie. `error` sert aux vannes jetees, dont le texte est masque.
+        item.warning = 'juge injoignable — a relire';
+        item.status = 'pending';
+      } else {
+        item.status = this.session.autoPlay ? 'approved' : 'pending';
+      }
       saveRoast({
         id: item.id,
         userId: item.trigger.userId,

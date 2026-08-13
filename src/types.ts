@@ -75,7 +75,10 @@ export interface QueuedRoast {
   audioUrl: string | null;
   createdAt: number;
   playedAt: number | null;
+  /** Vanne jetee : son texte n'est plus affiche. */
   error?: string;
+  /** Vanne valide mais a relire (juge injoignable). Le texte reste visible. */
+  warning?: string;
 }
 
 export interface SessionState {

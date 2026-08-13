@@ -57,6 +57,18 @@ export const config = {
     effort: str('ROAST_EFFORT', 'low'),
   },
 
+  judge: {
+    /**
+     * Deuxieme modele, qui relit la vanne finale sans rien savoir d'autre.
+     *
+     * L'auto-notation du premier modele ne remplace pas ca : il note une vanne
+     * qu'il vient de trouver bonne, en connaissant ses propres intentions.
+     * Haiku suffit largement, la question posee est binaire.
+     */
+    enabled: bool('JUDGE_ENABLED', true),
+    model: str('JUDGE_MODEL', 'claude-haiku-4-5'),
+  },
+
   tts: {
     provider: str('TTS_PROVIDER', 'none'),
     elevenlabs: {

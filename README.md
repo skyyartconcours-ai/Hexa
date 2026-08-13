@@ -173,7 +173,7 @@ là où le badge date du dernier message de la personne.
 
 ## Comment on évite le dérapage
 
-Cinq couches, du plus souple au plus strict. Aucune n'est suffisante seule.
+Six couches, du plus souple au plus strict. Aucune n'est suffisante seule.
 
 **1. Le prompt** (`src/roast/prompt.ts`) — liste explicite de ce qui est hors
 limites : physique, origine, religion, orientation, santé, famille, argent,
@@ -189,12 +189,25 @@ garantie, ce fichier l'est. Blocklist d'insultes et de termes dégradants,
 résistante au leetspeak et aux accents (`c0nnard` est attrapé), plus des motifs
 interdits : liens, commandes chat, mentions en masse, tentatives d'injection.
 
-**4. L'opt-out viewer** — n'importe qui tape `!noroast` dans le chat et il ne sera
+**4. Le juge indépendant** (`src/roast/judge.ts`) — un second modèle relit la
+vanne finale et **ne voit que ça** : le pseudo et la phrase. Ni le profil, ni
+l'événement, ni les intentions de celui qui l'a écrite. Il est dans la position
+du viewer qui la relit seul chez lui le lendemain. Question unique : *cette
+phrase peut-elle blesser ?* — on jette sur **oui** et sur **incertain**.
+
+C'est la couche que l'auto-notation ne peut pas remplacer : au point 2, le modèle
+note une vanne qu'il vient lui-même de trouver bonne. Coût : Haiku 4.5, une
+fraction de centime et ~400 ms. Si l'API du juge ne répond pas, la vanne n'est
+pas jetée mais elle repasse **obligatoirement** par la régie, même en lecture
+automatique — un juge muet ne doit jamais ressembler à un juge satisfait.
+
+**5. L'opt-out viewer** — n'importe qui tape `!noroast` dans le chat et il ne sera
 jamais visé ; ses vannes déjà en file sont supprimées. `!roastme` pour revenir.
 
-**5. La validation manuelle** — `AUTO_PLAY=false` (défaut) : chaque vanne
-s'affiche dans la régie et n'est jouée que si tu cliques ▶. **Garde ça pour ta
-première session**, le temps de calibrer ton public.
+**6. La validation manuelle** — `AUTO_PLAY=false` (défaut) : chaque vanne
+s'affiche dans la régie, avec un bouton 🎧 pour l'écouter avant, et n'est jouée
+que si tu cliques ▶. **Garde ça pour ta première session**, le temps de calibrer
+ton public.
 
 Ce qui est filtré reste visible 20 secondes dans la régie avec le motif du rejet,
 pour que tu voies ce qui a été bloqué.
