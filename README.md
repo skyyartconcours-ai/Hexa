@@ -78,6 +78,20 @@ La régie est sur `http://localhost:4747/control` (à ouvrir sur ton second écr
 Le serveur n'écoute que sur ta machine — les deux adresses ne sont pas
 accessibles depuis le réseau.
 
+### La pré-écoute
+
+Chaque vanne en attente a un bouton 🎧 dans la régie. Il joue l'audio **dans
+l'onglet de régie**, pas dans OBS : seul `/overlay` est branché dans ta scène,
+donc rien ne sort à l'antenne. C'est la protection qui compte le plus en
+pratique — un TTS peut retourner le sens d'une phrase rien qu'au ton, et lire le
+texte ne suffit pas à savoir ce qui va sortir. Une seule pré-écoute à la fois, et
+elle s'arrête d'elle-même dès que la vanne part à l'antenne ou est jetée.
+
+Pour que ça serve, il faut que l'onglet de régie sorte dans **ton casque** et pas
+dans le mix du stream. Si tu captures l'audio du bureau, mets ton navigateur de
+régie sur un autre périphérique de sortie (Windows : *Paramètres → Son → Mixeur
+de volume*).
+
 ---
 
 ## Le point important : l'historique du chat

@@ -155,6 +155,7 @@ export class RoastQueue extends EventEmitter {
       severity: 0,
       delivery: null,
       audioPath: null,
+      audioUrl: null,
       createdAt: Date.now(),
       playedAt: null,
     };
@@ -265,6 +266,9 @@ export class RoastQueue extends EventEmitter {
       // Le texte affiche a l'overlay reste propre : la didascalie ne part
       // qu'au TTS, et seulement s'il sait l'interpreter.
       item.audioPath = await synthesise(item.id, draft.roast, draft.delivery);
+      // L'extension depend du fournisseur de voix : on la derive du fichier
+      // reellement ecrit plutot que de la supposer.
+      item.audioUrl = item.audioPath ? `/audio/${path.basename(item.audioPath)}` : null;
 
       // La session a pu se terminer pendant la generation.
       if (!this.session.active) {
@@ -305,6 +309,7 @@ export class RoastQueue extends EventEmitter {
     item.error = reason;
     deleteAudio(item.audioPath);
     item.audioPath = null;
+    item.audioUrl = null;
     // On trace meme les echecs : sinon le cooldown ne voit rien et le viewer
     // peut etre reciblé dans la seconde qui suit.
     saveRoast({
@@ -411,9 +416,7 @@ export class RoastQueue extends EventEmitter {
       user: next.trigger.userName,
       eventType: next.trigger.type,
       text: next.text,
-      // L'extension depend du fournisseur de voix : on la derive du fichier
-      // reellement ecrit plutot que de la supposer.
-      audioUrl: next.audioPath ? `/audio/${path.basename(next.audioPath)}` : null,
+      audioUrl: next.audioUrl,
     });
     this.emitSafely('spoken', next);
     this.broadcast();
@@ -473,6 +476,7 @@ export class RoastQueue extends EventEmitter {
       });
       deleteAudio(item.audioPath);
       item.audioPath = null;
+      item.audioUrl = null;
       // On laisse la vanne visible un moment dans le panneau, puis on nettoie.
       setTimeout(() => {
         this.items.delete(id);

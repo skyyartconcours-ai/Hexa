@@ -68,6 +68,11 @@ export interface QueuedRoast {
   severity: number;
   delivery: Delivery | null;
   audioPath: string | null;
+  /**
+   * Meme fichier que `audioPath`, vu depuis le navigateur. Sert a la
+   * pre-ecoute en regie : le chemin disque ne veut rien dire pour un onglet.
+   */
+  audioUrl: string | null;
   createdAt: number;
   playedAt: number | null;
   error?: string;

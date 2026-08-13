@@ -46,6 +46,51 @@
 
   let session = { active: false, endsAt: null, autoPlay: false, roastsPlayed: 0 };
 
+  // ── Pré-écoute ───────────────────────────────────────────────────────
+  // Une seule à la fois : deux vannes qui se parlent dessus dans le casque du
+  // streamer pendant qu'il arbitre, c'est pire que pas de pré-écoute du tout.
+  const preview = { id: null, audio: null };
+  let lastItems = [];
+
+  function stopPreview() {
+    if (preview.audio) {
+      preview.audio.pause();
+      preview.audio.src = '';
+    }
+    preview.id = null;
+    preview.audio = null;
+  }
+
+  function togglePreview(item) {
+    const wasPlaying = preview.id === item.id;
+    stopPreview();
+    if (wasPlaying || !item.audioUrl) {
+      rerender();
+      return;
+    }
+    const audio = new Audio(item.audioUrl);
+    preview.id = item.id;
+    preview.audio = audio;
+    audio.addEventListener('ended', () => {
+      stopPreview();
+      rerender();
+    });
+    audio.addEventListener('error', () => {
+      stopPreview();
+      rerender();
+    });
+    audio.play().catch(() => {
+      stopPreview();
+      rerender();
+    });
+    rerender();
+  }
+
+  /** Redessine la file avec les dernières données connues, sans appel réseau. */
+  function rerender() {
+    renderQueue(lastItems);
+  }
+
   async function api(path, body) {
     const response = await fetch(path, {
       method: body === undefined ? 'GET' : 'POST',
@@ -80,6 +125,15 @@
   }
 
   function renderQueue(items) {
+    lastItems = items;
+
+    // Une vanne envoyée à l'antenne, jetée ou périmée ne doit plus jouer dans
+    // le casque : sinon le streamer entend la voix deux fois, décalée, pendant
+    // qu'il arbitre la suivante.
+    if (preview.id && !items.some((i) => i.id === preview.id && i.status === 'pending')) {
+      stopPreview();
+    }
+
     if (!items.length) {
       els.queue.innerHTML = '<p class="empty">Rien pour l\'instant.</p>';
       return;
@@ -150,6 +204,21 @@
       if (item.status === 'pending' && item.text) {
         const actions = document.createElement('div');
         actions.className = 'item__actions';
+
+        // Pré-écoute. Un TTS peut retourner le sens d'une phrase rien qu'au ton :
+        // lire le texte ne suffit pas à valider ce qui va sortir en direct.
+        // Ça joue dans CET onglet, qu'OBS ne capture pas — seul /overlay est
+        // branché dans la scène.
+        if (item.audioUrl) {
+          const listen = document.createElement('button');
+          listen.className = 'icon-btn icon-btn--listen';
+          const playing = preview.id === item.id;
+          listen.title = playing ? 'Arrêter la pré-écoute' : 'Écouter avant d\'envoyer';
+          listen.textContent = playing ? '⏹' : '🎧';
+          if (playing) listen.classList.add('is-on');
+          listen.addEventListener('click', () => togglePreview(item));
+          actions.append(listen);
+        }
 
         const go = document.createElement('button');
         go.className = 'icon-btn icon-btn--go';

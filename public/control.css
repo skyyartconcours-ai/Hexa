@@ -333,6 +333,11 @@ input[type="text"],
 .icon-btn:hover { filter: brightness(1.4); }
 .icon-btn--go { border-color: var(--go); color: var(--go); }
 .icon-btn--stop { border-color: var(--stop); color: var(--stop); }
+.icon-btn--listen { border-color: var(--accent); color: var(--accent); }
+.icon-btn--listen.is-on {
+  background: var(--accent);
+  color: #100d18;
+}
 
 /* ── Divers ────────────────────────────────────────────────────────────── */
 
