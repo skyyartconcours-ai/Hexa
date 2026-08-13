@@ -8,7 +8,7 @@
 import { HexaError, didYouMean } from '@hexa/core';
 import type { Player, Region, Role, Team, TeamId } from '@hexa/core';
 import { loadModule } from './load.js';
-import { DATA_EXPORTS, type DataModule } from './contracts.js';
+import { DATA_EXPORTS, type DataModule, type PlayerFilter } from './contracts.js';
 
 const SPEC = '@hexa/data';
 const HINT = 'The roster database package is not built. Run: pnpm --filter @hexa/data build';
@@ -74,9 +74,7 @@ export async function allTeams(): Promise<readonly Team[]> {
   return (await mod()).TEAMS;
 }
 
-export async function listPlayers(
-  filter?: { team?: string; role?: Role; region?: Region; active?: boolean },
-): Promise<Player[]> {
+export async function listPlayers(filter?: PlayerFilter): Promise<Player[]> {
   return (await mod()).listPlayers(filter);
 }
 

@@ -135,18 +135,22 @@ Nothing is publish-grade until a human passes --cleared, having read the terms.`
         return;
       }
 
-      const cleared = await Promise.all(list.map((a) => assetsAdapter.isPublishable(a)));
+      // Pair each asset with its publish verdict up front; asking inside the
+      // cell renderer would mean an async lookup per row.
+      const rows = await Promise.all(
+        list.map(async (asset) => ({ asset, cleared: await assetsAdapter.isPublishable(asset) })),
+      );
+
       ctx.say(renderTable(
-        list,
+        rows,
         [
-          { header: '', value: (_a, ) => '', max: 0 },
-          { header: 'ID', value: (a) => ctx.ui.bold(a.id), max: 26 },
-          { header: 'PLAYER', value: (a) => a.playerId ?? ctx.ui.dim('—'), max: 14 },
-          { header: 'KIND', value: (a) => a.kind, max: 12 },
-          { header: 'QUALITY', value: (a) => String(Math.round(a.metrics?.quality ?? 0)), align: 'right', max: 7 },
-          { header: 'LICENCE', value: (a) => a.provenance.license, max: 15 },
-          { header: 'CLEARED', value: (a) => (cleared[list.indexOf(a)] ? ctx.ui.ok(ctx.glyph.ok) : ctx.ui.warn(ctx.glyph.warn)) },
-        ].filter((c) => c.header !== '' || c.max !== 0),
+          { header: 'ID', value: (r) => ctx.ui.bold(r.asset.id), max: 26 },
+          { header: 'PLAYER', value: (r) => r.asset.playerId ?? ctx.ui.dim('—'), max: 14 },
+          { header: 'KIND', value: (r) => r.asset.kind, max: 12 },
+          { header: 'QUALITY', value: (r) => String(Math.round(r.asset.metrics?.quality ?? 0)), align: 'right', max: 7 },
+          { header: 'LICENCE', value: (r) => r.asset.provenance.license, max: 15 },
+          { header: 'CLEARED', value: (r) => (r.cleared ? ctx.ui.ok(ctx.glyph.ok) : ctx.ui.warn(ctx.glyph.warn)) },
+        ],
         { headerStyle: ctx.ui.dim, indent: 1 },
       ));
       ctx.say(`\n ${ctx.ui.dim(`${list.length} asset(s)`)}`);
