@@ -53,18 +53,56 @@ Hexa splits every render into two strictly separated domains:
 This separation is enforced in code, not by convention:
 
 - `@hexa/ai` exposes `assertNoPersonGeneration()`, called on **every** backplate
-  request. A prompt asking for a person, a face, a portrait, or a named
-  individual throws before it reaches any provider.
+  request — in `registry.ts` and again inside every provider, including the
+  offline `local` one. A prompt asking for a person, a face, a portrait or a
+  likeness throws before it reaches any provider.
 - `guardIdentityEdit()` requires that any image-to-image pass over a photo
-  declares `preserve` regions covering the face and caps `strength`, so an edit
-  can restyle the lighting around a subject but cannot repaint who they are.
+  **declares** `preserve` regions and caps `strength` at 0.65, so an edit can
+  restyle the lighting around a subject but cannot repaint who they are.
 - `@hexa/qa`'s `identityGate` crops the face out of the **finished render**,
   embeds it, and cosine-compares it against the player's reference gallery. If
-  the similarity falls below threshold the render **fails QA** and the pipeline
-  retries with a different reference asset.
+  the similarity falls below threshold the finding is a hard `fail`, and
+  `generateThumbnail` re-prepares that subject from the next-best photograph and
+  recompiles the variant once.
 
-That last point is what turns a promise into a guarantee. The tool does not
-trust itself; it checks.
+### Where those enforcements stop
+
+Stated precisely, because "enforced in code" is worth nothing if the boundary is
+in a different place than the reader assumes.
+
+- **Named individuals are not blocked.** The guard has the machinery for it —
+  `registerProtectedNames()` in `packages/ai/src/guard.ts` — but nothing calls
+  it, so the protected-name set is empty at runtime and
+  `assertNoPersonGeneration('Faker at a gaming desk')` returns normally. The
+  generic nouns (`person`, `man`, `face`, `portrait`, `esports player`…) and the
+  impersonation cues (`deepfake`, `looks like <name>`) *are* blocked.
+- **`preserve` regions are declared, not verified.** The guard has no access to
+  a face detector, so it checks that at least one region exists and has positive
+  area. It cannot confirm the region actually covers the face.
+- **A failed identity check does not stop the file being written.** It fails the
+  QA report and is reported; the image is still emitted unless you pass
+  `--strict` (`qa.strict`), which aborts instead.
+- **The gate cannot currently run at all.** See below.
+
+### The gate has nothing to compare against
+
+`identityGate` needs `referenceEmbeddings` for a subject, which
+`buildReferenceGallery()` reads from `ReferenceAsset.embedding` in the asset
+library. **No code path in this repository ever writes that field.** Ingestion
+leaves it undefined for "a later enrichment pass"; that pass does not exist, and
+`hexa assets embed` is not a command. `embedBatch()` is implemented in
+`@hexa/vision` and wrapped in `@hexa/pipeline/adapters/vision.ts`, and nothing
+imports the wrapper.
+
+So today the gate emits one warning per subject — "has no reference embeddings,
+so the rendered face cannot be verified" — and never a pass or a failure. This
+is true even with a full, cleared photo library and the sidecar running. Adding
+photographs improves the cutouts and the face-anchored placement; it does not
+switch verification on.
+
+The design turns a promise into a guarantee. The wiring to make it fire is
+missing. See [EVALUATION.md](EVALUATION.md) for the measurement and for what
+would close it.
 
 ## What this means for you, practically
 
@@ -92,9 +130,13 @@ Get started with:
 ```bash
 hexa assets ingest ./my-press-photos --player Peyz --license press-kit \
   --source "LCK Official Media Kit 2026 Spring" --credit "LCK"
-hexa assets coverage          # which players still have no references
-hexa doctor                   # what else is missing
+hexa assets coverage --team t1   # who on T1 still has no references
+hexa doctor                      # what else is missing
 ```
+
+Pass `--team`: bare `hexa assets coverage` enumerates only players already in
+the library, so on an empty library it reports "every player in scope has
+references" rather than the truth. `hexa doctor` reports coverage correctly.
 
 **Until you add photos, the tool still runs.** Every layout, effect, grade,
 template and QA gate works against a generated placeholder silhouette, so you
@@ -103,10 +145,19 @@ deliberately schematic — they never depict a fake person.
 
 ## Honest limitations
 
+- **Identity verification does not currently run.** No code path computes
+  reference embeddings, so the gate has nothing to compare against and reports
+  every render as unverified. This is the gap between the design above and the
+  behaviour you get. Measured in [EVALUATION.md](EVALUATION.md).
 - **Identity verification needs the vision sidecar.** Face embedding requires
   the optional Python service (`services/vision/run.sh`). Without it, Hexa
   cannot verify likeness and says so — the gate emits a warning rather than
   quietly passing.
+- **The sidecar is not found by default.** `run.sh` serves port **8765**;
+  `@hexa/pipeline` and `hexa doctor` look at **8000** and read `HEXA_VISION_URL`
+  (not the `HEXA_VISION_ENDPOINT` that `services/vision/README.md` documents).
+  Until that is unified, run `HEXA_VISION_URL=http://127.0.0.1:8765 hexa …` or
+  pass `--vision`. Nothing loads a `.env` file, so the variable must be exported.
 - **Verification is not authentication.** A cosine-similarity gate confirms the
   composited face matches the reference gallery. It cannot tell you the
   reference gallery is correctly labelled. Curate your library.

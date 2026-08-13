@@ -8,7 +8,7 @@
  * Gates read both and are free to disagree with the plan.
  */
 
-import type { QaRequest, ReferenceAsset, RenderPlan } from '@hexa/core';
+import type { QaReport, QaRequest, ReferenceAsset, RenderPlan } from '@hexa/core';
 
 /** Axis-aligned rect. Accepted in normalised 0–1 units or device pixels — see
  *  `toPixelRect` in `./geom.js` for how the two are told apart. */
@@ -76,4 +76,8 @@ export interface AppealContext {
   height: number;
   textRects?: GateTextRect[];
   faceRects?: QaRect[];
+  /** The gates' verdict on the same pixels, when it has already been produced.
+   *  Appeal cannot see defects; given this it at least refuses to contradict
+   *  them. See the note in `appeal.ts`. */
+  qa?: QaReport;
 }

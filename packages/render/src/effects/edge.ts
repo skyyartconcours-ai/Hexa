@@ -224,7 +224,9 @@ export async function outerGlowRaw(
   const colour = parseHex(opts.color);
   const intensity = clamp(opts.intensity, 0, 4);
   // 1−(1−t)² keeps the near-edge glow hot while the tail stays soft.
-  return overColouredMask(img, (i) => (1 - (1 - spread.data[i]! / 255) ** 2) * intensity, colour);
+  const curve = new Float64Array(256);
+  for (let v = 0; v < 256; v++) curve[v] = clamp((1 - (1 - v / 255) ** 2) * intensity, 0, 1);
+  return overColouredMask(img, spread.data, curve, colour);
 }
 
 export async function outerGlow(
@@ -247,16 +249,21 @@ export async function dropShadowRaw(
   const dx = Math.round(opts.dx);
   const dy = Math.round(opts.dy);
 
-  return overColouredMask(
-    img,
-    (i) => {
-      const x = (i % w) - dx;
-      const y = Math.floor(i / w) - dy;
-      if (x < 0 || y < 0 || x >= w || y >= h) return 0;
-      return (soft.data[y * w + x]! / 255) * opacity;
-    },
-    colour,
-  );
+  // Offset the silhouette once, by copying whole rows, instead of recovering
+  // (x, y) from the linear index for every pixel.
+  const shifted = Buffer.alloc(w * h, 0);
+  for (let y = 0; y < h; y++) {
+    const sy = y - dy;
+    if (sy < 0 || sy >= h) continue;
+    const from = sy * w + Math.max(0, -dx);
+    const to = y * w + Math.max(0, dx);
+    const len = w - Math.abs(dx);
+    if (len > 0) soft.data.copy(shifted, to, from, from + len);
+  }
+  const curve = new Float64Array(256);
+  for (let v = 0; v < 256; v++) curve[v] = (v / 255) * opacity;
+
+  return overColouredMask(img, shifted, curve, colour);
 }
 
 export async function dropShadow(
@@ -277,7 +284,9 @@ export async function strokeAlphaRaw(img: RawImage, opts: { width: number; color
   // A sub-pixel feather stops the outline crawling with aliasing.
   const soft = await blurMask(grown, MIN_SIGMA * 2);
   const colour = parseHex(opts.color);
-  return overColouredMask(img, (i) => soft.data[i]! / 255, colour);
+  const curve = new Float64Array(256);
+  for (let v = 0; v < 256; v++) curve[v] = v / 255;
+  return overColouredMask(img, soft.data, curve, colour);
 }
 
 export async function strokeAlpha(subject: Buffer, opts: { width: number; color: string }): Promise<Buffer> {

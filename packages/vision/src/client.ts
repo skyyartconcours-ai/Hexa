@@ -224,6 +224,15 @@ export class VisionClient {
     try {
       const res = await this.sidecar.postJson<EmbedResponse>('/embed', this.imageBody(img));
       const embedding = toEmbedding(res);
+      if (!embedding) {
+        // Deliberately not cached: this is a sidecar fault, and a cached zero
+        // vector would outlive the outage and poison every later comparison.
+        this.log.warn(
+          'The vision sidecar returned an unusable embedding (empty, all-zero or non-finite) — treating it as ' +
+            'no face. Identity cannot be verified from this. Check the sidecar model weights: bash services/vision/run.sh --reinstall',
+        );
+        return null;
+      }
       await this.cache.set('embed', img.hash, embedding);
       return embedding;
     } catch (err) {
@@ -294,10 +303,17 @@ export class VisionClient {
         const idx = missing[k]!;
         const row = rows[k] ?? null;
         const embedding = row ? toEmbedding(row) : null;
+        if (row && !embedding) {
+          this.log.warn(
+            'The vision sidecar returned an unusable embedding in a batch (empty, all-zero or non-finite) — ' +
+              'treating it as no face, and not caching it.',
+          );
+        }
         out[idx] = embedding;
         const code = res.errors?.[k]?.code;
-        // Same rule as embed(): only cache a definite "no face", not a failure.
-        if (embedding || code === 'NO_FACE') {
+        // Same rule as embed(): cache a definite "no face", never a fault — a
+        // cached degenerate vector would outlive the outage that produced it.
+        if (embedding || (code === 'NO_FACE' && !row)) {
           await this.cache.set('embed', resolved[idx]!.hash, embedding);
         }
       }
@@ -417,7 +433,9 @@ export class VisionClient {
         a: this.imageBody(ia),
         b: this.imageBody(ib),
       });
-      if (typeof res.similarity !== 'number' || Number.isNaN(res.similarity)) {
+      // ±Infinity would sail past any `>= threshold` check, so finiteness — not
+      // merely "not NaN" — is the bar.
+      if (typeof res.similarity !== 'number' || !Number.isFinite(res.similarity)) {
         throw new HexaError('PROVIDER_ERROR', 'sidecar returned a non-numeric similarity');
       }
       return res.similarity;

@@ -37,25 +37,29 @@ export type {
 } from './types.js';
 
 // ── registry + runner ────────────────────────────────────────────────────────
-export { GATES, registerGate, runGates } from './registry.js';
+export { FAIL_CEILING, GATES, UNCHECKED_CEILING, aggregate, registerGate, runGates } from './registry.js';
 
 // ── reporting ────────────────────────────────────────────────────────────────
 export { formatFindings, summarise } from './format.js';
 
 // ── individual gates, exported for direct use and testing ───────────────────
 export { identityGate, DEFAULT_IDENTITY_THRESHOLD, cosine } from './gates/identity.js';
-export { legibilityGate } from './gates/legibility.js';
+export { likenessGate } from './gates/likeness.js';
+export { legibilityGate, PROMINENT_AREA } from './gates/legibility.js';
+export { clippingGate, CLIP_COVERAGE } from './gates/clipping.js';
 export { contrastGate } from './gates/contrast.js';
 export { safeZoneGate } from './gates/safeZone.js';
 export { facePlacementGate } from './gates/facePlacement.js';
+export { subjectClarityGate } from './gates/subjectClarity.js';
 export { clutterGate } from './gates/clutter.js';
+export { fxDominanceGate, isFxLayer } from './gates/fxDominance.js';
 export { colorHarmonyGate } from './gates/colorHarmony.js';
 export { licenseGate } from './gates/license.js';
 export { bandingGate } from './gates/banding.js';
 export { duplicateGate } from './gates/duplicate.js';
 
 // ── appeal ranking (a heuristic — read the docstring in ./appeal.ts) ─────────
-export { APPEAL_WEIGHTS, combinedScore, pickBest, rankVariants, scoreAppeal } from './appeal.js';
+export { APPEAL_WEIGHTS, FAILED_CAP, combinedScore, pickBest, rankVariants, scoreAppeal } from './appeal.js';
 export type { AppealResult } from './appeal.js';
 
 // ── small-size simulation ────────────────────────────────────────────────────

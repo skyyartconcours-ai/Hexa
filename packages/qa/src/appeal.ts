@@ -200,11 +200,32 @@ export async function scoreAppeal(ctx: AppealContext): Promise<AppealResult> {
     thirds: round3(thirds),
   };
 
-  const score = Math.round(
+  const raw = Math.round(
     100 * Object.entries(APPEAL_WEIGHTS).reduce((acc, [k, weight]) => acc + weight * (parts[k] ?? 0), 0),
   );
 
-  return { score, parts, notes };
+  // ── honesty about the QA verdict ──────────────────────────────────────────
+  // Appeal measures what a render *has*, not what is wrong with it, so it will
+  // happily score a broken thumbnail highly. When the caller has a report,
+  // saying so here is far more useful than leaving two contradictory numbers on
+  // screen for a human to reconcile.
+  const report = ctx.qa;
+  if (report && report.passed === false) {
+    const vetoes = [...new Set(report.findings.filter((f) => f.severity === 'fail').map((f) => f.gate))];
+    const score = Math.min(raw, FAILED_CAP);
+    notes.push(
+      `QA vetoed this render (${vetoes.length ? vetoes.join(', ') : 'unnamed gate'}), so appeal is capped at ${FAILED_CAP}. ` +
+      `The components measured ${raw}/100 — appeal counts what a thumbnail has (a big face, colour, contrast, one focal point) ` +
+      'and cannot see a clipped headline, a placeholder standing in for a player, or type nobody can read at feed size. ' +
+      'Read the QA findings, not this number.',
+    );
+    return { score, parts, notes, uncapped: raw };
+  }
+  if (report) {
+    notes.push(`QA scored this render ${report.score}/100 and passed it; appeal is a separate, softer opinion about the same pixels.`);
+  }
+
+  return { score: raw, parts, notes };
 }
 
 function round3(v: number): number {
