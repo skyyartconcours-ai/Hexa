@@ -61,7 +61,7 @@ export type ImageSource = string | Buffer | Uint8Array;
  *
  * @throws HexaError `IO_ERROR` when the file is missing or not a decodable image.
  */
-export async function computeBasicMetrics(file: string): Promise<Omit<AssetMetrics, 'quality'>> {
+export async function computeBasicMetrics(file: ImageSource): Promise<Omit<AssetMetrics, 'quality'>> {
   const meta = await readMetadata(file);
 
   // EXIF orientations 5–8 swap the axes; `.rotate()` in the pipelines below
@@ -70,9 +70,9 @@ export async function computeBasicMetrics(file: string): Promise<Omit<AssetMetri
   const width = (swapped ? meta.height : meta.width) ?? 0;
   const height = (swapped ? meta.width : meta.height) ?? 0;
   if (width <= 0 || height <= 0) {
-    throw new HexaError('IO_ERROR', `Could not read image dimensions: ${file}`, {
+    throw new HexaError('IO_ERROR', `Could not read image dimensions: ${describe(file)}`, {
       hint: 'The file may be truncated or not an image.',
-      details: { file },
+      details: { file: describe(file) },
     });
   }
 
@@ -142,7 +142,7 @@ function greyStats(data: Buffer | Uint8Array, w: number, h: number): { sharpness
 }
 
 /** Coarse dominant-colour extraction: 24×24 thumbnail, 32-level buckets. */
-async function dominantColours(file: string, max = 5): Promise<string[]> {
+async function dominantColours(file: ImageSource, max = 5): Promise<string[]> {
   try {
     const { data, info } = await run(file, (p) =>
       p.rotate().resize(24, 24, { fit: 'fill' }).removeAlpha().toColourspace('srgb').raw().toBuffer({ resolveWithObject: true }),
@@ -182,7 +182,7 @@ async function dominantColours(file: string, max = 5): Promise<string[]> {
  * photo pulled from two sites — while different photographs of the same player
  * in the same pose still land far apart.
  */
-export async function computeDHash(file: string): Promise<string> {
+export async function computeDHash(file: ImageSource): Promise<string> {
   const { data } = await run(file, (p) =>
     p.rotate().greyscale().resize(DHASH_W, DHASH_H, { fit: 'fill' }).raw().toBuffer({ resolveWithObject: true }),
   );
@@ -236,12 +236,12 @@ export function findDuplicate(
 }
 
 /** SHA-256 of the file contents, truncated — the identity half of an asset id. */
-export async function contentHash(file: string, length = 10): Promise<string> {
+export async function contentHash(file: ImageSource, length = 10): Promise<string> {
   try {
-    const buf = await fs.readFile(file);
+    const buf = typeof file === 'string' ? await fs.readFile(file) : file;
     return createHash('sha256').update(buf).digest('hex').slice(0, length);
   } catch (err) {
-    throw new HexaError('IO_ERROR', `Cannot read file: ${file}`, { details: { file }, cause: err });
+    throw new HexaError('IO_ERROR', `Cannot read file: ${describe(file)}`, { details: { file: describe(file) }, cause: err });
   }
 }
 
@@ -444,22 +444,27 @@ export function inferPlayerId(file: string, root: string): PlayerId | undefined 
 
 type SharpPipeline = ReturnType<typeof sharp>;
 
-async function run<T>(file: string, fn: (p: SharpPipeline) => Promise<T>): Promise<T> {
+async function run<T>(file: ImageSource, fn: (p: SharpPipeline) => Promise<T>): Promise<T> {
   try {
     // failOn: 'none' keeps slightly-truncated downloads usable — a press photo
     // with a broken last scanline is still a perfectly good reference.
-    return await fn(sharp(file, { failOn: 'none' }));
+    return await fn(sharp(file as string | Buffer, { failOn: 'none' }));
   } catch (err) {
-    throw new HexaError('IO_ERROR', `Cannot decode image: ${file}`, {
+    throw new HexaError('IO_ERROR', `Cannot decode image: ${describe(file)}`, {
       hint: 'Supported formats are PNG, JPEG, WebP and AVIF.',
-      details: { file },
+      details: { file: describe(file) },
       cause: err,
     });
   }
 }
 
-async function readMetadata(file: string): Promise<sharp.Metadata> {
+async function readMetadata(file: ImageSource): Promise<sharp.Metadata> {
   return run(file, (p) => p.metadata());
+}
+
+/** Human-readable label for an image source, for error messages. */
+function describe(file: ImageSource): string {
+  return typeof file === 'string' ? file : `<${file.byteLength} byte buffer>`;
 }
 
 function round(v: number, digits: number): number {
