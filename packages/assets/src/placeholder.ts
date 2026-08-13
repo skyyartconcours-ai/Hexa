@@ -168,21 +168,58 @@ function bustSilhouette(w: number, h: number, kind: AssetKind, rng: Rng): BodyAr
   const bottom = h + 2; // bleed past the edge so the cutout has no floating base
   const drop = bottom - shoulderY;
 
-  // Torso, drawn as one closed path: neck → trapezius → deltoid → arm → bleed,
-  // mirrored back up the other side.
-  const torso = [
-    `M ${f(headCx - neckW / 2)} ${f(neckTop)}`,
-    `L ${f(headCx - neckW / 2)} ${f(neckBase)}`,
-    // Trapezius: slow rise off the neck, then a hard turn at the shoulder.
-    `C ${f(headCx - neckW * 1.15)} ${f(neckBase + s * 0.012)} ${f(left + shoulderW * 0.2)} ${f(shoulderY - s * 0.05)} ${f(left)} ${f(shoulderY)}`,
-    // Arm: bows very slightly outward on the way off the bottom edge.
-    `C ${f(left - shoulderW * 0.03)} ${f(shoulderY + drop * 0.35)} ${f(headCx - hipW / 2 - shoulderW * 0.01)} ${f(shoulderY + drop * 0.7)} ${f(headCx - hipW / 2)} ${f(bottom)}`,
-    `L ${f(headCx + hipW / 2)} ${f(bottom)}`,
-    `C ${f(headCx + hipW / 2 + shoulderW * 0.01)} ${f(shoulderY + drop * 0.7)} ${f(right + shoulderW * 0.03)} ${f(shoulderY + drop * 0.35)} ${f(right)} ${f(shoulderY)}`,
-    `C ${f(right - shoulderW * 0.2)} ${f(shoulderY - s * 0.05)} ${f(headCx + neckW * 1.15)} ${f(neckBase + s * 0.012)} ${f(headCx + neckW / 2)} ${f(neckBase)}`,
-    `L ${f(headCx + neckW / 2)} ${f(neckTop)}`,
-    'Z',
-  ].join(' ');
+  // Shared upper body: neck → trapezius → deltoid, mirrored back up the far
+  // side. Where it ends differs by kind — a bust bleeds off the bottom edge, a
+  // full body stops at the hips and grows legs.
+  const shoulderIn = (side: -1 | 1): string =>
+    `C ${f(headCx + side * shoulderW * 0.2)} ${f(shoulderY - s * 0.05)} ${f(headCx + side * neckW * 1.15)} ${f(neckBase + s * 0.012)} ${f(headCx + side * (neckW / 2))} ${f(neckBase)}`;
+  const shoulderOut = (side: -1 | 1): string =>
+    `C ${f(headCx + side * neckW * 1.15)} ${f(neckBase + s * 0.012)} ${f(headCx + side * shoulderW * 0.2)} ${f(shoulderY - s * 0.05)} ${f(headCx + side * (shoulderW / 2))} ${f(shoulderY)}`;
+
+  let torso: string;
+  if (fullBody) {
+    // Standing figure: torso narrows at the waist, widens at the hips, then
+    // splits into two legs that run off the bottom edge.
+    const waistY = shoulderY + (h - shoulderY) * 0.3;
+    const hipY = shoulderY + (h - shoulderY) * 0.46;
+    const waistW = shoulderW * 0.76;
+    const hipsW = shoulderW * 0.9;
+    const gap = shoulderW * 0.11;
+    const legIn = gap / 2;
+    torso = [
+      `M ${f(headCx - neckW / 2)} ${f(neckTop)}`,
+      `L ${f(headCx - neckW / 2)} ${f(neckBase)}`,
+      shoulderOut(-1),
+      `C ${f(left - shoulderW * 0.02)} ${f(waistY - (waistY - shoulderY) * 0.35)} ${f(headCx - waistW / 2)} ${f(waistY - (waistY - shoulderY) * 0.3)} ${f(headCx - waistW / 2)} ${f(waistY)}`,
+      `L ${f(headCx - hipsW / 2)} ${f(hipY)}`,
+      // Left leg down, right leg back up, with a gap between them.
+      `L ${f(headCx - hipsW * 0.42)} ${f(bottom)}`,
+      `L ${f(headCx - legIn)} ${f(bottom)}`,
+      `L ${f(headCx - legIn * 0.6)} ${f(hipY + (bottom - hipY) * 0.12)}`,
+      `L ${f(headCx + legIn * 0.6)} ${f(hipY + (bottom - hipY) * 0.12)}`,
+      `L ${f(headCx + legIn)} ${f(bottom)}`,
+      `L ${f(headCx + hipsW * 0.42)} ${f(bottom)}`,
+      `L ${f(headCx + hipsW / 2)} ${f(hipY)}`,
+      `L ${f(headCx + waistW / 2)} ${f(waistY)}`,
+      `C ${f(headCx + waistW / 2)} ${f(waistY - (waistY - shoulderY) * 0.3)} ${f(right + shoulderW * 0.02)} ${f(waistY - (waistY - shoulderY) * 0.35)} ${f(right)} ${f(shoulderY)}`,
+      shoulderIn(1),
+      `L ${f(headCx + neckW / 2)} ${f(neckTop)}`,
+      'Z',
+    ].join(' ');
+  } else {
+    torso = [
+      `M ${f(headCx - neckW / 2)} ${f(neckTop)}`,
+      `L ${f(headCx - neckW / 2)} ${f(neckBase)}`,
+      shoulderOut(-1),
+      // Arm: bows very slightly outward on the way off the bottom edge.
+      `C ${f(left - shoulderW * 0.03)} ${f(shoulderY + drop * 0.35)} ${f(headCx - hipW / 2 - shoulderW * 0.01)} ${f(shoulderY + drop * 0.7)} ${f(headCx - hipW / 2)} ${f(bottom)}`,
+      `L ${f(headCx + hipW / 2)} ${f(bottom)}`,
+      `C ${f(headCx + hipW / 2 + shoulderW * 0.01)} ${f(shoulderY + drop * 0.7)} ${f(right + shoulderW * 0.03)} ${f(shoulderY + drop * 0.35)} ${f(right)} ${f(shoulderY)}`,
+      shoulderIn(1),
+      `L ${f(headCx + neckW / 2)} ${f(neckTop)}`,
+      'Z',
+    ].join(' ');
+  }
 
   const collarY = shoulderY + s * rng.float(0.05, 0.075);
   const shape = [
@@ -311,7 +348,9 @@ function captionPlate(w: number, h: number, label: string, stamp: string, textCo
   // decorative so an approximation is fine and avoids a font-metrics dependency.
   const plateW = Math.min(w * 0.92, text.length * fontSize * 0.72 + fontSize * 1.4);
   const plateH = fontSize * 1.7 + capSize * 1.9;
-  const cy = kind === 'backplate' ? h * 0.5 : h * 0.83;
+  // Full-body figures carry the plate at chest height so it never bridges the
+  // gap between the legs and muddies the silhouette.
+  const cy = kind === 'backplate' ? h * 0.5 : kind === 'fullbody' ? h * 0.46 : h * 0.83;
   const x = (w - plateW) / 2;
   const y = cy - plateH / 2;
   const r = Math.min(plateH * 0.18, s * 0.02);

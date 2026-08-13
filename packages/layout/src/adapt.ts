@@ -122,6 +122,7 @@ export function adaptLayout(layout: LayoutSpec, targetAspect: number): LayoutSpe
     s.rect = clampRect(rects.get(s.id) ?? s.rect);
   }
   separate(out, to);
+  if (mode !== 'squeeze') keepTextInBand(out, BOTTOM_LIMIT[mode]);
 
   // R5 — focal points and guides.
   out.focalPoints = layout.focalPoints.map((p) => mapPoint(p, layout, out, mode, from, to));
@@ -363,6 +364,20 @@ function mapPoint(
     return { x: clamp(0.5 + (p.x - 0.5) * (from / to), 0, 1), y: clamp(p.y, 0, 1) };
   }
   return { x: clamp(p.x, 0, 1), y: clamp(p.y, 0, 1) };
+}
+
+/**
+ * R2f — the separation pass can shove a caption back down into the platform's
+ * bottom chrome, so the band is re-imposed afterwards as a hard invariant.
+ * Text is translated up, never resized.
+ */
+function keepTextInBand(spec: LayoutSpec, limit: number): void {
+  for (const s of spec.slots) {
+    if (!TEXTISH.has(s.kind)) continue;
+    const overflow = s.rect.y + s.rect.h - limit;
+    if (overflow <= 0) continue;
+    s.rect = { ...s.rect, y: Math.max(0, s.rect.y - overflow) };
+  }
 }
 
 /** R6 — run the real overlap resolver on a canonical canvas, then write back. */

@@ -39,7 +39,9 @@ interface Ink {
  * "varied" purely from undefined colour data under zero alpha.
  */
 async function rasterise(markup: string): Promise<Ink> {
-  const png = await sharp(Buffer.from(markup, 'utf8'), { density: 144 })
+  // No `density` override: sharp's default of 72 DPI maps one SVG user unit to
+  // one pixel, so raster dimensions can be asserted against the declared size.
+  const png = await sharp(Buffer.from(markup, 'utf8'))
     .flatten({ background: BG })
     .png()
     .toBuffer();

@@ -38,11 +38,15 @@ export const particles: Generator = async (params, size, seed) => {
   const density = num(params, 'density', 1);
   const bias = num(params, 'bias', str(params, 'side', 'right') === 'left' ? -0.7 : 0.7);
   const scale = Math.sqrt((w * h) / (1280 * 720));
+  // Counts thin out on a small canvas, but radii must not collapse below a
+  // pixel or the whole field disappears into the downsample.
+  const rScale = Math.max(0.75, scale);
+  const nScale = Math.max(0.35, scale);
 
   const bands = [
-    { count: 240, rMin: 0.5, rMax: 1.7, alpha: 0.34, sigma: 1.3 * scale, drift: 0.0 },
-    { count: 96, rMin: 1.5, rMax: 3.8, alpha: 0.62, sigma: 0.5 * scale, drift: 0.35 },
-    { count: 26, rMin: 3.4, rMax: 9.5, alpha: 0.85, sigma: 3.2 * scale, drift: 0.9 },
+    { count: 240, rMin: 0.5, rMax: 1.7, alpha: 0.34, sigma: 1.3 * rScale, drift: 0.0 },
+    { count: 96, rMin: 1.5, rMax: 3.8, alpha: 0.62, sigma: 0.5 * rScale, drift: 0.35 },
+    { count: 26, rMin: 3.4, rMax: 9.5, alpha: 0.85, sigma: 3.2 * rScale, drift: 0.9 },
   ];
 
   const layers = [];
