@@ -40,8 +40,20 @@ export async function rasterise(svg: string, size: Size): Promise<Buffer> {
 
 /**
  * Rasterise a glow layer: rendered small, blurred hard, scaled back up. Doing
- * bloom at reduced resolution is both much faster and smoother than blurring
- * at full size — the downsample is itself a low-pass filter.
+ * bloom at reduced resolution is both much faster and smoother than blurring at
+ * full size — the downsample is itself a low-pass filter.
+ *
+ * Two things here are easy to get wrong and were:
+ *
+ *   - The **viewBox must stay at full scene size** while only the raster shrinks.
+ *     Shrinking the viewBox instead clips the scene to its top-left corner and
+ *     then stretches that corner over the frame, which shows up as hard-edged
+ *     blocks of colour in the wrong place.
+ *   - The **blur must scale with the raster**. A fixed sigma tuned on a
+ *     thumbnail-sized render is a fraction of the blur needed at 1280 wide, so
+ *     glows that read as soft light in a contact sheet turn into flat coloured
+ *     bars at full size. Sigma is therefore expressed against a 320px-wide
+ *     reference raster and scaled from there.
  */
 export async function rasteriseGlow(
   svg: string,
@@ -51,20 +63,26 @@ export async function rasteriseGlow(
   const scale = opts.downscale ?? 4;
   const w = Math.max(16, Math.round(size.width / scale));
   const h = Math.max(16, Math.round(size.height / scale));
-  const sigma = Math.max(0.3, Math.min(400, opts.sigma ?? 12));
-  return sharp(Buffer.from(svgDoc(svg, { width: w, height: h })), { density: 96 })
-    .resize(w, h, { fit: 'fill' })
+  const reference = 320;
+  const sigma = Math.max(0.3, Math.min(400, (opts.sigma ?? 12) * (w / reference)));
+  return sharp(Buffer.from(svgDoc(svg, size, { width: w, height: h })), { density: 96 })
     .blur(sigma)
     .resize(size.width, size.height, { fit: 'fill', kernel: 'cubic' })
     .png()
     .toBuffer();
 }
 
-/** Wrap SVG body in a sized root element with a transparent background. */
-export function svgDoc(body: string, size: Size): string {
+/**
+ * Wrap an SVG body in a root element with a transparent background.
+ *
+ * `viewBox` is always the scene's own coordinate space; `render` optionally
+ * rasterises it smaller. Keeping those two independent is what lets a glow pass
+ * draw at scene coordinates but rasterise at a quarter size.
+ */
+export function svgDoc(body: string, viewBox: Size, render: Size = viewBox): string {
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size.width}" height="${size.height}" ` +
-    `viewBox="0 0 ${size.width} ${size.height}">${body}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${render.width}" height="${render.height}" ` +
+    `viewBox="0 0 ${viewBox.width} ${viewBox.height}">${body}</svg>`
   );
 }
 
