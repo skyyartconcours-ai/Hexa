@@ -1,0 +1,44 @@
+{
+  "name": "@hexa/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The `hexa` command line: generate thumbnails, browse the roster and template library, audit the asset library, diagnose the install",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "hexa": "./dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/bin.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@hexa/ai": "workspace:*",
+    "@hexa/assets": "workspace:*",
+    "@hexa/core": "workspace:*",
+    "@hexa/data": "workspace:*",
+    "@hexa/layout": "workspace:*",
+    "@hexa/pipeline": "workspace:*",
+    "@hexa/qa": "workspace:*",
+    "@hexa/render": "workspace:*",
+    "@hexa/templates": "workspace:*",
+    "@hexa/type": "workspace:*",
+    "@hexa/vision": "workspace:*",
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

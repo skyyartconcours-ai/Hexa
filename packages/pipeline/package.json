@@ -1,0 +1,44 @@
+{
+  "name": "@hexa/pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The Hexa compiler and orchestrator: request → prepared subjects → RenderPlan → pixels → QA → outputs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./integration": {
+      "types": "./dist/adapters/index.d.ts",
+      "default": "./dist/adapters/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:integration": "tsc -p tsconfig.integration.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@hexa/ai": "workspace:*",
+    "@hexa/assets": "workspace:*",
+    "@hexa/core": "workspace:*",
+    "@hexa/data": "workspace:*",
+    "@hexa/layout": "workspace:*",
+    "@hexa/qa": "workspace:*",
+    "@hexa/render": "workspace:*",
+    "@hexa/templates": "workspace:*",
+    "@hexa/type": "workspace:*",
+    "@hexa/vision": "workspace:*",
+    "sharp": "^0.34.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
