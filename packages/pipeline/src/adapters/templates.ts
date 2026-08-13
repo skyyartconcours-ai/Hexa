@@ -122,7 +122,7 @@ export async function validateTemplate(template: ThumbnailTemplate): Promise<Tem
   try {
     return (await mod()).validateTemplate(template);
   } catch (e) {
-    return { valid: false, errors: [e instanceof Error ? e.message : String(e)] };
+    return { valid: false, errors: [e instanceof Error ? e.message : String(e)], warnings: [] };
   }
 }
 

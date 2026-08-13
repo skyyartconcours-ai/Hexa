@@ -19,7 +19,7 @@ export { renderLayer, renderLayerRaw, type RenderedLayer } from './layer.js';
 export { applyGrade, applyGradeRaw } from './grade.js';
 export { exportImage, exportRaw, contactSheet, debugOverlaySvg } from './export.js';
 
-export { generators, registerGenerator } from './generators/index.js';
+export { generators, registerGenerator, resolveGenerator, generatorIds } from './generators/index.js';
 
 // ── Effect primitives ────────────────────────────────────────────────────────
 export { rimLight, lightWrap, outerGlow, dropShadow, strokeAlpha } from './effects/edge.js';

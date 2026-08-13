@@ -123,8 +123,16 @@ describe('BUILTIN_LUTS', () => {
     const lut = BUILTIN_LUTS[name]!;
     expect(lut.size).toBeGreaterThanOrEqual(2);
     expect(lut.data.length).toBe(lut.size ** 3 * 3);
-    for (const v of lut.data) expect(v).toBeGreaterThanOrEqual(0);
-    for (const v of lut.data) expect(v).toBeLessThanOrEqual(1);
+    // One assertion, not 100k: every entry must be finite and in gamut.
+    let min = Infinity;
+    let max = -Infinity;
+    for (const v of lut.data) {
+      if (!Number.isFinite(v)) throw new Error(`${name} contains a non-finite entry`);
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    expect(min).toBeGreaterThanOrEqual(0);
+    expect(max).toBeLessThanOrEqual(1);
 
     const frame = await testFrame();
     const before = await toRaw(frame);

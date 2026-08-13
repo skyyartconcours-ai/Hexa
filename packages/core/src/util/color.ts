@@ -11,16 +11,52 @@ export interface RGB { r: number; g: number; b: number }
 export interface HSL { h: number; s: number; l: number }
 
 const HEX_RE = /^#?([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const RGB_RE = /^rgba?\(\s*([\d.]+)\s*[,\s]\s*([\d.]+)\s*[,\s]\s*([\d.]+)\s*(?:[,/]\s*([\d.]+%?)\s*)?\)$/i;
 
-export function parseHex(hex: string): RGB & { a: number } {
-  const m = HEX_RE.exec(hex.trim());
-  if (!m) throw new Error(`Invalid hex colour: ${hex}`);
+/**
+ * Parse any colour this codebase produces.
+ *
+ * `withAlpha` emits `rgba(…)` because that is what SVG and CSS accept, so a
+ * strict hex-only parser would refuse core's own output — which is exactly the
+ * kind of seam that only shows up once two packages meet. Be liberal in what
+ * you accept: hex (3/6/8 digit), `rgb()`, `rgba()`, and the CSS keywords that
+ * mean "nothing here".
+ */
+export function parseColor(input: string): RGB & { a: number } {
+  const s = input.trim();
+  if (s === 'transparent' || s === 'none') return { r: 0, g: 0, b: 0, a: 0 };
+
+  const rgb = RGB_RE.exec(s);
+  if (rgb) {
+    const alpha = rgb[4];
+    const a = alpha === undefined
+      ? 1
+      : alpha.endsWith('%')
+        ? Number.parseFloat(alpha) / 100
+        : Number.parseFloat(alpha);
+    return {
+      r: Math.max(0, Math.min(255, Number.parseFloat(rgb[1]!))),
+      g: Math.max(0, Math.min(255, Number.parseFloat(rgb[2]!))),
+      b: Math.max(0, Math.min(255, Number.parseFloat(rgb[3]!))),
+      a: Number.isFinite(a) ? Math.max(0, Math.min(1, a)) : 1,
+    };
+  }
+
+  const m = HEX_RE.exec(s);
+  if (!m) throw new Error(`Invalid colour: ${input}`);
   let h = m[1]!;
   if (h.length === 3) h = h.split('').map((c) => c + c).join('');
   const int = Number.parseInt(h.slice(0, 6), 16);
   const a = h.length === 8 ? Number.parseInt(h.slice(6, 8), 16) / 255 : 1;
   return { r: (int >> 16) & 255, g: (int >> 8) & 255, b: int & 255, a };
 }
+
+/**
+ * Alias of {@link parseColor}, kept because most call sites genuinely are
+ * parsing hex. The permissive behaviour is deliberate — a stricter variant
+ * would break the moment a gradient stop carries an alpha.
+ */
+export const parseHex = parseColor;
 
 export function toHex({ r, g, b }: RGB): string {
   const c = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');

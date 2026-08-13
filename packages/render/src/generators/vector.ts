@@ -224,15 +224,18 @@ export const grid: Generator = async (params, size, seed) => {
     }
   } else {
     const horizon = num(params, 'horizon', 0.42) * h;
-    const vpx = num(params, 'vanishingX', 0.5) * w;
+    const vpx = num(params, 'vanishingX', 0.5) * w + rng.float(-w * 0.03, w * 0.03);
     const cols = Math.max(4, Math.round(num(params, 'columns', 18)));
     const rowsN = Math.max(3, Math.round(num(params, 'rows', 14)));
     // Verticals: fan from the vanishing point out through the bottom edge.
+    // Per-line opacity jitter keeps the floor from looking machine-printed —
+    // and, incidentally, makes the layer respond to the seed like every other
+    // generator.
     for (let i = -cols; i <= cols; i++) {
       const bx = vpx + (i / cols) * w * 1.9;
       parts.push(
         `<line x1="${f(vpx)}" y1="${f(horizon)}" x2="${f(bx)}" y2="${h}" ` +
-          `stroke="${rgba(color, alpha * 0.75)}" stroke-width="${f(thickness)}"/>`,
+          `stroke="${rgba(color, alpha * rng.float(0.5, 0.95))}" stroke-width="${f(thickness)}"/>`,
       );
     }
     // Horizontals: power-law spacing ⇒ apparent perspective compression.
@@ -241,7 +244,8 @@ export const grid: Generator = async (params, size, seed) => {
       const y = horizon + (h - horizon) * t ** 2.3;
       parts.push(
         `<line x1="0" y1="${f(y)}" x2="${w}" y2="${f(y)}" ` +
-          `stroke="${rgba(color, alpha * (0.25 + 0.75 * t))}" stroke-width="${f(thickness * (0.6 + t))}"/>`,
+          `stroke="${rgba(color, alpha * (0.25 + 0.75 * t) * rng.float(0.7, 1))}" ` +
+          `stroke-width="${f(thickness * (0.6 + t))}"/>`,
       );
     }
     // Horizon glow anchors the grid in a space.

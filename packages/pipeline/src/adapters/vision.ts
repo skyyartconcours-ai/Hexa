@@ -4,17 +4,22 @@
  * Availability is a first-class concern. The vision sidecar is an *optional*
  * Python service; when it is down the pipeline must still produce a thumbnail,
  * just without alpha-matted hair edges and without a verifiable identity claim.
- * So every call here has a defined "unavailable" answer, and the caller decides
+ * So every call here has a defined "unavailable" answer and the caller decides
  * how to degrade. What the pipeline must never do is quietly pass the identity
- * gate when it could not actually check (docs/IDENTITY.md).
+ * gate when it could not actually check (docs/IDENTITY.md) — so the "could not
+ * verify" verdict always carries a `reason`, and callers surface it.
+ *
+ * Two translations happen here:
+ *  - `embed` returns `{vector, model}`; the pipeline works in bare `number[]`.
+ *  - `identityVerdict(sim, threshold)` takes an already-computed similarity, so
+ *    this adapter runs `bestSimilarity` against the gallery first.
  */
 
 import type { FaceBox, FaceLandmarks } from '@hexa/core';
 import { loadModule } from './load.js';
-import { toArray, toBuffer, toEmbedding, toFaceBox, toLandmarks, toNumber } from './normalise.js';
+import { toBuffer, toNumber } from './normalise.js';
 import {
   VISION_EXPORTS,
-  type IdentityVerdict,
   type ImageInput,
   type SegmentOptions,
   type VisionClient,
@@ -30,9 +35,7 @@ async function mod(): Promise<VisionModule> {
 
 export async function createVisionClient(opts: { endpoint?: string; timeoutMs?: number } = {}): Promise<VisionClient> {
   const m = await mod();
-  const Ctor = m.VisionClient;
-  if (typeof Ctor?.create === 'function') return await Ctor.create(opts);
-  return new Ctor(opts);
+  return new m.VisionClient(opts);
 }
 
 /** Never throws — an unreachable sidecar is a state, not an error. */
@@ -43,13 +46,6 @@ export async function isAvailable(client: VisionClient | undefined): Promise<boo
   } catch {
     return false;
   }
-}
-
-export interface SegmentResult {
-  /** RGBA cutout bytes. */
-  buffer: Buffer;
-  /** True when the sidecar produced this, false when we fell back. */
-  matted: boolean;
 }
 
 /**
@@ -80,30 +76,40 @@ export interface FaceGeometry {
 }
 
 /**
- * Primary (largest, most confident) face. Empty object when no face is found —
- * a legitimate outcome for a logo, a back-turned action shot or a placeholder.
+ * Primary (largest, most confident) face. An empty object is a legitimate
+ * outcome — a logo, a back-turned action shot or a placeholder has no face.
  */
 export async function detectPrimaryFace(client: VisionClient, image: ImageInput): Promise<FaceGeometry> {
   try {
-    const raw = await client.detectFaces(image, { maxFaces: 1 });
-    const first = toArray(raw)[0] ?? raw;
-    if (first === undefined || first === null) return {};
-    return {
-      box: toFaceBox(first),
-      landmarks: toLandmarks(first),
-      yaw: toNumber((first as Record<string, unknown>)['yaw']),
-      pitch: toNumber((first as Record<string, unknown>)['pitch']),
-      roll: toNumber((first as Record<string, unknown>)['roll']),
-    };
+    const faces = await client.detectFaces(image);
+    // The sibling returns faces largest-and-most-confident first.
+    const first = faces?.[0];
+    if (!first?.box) return {};
+    return { box: first.box, landmarks: first.landmarks, yaw: first.yaw, pitch: first.pitch, roll: first.roll };
   } catch {
     return {};
   }
 }
 
-/** Face embedding for identity verification, or `undefined` when unavailable. */
+/** Face embedding vector, or `undefined` when it could not be produced. */
 export async function embed(client: VisionClient, image: ImageInput): Promise<number[] | undefined> {
   try {
-    return toEmbedding(await client.embed(image));
+    const out = await client.embed(image);
+    return out?.vector && out.vector.length > 0 ? out.vector : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Embedding plus the model that produced it — vectors from different models
+ *  are not comparable, so the model travels with the vector. */
+export async function embedWithModel(
+  client: VisionClient,
+  image: ImageInput,
+): Promise<{ vector: number[]; model: string } | undefined> {
+  try {
+    const out = await client.embed(image);
+    return out?.vector && out.vector.length > 0 ? { vector: out.vector, model: out.model } : undefined;
   } catch {
     return undefined;
   }
@@ -111,65 +117,79 @@ export async function embed(client: VisionClient, image: ImageInput): Promise<nu
 
 export async function embedBatch(client: VisionClient, images: readonly ImageInput[]): Promise<(number[] | undefined)[]> {
   try {
-    const raw = toArray(await client.embedBatch(images));
-    if (raw.length === images.length) return raw.map((r) => toEmbedding(r));
+    const out = await client.embedBatch([...images]);
+    if (out?.length === images.length) return out.map((e) => (e?.vector?.length ? e.vector : undefined));
   } catch {
     // fall through to serial embedding
   }
-  const out: (number[] | undefined)[] = [];
-  for (const img of images) out.push(await embed(client, img));
-  return out;
+  const results: (number[] | undefined)[] = [];
+  for (const img of images) results.push(await embed(client, img));
+  return results;
 }
 
 export async function defaultIdentityThreshold(): Promise<number> {
   try {
-    const m = await mod();
-    return toNumber(m.DEFAULT_IDENTITY_THRESHOLD) ?? 0.35;
+    return toNumber((await mod()).DEFAULT_IDENTITY_THRESHOLD) ?? 0.45;
   } catch {
-    return 0.35;
+    return 0.45;
   }
+}
+
+/** The pipeline's verdict shape — `passed`, plus why when it could not check. */
+export interface IdentityCheck {
+  similarity: number;
+  threshold: number;
+  passed: boolean;
+  confidence?: 'high' | 'medium' | 'low';
+  margin?: number;
+  /** Set when verification could not run. Never treat this as a pass. */
+  reason?: string;
 }
 
 /**
  * Compare a rendered face against a player's reference gallery.
  *
- * When verification cannot run the verdict carries `reason` and `passed: true`
- * with a `similarity` of NaN-free 0 — the *gate* upstream turns that into a
- * warning. Silently claiming a pass with no evidence is the one behaviour the
- * identity guarantee forbids, so the reason always travels with the verdict.
+ * When there is nothing to compare — no probe, or an empty gallery — the result
+ * is `passed: true` **with a `reason`**. Blocking a render because the sidecar is
+ * down would make the tool unusable offline; claiming a verified likeness on no
+ * evidence would make the guarantee a lie. So it passes, and says it did not
+ * check, and the caller turns that into a warning the operator can see.
  */
-export async function identityVerdict(
+export async function identityCheck(
   probe: readonly number[] | undefined,
   gallery: readonly (readonly number[])[],
   threshold?: number,
-): Promise<IdentityVerdict> {
-  const fallbackThreshold = threshold ?? (await defaultIdentityThreshold());
+): Promise<IdentityCheck> {
+  const t = threshold ?? (await defaultIdentityThreshold());
   if (!probe || probe.length === 0) {
-    return { similarity: 0, threshold: fallbackThreshold, passed: true, reason: 'no face embedding from the rendered image' };
+    return { similarity: 0, threshold: t, passed: true, reason: 'no face embedding from the rendered image' };
   }
   if (gallery.length === 0) {
-    return { similarity: 0, threshold: fallbackThreshold, passed: true, reason: 'no reference embeddings for this player' };
+    return { similarity: 0, threshold: t, passed: true, reason: 'no reference embeddings for this player' };
   }
+
   const m = await mod();
-  const verdict = (m.identityVerdict(probe, gallery, fallbackThreshold) ?? {}) as Record<string, unknown>;
+  const similarity = m.bestSimilarity([...probe], gallery.map((g) => [...g]));
+  const verdict = m.identityVerdict(similarity, t);
   return {
-    ...verdict,
-    similarity: toNumber(verdict['similarity']) ?? 0,
-    threshold: toNumber(verdict['threshold']) ?? fallbackThreshold,
-    passed: verdict['passed'] !== false,
+    similarity,
+    threshold: t,
+    passed: verdict.pass,
+    confidence: verdict.confidence,
+    margin: verdict.margin,
   };
 }
 
 export async function cosineSimilarity(a: readonly number[], b: readonly number[]): Promise<number> {
-  return (await mod()).cosineSimilarity(a, b);
+  return (await mod()).cosineSimilarity([...a], [...b]);
 }
 
 export async function meanEmbedding(embeddings: readonly (readonly number[])[]): Promise<number[]> {
-  return (await mod()).meanEmbedding(embeddings);
+  return (await mod()).meanEmbedding(embeddings.map((e) => [...e]));
 }
 
 export async function bestSimilarity(probe: readonly number[], gallery: readonly (readonly number[])[]): Promise<number> {
-  return (await mod()).bestSimilarity(probe, gallery);
+  return (await mod()).bestSimilarity([...probe], gallery.map((g) => [...g]));
 }
 
-export type { IdentityVerdict, SegmentOptions, VisionClient };
+export type { SegmentOptions, VisionClient };

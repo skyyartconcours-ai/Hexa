@@ -147,7 +147,9 @@ async function placeholderFor(opts: SelectOptions, warnings: string[]): Promise<
   const buffer = await generatePlaceholder({
     width,
     height,
-    kind: 'bust',
+    // 'portrait' is the head-and-shoulders silhouette family — the shape a
+    // versus bust slot expects where a real photograph would have gone.
+    kind: 'portrait',
     label: opts.player.handle,
     accent: opts.accent,
     seed: hashOf(opts.player.id),

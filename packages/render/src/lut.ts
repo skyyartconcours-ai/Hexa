@@ -239,11 +239,15 @@ export const BUILTIN_LUTS: Record<string, Lut3D> = {
     const desat = lerp3([r, g, b], [l, l, l], 0.45);
     const cooled = mul3(desat, lerp3([0.8, 0.93, 1.24], [1.0, 1.0, 1.08], smoothstep(0, 1, l)));
     const crushed: Rgb = [cooled[0] ** 1.22, cooled[1] ** 1.22, cooled[2] ** 1.16];
-    const lift = 0.018;
+    const contrast: Rgb = [sCurve(crushed[0], 1.18), sCurve(crushed[1], 1.18), sCurve(crushed[2], 1.16)];
+    // The matte lift is applied *after* the contrast curve — that is the order
+    // a print emulation uses, and applying it before would let the S-curve pull
+    // the blacks straight back to zero.
+    const lift: Rgb = [0.012, 0.016, 0.028];
     return [
-      sCurve(lift + crushed[0] * (1 - lift), 1.18),
-      sCurve(lift + crushed[1] * (1 - lift), 1.18),
-      sCurve(lift + crushed[2] * (1 - lift), 1.18),
+      lift[0] + contrast[0] * (1 - lift[0]),
+      lift[1] + contrast[1] * (1 - lift[1]),
+      lift[2] + contrast[2] * (1 - lift[2]),
     ];
   }),
 

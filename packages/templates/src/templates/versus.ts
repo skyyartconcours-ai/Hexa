@@ -249,7 +249,7 @@ const versusDiagonalShatter: ThumbnailTemplate = {
         z: Z.atmosphereFront + 1,
         meta: { fx: 'particles', particles: 'shard', bias: 'center', density: 0.5 },
       }),
-      shapeSlot('slash', { x: 0.24, y: -0.02, w: 0.52, h: 1.02 }, {
+      shapeSlot('slash', { x: 0.24, y: 0, w: 0.52, h: 1 }, {
         z: Z.shape,
         meta: { shape: 'slash-rule', lean: 0.42, fill: 'accent', width: 0.006 },
       }),
@@ -633,18 +633,18 @@ const versusMinimal: ThumbnailTemplate = {
     slots: [
       plateSlot('backplate', { meta: { fill: 'dark', treatment: 'solid', falloff: 0.8 } }),
       hazeSlot('haze', { meta: { fx: 'haze', density: 0.1 } }),
-      inwardBust('subject-left', { x: 0.08, y: 0.26, w: 0.36, h: 0.74 }, 'right', {
+      inwardBust('subject-left', { x: 0.1, y: 0.26, w: 0.4, h: 0.74 }, 'right', {
         z: Z.subject,
         anchor: 'bottom-center',
-        focal: { x: 0.56, y: 0.24 },
-        constraints: { faceKeepIn: { x: 0.18, y: 0.34, w: 0.22, h: 0.22 } },
+        focal: { x: 0.5, y: 0.19 },
+        constraints: { faceKeepIn: { x: 0.2, y: 0.32, w: 0.22, h: 0.18 } },
         meta: { preferFacing: 'right', faceHeight: 0.16, side: 'left' },
       }),
-      inwardBust('subject-right', { x: 0.56, y: 0.26, w: 0.36, h: 0.74 }, 'left', {
+      inwardBust('subject-right', { x: 0.5, y: 0.26, w: 0.4, h: 0.74 }, 'left', {
         z: Z.subject + 1,
         anchor: 'bottom-center',
-        focal: { x: 0.44, y: 0.24 },
-        constraints: { faceKeepIn: { x: 0.6, y: 0.34, w: 0.22, h: 0.22 } },
+        focal: { x: 0.5, y: 0.19 },
+        constraints: { faceKeepIn: { x: 0.58, y: 0.32, w: 0.22, h: 0.18 } },
         meta: { preferFacing: 'left', faceHeight: 0.16, side: 'right' },
       }),
       shapeSlot('hairline', { x: 0.4985, y: 0.3, w: 0.003, h: 0.44 }, {
@@ -686,8 +686,8 @@ const versusMinimal: ThumbnailTemplate = {
       reserve('upper-void', { x: 0.14, y: 0.16, w: 0.72, h: 0.2 }, 'The empty upper band is the whole point — nothing may be added here.', 'hard'),
     ]),
     focalPoints: [
-      { x: 0.282, y: 0.438 },
-      { x: 0.718, y: 0.438 },
+      { x: 0.3, y: 0.401 },
+      { x: 0.7, y: 0.401 },
       { x: 0.5, y: 0.425 },
       { x: 0.22, y: 0.11 },
     ],

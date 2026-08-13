@@ -57,22 +57,36 @@ installed system-wide is picked up without copying it here.
 
 ## What happens when they are missing
 
-Text still renders. Two fallbacks engage:
+Text still renders, and — importantly — it still *fits*. Two fallbacks engage:
 
-1. **Measurement** falls back to the calibrated advance-width tables in
-   `src/metrics.ts` — per-class approximations for a heavy condensed face, a
-   normal grotesque and a generic sans. A full uppercase headline measures
-   within a few percent of the real face, which is enough for `autoFit` to
-   place it. Individual glyphs can be off by more.
-2. **Rendering** falls back through the CSS stack `fontStack()` emits:
+1. **Rendering** falls back through the CSS stack `fontStack()` emits:
    `Anton, "Bebas Neue", Oswald, Teko, "Archivo Narrow", Impact,
    Haettenschweiler, "Arial Narrow", "Liberation Sans Narrow",
-   "DejaVu Sans Condensed", sans-serif`. On a bare Linux box that lands on
-   Liberation or DejaVu — not the design intent, but not broken either.
+   "DejaVu Sans Condensed", "Liberation Sans", "DejaVu Sans", FreeSans,
+   sans-serif`. On a bare Linux box that lands on Liberation or DejaVu — not
+   the design intent, but not broken either.
 
-Register a real file and measurement becomes exact: the font is parsed with
-opentype.js and measured from true glyph advances, with cap height and
-ascent/descent read from the OS/2 table.
+2. **Measurement follows rendering down that same stack.** This is the part
+   that matters. `resolveFace` does not measure the family you asked for; it
+   measures the first family in the stack that is actually available, because
+   that is the one the rasteriser will draw. Measuring Anton's condensed
+   metrics while librsvg draws Liberation Sans understates every width by
+   roughly a third, and the symptom is not a subtly wrong layout — it is
+   headlines clipped mid-word and right-aligned nameplates running off their
+   plates, visible only after rasterisation.
+
+   Only when *nothing* in the stack is registered do the calibrated
+   advance-width tables in `src/metrics.ts` take over — per-class
+   approximations for a heavy condensed face, a normal grotesque and a generic
+   sans. A full uppercase headline measures within a few percent of the real
+   face there; individual glyphs can be off by more.
+
+The practical consequence: call `ensureFonts()` at startup. Even when it finds
+none of the six design faces, registering the system grotesques it *does* find
+is what makes measurement exact for the font that will actually be drawn.
+
+Register a real design file and you get both: exact metrics *and* the intended
+look.
 
 You can also register a face directly, bypassing discovery:
 

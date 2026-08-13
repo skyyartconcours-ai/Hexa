@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import sharp from 'sharp';
-import { generators, registerGenerator } from '../src/index.js';
+import { generators, registerGenerator, toRaw } from '../src/index.js';
 
 const SIZE = { width: 96, height: 64 };
+/** Ids templates are allowed to rely on. */
 const IDS = [
   'particles',
   'rays',
@@ -19,6 +20,8 @@ const IDS = [
   'scanlines',
   'smoke',
 ];
+/** Anything else in the registry still has to honour the Generator contract. */
+const EXTRA_IDS = Object.keys(generators).filter((id) => !IDS.includes(id));
 
 describe('generator registry', () => {
   it('exposes every required id', () => {
@@ -38,7 +41,7 @@ describe('generator registry', () => {
   });
 });
 
-describe.each(IDS)('generator %s', (id) => {
+describe.each([...IDS, ...EXTRA_IDS])('generator %s', (id) => {
   it('produces a valid RGBA PNG of the requested size', async () => {
     const buf = await generators[id]!({}, SIZE, 1234);
     expect(buf.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a'); // PNG magic
@@ -54,16 +57,24 @@ describe.each(IDS)('generator %s', (id) => {
     const buf = await generators[id]!({}, { width: 256, height: 144 }, 4242);
     const stats = await sharp(buf).stats();
     const coverage = stats.channels[3]!.mean; // mean alpha, 0–255
-    const variation = Math.max(...stats.channels.slice(0, 3).map((c) => c.stdev));
+    // Structure can live in colour or in alpha (a haze wedge is one flat
+    // colour with a shaped alpha), so any channel may carry the variation.
+    const variation = Math.max(...stats.channels.map((c) => c.stdev));
     expect(coverage).toBeGreaterThan(1);
     expect(variation).toBeGreaterThan(1);
   });
 
-  it('is deterministic in the seed', async () => {
+  it('is reproducible for a given seed', async () => {
     const a = await generators[id]!({}, SIZE, 7);
     const b = await generators[id]!({}, SIZE, 7);
-    const c = await generators[id]!({}, SIZE, 8);
     expect(a.equals(b)).toBe(true);
+  });
+});
+
+describe.each(IDS)('generator %s', (id) => {
+  it('varies with the seed', async () => {
+    const a = await generators[id]!({}, SIZE, 7);
+    const c = await generators[id]!({}, SIZE, 8);
     expect(a.equals(c)).toBe(false);
   });
 });
@@ -88,11 +99,16 @@ describe('generator params', () => {
     const size = { width: 256, height: 144 };
     const left = await generators.particles!({ bias: -1, density: 3 }, size, 11);
     const right = await generators.particles!({ bias: 1, density: 3 }, size, 11);
+    // NB: sharp's stats() reads the *input* image and ignores pipeline ops such
+    // as extract, so the halves are summed from raw pixels instead.
     const halfAlpha = async (buf: Buffer, side: 'left' | 'right'): Promise<number> => {
-      const half = await sharp(buf)
-        .extract({ left: side === 'left' ? 0 : 128, top: 0, width: 128, height: 144 })
-        .stats();
-      return half.channels[3]!.mean;
+      const img = await toRaw(buf);
+      const x0 = side === 'left' ? 0 : img.width / 2;
+      let sum = 0;
+      for (let y = 0; y < img.height; y++) {
+        for (let x = x0; x < x0 + img.width / 2; x++) sum += img.data[(y * img.width + x) * 4 + 3]!;
+      }
+      return sum;
     };
     expect(await halfAlpha(left, 'left')).toBeGreaterThan(await halfAlpha(left, 'right'));
     expect(await halfAlpha(right, 'right')).toBeGreaterThan(await halfAlpha(right, 'left'));

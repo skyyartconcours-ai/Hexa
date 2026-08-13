@@ -23,7 +23,9 @@ export interface BackplateResult {
   /** Bytes for the plate, or undefined when the compiler should draw it. */
   buffer?: Buffer;
   source: BackplateSource;
+  /** The prompt the provider actually sampled — recorded into the plan. */
   prompt?: string;
+  provider?: string;
   warnings: string[];
 }
 
@@ -33,6 +35,8 @@ export interface BackplateOptions {
   palette: ResolvedPalette;
   canvas: { width: number; height: number };
   seed: number;
+  /** How many cut-out subjects the plate has to accommodate. */
+  subjectCount: number;
   background?: BackgroundRequest;
   provider?: string;
   logger: Logger;
@@ -75,20 +79,22 @@ export async function prepareBackplate(opts: BackplateOptions): Promise<Backplat
   }
 
   try {
-    const buffer = await ai.generateBackplate({
-      template: opts.template,
+    const generated = await ai.generateBackplate({
       style: opts.style,
       palette: opts.palette,
       width: opts.canvas.width,
       height: opts.canvas.height,
       seed: opts.seed,
+      subjectCount: opts.subjectCount,
       provider: opts.provider,
       prompt: opts.background?.prompt,
-      context: { league: String(opts.template.tags?.find((t) => /^(lck|lec|lcs|lpl|worlds|msi)$/i.test(t)) ?? ''), mood: opts.style.lightRig },
-      signal: opts.signal,
     });
-    opts.logger.debug('generated backplate', { bytes: buffer.length, provider: opts.provider });
-    return { buffer, source: 'ai', prompt: opts.background?.prompt, warnings };
+    opts.logger.debug('generated backplate', {
+      bytes: generated.buffer.length,
+      provider: generated.provider,
+      model: generated.model,
+    });
+    return { buffer: generated.buffer, source: 'ai', prompt: generated.promptUsed, provider: generated.provider, warnings };
   } catch (e) {
     // A prompt that asks for a person is a *deliberate* refusal, not a
     // provider hiccup: surface it rather than silently swapping in a gradient,

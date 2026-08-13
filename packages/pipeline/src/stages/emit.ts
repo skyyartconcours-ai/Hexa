@@ -14,7 +14,7 @@ import path from 'node:path';
 import { HexaError } from '@hexa/core';
 import type { Logger, OutputRequest, ReferenceAsset, RenderPlan } from '@hexa/core';
 import { creditLine } from '../adapters/assets.js';
-import { contactSheet, exportImage } from '../adapters/render.js';
+import { contactSheet, writeImage } from '../adapters/render.js';
 
 export interface EmitOptions {
   output: OutputRequest & { format: NonNullable<OutputRequest['format']>; quality: number; name: string };
@@ -65,7 +65,7 @@ export async function emitVariant(args: {
   const filename = variantFilename(options.output.name, variantId, options.output.format, total);
   const imagePath = path.join(dir, filename);
 
-  await exportImage(args.image, imagePath, { format: options.output.format, quality: options.output.quality });
+  await writeImage(args.image, imagePath, { format: options.output.format, quality: options.output.quality });
   options.logger.debug('wrote image', { path: imagePath, bytes: args.image.length });
 
   let planPath: string | undefined;
@@ -93,10 +93,10 @@ export async function emitContactSheet(args: {
   logger: Logger;
 }): Promise<string | undefined> {
   if (args.images.length < 2) return undefined;
-  const sheet = await contactSheet(args.images, {
-    columns: args.images.length <= 4 ? 2 : 3,
-    labels: args.labels,
-  });
+  const sheet = await contactSheet(
+    args.images.map((buffer, i) => ({ buffer, label: args.labels[i] ?? `v${String(i + 1).padStart(2, '0')}` })),
+    { cols: args.images.length <= 4 ? 2 : 3 },
+  );
   if (!sheet) {
     args.logger.warn('contact sheet could not be generated');
     return undefined;

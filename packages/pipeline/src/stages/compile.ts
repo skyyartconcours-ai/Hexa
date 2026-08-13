@@ -55,7 +55,7 @@ import { GENERATOR_IDS, type ResolvedSlot } from '../adapters/contracts.js';
 import { adaptLayout, fitSubject, resolveLayoutPixels } from '../adapters/layout.js';
 import { builtinLutNames } from '../adapters/render.js';
 import { canvasFor, resolveTemplateLayout, resolveTemplateStyle } from '../adapters/templates.js';
-import { autoFit, presetFor, versusMark } from '../adapters/type.js';
+import { fitText, versusMark } from '../adapters/type.js';
 import {
   atmosphereFor,
   backdropFor,
@@ -496,9 +496,8 @@ async function emitSubject(args: {
     faceBox: subject.faceBox,
     landmarks: subject.landmarks,
     contentBox: subject.contentBox,
-    fit: cropModeFor(slot, axes),
+    mode: cropModeFor(slot, axes),
     scaleBias: axes.subjectScale,
-    canvas,
   });
 
   // Mirroring: a subject on the left should look right, into the frame and at
@@ -814,17 +813,15 @@ async function emitText(args: {
               left: input.palette.left,
               right: input.palette.right,
               accent: input.palette.accent,
-              seed: input.seed,
             })
-          : await autoFit({
+          : await fitText({
               text: copy,
               rect,
               role,
-              preset: await presetFor(role),
               color,
-              accent: input.palette.accent,
               align: alignFor(role, axes.textArrangement),
-              seed: input.seed,
+              anchor: slot.anchor,
+              maxLines: role === 'headline' || role === 'subhead' ? 2 : 1,
             });
 
       layers.push({

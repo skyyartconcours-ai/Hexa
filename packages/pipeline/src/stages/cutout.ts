@@ -40,8 +40,12 @@ export interface CutoutOptions {
   logger: Logger;
   /** Crop to head-and-shoulders — what versus layouts want. */
   bust?: boolean;
-  /** Alpha matting on the edges. Slower, dramatically better hair. */
-  refine?: boolean;
+  /**
+   * Gaussian sigma applied to the alpha after edge refinement. A touch of
+   * feathering hides the one-pixel stair-step that reads as "cut out"; too much
+   * and the hair goes to fog.
+   */
+  feather?: number;
   /** Skip the cache for this call (a forced re-cut). */
   noCache?: boolean;
 }
@@ -63,7 +67,7 @@ export interface CutoutResult {
 
 export async function cutoutSubject(opts: CutoutOptions): Promise<CutoutResult> {
   const warnings: string[] = [];
-  const segOpts: SegmentOptions = { bust: opts.bust ?? true, refine: opts.refine ?? true };
+  const segOpts: SegmentOptions = { bust: opts.bust ?? true, feather: opts.feather ?? 0.6 };
 
   // 0. Placeholders are already RGBA and already framed.
   if (opts.placeholderBuffer) {

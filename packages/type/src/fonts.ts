@@ -3,10 +3,14 @@
  *
  * Two measurement paths live behind one API:
  *
- *  - **Exact.** If a real `.ttf`/`.otf` is registered for the requested family,
- *    it is parsed once with opentype.js and measured via true glyph advances,
- *    real cap height and real ascent/descent from the OS/2 table.
+ *  - **Exact.** If a real `.ttf`/`.otf` is registered for any family in the
+ *    requested stack, it is parsed once with opentype.js and measured via true
+ *    glyph advances, with cap height and ascent/descent from the OS/2 table.
  *  - **Approximate.** Otherwise the class tables in `metrics.ts` take over.
+ *
+ * The stack matters: `resolveFace` measures whichever family the *rasteriser*
+ * will end up picking, not just the one that was asked for. See the comment on
+ * `resolveFace` for why that distinction is load-bearing rather than pedantic.
  *
  * opentype.js is loaded lazily through `createRequire` so measurement stays
  * synchronous, and every failure mode — module absent, file unreadable, font

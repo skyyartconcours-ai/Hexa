@@ -44,6 +44,21 @@ async function plate(color: { r: number; g: number; b: number }): Promise<Buffer
     .toBuffer();
 }
 
+/** An opaque black frame with a blown-out white block in the middle. */
+async function highlightBlock(from: number, to: number): Promise<Buffer> {
+  const data = Buffer.alloc(W * H * 4, 0);
+  for (let i = 0; i < W * H; i++) data[i * 4 + 3] = 255;
+  for (let y = from; y < to; y++) {
+    for (let x = from; x < to; x++) {
+      const p = (y * W + x) * 4;
+      data[p] = 255;
+      data[p + 1] = 255;
+      data[p + 2] = 255;
+    }
+  }
+  return sharp(data, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
+}
+
 const lum = (img: RawImage, x: number, y: number): number => {
   const p = (y * img.width + x) * 4;
   return 0.2126 * img.data[p]! + 0.7152 * img.data[p + 1]! + 0.0722 * img.data[p + 2]!;
@@ -246,41 +261,42 @@ describe('colour and motion', () => {
 
 describe('optical effects', () => {
   it('bloom spreads highlights and only adds light', async () => {
-    const data = Buffer.alloc(W * H * 4, 0);
-    for (let i = 0; i < W * H; i++) data[i * 4 + 3] = 255;
-    for (let y = 58; y < 62; y++) {
-      for (let x = 58; x < 62; x++) {
-        const p = (y * W + x) * 4;
-        data[p] = 255;
-        data[p + 1] = 255;
-        data[p + 2] = 255;
-      }
-    }
-    const png = await sharp(data, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
+    const png = await highlightBlock(50, 70);
     const before = await toRaw(png);
     const after = await toRaw(await bloom(png, 0.6, 1.5, 6));
-    const near = (60 * W + 70) * 4;
-    expect(after.data[near]!).toBeGreaterThan(before.data[near]! + 5);
+    // Just outside the blown block, light has spilled where there was none.
+    const near = (60 * W + 74) * 4;
+    expect(before.data[near]!).toBe(0);
+    expect(after.data[near]!).toBeGreaterThan(5);
     for (let p = 0; p < after.data.length; p += 4) {
       expect(after.data[p]!).toBeGreaterThanOrEqual(before.data[p]!);
     }
   });
 
+  it('bloom is multi-scale: the veil reaches further than one sigma', async () => {
+    const png = await highlightBlock(50, 70);
+    const after = await toRaw(await bloom(png, 0.6, 1.5, 3));
+    const at = (x: number): number => after.data[(60 * W + x) * 4]!;
+    // A single 3px gaussian would be dead by 25px out; the wide octave is not.
+    expect(at(72)).toBeGreaterThan(at(95));
+    expect(at(95)).toBeGreaterThan(0);
+  });
+
   it('halation bleeds warm, not cool', async () => {
-    const data = Buffer.alloc(W * H * 4, 0);
-    for (let i = 0; i < W * H; i++) data[i * 4 + 3] = 255;
+    const png = await highlightBlock(50, 70);
+    const out = await toRaw(await halation(png, 1));
+    // Sum the bleed in the band just outside the blown block.
+    let red = 0;
+    let blue = 0;
     for (let y = 50; y < 70; y++) {
-      for (let x = 50; x < 70; x++) {
+      for (let x = 70; x < 84; x++) {
         const p = (y * W + x) * 4;
-        data[p] = 255;
-        data[p + 1] = 255;
-        data[p + 2] = 255;
+        red += out.data[p]!;
+        blue += out.data[p + 2]!;
       }
     }
-    const png = await sharp(data, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
-    const out = await toRaw(await halation(png, 1));
-    const p = (60 * W + 78) * 4;
-    expect(out.data[p]!).toBeGreaterThan(out.data[p + 2]!);
+    expect(red).toBeGreaterThan(0);
+    expect(red).toBeGreaterThan(blue * 1.5);
   });
 
   it('chromaticAberration fringes at the edges but not the centre', async () => {

@@ -84,8 +84,9 @@ export async function searchPlayers(query: string, limit?: number): Promise<Play
   return (await mod()).searchPlayers(query, limit);
 }
 
+/** The five starters, in role order, ready for a lineup layout. */
 export async function rosterOf(team: TeamId | Team): Promise<Player[]> {
-  return (await mod()).rosterOf(team);
+  return (await mod()).rosterOf(typeof team === 'string' ? team : team.id);
 }
 
 export async function playersByTeam(teamId: TeamId): Promise<Player[]> {

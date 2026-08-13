@@ -20,9 +20,11 @@
  *
  * Three invariants this package holds to:
  *
- *  - **Fonts are optional.** Measurement is exact when a real face is
- *    registered and falls back to calibrated class tables otherwise. Nothing
- *    throws because a font is missing; see `fonts/README.md`.
+ *  - **Fonts are optional.** Measurement is exact when a real face backing any
+ *    family in the requested stack is registered — and it measures the face the
+ *    rasteriser will actually pick, not just the one that was asked for — with
+ *    calibrated class tables as the last resort. Nothing throws because a font
+ *    is missing; see `fonts/README.md`.
  *  - **Ids never collide.** Gradient and filter ids are namespaced by a hash
  *    of the whole render input *and* a hash of the def's own body, so any
  *    number of text layers can be concatenated into one document safely.
@@ -73,6 +75,7 @@ export {
   registerFont,
   registeredFonts,
   fontStack,
+  fontStackFamilies,
   ensureFonts,
   clearFonts,
   defaultFontDir,

@@ -1,40 +1,48 @@
 /**
  * Declared shapes of the nine sibling packages.
  *
- * This file is the contract of record. Every assumption the pipeline makes about
+ * This file is the contract of record: every assumption the pipeline makes about
  * a sibling lives here and nowhere else, so when a signature drifts there is one
  * file to read and one adapter function to repair.
  *
- * Two rules keep the contracts robust:
+ * These interfaces are checked against the real packages by
+ * `integration/check.ts` (`pnpm --filter @hexa/pipeline typecheck:integration`),
+ * which statically imports each sibling and asserts it satisfies the contract
+ * below. That check is what caught the differences these types now encode —
+ * `@hexa/render`'s `exportImage` encodes rather than writes, `@hexa/vision`'s
+ * `identityVerdict` takes a similarity rather than two vectors, `@hexa/type`'s
+ * `autoFit` is synchronous and nests its input under `block`/`box`.
  *
- * 1. **Declare only what is used.** These are structural types, so a real
- *    implementation satisfies them as long as the members we actually call line
- *    up. Every extra member we declare is another way to be wrong about a
- *    package we do not own.
+ * Two rules keep the contracts honest:
  *
- * 2. **Widen returns, narrow arguments.** Return types are declared loosely
- *    (`unknown`, union shapes) and normalised by the adapter, because a sibling
- *    returning `{buffer}` where we expected `Buffer` should be a shrug, not an
- *    outage. Arguments are declared precisely, because those we control.
+ * 1. **Declare only what is used.** These are structural types; every extra
+ *    member is another way to be wrong about a package we do not own.
+ * 2. **No index signatures.** A type *without* `[key: string]: unknown` is not
+ *    assignable to one *with* it, so an open-ended contract is harder for a real
+ *    package to satisfy, not easier.
  */
 
 import type {
+  AspectPreset,
+  AssetKind,
   AssetMetrics,
   AssetQuery,
-  AspectPreset,
+  Canvas,
   FaceBox,
   FaceLandmarks,
+  FitMode,
   GradeSpec,
   LayoutSpec,
-  Layer,
   PixelRect,
   Player,
   PlayerId,
   QaReport,
+  QaRequest,
   Rect,
   ReferenceAsset,
   Region,
   RenderPlan,
+  RenderResult,
   Role,
   SafeZone,
   Slot,
@@ -42,12 +50,19 @@ import type {
   Team,
   TeamId,
   TemplateContext,
-  TextRole,
   ThumbnailTemplate,
+  ThumbnailVariant,
   Vec2,
 } from '@hexa/core';
 
 // ── @hexa/data ───────────────────────────────────────────────────────────────
+
+export interface PlayerFilter {
+  teamId?: string;
+  role?: Role;
+  region?: Region;
+  active?: boolean;
+}
 
 export interface DataModule {
   TEAMS: readonly Team[];
@@ -56,10 +71,11 @@ export interface DataModule {
   findTeam(query: string): Team | undefined;
   requirePlayer(query: string): Player;
   requireTeam(query: string): Team;
-  listPlayers(filter?: { team?: string; role?: Role; region?: Region; active?: boolean }): Player[];
-  playersByTeam(teamId: TeamId): Player[];
-  teamOf(player: Player | PlayerId): Team | undefined;
-  rosterOf(teamId: TeamId | Team): Player[];
+  listPlayers(filter?: PlayerFilter): Player[];
+  playersByTeam(teamId: string): Player[];
+  /** Throws when the roster references an unknown team. */
+  teamOf(player: Player): Team;
+  rosterOf(teamId: string): Player[];
   searchPlayers(query: string, limit?: number): Player[];
 }
 
@@ -70,65 +86,59 @@ export const DATA_EXPORTS = [
 
 // ── @hexa/assets ─────────────────────────────────────────────────────────────
 
-/** Per-team/per-player reference coverage, used by `hexa doctor` and `assets coverage`. */
-export interface CoverageRow {
-  teamId?: TeamId;
-  playerId?: PlayerId;
-  name?: string;
-  assets: number;
-  cleared?: number;
-  bestQuality?: number;
-  [key: string]: unknown;
-}
-
 export interface LibraryStats {
   total: number;
-  cleared?: number;
-  byKind?: Record<string, number>;
-  byLicense?: Record<string, number>;
-  players?: number;
-  teams?: number;
-  bytes?: number;
-  [key: string]: unknown;
+  cleared: number;
+  byKind: Record<string, number>;
+  byLicense: Record<string, number>;
+  players: number;
+  teams: number;
+  bytes: number;
 }
 
-/**
- * The library instance. Declared as an interface rather than a class type so a
- * test double is a plain object literal.
- */
+export interface CoverageReport {
+  playerId: string;
+  handle: string;
+  total: number;
+  usable: number;
+  cleared: number;
+  missingKinds: AssetKind[];
+  bestQuality: number;
+}
+
 export interface AssetLibrary {
-  root: string;
-  load?(): Promise<unknown>;
-  save?(): Promise<unknown>;
+  readonly root: string;
+  load(): Promise<void>;
+  save(): Promise<void>;
   all(): ReferenceAsset[];
   get(id: string): ReferenceAsset | undefined;
-  find(query: AssetQuery): ReferenceAsset[];
+  find(query?: AssetQuery): ReferenceAsset[];
   /** Highest-scoring asset for the query, or undefined when the shelf is bare. */
-  best(query: AssetQuery): ReferenceAsset | undefined;
-  /** Library-relative path → absolute path, with containment enforced. */
-  resolvePath(pathOrAsset: string | ReferenceAsset): string;
-  add?(asset: ReferenceAsset): Promise<unknown> | unknown;
-  remove?(id: string): Promise<unknown> | unknown;
-  update?(id: string, patch: Partial<ReferenceAsset>): Promise<unknown> | unknown;
+  best(query?: AssetQuery): ReferenceAsset | undefined;
+  /** Library-relative path → absolute, with containment enforced. */
+  resolvePath(asset: ReferenceAsset | string, which?: 'source' | 'cutout'): string;
+  remove(id: string): Promise<boolean>;
+  update(id: string, patch: Partial<ReferenceAsset>): Promise<ReferenceAsset>;
   stats(): LibraryStats;
-  coverage(): CoverageRow[];
+  coverage(playerIds?: string[]): CoverageReport[];
 }
 
 export interface PlaceholderOptions {
   width: number;
   height: number;
-  /** Drives the schematic silhouette's proportions and the label. */
-  kind?: 'portrait' | 'bust' | 'fullbody' | 'logo';
-  label?: string;
-  accent?: string;
+  /** Shown on the plate — usually a player handle or team tag. */
+  label: string;
+  accent: string;
   seed?: number;
+  kind?: AssetKind;
 }
 
-export interface IngestOptions {
+/** Licence fields every ingested asset inherits. */
+export interface IngestDefaults {
   playerId?: string;
   teamId?: string;
-  kind?: string;
-  license?: string;
+  kind?: AssetKind;
+  license?: ReferenceAsset['provenance']['license'];
   source?: string;
   credit?: string;
   photographer?: string;
@@ -138,27 +148,28 @@ export interface IngestOptions {
   tags?: string[];
 }
 
-export interface IngestReport {
+export interface IngestResult {
   added: ReferenceAsset[];
-  skipped?: { path: string; reason: string }[];
-  duplicates?: { path: string; existingId: string }[];
-  errors?: { path: string; message: string }[];
-  [key: string]: unknown;
+  skipped: { file: string; reason: string }[];
+  failed: { file: string; error: string }[];
 }
 
 export interface AssetsModule {
   AssetLibrary: {
-    open(root: string): Promise<AssetLibrary> | AssetLibrary;
-    new (root: string): AssetLibrary;
+    open(root: string, opts?: { create?: boolean }): Promise<AssetLibrary>;
+    new (root: string, opts?: { create?: boolean }): AssetLibrary;
   };
   scoreAsset(asset: ReferenceAsset, query?: AssetQuery): number;
-  rankAssets(assets: readonly ReferenceAsset[], query?: AssetQuery): ReferenceAsset[];
+  rankAssets(assets: ReferenceAsset[], query?: AssetQuery): ReferenceAsset[];
   isPublishable(asset: ReferenceAsset): boolean;
-  creditLine(assets: readonly ReferenceAsset[], opts?: { prefix?: string }): string;
-  generatePlaceholder(opts: PlaceholderOptions): Promise<Buffer> | Buffer;
-  computeBasicMetrics(image: Buffer | string): Promise<AssetMetrics>;
-  ingestDirectory(root: string, dir: string, opts?: IngestOptions): Promise<IngestReport>;
+  creditLine(assets: ReferenceAsset[], opts?: { prefix?: string }): string;
+  generatePlaceholder(opts: PlaceholderOptions): Promise<Buffer>;
+  computeBasicMetrics(image: Buffer | string): Promise<Partial<AssetMetrics>>;
+  ingestDirectory(lib: AssetLibrary | string, dir: string, defaults: IngestDefaults): Promise<IngestResult>;
   MANIFEST_FILENAME: string;
+  PLACEHOLDER_TAG: string;
+  publishBlockers(asset: ReferenceAsset): string[];
+  licenceObligations(assets: ReferenceAsset[]): string[];
 }
 
 export const ASSETS_EXPORTS = [
@@ -168,58 +179,53 @@ export const ASSETS_EXPORTS = [
 
 // ── @hexa/vision ─────────────────────────────────────────────────────────────
 
-/** Anything the sidecar accepts as an image: bytes or a path on disk. */
 export type ImageInput = Buffer | string;
-
-export interface SegmentOptions {
-  /** Crop to head-and-shoulders using landmarks — the versus bust. */
-  bust?: boolean;
-  /** Alpha matting / edge refinement; slower, much better hair. */
-  refine?: boolean;
-  model?: string;
-  /** Padding around the bust crop as a fraction of face height. */
-  padding?: number;
-}
 
 export interface DetectedFace {
   box: FaceBox;
   landmarks?: FaceLandmarks;
+  /** Degrees. yaw>0 = head turned toward image-right. */
   yaw?: number;
   pitch?: number;
   roll?: number;
-  confidence?: number;
 }
 
+export interface FaceEmbedding {
+  /** L2-normalised, 512-d for buffalo_l. */
+  vector: number[];
+  /** Producing model. Vectors from different models are not comparable. */
+  model: string;
+  box?: FaceBox;
+}
+
+export interface SegmentOptions {
+  bust?: boolean;
+  feather?: number;
+}
+
+/** The sibling's verdict shape: `pass`, not `passed`. */
 export interface IdentityVerdict {
-  similarity: number;
-  threshold: number;
-  passed: boolean;
-  /** Present when verification could not run (no sidecar, no reference embeddings). */
-  reason?: string;
-  [key: string]: unknown;
+  pass: boolean;
+  confidence: 'high' | 'medium' | 'low';
+  /** similarity − threshold. Negative when the gate fails. */
+  margin: number;
 }
 
 export interface VisionClient {
   available(): Promise<boolean>;
-  detectFaces(image: ImageInput, opts?: { maxFaces?: number; minConfidence?: number }): Promise<unknown>;
-  embed(image: ImageInput): Promise<unknown>;
-  embedBatch(images: readonly ImageInput[]): Promise<unknown>;
-  /** Returns cut-out RGBA PNG bytes, possibly wrapped in a result envelope. */
-  segment(image: ImageInput, opts?: SegmentOptions): Promise<unknown>;
-  metrics(image: ImageInput): Promise<unknown>;
-  similarity(a: ImageInput, b: ImageInput): Promise<unknown>;
-  endpoint?: string;
+  detectFaces(input: ImageInput): Promise<DetectedFace[]>;
+  embed(input: ImageInput): Promise<FaceEmbedding | null>;
+  embedBatch(inputs: ImageInput[]): Promise<(FaceEmbedding | null)[]>;
+  segment(input: ImageInput, opts?: SegmentOptions): Promise<Buffer>;
 }
 
 export interface VisionModule {
-  VisionClient: {
-    new (opts?: { endpoint?: string; timeoutMs?: number }): VisionClient;
-    create?(opts?: { endpoint?: string; timeoutMs?: number }): VisionClient | Promise<VisionClient>;
-  };
-  cosineSimilarity(a: readonly number[], b: readonly number[]): number;
-  meanEmbedding(embeddings: readonly (readonly number[])[]): number[];
-  bestSimilarity(probe: readonly number[], gallery: readonly (readonly number[])[]): number;
-  identityVerdict(probe: readonly number[], gallery: readonly (readonly number[])[], threshold?: number): IdentityVerdict;
+  VisionClient: { new (opts?: { endpoint?: string; timeoutMs?: number }): VisionClient };
+  cosineSimilarity(a: number[], b: number[]): number;
+  meanEmbedding(vectors: number[][]): number[];
+  bestSimilarity(probe: number[], gallery: number[][]): number;
+  /** Takes an already-computed similarity, not the vectors. */
+  identityVerdict(sim: number, threshold: number): IdentityVerdict;
   DEFAULT_IDENTITY_THRESHOLD: number;
 }
 
@@ -230,69 +236,69 @@ export const VISION_EXPORTS = [
 
 // ── @hexa/layout ─────────────────────────────────────────────────────────────
 
-/** A slot with its rect resolved to device pixels. */
 export interface ResolvedSlot {
   slot: Slot;
   rect: PixelRect;
-  /** Focal point in absolute pixels, derived from `slot.focal`. */
-  focal?: { x: number; y: number };
+  z: number;
+}
+
+export interface ResolvedSafeZone {
+  zone: SafeZone;
+  rect: PixelRect;
 }
 
 export interface ResolvedLayout {
+  canvas: { width: number; height: number };
+  /** Paint order, ascending z. */
   slots: ResolvedSlot[];
-  safeZones: SafeZone[];
-  width: number;
-  height: number;
-  focalPoints?: Vec2[];
+  safeZones: ResolvedSafeZone[];
+  byId(id: string): ResolvedSlot | undefined;
+  spec: LayoutSpec;
+  focalPoints: Vec2[];
 }
 
-/** What `fitSubject` works out: how to place a cutout so the face lands right. */
 export interface SubjectFit {
-  /** Destination rect in device pixels — may exceed the slot when cropping. */
-  rect: PixelRect;
+  /** Crop in source pixels; hand straight to `sharp.extract()`. */
+  srcCrop: PixelRect;
+  destRect: PixelRect;
   scale: number;
-  flipX?: boolean;
-  /** Source-space crop applied before placement. */
-  crop?: PixelRect;
-  /** Where the face ended up, in canvas pixels. */
-  faceRect?: PixelRect;
+  flipX: boolean;
+  /** Where the face centre landed, in canvas pixels. */
+  faceCenterInDest: Vec2;
 }
 
 export interface FitSubjectInput {
-  slot: Slot;
-  slotRect: PixelRect;
-  /** Intrinsic size of the cutout. */
   image: { width: number; height: number };
   faceBox?: FaceBox;
   landmarks?: FaceLandmarks;
-  /** Alpha content bounds inside the image, when known. */
+  slot: Slot;
+  slotRect: PixelRect;
+  mode: FitMode;
+  focal?: Vec2;
   contentBox?: PixelRect;
-  fit?: Slot['fit'];
-  /** Multiplier applied on top of the computed scale — the variant tightness axis. */
-  scaleBias?: number;
-  canvas?: { width: number; height: number };
 }
 
 export interface CompositionScore {
   score: number;
-  findings?: { message: string; severity?: string }[];
-  [key: string]: unknown;
+  findings: { message: string; severity?: string }[];
 }
 
 export interface LayoutModule {
   resolveLayout(layout: LayoutSpec, width: number, height: number): ResolvedLayout;
   adaptLayout(layout: LayoutSpec, targetAspect: number): LayoutSpec;
   fitSubject(input: FitSubjectInput): SubjectFit;
-  alphaContentBox(image: Buffer): Promise<PixelRect> | PixelRect;
-  bustCrop(input: { image: { width: number; height: number }; faceBox: FaceBox; landmarks?: FaceLandmarks; padding?: number }): PixelRect;
-  scoreComposition(input: { layout: LayoutSpec; width: number; height: number }): CompositionScore;
-  checkSafeZones(input: { rects: { id: string; rect: Rect }[]; safeZones: readonly SafeZone[] }): unknown;
-  resolveOverlaps(slots: readonly Slot[]): Slot[];
-  safeZonesFor(aspect: AspectPreset): SafeZone[];
+  /** Takes a raw alpha plane, not an encoded image. */
+  alphaContentBox(alpha: Uint8Array, width: number, height: number, threshold?: number): PixelRect | null;
+  bustCrop(image: { width: number; height: number }, faceBox: FaceBox, landmarks?: FaceLandmarks, opts?: { headroom?: number; shoulderRatio?: number }): PixelRect;
+  facingFromLandmarks(landmarks?: FaceLandmarks): 'left' | 'right' | 'front' | undefined;
+  scoreComposition(input: unknown): CompositionScore;
+  checkSafeZones(input: unknown): unknown;
+  resolveOverlaps(input: unknown): unknown;
+  safeZonesFor(aspect: AspectPreset | number): SafeZone[];
   YOUTUBE_SAFE_ZONES: readonly SafeZone[];
   SHORTS_SAFE_ZONES: readonly SafeZone[];
-  makeGrid(input: { rows: number; cols: number; gap?: number; bounds?: Rect }): Rect[];
-  diagonalSplit(input: { angle: number; offset?: number }): { left: Rect; right: Rect; seam: Vec2[] };
+  makeGrid(opts: unknown): unknown;
+  diagonalSplit(opts: unknown): unknown;
 }
 
 export const LAYOUT_EXPORTS = [
@@ -308,19 +314,23 @@ export interface RenderOptions {
   buffers?: Record<string, Buffer>;
   format?: 'png' | 'jpeg' | 'webp' | 'avif';
   quality?: number;
-  supersample?: number;
   signal?: AbortSignal;
 }
 
 export interface RenderModule {
-  renderPlan(plan: RenderPlan, opts?: RenderOptions): Promise<unknown>;
-  applyGrade(image: Buffer, grade: GradeSpec): Promise<Buffer>;
-  exportImage(image: Buffer, dest: string, opts?: { format?: string; quality?: number }): Promise<unknown>;
-  contactSheet(images: readonly (Buffer | string)[], opts?: { columns?: number; labels?: string[]; width?: number; background?: string }): Promise<unknown>;
+  renderPlan(plan: RenderPlan, opts?: RenderOptions): Promise<RenderResult>;
+  applyGrade(image: Buffer, grade: GradeSpec, canvas: Canvas, seed: number): Promise<Buffer>;
+  /** Encodes to `format` and returns the bytes — it does not write to disk. */
+  exportImage(buffer: Buffer, format: string, quality?: number): Promise<Buffer>;
+  contactSheet(
+    images: { buffer: Buffer; label: string }[],
+    opts?: { cols?: number; width?: number; background?: string },
+  ): Promise<Buffer>;
   generators: Record<string, unknown>;
-  registerGenerator(id: string, fn: unknown): void;
-  BUILTIN_LUTS: Record<string, unknown> | readonly string[];
-  alphaBounds(image: Buffer): Promise<PixelRect> | PixelRect;
+  registerGenerator(gen: unknown): void;
+  BUILTIN_LUTS: Record<string, unknown>;
+  /** Takes interleaved RGBA, not an encoded image. */
+  alphaBounds(rgba: Buffer, width: number, height: number, threshold?: number): PixelRect | null;
 }
 
 export const RENDER_EXPORTS = [
@@ -328,9 +338,8 @@ export const RENDER_EXPORTS = [
   'registerGenerator', 'BUILTIN_LUTS', 'alphaBounds',
 ] as const;
 
-/** Generator ids the compiler emits. Declared so a drift shows up in one list. */
+/** Generator ids the compiler emits. One list, so drift shows up in one place. */
 export const GENERATOR_IDS = {
-  atmosphere: 'atmosphere',
   particles: 'particles',
   rays: 'rays',
   fog: 'fog',
@@ -343,74 +352,83 @@ export const GENERATOR_IDS = {
 
 // ── @hexa/type ───────────────────────────────────────────────────────────────
 
-export interface TypePreset {
-  family?: string;
-  weight?: number | string;
-  /** Upper bound before autofit shrinks; in px at the design size. */
-  size?: number;
+export interface TextStyle {
+  family: string;
+  weight?: number;
+  size: number;
   tracking?: number;
-  leading?: number;
+  lineHeight?: number;
   case?: 'upper' | 'lower' | 'title' | 'none';
-  fill?: string;
-  stroke?: { width: number; color: string };
-  shadow?: unknown;
-  [key: string]: unknown;
+  fill?: unknown;
+  stroke?: { width: number; color: string; join?: 'round' | 'miter' | 'bevel' };
+  shadow?: { dx: number; dy: number; blur: number; color: string; opacity: number };
 }
 
-export interface AutoFitInput {
+export interface TextBlock {
   text: string;
-  rect: PixelRect;
-  preset?: TypePreset | string;
-  role?: TextRole;
-  color?: string;
-  accent?: string;
+  style: TextStyle;
   align?: 'left' | 'center' | 'right';
-  valign?: 'top' | 'middle' | 'bottom';
+}
+
+export interface LayoutTextInput {
+  block: TextBlock;
+  /** Destination rect in device pixels. The emitted SVG is exactly this size. */
+  box: PixelRect;
+  anchor?: import('@hexa/core').Anchor;
+  wrap?: boolean;
   maxLines?: number;
-  /** Upper/lower bounds for the fitted size, in px. */
-  minSize?: number;
-  maxSize?: number;
-  seed?: number;
 }
 
-/** Loosely declared: adapters normalise whichever of these fields come back. */
-export interface FittedText {
-  markup?: string;
-  svg?: string;
-  rect?: PixelRect;
-  bounds?: PixelRect;
-  fontSize?: number;
-  size?: number;
-  lines?: string[];
-  color?: string;
-  fill?: string;
-  [key: string]: unknown;
+export interface LaidOutText {
+  /** A complete `<svg>` document of exactly `box.w × box.h`. */
+  markup: string;
+  width: number;
+  height: number;
+  lines: string[];
+  /** The size actually used — differs from `style.size` after autoFit. */
+  fontSize: number;
+  box: PixelRect;
 }
 
-export interface VersusMarkInput {
-  rect: PixelRect;
+export interface Mark {
+  markup: string;
+  width: number;
+  height: number;
+}
+
+/** The VS-mark treatments @hexa/type actually ships. */
+export type VersusStyle = 'slash' | 'shield' | 'bolt' | 'blade' | 'circle' | 'plain' | 'hex';
+
+export interface VersusMarkOptions {
+  size: number;
+  style?: VersusStyle;
+  leftColor: string;
+  rightColor: string;
   text?: string;
-  style?: string;
-  left: string;
-  right: string;
-  accent: string;
-  seed?: number;
+  strokeColor?: string;
+  glow?: boolean;
 }
+
+/** Preset names @hexa/type ships. Mapped from TextRole by the type adapter. */
+export type PresetName =
+  | 'headline-heavy' | 'headline-condensed' | 'drama-scream' | 'player-name'
+  | 'team-tag' | 'vs-mark' | 'stat-value' | 'stat-label' | 'rank-number' | 'date-badge';
 
 export interface TypeModule {
-  renderText(input: AutoFitInput & { size?: number }): FittedText | Promise<FittedText>;
-  autoFit(input: AutoFitInput): FittedText | Promise<FittedText>;
-  measureText(input: { text: string; size: number; preset?: TypePreset | string }): { width: number; height: number };
-  wrapText(input: { text: string; width: number; size: number; preset?: TypePreset | string }): string[];
-  versusMark(input: VersusMarkInput): FittedText | Promise<FittedText>;
-  nameplate(input: unknown): FittedText | Promise<FittedText>;
-  statBadge(input: unknown): FittedText | Promise<FittedText>;
-  PRESETS: Record<string, TypePreset>;
-  preset(role: TextRole | string): TypePreset | undefined;
+  renderText(input: LayoutTextInput): LaidOutText;
+  autoFit(input: LayoutTextInput, opts?: { min?: number; max?: number; steps?: number }): LaidOutText;
+  measureText(text: string, style: TextStyle): { width: number; height: number };
+  wrapText(text: string, style: TextStyle, width: number): string[];
+  versusMark(opts: VersusMarkOptions): Mark;
+  nameplate(opts: unknown): Mark;
+  statBadge(opts: unknown): Mark;
+  PRESETS: Record<string, TextStyle>;
+  preset(name: PresetName, overrides?: Partial<TextStyle>): TextStyle;
   legibilityScore(input: unknown): number;
   registerFont(input: unknown): unknown;
   ensureFonts(): Promise<unknown>;
-  fontStack(family?: string): string[] | string;
+  fontStack(family?: string): string;
+  exactMeasurementAvailable?(): boolean;
 }
 
 export const TYPE_EXPORTS = [
@@ -427,9 +445,8 @@ export interface CanvasSize {
 
 export interface TemplateValidation {
   valid: boolean;
-  errors?: string[];
-  warnings?: string[];
-  [key: string]: unknown;
+  errors: string[];
+  warnings: string[];
 }
 
 export interface TemplatesModule {
@@ -438,8 +455,8 @@ export interface TemplatesModule {
   requireTemplate(id: string): ThumbnailTemplate;
   listTemplates(filter?: { category?: string; aspect?: AspectPreset; tag?: string }): ThumbnailTemplate[];
   templatesForSubjectCount(count: number): ThumbnailTemplate[];
-  suggestTemplates(input: { subjects?: number; category?: string; text?: string; aspect?: AspectPreset }): ThumbnailTemplate[];
-  /** Exported as `resolveLayout` by the package; renamed on import to avoid the clash with @hexa/layout's. */
+  suggestTemplates(input: unknown): ThumbnailTemplate[];
+  /** Template → LayoutSpec. Renamed on import to avoid @hexa/layout's clash. */
   resolveLayout(template: ThumbnailTemplate, ctx: TemplateContext): LayoutSpec;
   resolveStyle(template: ThumbnailTemplate, ctx: TemplateContext): StyleSpec;
   validateTemplate(template: ThumbnailTemplate): TemplateValidation;
@@ -453,51 +470,76 @@ export interface TemplatesModule {
 export const TEMPLATES_EXPORTS = [
   'TEMPLATES', 'getTemplate', 'requireTemplate', 'listTemplates',
   'templatesForSubjectCount', 'suggestTemplates', 'resolveLayout', 'resolveStyle',
-  'validateTemplate', 'ASPECT_SIZES', 'bustSlot', 'textSlot', 'fxSlot', 'gridSlots',
+  'validateTemplate', 'ASPECT_SIZES',
 ] as const;
 
 // ── @hexa/ai ─────────────────────────────────────────────────────────────────
 
-export interface BackplateInput {
+export type BackplateStyle =
+  | 'arena' | 'abstract' | 'cyber' | 'ruins' | 'void' | 'nature' | 'studio'
+  | 'stadium-crowd' | 'energy' | 'shattered-glass' | 'smoke' | 'neon-city';
+
+export interface BackplatePromptInput {
+  style: BackplateStyle;
+  mood?: string;
+  palette?: string[];
+  lightDirection?: string;
+  subjectCount?: number;
+  extra?: string;
+}
+
+export interface BackplateRouteRequest {
   prompt: string;
+  negativePrompt?: string;
   width: number;
   height: number;
   seed?: number;
+  style?: BackplateStyle;
+  palette?: string[];
+  strength?: number;
   provider?: string;
-  negativePrompt?: string;
-  signal?: AbortSignal;
 }
 
-export interface BackplatePromptInput {
-  template: ThumbnailTemplate;
-  palette: { left: string; right: string; accent: string; dark: string; light: string };
-  /** Team/league context — never player names, which would invite a face. */
-  context?: { league?: string; venue?: string; mood?: string; tags?: string[] };
-  style?: StyleSpec;
+export interface GeneratedImage {
+  buffer: Buffer;
+  width: number;
+  height: number;
+  provider: string;
+  model: string;
   seed?: number;
+  cost?: number;
+  promptUsed: string;
+  revisedPrompt?: string;
+}
+
+export interface ProviderCapabilities {
+  backplate: boolean;
+  identityGuidedEdit: boolean;
+  inpaint: boolean;
+  upscale: boolean;
+  maxSize: { width: number; height: number };
 }
 
 export interface ProviderStatus {
   id: string;
-  name?: string;
   configured: boolean;
-  /** The env var the operator must set, when unconfigured. */
+  capabilities: ProviderCapabilities;
   envVar?: string;
-  reason?: string;
-  models?: string[];
-  [key: string]: unknown;
+  note?: string;
 }
 
 export interface AiModule {
-  generateBackplate(input: BackplateInput): Promise<unknown>;
-  identityGuidedEdit(input: unknown): Promise<unknown>;
-  buildBackplatePrompt(input: BackplatePromptInput): string | { prompt: string; negativePrompt?: string };
-  resolveProvider(id?: string): unknown;
-  listProviders(): ProviderStatus[] | string[];
-  providerStatus(id?: string): ProviderStatus | ProviderStatus[];
-  registerProvider(id: string, provider: unknown): void;
-  /** Throws when a prompt asks for a person. Called before every backplate. */
+  generateBackplate(req: BackplateRouteRequest): Promise<GeneratedImage>;
+  identityGuidedEdit(req: unknown): Promise<GeneratedImage>;
+  buildBackplatePrompt(input: BackplatePromptInput): { prompt: string; negativePrompt: string };
+  resolveProvider(opts?: { prefer?: string }): unknown;
+  listProviders(): { id: string }[];
+  providerStatus(): ProviderStatus[];
+  registerProvider(provider: unknown): void;
+  /** Throws when a prompt asks for a person. Runs before every backplate. */
   assertNoPersonGeneration(prompt: string): void;
+  isBackplateStyle(v: string): boolean;
+  BACKPLATE_STYLES: readonly BackplateStyle[];
 }
 
 export const AI_EXPORTS = [
@@ -507,40 +549,81 @@ export const AI_EXPORTS = [
 
 // ── @hexa/qa ─────────────────────────────────────────────────────────────────
 
-export interface RunGatesInput {
-  image: Buffer;
-  plan: RenderPlan;
-  /** Reference embeddings per player id, for the identity gate. */
-  references?: Record<PlayerId, number[][]>;
-  vision?: VisionClient;
-  thresholds?: { identity?: number };
-  options?: {
-    legibility?: boolean;
-    safeZones?: boolean;
-    requireClearedLicense?: boolean;
-    strict?: boolean;
-  };
-  assets?: readonly ReferenceAsset[];
+export interface QaRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
-export interface AppealInput {
+/** A subject as the gates see it. */
+export interface GateSubject {
+  playerId: PlayerId;
+  handle: string;
+  /** Where the face landed in the *render*, not in the source photo. */
+  faceRect?: QaRect;
+  referenceEmbeddings?: number[][];
+  anonymous?: boolean;
+  assets?: ReferenceAsset[];
+}
+
+export interface GateTextRect {
+  role: string;
+  rect: QaRect;
+}
+
+/** Structural face embedder — @hexa/vision satisfies it without a dependency. */
+export interface VisionPort {
+  embed(input: Buffer | string): Promise<{ vector: number[] } | null>;
+  available(): Promise<boolean>;
+}
+
+export interface GateContext {
   image: Buffer;
   plan: RenderPlan;
-  qa?: QaReport;
+  width: number;
+  height: number;
+  subjects: GateSubject[];
+  textRects?: GateTextRect[];
+  request?: QaRequest;
+  vision?: VisionPort;
+}
+
+export interface AppealContext {
+  image: Buffer;
+  width: number;
+  height: number;
+  textRects?: GateTextRect[];
+  faceRects?: QaRect[];
+}
+
+export interface AppealResult {
+  /** 0–100 weighted heuristic. Not a CTR estimate. */
+  score: number;
+  parts: Record<string, number>;
+  notes: string[];
+}
+
+export interface DisplaySize {
+  width: number;
+  height: number;
+  label: string;
 }
 
 export interface QaModule {
-  runGates(input: RunGatesInput): Promise<QaReport>;
-  GATES: readonly unknown[] | Record<string, unknown>;
-  scoreAppeal(input: AppealInput): Promise<number> | number;
-  rankVariants(variants: readonly { qa?: QaReport; appeal?: number }[]): number[] | readonly unknown[];
-  pickBest(variants: readonly { qa?: QaReport; appeal?: number }[]): number | unknown;
-  simulateSizes(image: Buffer, sizes?: readonly { width: number; height: number }[]): Promise<unknown>;
-  proofSheet(input: { image: Buffer; report?: QaReport; sizes?: readonly unknown[] }): Promise<unknown>;
+  runGates(ctx: GateContext, opts?: { only?: string[]; skip?: string[] }): Promise<QaReport>;
+  GATES: readonly { id: string; weight: number; description: string }[];
+  scoreAppeal(ctx: AppealContext): Promise<AppealResult>;
+  rankVariants(variants: ThumbnailVariant[]): ThumbnailVariant[];
+  /** Index into `variants` of the best one. -1 when empty. */
+  pickBest(variants: ThumbnailVariant[]): number;
+  simulateSizes(image: Buffer, sizes?: DisplaySize[]): Promise<unknown[]>;
+  proofSheet(image: Buffer, opts?: { background?: string }): Promise<Buffer>;
   summarise(report: QaReport): string;
-  dHash(image: Buffer): Promise<string> | string;
+  dHash(image: Buffer): Promise<string>;
   hamming(a: string, b: string): number;
-  YOUTUBE_DISPLAY_SIZES: readonly { width: number; height: number; label?: string }[];
+  YOUTUBE_DISPLAY_SIZES: readonly DisplaySize[];
+  DUPLICATE_DISTANCE: number;
 }
 
 export const QA_EXPORTS = [

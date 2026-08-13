@@ -22,7 +22,7 @@ import {
 } from '@hexa/core';
 import type { RenderContext } from './types.js';
 import { type RawImage, toRaw, solidRaw } from './raw.js';
-import { generators } from './generators/index.js';
+import { resolveGenerator, generatorIds } from './generators/index.js';
 import { noiseFieldRaw } from './generators/raster.js';
 import { f, svgDoc } from './generators/util.js';
 
@@ -171,12 +171,12 @@ export async function resolveSource(
       return noiseFieldRaw(width, height, (src.seed ^ ctx.seed) >>> 0, src.scale, Math.max(1, Math.round(src.octaves)));
 
     case 'generated': {
-      const gen = generators[src.generatorId];
+      const gen = resolveGenerator(src.generatorId);
       if (!gen) {
         fail(
           layer,
           `unknown generator "${src.generatorId}"`,
-          `Known generators: ${Object.keys(generators).sort().join(', ')}`,
+          `Known generators: ${generatorIds().join(', ')}`,
         );
       }
       try {
