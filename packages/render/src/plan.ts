@@ -67,7 +67,7 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
   const t0 = performance.now();
   let acc: RawImage = solidRaw(RW, RH, canvas.background);
   const byId = new Map(plan.layers.map((l) => [l.id, l]));
-  const maskCache = new Map<string, { image: RawImage; rect: PixelRect } | null>();
+  const maskCache = new Map<string, Promise<{ image: RawImage; rect: PixelRect } | null>>();
   const resolving = new Set<string>();
 
   const ctx: RenderContext = {
@@ -82,19 +82,21 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
         logger.warn(`mask cycle detected via layer "${layerId}" — mask ignored`);
         return null;
       }
-      let entry = maskCache.get(layerId);
-      if (entry === undefined) {
+      // Cache the *promise*, not the result: with layers preparing concurrently
+      // two of them can ask for the same mask at once, and a value cache would
+      // render it twice.
+      let pending = maskCache.get(layerId);
+      if (pending === undefined) {
         resolving.add(layerId);
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          // Mask renders never see a backdrop: a mask is a stencil, and light
-          // wrapping a stencil would be meaningless.
-          entry = await renderLayerRaw(layer, canvas, { ...ctx, backdrop: undefined });
-        } finally {
+        // Mask renders never see a backdrop: a mask is a stencil, and light
+        // wrapping a stencil would be meaningless.
+        pending = renderLayerRaw(layer, canvas, { ...ctx, backdrop: undefined }).finally(() => {
           resolving.delete(layerId);
-        }
-        maskCache.set(layerId, entry);
+        });
+        pending.catch(() => {}); // failure surfaces at the await below
+        maskCache.set(layerId, pending);
       }
+      const entry = await pending;
       if (!entry) return null;
       const out = Buffer.alloc(rect.w * rect.h, 0);
       for (let y = 0; y < rect.h; y++) {
@@ -115,11 +117,34 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
   const ordered = [...plan.layers].sort((a, b) => a.z - b.z);
   const boxes: { id: string; rect: PixelRect; z: number }[] = [];
 
+  // Layers whose pixels do not depend on the composite below them are started
+  // early. The window is small on purpose: it exists to keep libvips and the
+  // JavaScript effect loops overlapping, and every extra slot is another decoded
+  // layer held in memory.
+  const prepared = new Map<number, Promise<{ image: RawImage; rect: PixelRect } | null>>();
+  const prefetch = (index: number): void => {
+    const layer = ordered[index];
+    if (!layer || prepared.has(index) || layerReadsBackdrop(layer)) return;
+    const task = renderLayerRaw(layer, canvas, { ...ctx, backdrop: undefined });
+    task.catch(() => {}); // failure surfaces where the layer is awaited
+    prepared.set(index, task);
+  };
+
   const tLayers = performance.now();
-  for (const layer of ordered) {
+  for (let index = 0; index < ordered.length; index++) {
+    const layer = ordered[index]!;
+    for (let ahead = index; ahead < Math.min(ordered.length, index + LOOKAHEAD); ahead++) prefetch(ahead);
+
     const t = performance.now();
-    ctx.backdrop = acc;
-    const rendered = await renderLayerRaw(layer, canvas, ctx);
+    let rendered: { image: RawImage; rect: PixelRect } | null;
+    const early = prepared.get(index);
+    if (early) {
+      prepared.delete(index);
+      rendered = await early;
+    } else {
+      ctx.backdrop = acc;
+      rendered = await renderLayerRaw(layer, canvas, ctx);
+    }
     if (!rendered) continue;
     boxes.push({ id: layer.id, rect: rendered.rect, z: layer.z });
 
