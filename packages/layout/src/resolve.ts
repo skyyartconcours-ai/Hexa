@@ -56,6 +56,11 @@ export function resolveLayout(layout: LayoutSpec, width: number, height: number)
   const canvasBounds: PixelRect = { x: 0, y: 0, w: width, h: height };
 
   const resolved: ResolvedSlot[] = layout.slots.map((slot) => {
+    if (!Number.isFinite(slot.z)) {
+      throw new HexaError('INVALID_REQUEST', `Slot "${slot.id}" in layout "${layout.id}" has a non-finite z (${slot.z})`, {
+        hint: 'z is the paint order key; a NaN there makes the layer sort — and therefore the render — order-dependent.',
+      });
+    }
     const box = resolveRect(slot.rect, width, height);
     const scale = slot.scale ?? 1;
     let rect: PixelRect = box;
@@ -71,8 +76,7 @@ export function resolveLayout(layout: LayoutSpec, width: number, height: number)
     return { slot, rect, z: slot.z };
   });
 
-  // Stable sort: Array.prototype.sort is spec-stable since ES2019.
-  resolved.sort((a, b) => a.z - b.z);
+  byZThenAuthored(resolved);
 
   const index = new Map<string, ResolvedSlot>();
   for (const r of resolved) {
@@ -99,9 +103,27 @@ export function resolveLayout(layout: LayoutSpec, width: number, height: number)
   };
 }
 
+/**
+ * Sort into paint order, ascending z, ties keeping the authored order.
+ *
+ * The tiebreak is written out rather than left to `Array.prototype.sort`'s
+ * stability so the ordering is a property of THIS code, and so the comparator
+ * stays total even if a `z` slips through as NaN: `a.z - b.z` is then NaN,
+ * which is falsy, so the index comparison decides. A comparator that returns
+ * NaN leaves the result at the mercy of the engine's sort internals, and
+ * layer order is the difference between a subject in front of the backplate
+ * and a subject behind it.
+ */
+function byZThenAuthored(slots: ResolvedSlot[]): void {
+  const authored = new Map<ResolvedSlot, number>();
+  slots.forEach((s, i) => authored.set(s, i));
+  slots.sort((a, b) => a.z - b.z || authored.get(a)! - authored.get(b)!);
+}
+
 /** Rebuild a ResolvedLayout with a new slot array (keeps the id index honest). */
 export function withSlots(layout: ResolvedLayout, slots: ResolvedSlot[]): ResolvedLayout {
-  const sorted = [...slots].sort((a, b) => a.z - b.z);
+  const sorted = [...slots];
+  byZThenAuthored(sorted);
   const index = new Map(sorted.map((s) => [s.slot.id, s] as const));
   return {
     canvas: layout.canvas,

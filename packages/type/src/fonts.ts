@@ -433,11 +433,17 @@ export function defaultFontDir(): string {
  * and the class tables, just less exactly.
  */
 export async function ensureFonts(dir?: string): Promise<{ available: string[]; missing: string[] }> {
+  return discoverFonts(dir);
+}
+
+function discoverFonts(dir?: string): { available: string[]; missing: string[] } {
+  discovery = 'done';
+
   const roots = [dir ?? defaultFontDir(), ...SYSTEM_FONT_DIRS];
   const files: string[] = [];
   for (const root of roots) {
     // Project fonts get a deeper walk than the (potentially enormous) system trees.
-    await scanDir(root, root === roots[0] ? 4 : 3, files);
+    scanDir(root, root === roots[0] ? 4 : 3, files);
   }
 
   const known = [...WANTED_FAMILIES, ...OPPORTUNISTIC_FAMILIES];
@@ -460,4 +466,27 @@ export async function ensureFonts(dir?: string): Promise<{ available: string[]; 
   const available = [...WANTED_FAMILIES].filter((f) => found.has(f));
   const missing = [...WANTED_FAMILIES].filter((f) => !found.has(f));
   return { available, missing };
+}
+
+/**
+ * Discover installed faces on the first measurement of a process that never
+ * called `ensureFonts()`.
+ *
+ * This is not a convenience. Measurement and rasterisation have to agree about
+ * which face the glyphs will be set in, and the rasteriser consults fontconfig
+ * unconditionally — so measurement has to consult the disk unconditionally too.
+ * Leaving it to the caller made "forgot one await" indistinguishable from
+ * "no display fonts installed", and the failure was silent: every fit came back
+ * narrower than the ink, so headlines, nameplates and team plates were clipped
+ * at raster time while every unit test stayed green.
+ */
+function autoDiscover(): void {
+  if (discovery !== 'pending') return;
+  discovery = 'done';
+  try {
+    discoverFonts();
+  } catch {
+    // Unreadable font trees are not a rendering failure — the class tables are
+    // still there, and a slightly-off thumbnail beats no thumbnail.
+  }
 }

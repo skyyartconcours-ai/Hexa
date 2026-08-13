@@ -163,13 +163,20 @@ describe('attack: cache keys that escape the cache directory', () => {
     dir = await fs.mkdtemp(path.join(os.tmpdir(), 'hexa-cache-attack-'));
   });
 
+  /**
+   * `paths()` shards on `key.slice(0, 2)` and then joins the whole key, so the
+   * escape has to walk back out of both the shard and the cache directory:
+   *   <cache>/xx + "xx/../../../outside/pwned.json" → <dir>/outside/pwned.json
+   */
+  const ESCAPE_KEY = 'xx/../../../outside/pwned';
+
   it('refuses to write outside the cache directory', async () => {
     const outside = path.join(dir, 'outside');
     await fs.mkdir(outside, { recursive: true });
     const cacheDir = path.join(dir, 'cache');
 
     await writeCache(
-      '../../outside/pwned',
+      ESCAPE_KEY,
       {
         buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4, 5]),
         width: 1,
@@ -187,12 +194,17 @@ describe('attack: cache keys that escape the cache directory', () => {
 
   it('refuses to read outside the cache directory', async () => {
     const cacheDir = path.join(dir, 'cache');
-    await fs.mkdir(cacheDir, { recursive: true });
+    const outside = path.join(dir, 'outside');
+    await fs.mkdir(path.join(cacheDir, 'xx'), { recursive: true });
+    await fs.mkdir(outside, { recursive: true });
     // A file the cache must never serve, planted where traversal would find it.
-    await fs.writeFile(path.join(dir, 'secret.json'), JSON.stringify({ storedAt: Date.now(), ext: 'png', width: 1, height: 1, provider: 'x', model: 'x', promptUsed: 'x' }));
-    await fs.writeFile(path.join(dir, 'secret.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]));
+    await fs.writeFile(
+      path.join(outside, 'pwned.json'),
+      JSON.stringify({ storedAt: Date.now(), ext: 'png', width: 1, height: 1, provider: 'x', model: 'x', promptUsed: 'x' }),
+    );
+    await fs.writeFile(path.join(outside, 'pwned.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]));
 
-    const hit = await readCache('../secret', { dir: cacheDir, enabled: true });
+    const hit = await readCache(ESCAPE_KEY, { dir: cacheDir, enabled: true });
     expect(hit, 'the cache served a file from outside its directory').toBeUndefined();
   });
 

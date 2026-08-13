@@ -37,6 +37,17 @@ interface Overhang {
   bottom: number;
 }
 
+/**
+ * How far the *hard* ink — plate, extrusion slab, outline, glyph faces — pushes
+ * past the glyph advance box, per side.
+ *
+ * Everything counted here has a crisp edge, so anything left out of it gets
+ * visibly chopped at the document boundary. `shadow` and `glow` are deliberately
+ * *not* counted: they are soft, they are meant to fade into the frame, and
+ * reserving room for a 26 px blur inside a 76 px nameplate would shrink the type
+ * to nothing. They are kept off the fitted bounds and instead given room inside
+ * their own filter region (see `paintBlock`).
+ */
 function decorationOverhang(style: TextStyle, blockH: number): Overhang {
   const half = style.stroke ? Math.max(0, style.stroke.width) / 2 : 0;
   let left = half;

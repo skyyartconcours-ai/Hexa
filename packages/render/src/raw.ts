@@ -15,9 +15,38 @@
  *      whole pipeline.
  */
 
+import { availableParallelism } from 'node:os';
 import sharp from 'sharp';
 import { parseHex, clamp } from '@hexa/core';
 import { timed, timedSync } from './profile.js';
+
+/**
+ * Give libvips the cores it is standing on.
+ *
+ * libvips sizes its worker pool from what it can infer about the host, and in a
+ * container it frequently infers **one** — measured here as `sharp.concurrency()
+ * === 1` on a 4-core machine, which makes every blur, resize and composite in
+ * this package run single-threaded. Raising it to the parallelism Node itself
+ * reports is worth 2–2.4× on the whole libvips half of a render.
+ *
+ * Deliberately conservative:
+ *   * an explicit `VIPS_CONCURRENCY` / `SHARP_CONCURRENCY` is never overridden —
+ *     someone who pinned it did so for a reason (memory, cgroup quota, a shared
+ *     box);
+ *   * the pool is only ever *raised*, never lowered;
+ *   * tile scheduling is deterministic, so a thread count is invisible in the
+ *     output: the same plan renders byte-identically at any concurrency.
+ */
+function tuneLibvips(): void {
+  if (process.env['VIPS_CONCURRENCY'] || process.env['SHARP_CONCURRENCY']) return;
+  try {
+    const cores = availableParallelism();
+    if (sharp.concurrency() < cores) sharp.concurrency(cores);
+  } catch {
+    // A sharp build that refuses the call is not worth failing a render over.
+  }
+}
+tuneLibvips();
 
 export interface RawImage {
   data: Buffer;

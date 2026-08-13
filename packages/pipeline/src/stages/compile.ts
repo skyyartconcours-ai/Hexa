@@ -180,7 +180,14 @@ export async function compilePlan(input: CompileInput): Promise<RenderPlan> {
   // ── pass 4: supporting slots ──────────────────────────────────────────────
   for (const slot of resolved.slots) {
     if (slot.slot.kind === 'shape') emitShape(slot, input.palette, style && brandStrength(style), layers);
-    if (slot.slot.kind === 'backplate' && input.backplate) emitBackplateSlot(slot, layers, buffers);
+    if (slot.slot.kind === 'backplate') {
+      // A colour block is geometry the template drew, not a place to repeat the
+      // plate: `block-left` means "the left team owns this half", so it is
+      // filled with that team's colour. Only a full-canvas plate slot restates
+      // the supplied backplate image.
+      if (isColorBlock(slot.slot)) emitColorBlock(slot, input.palette, brandStrength(style), canvas, layers);
+      else if (input.backplate) emitBackplateSlot(slot, layers, buffers);
+    }
   }
 
   // ── pass 5: atmosphere in front ───────────────────────────────────────────
@@ -345,60 +352,102 @@ function emitBackplate(args: {
   });
 }
 
+/**
+ * The base plate, and — where the treatment calls for one — a texture over it.
+ *
+ * The split matters. A generated treatment ("shatter", "arena", "grid",
+ * "abstract") is a *surface*: a field of shards, a crowd bowl, a wireframe. Used
+ * as the base plate at full strength it becomes the loudest thing in the frame —
+ * a white polygon web sprawling across the whole image at the same value as the
+ * subjects, so the eye has nowhere to land. That is exactly what it was doing.
+ *
+ * A professional thumbnail treats that material the way a matte painter does:
+ * lay down a dark graded ground first, then let the texture sit *on* it at a
+ * fraction of its strength, so it reads as depth in the background rather than
+ * as pattern on top of the composition. Hence: always a base, optionally a
+ * texture at {@link TEXTURE_OPACITY}, darkened toward the palette's dark so it
+ * can never out-value a face.
+ */
+const TEXTURE_OPACITY = 0.3;
+
 function proceduralBackdrop(
   backdrop: string,
   rect: PixelRect,
   palette: ResolvedPalette,
   seed: number,
-): Layer {
+): Layer[] {
   const { left, right, dark, accent } = palette;
   const base = { id: 'backdrop', rect, z: 0, opacity: 1, blend: 'over' as BlendMode, label: `backdrop: ${backdrop}` };
 
+  // Diagonal rather than horizontal: a diagonal seam is the versus device, and
+  // it stops the two halves reading as two separate images.
+  const gradientPlate: Layer = {
+    ...base,
+    source: {
+      type: 'gradient',
+      stops: [
+        { offset: 0, color: mix(dark, left, 0.45) },
+        { offset: 0.5, color: shade(dark, 0.02) },
+        { offset: 1, color: mix(dark, right, 0.45) },
+      ],
+      angle: 12,
+    },
+  };
+
   switch (backdrop) {
     case 'solid':
-      return { ...base, source: { type: 'solid', color: dark } };
+      return [{ ...base, source: { type: 'solid', color: dark } }];
     case 'radial':
-      return {
-        ...base,
-        source: {
-          type: 'radial',
-          stops: [
-            { offset: 0, color: mix(dark, accent, 0.28) },
-            { offset: 0.6, color: shade(dark, 0.04) },
-            { offset: 1, color: shade(dark, -0.06) },
-          ],
-          center: [0.5, 0.44],
-          radius: 0.78,
+      return [
+        {
+          ...base,
+          source: {
+            type: 'radial',
+            stops: [
+              { offset: 0, color: mix(dark, accent, 0.28) },
+              { offset: 0.6, color: shade(dark, 0.04) },
+              { offset: 1, color: shade(dark, -0.06) },
+            ],
+            center: [0.5, 0.44],
+            radius: 0.78,
+          },
         },
-      };
+      ];
     case 'arena':
     case 'abstract':
     case 'shatter':
     case 'grid':
-      return {
-        ...base,
-        source: {
-          type: 'generated',
-          generatorId: `${GENERATOR_IDS.backdrop}-${backdrop}`,
-          params: { left, right, dark, accent, seed, treatment: backdrop },
+      return [
+        gradientPlate,
+        {
+          id: `backdrop-texture-${backdrop}`,
+          rect,
+          z: 1,
+          opacity: TEXTURE_OPACITY,
+          // Over, not screen: the generators already emit bright ink, and
+          // screening it back on doubles the brightness that made the web glow.
+          blend: 'over',
+          source: {
+            type: 'generated',
+            generatorId: `${GENERATOR_IDS.backdrop}-${backdrop}`,
+            // The palette handed to the generator is pulled hard toward the
+            // dark, so even its highlights land below face value.
+            params: {
+              left: mix(left, dark, 0.55),
+              right: mix(right, dark, 0.55),
+              dark: shade(dark, -0.1),
+              accent: mix(accent, dark, 0.35),
+              seed,
+              treatment: backdrop,
+            },
+          },
+          effects: { blur: 2 },
+          label: `backdrop texture: ${backdrop} @ ${TEXTURE_OPACITY}`,
         },
-      };
+      ];
     case 'gradient':
     default:
-      // Diagonal rather than horizontal: a diagonal seam is the versus device,
-      // and it stops the two halves reading as two separate images.
-      return {
-        ...base,
-        source: {
-          type: 'gradient',
-          stops: [
-            { offset: 0, color: mix(dark, left, 0.45) },
-            { offset: 0.5, color: shade(dark, 0.02) },
-            { offset: 1, color: mix(dark, right, 0.45) },
-          ],
-          angle: 12,
-        },
-      };
+      return [gradientPlate];
   }
 }
 
