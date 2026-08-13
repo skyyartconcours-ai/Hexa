@@ -272,9 +272,14 @@ function validate(input: LayoutTextInput): void {
  * Lay out and draw one text block.
  *
  * Returns a standalone SVG document of exactly `box.w × box.h`, plus the
- * measured content bounds. Those bounds *include* stroke, extrusion, plate
- * padding and skew shear — they are what `autoFit` tests against the box, so
- * a fitted headline never has its outline clipped.
+ * measured content bounds. Those bounds *include* every hard-edged part of the
+ * treatment — stroke, extrusion, plate padding, skew shear, jitter scatter —
+ * and they are what `autoFit` tests against the box, so a fitted headline never
+ * has its outline clipped.
+ *
+ * They exclude `shadow` and `glow`, which are soft by construction and bleed
+ * past the document edge on purpose; reserving room for a 26 px blur inside a
+ * 76 px nameplate would leave nothing to read. See `decorationOverhang`.
  */
 export function renderText(input: LayoutTextInput): LaidOutText {
   validate(input);

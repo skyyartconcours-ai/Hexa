@@ -117,6 +117,19 @@ The pipeline is built to degrade, not to stop:
 - A QA gate throws? It becomes a warning naming the gate; one broken gate never
   kills a render.
 
-The only hard failures are the ones that should be hard: a player who isn't in
-the roster, a template that doesn't exist, a licence requirement that isn't met,
-and an identity check that actively fails.
+Hard failures are the ones that should be hard: a player who isn't in the
+roster, a template that doesn't exist, and a licence requirement that isn't met.
+A failing identity check is a hard failure of the **QA report**, but the image is
+still written unless the request sets `qa.strict` (`--strict`) — strict mode is
+what turns a failed gate into a refusal to emit.
+
+### Where the sidecar is looked for
+
+`resolveVisionEndpoint` in `@hexa/pipeline/deps.ts` reads `HEXA_VISION_URL` and
+defaults to `http://127.0.0.1:8000`. `services/vision/run.sh` serves **8765**,
+and `@hexa/vision`'s own `VisionClient` defaults to 8765 via
+`HEXA_VISION_ENDPOINT` — but the pipeline always passes an explicit endpoint, so
+that fallback never applies to a render. Until the two agree, set
+`HEXA_VISION_URL=http://127.0.0.1:8765` (or pass `--vision`) or the sidecar will
+be reported absent while it is running. Nothing in the repository parses a
+`.env` file; `.env.example` is a reference, not a loaded config.

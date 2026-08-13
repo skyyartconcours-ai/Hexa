@@ -158,8 +158,13 @@ export class AnthropicPromptArchitect {
   }
 
   async craft(brief: PromptBrief): Promise<CraftedPrompt> {
-    // Guard the *input* first: a person-requesting brief never leaves the process.
+    // Guard the *input* first: a person-requesting brief never leaves the
+    // process. `extra` is guarded here too, because it is appended verbatim to
+    // whatever comes back — the fallback builder would otherwise be the one to
+    // refuse it, from inside the catch block, where the refusal reads as a
+    // network error.
     assertNoPersonGeneration(brief.brief ?? '');
+    if (brief.extra?.trim()) assertNoPersonGeneration(brief.extra.trim());
 
     const key = readApiKey('anthropic', this.env);
     if (!key) return this.localFallback(brief, 'no ANTHROPIC_API_KEY configured');

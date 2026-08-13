@@ -43,13 +43,29 @@ describe('legibilityGate', () => {
     expect(fails.some((f) => /camouflaged|stroke separation/.test(f.message))).toBe(true);
   });
 
-  it('fails type that is too small to resolve in the sidebar box', async () => {
-    const tiny = { x: 72, y: 600, w: 400, h: 40 }; // 40/720 * 94 * 0.7 = 3.7px cap
+  it('fails a message-bearing headline that is too small to resolve in the sidebar box', async () => {
+    // 40/720 * 94 * 0.7 = 3.7px cap, in a rect wide and tall enough (3.9% of the
+    // canvas) that it is clearly meant to be read rather than to be a detail.
+    const small = { x: 72, y: 590, w: 1000, h: 40 };
+    const image = await withText(await flatBackground('#0B0B0F'), { text: 'GRAND FINAL TONIGHT', color: '#FFFFFF', rect: small });
+    const findings = await legibilityGate.run(
+      ctx(image, { textRects: [{ role: 'headline', rect: small }] }),
+    );
+    expect(findings.some((f) => f.severity === 'fail' && /cap height/.test(f.message))).toBe(true);
+  });
+
+  it('only warns about micro-type that is a detail rather than the message', async () => {
+    // Same cap height, a fifth of the area: the editorial-caption case. It must
+    // still be reported — and must not veto the render.
+    const tiny = { x: 72, y: 600, w: 400, h: 40 };
     const image = await withText(await flatBackground('#0B0B0F'), { text: 'SMALL PRINT', color: '#FFFFFF', rect: tiny });
     const findings = await legibilityGate.run(
       ctx(image, { textRects: [{ role: 'caption', rect: tiny }] }),
     );
-    expect(findings.some((f) => f.severity === 'fail' && /cap height/.test(f.message))).toBe(true);
+    expect(findings.some((f) => f.severity === 'fail')).toBe(false);
+    expect(findings.some((f) => f.severity === 'warn' && /cap height/.test(f.message))).toBe(true);
+    expect(findings.some((f) => /flagged, not vetoed/.test(f.message))).toBe(true);
+    expect(findings.some((f) => /No text in this render resolves/.test(f.message))).toBe(true);
   });
 
   it('reports rather than vetoes when request.legibility is false', async () => {

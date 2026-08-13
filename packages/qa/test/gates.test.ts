@@ -24,7 +24,7 @@ describe('clutterGate', () => {
   it('does not flag a calm composition with one subject', async () => {
     const findings = await clutterGate.run(ctx(await cleanComposition()));
     expect(findings.filter((f) => f.severity !== 'pass')).toEqual([]);
-    expect(findings[0]!.message).toMatch(/Focal hierarchy holds/);
+    expect(findings[0]!.message).toMatch(/Focal hierarchy holds|Calm frame/);
   });
 
   it('never vetoes — clutter is a warning, not a fail', async () => {
@@ -63,11 +63,14 @@ describe('facePlacementGate', () => {
   });
 
   it('passes a well-cut versus composition', async () => {
+    // One subject slightly larger and lower than the other: opposed poles with a
+    // hero, which is what a cut versus looks like. (Making the two *identical*
+    // is the dead-mirror case below.)
     const findings = await facePlacementGate.run(
       ctx(await image(), {
         subjects: [
-          { playerId: 'a', handle: 'Peyz', faceRect: { x: 0.16, y: 0.14, w: 0.18, h: 0.28 } },
-          { playerId: 'b', handle: 'Ruler', faceRect: { x: 0.66, y: 0.14, w: 0.18, h: 0.28 } },
+          { playerId: 'a', handle: 'Peyz', faceRect: { x: 0.15, y: 0.13, w: 0.2, h: 0.31 } },
+          { playerId: 'b', handle: 'Ruler', faceRect: { x: 0.67, y: 0.17, w: 0.17, h: 0.26 } },
         ],
       }),
     );

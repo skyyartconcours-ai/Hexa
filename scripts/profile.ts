@@ -149,17 +149,42 @@ async function abSupersample(factors: number[], repeats: number): Promise<void> 
     const scaled = { ...plan, canvas: { ...plan.canvas, supersample: ss } };
     let best = Infinity;
     let bytes = 0;
+    let bestTimings: Record<string, number> = {};
+    let bestProfile: Record<string, { calls: number; ms: number; mpx: number }> = {};
     for (let i = 0; i < repeats; i++) {
+      render.startProfile();
       const t0 = performance.now();
       const out = await render.renderPlan(scaled, { buffers, logger: quiet });
       const ms = performance.now() - t0;
+      const prof = render.endProfile();
       if (ms < best) {
         best = ms;
         bytes = out.buffer.length;
+        bestTimings = out.timings;
+        bestProfile = prof;
         await writeFile(join(OUT, `ab-ss${ss}.png`), out.buffer);
       }
     }
     console.log(`  supersample ${ss}×  ${best.toFixed(0).padStart(6)}ms  ${DIM}${(bytes / 1024).toFixed(0)}KB → out/profile/ab-ss${ss}.png${RESET}`);
+    if (!argv.includes('--quiet')) {
+      const stages = Object.entries(bestTimings)
+        .filter(([k]) => !k.startsWith('layer:') && k !== 'total')
+        .map(([label, ms]) => ({ label, ms }))
+        .sort((a, b) => b.ms - a.ms);
+      table(`  stages @${ss}×`, stages, best);
+      const layers = Object.entries(bestTimings)
+        .filter(([k]) => k.startsWith('layer:'))
+        .map(([label, ms]) => ({ label: label.slice(6), ms }))
+        .sort((a, b) => b.ms - a.ms)
+        .slice(0, 10);
+      table(`  slowest layers @${ss}×`, layers, best);
+      const prims = Object.entries(bestProfile)
+        .map(([label, e]) => ({ label, ms: e.ms, extra: `×${e.calls}  ${e.mpx.toFixed(1)}Mpx` }))
+        .sort((a, b) => b.ms - a.ms)
+        .filter((p) => p.ms >= 1)
+        .slice(0, 22);
+      table(`  primitives @${ss}×`, prims, best);
+    }
   }
 }
 
