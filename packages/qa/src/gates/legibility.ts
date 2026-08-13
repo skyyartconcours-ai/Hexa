@@ -39,7 +39,7 @@
 import type { QaFinding, QaSeverity } from '@hexa/core';
 import type { Gate, GateContext } from '../types.js';
 import { clamp01, collectTextRects, ramp, scaleRect, surroundRects, toNormRect } from '../geom.js';
-import { edgeDensity, loadGray, otsu, sobel } from '../image.js';
+import { clampToImage, edgeDensity, loadGray, otsu, sobel } from '../image.js';
 import { YOUTUBE_DISPLAY_SIZES } from '../sizes.js';
 
 /** Cap height as a fraction of a laid-out line box, for a typical esports
@@ -99,7 +99,12 @@ export const legibilityGate: Gate = {
       const gray = await loadGray(ctx.image, { width: size.w, height: size.h });
       const mag = sobel(gray);
       for (let i = 0; i < rects.length; i++) {
-        const small = scaleRect(rects[i]!.rect, { w: ctx.width, h: ctx.height }, { w: size.w, h: size.h });
+        const scaled = scaleRect(rects[i]!.rect, { w: ctx.width, h: ctx.height }, { w: size.w, h: size.h });
+        // Clamped before sampling: a rect that hangs off the canvas used to walk
+        // negative indices, collect `undefined`, and report "NaN/255 stroke
+        // separation" as a *pass* — the report claiming a measurement it never
+        // made. Only the part of the rect that exists can be measured.
+        const small = clampToImage(scaled, size.w, size.h);
         if (small.w < 2 || small.h < 2) {
           verdicts[i]!.push({ label: size.label, w: small.w, h: small.h, separation: 0, textEdges: 0, ringEdges: 0, ratio: 0 });
           continue;

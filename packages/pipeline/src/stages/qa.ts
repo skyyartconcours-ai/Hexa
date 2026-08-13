@@ -63,25 +63,31 @@ export async function runQaStage(opts: QaStageOptions): Promise<QaStageResult> {
     assets: [s.asset],
   }));
 
-  const report = await qa.runGates({
-    image: opts.image,
-    plan: opts.plan,
-    subjects,
-    textRects,
-    request: opts.request,
-    // @hexa/vision's client satisfies the structural VisionPort the gates want.
-    vision: opts.vision as unknown as VisionPort,
-    only: opts.only,
-    skip: opts.skip,
-  });
-
-  const appeal = await qa.scoreAppeal({
-    image: opts.image,
-    width: opts.plan.canvas.width,
-    height: opts.plan.canvas.height,
-    textRects,
-    faceRects: [...faceRects.values()],
-  });
+  // The gates and the appeal score are independent readings of the same
+  // finished frame — neither can see the other's result — and both start by
+  // decoding it. Run them together: the second one's decode overlaps the first
+  // one's measurements instead of queueing behind them. Both are pure functions
+  // of their inputs, so the outcome is unchanged.
+  const [report, appeal] = await Promise.all([
+    qa.runGates({
+      image: opts.image,
+      plan: opts.plan,
+      subjects,
+      textRects,
+      request: opts.request,
+      // @hexa/vision's client satisfies the structural VisionPort the gates want.
+      vision: opts.vision as unknown as VisionPort,
+      only: opts.only,
+      skip: opts.skip,
+    }),
+    qa.scoreAppeal({
+      image: opts.image,
+      width: opts.plan.canvas.width,
+      height: opts.plan.canvas.height,
+      textRects,
+      faceRects: [...faceRects.values()],
+    }),
+  ]);
 
   return {
     report,

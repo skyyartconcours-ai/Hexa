@@ -277,11 +277,20 @@ const CONFUSABLES: Record<string, string> = {
 /** Format characters that are invisible but break a regex: ZWSP/ZWJ/ZWNJ/BOM/soft hyphen. */
 const INVISIBLES = /[­͏؜᠎​-‏‪-‮⁠-⁤⁦-⁯﻿]/g;
 
-/** Lowercase, de-accent, de-confuse, de-leet, and normalise whitespace. */
+/**
+ * Lowercase, de-accent, de-confuse, de-leet, and normalise whitespace.
+ *
+ * The NFKD→strip-marks→NFC round trip is deliberate. NFKD folds fullwidth and
+ * mathematical letterforms down to ASCII and splits accents off so they can be
+ * dropped — but it also decomposes Hangul syllables into conjoining jamo, which
+ * would make "얼굴" unmatchable as a substring. Recomposing with NFC puts those
+ * back together, after the marks that mattered have already gone.
+ */
 function normalise(input: string): string {
   return input
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
+    .normalize('NFC')
     .toLowerCase()
     .replace(INVISIBLES, '')
     .replace(/[ɐ-ʯͰ-ϿЀ-ӿ‐-’]/g, (c) => CONFUSABLES[c] ?? c)
@@ -412,10 +421,16 @@ function assertVettableScript(prompt: string): void {
   const unreadable = letters.filter((c) => !/[\p{Script=Latin}\p{Script=Common}]/u.test(c));
   if (unreadable.length === 0) return;
   const sample = [...new Set(unreadable)].slice(0, 8).join('');
-  refuse(
+  throw new HexaError(
+    'INVALID_REQUEST',
     `Backplate prompt contains characters the person guard cannot vet ("${sample}"). Hexa only accepts ` +
       'Latin-script prompts, because a guard that cannot read the language cannot promise no person was requested.',
-    { rule: 'unvettable-script', sample, count: unreadable.length },
+    {
+      hint:
+        'Describe the scene in English (or any Latin-script language). This is a limit of the guard, not of the ' +
+        'image model — see "Honest limitations" in docs/IDENTITY.md.',
+      details: { rule: 'unvettable-script', sample, count: unreadable.length },
+    },
   );
 }
 
@@ -425,10 +440,13 @@ function assertVettableScript(prompt: string): void {
  */
 function decodedPayloads(prompt: string): string[] {
   const out: string[] = [];
+  // Readable text, in any script: a base64'd "얼굴" is exactly the case this
+  // exists for, so the test is "no control characters", not "ASCII only".
+  const readable = (text: string) => text.length >= 4 && !/\p{C}/u.test(text);
   for (const m of prompt.matchAll(/\b[A-Za-z0-9+/]{16,}={0,2}/g)) {
     try {
       const text = Buffer.from(m[0], 'base64').toString('utf8');
-      if (/^[\x20-\x7e\s]{4,}$/.test(text)) out.push(text);
+      if (readable(text)) out.push(text);
     } catch {
       /* not base64 after all */
     }
@@ -436,12 +454,29 @@ function decodedPayloads(prompt: string): string[] {
   for (const m of prompt.matchAll(/\b(?:0x)?((?:[0-9a-fA-F]{2}){6,})\b/g)) {
     try {
       const text = Buffer.from(m[1]!, 'hex').toString('utf8');
-      if (/^[\x20-\x7e\s]{4,}$/.test(text)) out.push(text);
+      if (readable(text)) out.push(text);
     } catch {
       /* not hex after all */
     }
   }
   return out;
+}
+
+/**
+ * Scan decoded text with the foreign-term list as well as the English one.
+ *
+ * `assertVettableScript` normally refuses a non-Latin prompt before the term
+ * scan ever runs, which would make the CJK/Cyrillic list unreachable — except
+ * here, where the payload arrived encoded precisely so that no script check
+ * would see it.
+ */
+function decodedCarriesAPerson(decoded: string): boolean {
+  try {
+    scanForPeople(normalise(decoded), decoded);
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -476,13 +511,7 @@ export function assertNoPersonGeneration(prompt: string): void {
 
   // An encoded payload is a prompt the model will read and the guard would not.
   for (const decoded of decodedPayloads(prompt)) {
-    let smuggled = false;
-    try {
-      scanForPeople(normalise(decoded), decoded);
-    } catch {
-      smuggled = true;
-    }
-    if (smuggled) {
+    if (decodedCarriesAPerson(decoded)) {
       refuse(
         'Backplate prompt carries an encoded payload that asks for a person. Faces are never generated.',
         { rule: 'encoded-payload', decoded: decoded.slice(0, 80) },

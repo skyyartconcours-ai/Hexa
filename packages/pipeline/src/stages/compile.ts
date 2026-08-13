@@ -500,21 +500,43 @@ function emitPlateScrim(args: {
   z: number;
 }): void {
   const { layers, palette, canvas, z } = args;
+
+  // Top shade: a single frame-wide gradient that seats the kicker band and
+  // keeps the upper corners from competing. Applied over the whole canvas so a
+  // colour-blocked seam cannot show up in it as an edge.
+  layers.push({
+    id: 'plate-top-shade',
+    source: {
+      type: 'gradient',
+      stops: [
+        { offset: 0, color: withAlpha(shade(palette.dark, -0.08), 0.62) },
+        { offset: 0.42, color: withAlpha(palette.dark, 0.1) },
+        { offset: 1, color: withAlpha(palette.dark, 0) },
+      ],
+      angle: 270,
+    },
+    rect: { x: 0, y: 0, w: canvas.width, h: canvas.height },
+    z: z - 1,
+    opacity: 0.85,
+    blend: 'over',
+    label: 'top shade',
+  });
+
   layers.push({
     id: 'plate-scrim',
     source: {
       type: 'radial',
       stops: [
-        { offset: 0, color: withAlpha(shade(palette.dark, -0.02), 0.12) },
-        { offset: 0.55, color: withAlpha(shade(palette.dark, -0.06), 0.42) },
-        { offset: 1, color: withAlpha(shade(palette.dark, -0.12), 0.82) },
+        { offset: 0, color: withAlpha(shade(palette.dark, -0.02), 0.06) },
+        { offset: 0.6, color: withAlpha(shade(palette.dark, -0.06), 0.26) },
+        { offset: 1, color: withAlpha(shade(palette.dark, -0.12), 0.6) },
       ],
       center: [0.5, 0.42],
-      radius: 0.85,
+      radius: 0.92,
     },
     rect: { x: 0, y: 0, w: canvas.width, h: canvas.height },
     z,
-    opacity: 0.9,
+    opacity: 0.85,
     blend: 'over',
     label: 'plate scrim — keeps the backdrop below face value',
   });
@@ -1034,25 +1056,41 @@ function emitColorBlock(
   // The seam itself stays dark rather than hot: it is the one place both halves
   // touch, and a dark column there is what gives the VS mark something to read
   // against instead of two saturated fields.
-  const field = mix(color, palette.dark, 0.35);
-  const x1 = side === 'left' ? 0 : 1;
-  const gradient =
-    `<linearGradient id="${id}" x1="${x1}" y1="0" x2="${1 - x1}" y2="0">` +
-    `<stop offset="0" stop-color="${withAlpha(field, 0.62)}"/>` +
-    `<stop offset="0.45" stop-color="${withAlpha(field, 0.42)}"/>` +
-    `<stop offset="1" stop-color="${withAlpha(field, 0.08)}"/>` +
-    '</linearGradient>' +
-    // Vertical falloff: darkest at the top, where copy lives and where a lit
-    // field would otherwise compete with the headline.
-    `<linearGradient id="${id}v" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="${withAlpha(shade(palette.dark, -0.08), 0.72)}"/>` +
-    `<stop offset="0.45" stop-color="${withAlpha(palette.dark, 0.12)}"/>` +
-    `<stop offset="1" stop-color="${withAlpha(palette.dark, 0)}"/>` +
-    '</linearGradient>';
+  const field = mix(color, palette.dark, 0.22);
 
-  // One outline, painted twice: the team-colour ramp, then the vertical
-  // darkener clipped to the same silhouette so the falloff cannot leak across
-  // the seam into the other team's territory.
+  // The ramp runs along the seam's *normal*, not along the frame's x axis.
+  //
+  // A horizontal gradient inside a leaning polygon does not fade out where the
+  // polygon ends — the two halves reach the shared diagonal edge at different
+  // strengths, so the join renders as a hard step from dark to saturated and
+  // the seam reads as a black wedge cut out of the frame rather than as two
+  // territories meeting. Ramping perpendicular to the seam makes both halves
+  // arrive at the join at exactly the same value, whatever the lean.
+  const nx = H;
+  const ny = 2 * lean * W;
+  const nlen = Math.hypot(nx, ny) || 1;
+  const reach = (W * H) / (2 * nlen);
+  const sign = side === 'left' ? -1 : 1;
+  const gx = (W / 2 + (sign * reach * nx) / nlen).toFixed(1);
+  const gy = (H / 2 + (sign * reach * ny) / nlen).toFixed(1);
+
+  const gradient = isHalf
+    ? `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${gx}" y1="${gy}" x2="${W / 2}" y2="${H / 2}">` +
+      `<stop offset="0" stop-color="${withAlpha(field, 0.78)}"/>` +
+      `<stop offset="0.5" stop-color="${withAlpha(field, 0.46)}"/>` +
+      `<stop offset="1" stop-color="${withAlpha(field, 0.1)}"/>` +
+      '</linearGradient>'
+    : `<linearGradient id="${id}" x1="${side === 'left' ? 0 : 1}" y1="0" x2="${side === 'left' ? 1 : 0}" y2="0">` +
+      `<stop offset="0" stop-color="${withAlpha(field, 0.78)}"/>` +
+      `<stop offset="1" stop-color="${withAlpha(field, 0.1)}"/>` +
+      '</linearGradient>';
+
+  // Deliberately one paint, not two. Clipping a vertical darkener to each half
+  // separately looked correct in the abstract and produced a hard black wedge
+  // along the seam in practice: the two halves' ramps do not agree where they
+  // meet, so the join stopped reading as a colour change and started reading as
+  // a hole. Top-shading is a property of the *frame*, so it is done once, over
+  // everything, in `emitTopShade`.
   let outline: string;
   if (isHalf) {
     const topX = W * (0.5 + lean);
@@ -1073,7 +1111,7 @@ function emitColorBlock(
   } else {
     outline = `<rect width="${W}" height="${H}"`;
   }
-  const body = `${outline} fill="url(#${id})"/>${outline} fill="url(#${id}v)"/>`;
+  const body = `${outline} fill="url(#${id})"/>`;
 
   layers.push({
     id: `block-${slot.slot.id}`,
@@ -1243,12 +1281,13 @@ async function emitText(args: {
               text: copy,
               rect: typographyBox(rect, canvas),
               role,
-              color,
+              color: plateFor(role, input.palette) ? readableOn(plateFor(role, input.palette)!, input.palette.light, input.palette.dark) : color,
               align: alignFor(role, axes.textArrangement),
               // Deliberately always 'center'. See typographyBox: an edge anchor
               // pins the glyphs against the edge that clips them.
               anchor: 'center',
               maxLines: role === 'headline' || role === 'subhead' ? 2 : 1,
+              ...plateStyle(role, input.palette),
             });
 
       layers.push({
@@ -1452,6 +1491,37 @@ export function backdropColorBehind(rect: PixelRect, palette: ResolvedPalette, c
   const overDark = mix(palette.dark, horizontal, 0.32);
   // The floor gradient darkens the lower half.
   return cy > 0.55 ? shade(overDark, -0.05) : overDark;
+}
+
+/**
+ * The plate colour a chip-shaped role should sit on, if any.
+ *
+ * @hexa/type's `team-tag` preset ships a fixed `#FFD447` plate. That is a
+ * sensible neutral for a package that knows nothing about teams, and completely
+ * wrong here: it painted every team tag in the library the same highlighter
+ * yellow, which made the least important text in the frame the most saturated
+ * thing in it and told the viewer nothing about whose tag it was. A team tag
+ * should be in the team's colour — that is the entire job of a team tag.
+ */
+function plateFor(role: TextRole, palette: ResolvedPalette): string | undefined {
+  if (role === 'left-team') return palette.left;
+  if (role === 'right-team') return palette.right;
+  if (role === 'badge') return palette.accent;
+  return undefined;
+}
+
+/**
+ * Plate override for {@link fitText}.
+ *
+ * `plate` is a real @hexa/type style key that the pipeline's own `TextStyle`
+ * mirror does not list, so it needs a cast to cross the adapter boundary. The
+ * cast is the narrow one — a single well-formed style object — rather than
+ * loosening the adapter contract, which another package owns.
+ */
+function plateStyle(role: TextRole, palette: ResolvedPalette): { style?: Record<string, unknown> } {
+  const color = plateFor(role, palette);
+  if (!color) return {};
+  return { style: { plate: { color, padX: 14, padY: 7, radius: 2, skewX: 10 } } as Record<string, unknown> };
 }
 
 function textColorFor(role: TextRole, palette: ResolvedPalette, behind: string): string {

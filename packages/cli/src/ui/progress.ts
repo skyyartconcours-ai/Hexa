@@ -28,6 +28,22 @@ export interface SpinnerOptions {
   stream?: NodeJS.WriteStream;
 }
 
+/**
+ * The spinner currently owning its line, if any.
+ *
+ * A spinner and a log line write to the same row, and the pipeline logs from
+ * inside the render the spinner is describing — so without a way to blank the
+ * animation first, a warning lands as `⠋ rendering Peyz…WARN [hexa] no photo…`.
+ * One module-level slot is enough: only one spinner is ever running, because
+ * only one command runs at a time.
+ */
+let activeSpinner: { clearLine(): void } | undefined;
+
+/** Blank the spinner's line so something else can write to it cleanly. */
+export function clearActiveSpinner(): void {
+  activeSpinner?.clearLine();
+}
+
 export function createSpinner(opts: SpinnerOptions): Spinner {
   const stream = opts.stream ?? process.stderr;
   const enabled = (opts.enabled ?? true) && Boolean(stream.isTTY);
@@ -52,6 +68,7 @@ export function createSpinner(opts: SpinnerOptions): Spinner {
   const finish = (symbol: string, final?: string): void => {
     if (!active) return;
     active = false;
+    activeSpinner = undefined;
     if (timer) clearInterval(timer);
     timer = undefined;
     if (!enabled) return;
@@ -64,6 +81,7 @@ export function createSpinner(opts: SpinnerOptions): Spinner {
       text = t;
       if (!enabled || active) return;
       active = true;
+      activeSpinner = { clearLine: clear };
       draw();
       timer = setInterval(draw, FRAME_MS);
       // Never keep the process alive for an animation.
@@ -77,6 +95,7 @@ export function createSpinner(opts: SpinnerOptions): Spinner {
     stop() {
       if (!active) return;
       active = false;
+      activeSpinner = undefined;
       if (timer) clearInterval(timer);
       timer = undefined;
       clear();

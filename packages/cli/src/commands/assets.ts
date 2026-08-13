@@ -57,6 +57,14 @@ infers player "peyz" and kind "portrait".
 Nothing is publish-grade until a human passes --cleared, having read the terms.`)
     .action(async (dir: string, o: Record<string, unknown>, command: Command) => {
       const ctx = createContext(globalsFrom(command));
+
+      // The directory is checked before the flags: it is the thing the operator
+      // typed, and reporting a missing `--source` for a path that does not exist
+      // sends them to fix the wrong end of the command. (It is also checked
+      // before the library is opened, so "no such directory" is reported in
+      // terms of this command's positional argument.)
+      const from = await ensureReadableDir(dir, 'ingest directory');
+
       const source = o['source'] as string | undefined;
       if (!source) {
         throw new HexaError('INVALID_REQUEST', 'Ingestion needs --source', {
@@ -64,11 +72,6 @@ Nothing is publish-grade until a human passes --cleared, having read the terms.`
             'Provenance is what makes the licence gate meaningful.',
         });
       }
-
-      // Check the folder before opening the library: "no such directory" is the
-      // mistake people actually make, and it should not be reported in terms of
-      // a flag that does not exist on this command.
-      const from = await ensureReadableDir(dir, 'ingest directory');
 
       const deps = await ctx.deps();
       const playerId = o['player'] ? (await data.resolvePlayer(String(o['player']))).id : undefined;

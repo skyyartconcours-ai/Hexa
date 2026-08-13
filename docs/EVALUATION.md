@@ -3,11 +3,24 @@
 An adversarial review of Hexa against its own claims, from the point of view of
 someone who would have to put the output on a channel.
 
-**Evaluated at** commit `fc588a5`, 2026-08-13, on Node 22.22.2 / sharp 0.34.5 /
-libvips 8.17.3, with no API keys, no vision sidecar and an empty asset library —
-the configuration the README's quick start describes. The repository was under
-concurrent edit during this review; where a result was time-sensitive it is
-marked.
+**Evaluated** 2026-08-13 on Node 22.22.2 / sharp 0.34.5 / libvips 8.17.3, with no
+API keys, no vision sidecar and an empty asset library — the configuration the
+README's quick start describes.
+
+The repository was under heavy concurrent edit throughout this review, so the
+full 33-template matrix was rendered three times. Numbers below are from the
+last run unless a comparison is being drawn:
+
+| run | commit | what changed |
+|---|---|---|
+| 1 | pre-`fc588a5` | no design fonts installed |
+| 2 | `fc588a5` | design fonts landed in `assets/fonts/` |
+| 3 | `8ead214` | 14 QA gates (was 10), new scoring policy, faster renderer |
+
+Run 3's scores are **not** comparable to runs 1–2: four gates were added
+(`likeness`, `clipping`, `subject-clarity`, `fx-dominance`), the weights were
+rebalanced, and `aggregate()` now caps any render carrying a veto at
+`FAIL_CEILING`. Where that matters it is said so.
 
 **Reproduce it:**
 
@@ -32,9 +45,9 @@ one of them is about design.**
    [The identity guarantee does not run](#the-identity-guarantee-does-not-run).
 
 2. **The designs are not good enough yet.** All 33 renders fail the tool's own
-   quality gates — QA mean **49.8/100**, no render above 65. 268 hard failures,
-   192 of them legibility. The gates are right. See
-   [Design quality](#design-quality).
+   quality gates, in every run: QA mean **34.2/100** at run 3 (49.8 under run
+   2's looser scoring), no render above 40, 291 hard failures. The gates are
+   right. See [Design quality](#design-quality).
 
 The engineering underneath is genuinely strong: the render stack, the QA gates,
 the roster, the placeholder honesty and the vision sidecar's documentation are
@@ -54,8 +67,9 @@ Verified by running it, not by reading it.
 | **The placeholder path is honest.** No render can be mistaken for a real person — see [below](#the-placeholder-path-is-honest). | every render in `out/showcase/` |
 | **Determinism holds.** Same request, same seed, byte-identical PNG (`sha256 ad502436…` twice). | measured |
 | **The QA gates are excellent** — specific, quantified, actionable, and correctly damning about this output. | `legibility`, `contrast`, `face-placement` findings in `index.json` |
-| **The prompt guard blocks the obvious attacks.** `assertNoPersonGeneration` runs in `registry.ts` *and* in every provider including the offline `local` one. | `packages/ai/src/guard.ts`, verified by call |
-| **`guardIdentityEdit` enforces what it claims** about `preserve` and `strength ≤ 0.65`. | `packages/ai/src/guard.ts:299` |
+| **The `likeness` gate says the true thing out loud.** "This render does not depict Peyz … the thumbnail depicts nobody at all, while naming Peyz and Viper." | 112 findings across 33 renders |
+| **The prompt guard blocks the obvious attacks.** `assertNoPersonGeneration` runs in `registry.ts` *and* in every provider including the offline `local` one, before the cache, and over `extra`/`mood`/negative prompt. | `packages/ai/src/guard.ts`, verified by call |
+| **`assertIdentityEditSafe` is stronger than its documentation was.** Bounds-checks preserve regions against the decoded frame and inspects the mask under both the transparent-is-editable and white-is-editable conventions. | `packages/ai/src/guard.ts` |
 | **Licence tracking is real.** Ingest requires `--source`, assets land `cleared:false`, the licence gate names the uncleared asset, and a credit line is emitted. | verified end-to-end with a synthetic library |
 | **The roster is sourced and dated.** `ROSTER_SOURCED_AT`, `ROSTER_SOURCES`, per-file source URLs. 61 players, fuzzy resolution works. | `packages/data/src/roster.ts` |
 | **The vision sidecar's README is the best document in the repo** — including a "what was and was not runtime-verified" section that is accurate. | cross-checked against `pipeline.py` |
@@ -89,11 +103,12 @@ The mechanism is incomplete.
 Those come from `buildReferenceGallery()`, which reads `ReferenceAsset.embedding`
 off library assets. **Nothing ever writes that field.**
 
-- `packages/assets/src/ingest.ts:11` — leaves `embedding` undefined "on purpose.
-  A later enrichment pass…"
-- `packages/assets/src/library.ts:400` — only *preserves* an embedding that is
+- `packages/assets/src/ingest.ts` — leaves `embedding` undefined "on purpose. A
+  later enrichment pass fills them in through `AssetLibrary.update`". No such
+  pass exists.
+- `packages/assets/src/library.ts` — only *preserves* an embedding that is
   already there.
-- `packages/pipeline/src/adapters/vision.ts:118` — `embedBatch()` exists and is
+- `packages/pipeline/src/adapters/vision.ts` — `embedBatch()` exists and is
   **imported by nothing**. Dead code.
 - There is no `hexa assets embed` command. `grep "command('embed"` in
   `packages/cli/src/commands/assets.ts` returns nothing.
@@ -112,7 +127,7 @@ sidecar answering on `127.0.0.1:8765` and both `HEXA_VISION_URL` and
 Across all 33 showcase renders the identity gate scored:
 
 ```
-identity    0 pass    79 warn    0 fail    mean gate score 0.400
+identity    0 pass    79 warn    0 fail    mean gate score 0.250
 ```
 
 Zero verifications and zero rejections is the *only* result this gate can
@@ -126,7 +141,7 @@ currently produce.
   grouping — all correct, all never executed.
 - The QA gate's own remedy is unactionable. It says
   `hexa assets embed --player <handle>`; that command does not exist
-  (`packages/qa/src/gates/identity.ts:237` and `:380`).
+  (`packages/qa/src/gates/identity.ts`, twice).
 - The pipeline's warning says "Re-run ingestion with the vision sidecar running
   to embed the photos already on file" — ingestion never contacts the sidecar,
   so this cannot be satisfied.
@@ -191,27 +206,32 @@ docstring says "The roster package calls this at startup". Nothing calls it —
 `@hexa/data` does not even depend on `@hexa/ai`. `listProtectedNames()` returns
 `0` entries in a real process.
 
-Measured against `assertNoPersonGeneration`:
+Measured against `assertNoPersonGeneration`, at run 3's commit:
 
 | prompt | verdict |
 |---|---|
 | `portrait of a korean esports player` | blocked |
 | `a man who looks like Faker` | blocked |
+| `a young korean male, sharp jaw, staring at camera` | blocked *(was allowed in run 1 — `male` was added to `PERSON_TERMS` during this review)* |
 | `Faker sitting at a gaming desk, stage lighting` | **allowed** |
 | `Lee Sang-hyeok on stage, dramatic light` | **allowed** |
 | `Peyz and Viper facing each other in an arena` | **allowed** |
-| `a young korean male, sharp jaw, staring at camera` | **allowed** |
 
-The last one slips through because `male` is not in `PERSON_TERMS` (`man` is).
-`generateBackplate()` accepts all four of the allowed prompts and returns an
+`generateBackplate()` accepts all three of the allowed prompts and returns an
 image. With the offline provider that is only a procedural arena; with a hosted
 provider configured, that prompt reaches the image model — which is precisely
 the failure the product exists to prevent, reachable through the documented
-`--bg-prompt` flag.
+`--bg-prompt` flag with the exact pairing from the README's own headline.
+
+The generic-noun matcher is now genuinely hard to defeat — the attack suite in
+`packages/ai/test/guard.attack.test.ts` covers homoglyphs, zero-width
+characters, non-Latin script, base64 payloads and negation-riding, and they all
+hold. The gap is not the matcher. It is that the one list which would catch a
+*named* person is empty.
 
 **Fix:** call `registerProtectedNames(PLAYERS.flatMap(p => [p.handle, p.fullName,
-p.nativeName, ...p.aliases]))` from the pipeline or CLI bootstrap, and add
-`male`/`female`/`person's` variants to `PERSON_TERMS`.
+p.nativeName, ...p.aliases]))` from the pipeline or CLI bootstrap. The function
+is already written; it has no caller.
 
 ---
 
@@ -281,18 +301,25 @@ contents.
 
 ### 4. Badge and date slots render an empty plate
 
-`textColorFor()` returns `palette.accent` for `badge`/`kicker`/`stat`/`rank`.
-When the accent is pale (`#ffd873`, `#fd8d7d`) and the slot has a light plate
-behind it, the text disappears and a blank white pill is composited instead.
+`textColorFor()` in `packages/pipeline/src/stages/compile.ts` returns
+`palette.accent` unconditionally for `badge`/`kicker`/`stat`/`rank`. When the
+accent is pale (`#ffd873`, `#fd8d7d`) and the slot has a light plate behind it,
+the text vanishes and a blank white pill is composited instead.
 
 The product's own contrast gate confirms it:
 `drama-reaction "badge" — text #c6dedb on #ecebe9 = 1.19:1, needs 3:1`.
 
-Visible as an empty white box in `drama-reaction`, `controversy-split`,
-`shorts-versus`, `podcast-panel`, `watchparty-live`, `trophy-lift`.
+**25 accent-coloured slots across 22 of the 33 templates** carry a hard contrast
+failure. Visible as an empty white box in `versus-diagonal-shatter`,
+`versus-minimal`, `roster-reveal`, `transfer-alert`, `drama-reaction`,
+`controversy-split`, `tournament-preview`, `bracket-clash`, `trophy-lift`,
+`pickban-duel`, `podcast-panel` and `watchparty-live` — see
+`out/showcase/sheets/all-templates.png`, where they are the most visible defect
+on the page.
 
-**Fix:** choose badge text colour by contrast against the plate, as `left-name`
-already does via `readableOn()`.
+**Fix:** choose these colours by contrast against the plate, as `left-name`
+already does via `readableOn()`. One line, and it removes a defect from a third
+of the library.
 
 ### 5. Font weights collapse to one file per family
 
@@ -333,12 +360,27 @@ same images.
 
 **Fix:** rename the verdict, or have `simulateSizes` accept text rects.
 
-### 8. Test suite is not green
+### 8. Test suite is not green, and `pnpm test` hides how green it is
 
-At `fc588a5`: `@hexa/type` **3 failed / 146 passed** (`test/fonts.test.ts`).
-All other packages pass (core 22, data 43, assets 176, vision 50, layout 304,
-render 164, templates 226, ai 277, qa 95, pipeline 99, cli 116). `pnpm test`
-bails at the first failing package, so it does not show you the rest.
+At `fc588a5`: `@hexa/type` **3 failed / 146 passed** (`test/fonts.test.ts`). All
+other packages pass — core 22, data 43, assets 176, vision 50, layout 304,
+render 164, templates 226, ai 277, qa 95, pipeline 99, cli 116.
+
+`pnpm test` bails at the first failing package, so a single red package hides the
+state of everything after it alphabetically. An earlier run in this session
+showed `@hexa/qa` red and told me nothing about the eight packages behind it.
+Add `--no-bail`.
+
+### 9. `champion-pool` and `pickban-duel` have no art to place
+
+Both templates are built around champion imagery — "one player against a wall of
+champions", "two tall champion pick panels". No champion art ships and there is
+no slot to supply it, so `champion-pool` renders six blank pink rectangles above
+the caption "17 CHAMPIONS". `crest-clash` has the same problem with team crests:
+a crest-led layout whose crest slots are placeholder silhouettes.
+
+These three should either be removed from the shipped library or given a
+documented way to supply the art.
 
 ---
 
@@ -351,30 +393,54 @@ Full data in `out/showcase/index.json`; contact sheets in `out/showcase/sheets/`
 
 ```
 renders          33/33
-QA score         mean 49.8   median 50   range 39–65
-appeal score     mean 79.5   median 80   range 64–93
+QA score         mean 34.2   median 34   range 26–40
+appeal score     mean 79.7   median 82   range 64–95
 passed QA        0 / 33
-hard failures    268
-time per case    median 8.5s  (range 5.4–42.4s, single variant unless noted)
+hard failures    291
+time per case    median 3.0s  (range 1.5–10.7s, single variant unless noted)
 ```
 
-Per gate, across all 33:
+Per gate, run 3, across all 33:
 
 | gate | pass | warn | fail | mean score |
 |---|---:|---:|---:|---:|
-| legibility | 20 | 0 | **192** | 0.233 |
-| contrast | 75 | 9 | **72** | 0.206 |
-| banding | 0 | 33 | 0 | 0.078 |
-| safe-zone | 8 | 63 | 0 | 0.377 |
-| identity | 0 | 79 | 0 | 0.400 |
-| face-placement | 53 | 23 | 4 | 0.696 |
-| color-harmony | 23 | 10 | 0 | 0.742 |
-| clutter | 25 | 8 | 0 | 0.813 |
+| likeness | 0 | 0 | **112** | 0.000 |
+| legibility | 20 | 96 | **104** | 0.237 |
+| contrast | 85 | 8 | **63** | 0.217 |
+| banding | 0 | 33 | 0 | 0.014 |
+| identity | 0 | 79 | 0 | 0.250 |
+| safe-zone | 8 | 63 | 0 | 0.375 |
+| face-placement | 52 | 30 | 4 | 0.637 |
+| subject-clarity | 27 | 6 | 0 | 0.738 |
+| fx-dominance | 10 | 23 | 0 | 0.742 |
+| clipping | 129 | 22 | 8 | 0.746 |
+| color-harmony | 28 | 5 | 0 | 0.851 |
+| clutter | 25 | 8 | 0 | 0.917 |
 | licence / duplicate | 33 | 0 | 0 | 1.000 |
 
-Note the gap between **QA 49.8** and **appeal 79.5**. The appeal heuristic likes
-these thumbnails; the gates that measure whether anyone can read them do not.
-Anyone reading only the appeal number would conclude the product is working.
+Three things to read out of that table.
+
+**`likeness` is the honest gate and it fails everything.** It was added during
+this review and it is the right answer to the question this evaluation started
+from. Its message is worth quoting in full:
+
+> This render does not depict Peyz. The subject slot under that name was filled
+> with a synthetic stand-in … Every subject in this render is a placeholder —
+> the thumbnail depicts nobody at all, while naming Peyz and Viper.
+
+That is exactly true, and it is now in the report rather than only in a warning.
+It also means 112 of the 291 hard failures are a single, correctly-diagnosed
+fact — no photographs — and would clear the moment real references are ingested.
+
+**Legibility improved and is still the largest real problem.** 192 → 104 hard
+failures between runs, entirely from the design fonts landing. 104 remain.
+
+**The appeal heuristic disagrees with every other measurement.** QA 34.2 against
+appeal 79.7 — and the three lowest-QA renders in the library score 92, 93 and 84
+on appeal. Anyone reading only the appeal number would conclude the product is
+working. The docstring says it is a design heuristic and not a click-through
+prediction; it is worth going further and not surfacing it beside a QA score at
+all, because a reader will average them.
 
 ### Scores
 
@@ -385,10 +451,9 @@ real photograph would obviously change the answer, it is noted.
 |---|---:|---|
 | `hero-portrait` | **7** | genuinely clean; face too small to recognise at 168×94 |
 | `mvp-card` | **7** | best type in the library; the card tint is so heavy it would erase a real likeness |
-| `champion-pool` | **6** | works, but generic — nothing an editor would not have made faster by hand |
 | `versus-fire-ice` | **6** | strongest versus energy; nameplates pile up at the bottom |
 | `analysis-callout` | **5** | good discipline, one stray empty plate, five slots is one too many |
-| `versus-classic` | **5** | competent and forgettable; badges are pale-on-pale |
+| `versus-classic` | **5** | competent and forgettable; badges are pale-on-pale; name drawn twice |
 | `podcast-panel` | **5** | fine structure, empty badge box, all three subjects the same hue |
 | `hero-godray` | **4** | right 40% of the frame is empty; the godray barely reads |
 | `versus-minimal` | **4** | the two subjects are wildly different sizes — reads as a bug, not restraint |
@@ -397,6 +462,7 @@ real photograph would obviously change the answer, it is noted.
 | `stat-record` | **4** | numeral treatment is strong, the layout around it is not |
 | `transfer-alert` | **4** | breaking-news geometry works; subhead runs into the progress-bar zone |
 | `drama-reaction` | **4** | the highest-CTR format in the library, and the badge is an empty white pill |
+| `champion-pool` | **3** | the champion grid is six blank rectangles — no art ships |
 | `tierlist-grid` | **3** | the grid wash flattens all 8 subjects to one value |
 | `ranking-podium` | **3** | podium block covers the winner's nameplate; only 1 of 3 ranks numbered |
 | `breakdown-split` | **3** | subject blown out to a white ghost |
@@ -404,7 +470,7 @@ real photograph would obviously change the answer, it is noted.
 | `versus-split-portrait` | **3** | brown vs olive — two mud colours, zero opposition |
 | `hero-fullbody` | **3** | "UNTOUCHABLE" breaks as UNTOU/CHABLE |
 | `versus-clash` | **3** | red vs red; G2 renders in T1's colour |
-| `bracket-clash` | **3** | 16 hard failures; ladder band eats the kicker |
+| `bracket-clash` | **3** | ladder band eats the kicker; both names drawn twice |
 | `pickban-duel` | **3** | champion panels are empty — no product art ships |
 | `stat-compare` | **2** | both subjects ghosted to 15% opacity; no focal point |
 | `crest-clash` | **2** | a crest-led layout with no crests; DERBY band swallows the nameplate |
@@ -419,47 +485,55 @@ real photograph would obviously change the answer, it is noted.
 
 ### The worst five, specifically
 
-**1. `versus-diagonal-shatter` — 1/10.**
+These are also, independently, the five lowest QA scores in run 3 — the gates
+and the eye agree.
+
+**1. `lineup-hero-flank` — 2/10. QA 26, the lowest in the library.**
+`out/showcase/team-versus/lineup-hero-flank-kc-g2.png`. It has the best colour
+separation in the whole set — KC cyan against G2 red is the only pairing that
+reads as an opposition at a glance — and it puts **the wrong name under each
+face**. The big left figure is Caliste, labelled CANNA. The big right figure is
+Hans Sama, labelled BROKENBLADE. See [defect 1](#1-the-wrong-name-under-the-wrong-face--lineup-hero-flank).
+The six flanking subjects are 48px tall — the `face-placement` gate fails them
+outright at "roughly 6px in the sidebar". Fix the naming and this is a 6.
+
+**2. `versus-diagonal-shatter` — 1/10. QA 29.**
 `out/showcase/versus/versus-diagonal-shatter-faker-chovy.png`. The "steep
-corner-to-corner tear with shattered glass" is a single unmodulated white
-diagonal line. There is no tear, no glass, no shards. "FAKER" is jammed into the
-top-left corner on top of the T1 badge; "GAME 5" and "CHOVY" fight each other
-along the bottom edge; an empty white badge plate floats top-right. 17 hard
-failures — the most in the library. This template does not implement its own
-description.
+corner-to-corner tear with shattered glass" is a single unmodulated diagonal
+line. There is no tear, no glass, no shards. "FAKER" is jammed into the top-left
+corner on top of the T1 badge; "GAME 5" and "CHOVY" fight each other along the
+bottom edge; an empty white badge plate floats top-right. The template does not
+implement its own description. Appeal scores it 92.
 
-**2. `watchparty-live` — 1/10.**
-`out/showcase/stream/watchparty-live-caps.png`. Two empty white boxes (badge and
-date, invisible accent text). The subject is a small salmon rectangle in a red
-frame floating in the lower left, at maybe 18% of frame height. The right third
-is three stacked pills, one of which is one of the empty boxes. There is no
-focal point anywhere in the frame. QA 40, appeal 64 — the lowest combined score.
-
-**3. `lineup-5v5` — 2/10.**
-`out/showcase/team-versus/lineup-5v5-t1-geng.png`. Structurally the band
-composition is sound. But ten subjects across 1280px gives each about 120px, and
-at the 168×94 sidebar each becomes a 12px blob. The proof sheet
-(`out/showcase/proof/lineup-5v5-t1-geng.proof.png`) shows only "THE CLASSICO"
-surviving; "LCK SUMMER FINAL" is a smear and the T1/GEN badges are smudges. This
-is the format that most needs a small-size sanity check and it is the one that
-fails it hardest. A 5v5 thumbnail should show two crests and two faces, not ten
-of anything.
-
-**4. `stat-compare` — 2/10.**
-`out/showcase/stat/stat-compare-peyz-viper.png`. Both subjects are rendered at
-roughly 15% opacity in grey-blue — T1's red and HLE's orange are gone entirely.
-The headline band sits across both nameplates. The perspective grid behind them
-is the highest-contrast object in the frame, so the eye goes to the floor. For a
-template whose whole job is "two columns of figures divided by a centre rule",
-the figures are the least visible thing present.
-
-**5. `controversy-split` — 2/10.**
+**3. `controversy-split` — 2/10. QA 29.**
 `out/showcase/drama/controversy-split-faker-chovy.png`. "THE FALLOUT" runs
 across both panels and over the left subject's head. The `left-name` text lands
-directly on top of the placeholder's own nameplate. A large cream rectangle —
-another empty slot plate — sits over the right subject's chest. Appeal scores
-this 93, the second-highest in the library, which is a useful demonstration of
-how far the appeal heuristic can be from the truth.
+directly on the placeholder's own nameplate. A cream rectangle — another empty
+slot plate — sits over the right subject's chest, with a stray `?` glyph beside
+it. Appeal scores this 93, the highest in the library, which is the clearest
+single demonstration of how far that heuristic can be from the truth.
+
+**4. `stat-compare` — 2/10. QA 29.**
+`out/showcase/stat/stat-compare-peyz-viper.png`. Both subjects render at roughly
+15% opacity in grey-blue — T1's red and HLE's orange are gone entirely. "BY THE
+NUMBERS" and the stat "4.8 /…" collide in the middle of the frame, and the stat
+is truncated. The perspective grid behind them is the highest-contrast object
+present, so the eye goes to the floor. For a template whose job is "two columns
+of figures divided by a centre rule", the figures are the least visible thing in
+it.
+
+**5. `watchparty-live` — 1/10. QA 34, appeal 64 — the lowest combined.**
+`out/showcase/stream/watchparty-live-caps.png`. Two empty white boxes (badge and
+date). The subject is a small salmon rectangle in a red frame in the lower left,
+at maybe 18% of frame height. The right third is three stacked pills, one of
+which is one of the empty boxes. There is no focal point anywhere in the frame.
+
+**Dishonourable mention: `lineup-5v5`.** QA 34, and structurally the band
+composition is the soundest in the library — but ten subjects across 1280px
+gives each about 120px, and at 168×94 each becomes a 12px blob. The proof sheet
+(`out/showcase/proof/lineup-5v5-t1-geng.proof.png`) shows only "THE CLASSICO"
+surviving. A 5v5 thumbnail should show two crests and two faces, not ten of
+anything.
 
 ### Systemic problems, not template-by-template
 
@@ -480,8 +554,28 @@ how far the appeal heuristic can be from the truth.
   `breakdown-split` and `stat-compare` all wash the subject region hard enough
   that a photograph would lose its likeness. This is exactly what the identity
   gate exists to catch, and it is exactly the gate that cannot run.
-- **Mid-word line breaks.** "CHAMPI/ONS", "UNTOU/CHABLE". No hyphenation, no
-  fallback to a smaller size, no rebalance.
+- **`autoFit` throws words away to keep the type big.** This is the sharpest
+  typography finding and it is not a font problem. `fitText` passes
+  `maxLines: 2` for headlines, and `autoFit` responds by ellipsising rather than
+  shrinking further:
+
+  ```
+  "MID LANE TIER LIST"  → ["MID", "LANE…"]   at 99.8px
+  "THE LAST PENTAKILL"  → ["THE", "LAST…"]   at 98.6px
+  ```
+
+  Both would fit completely at ~66px on two lines, or ~70px on three. The
+  autofitter stops at a large size and discards the words instead. For a
+  thumbnail engine that is the wrong trade every time: "MID LANE…" is worthless
+  at any point size. This is what still produces "LCK SUMMER…", "EVERY…",
+  "WHAT REALLY…", "CLIP OF…" and "THE LAST…" in the current renders.
+- **`maxChars` is set below real copy.** `stat-record` — "a single enormous
+  number filling the left half of the frame" — declares `stat: maxChars 4`.
+  "10,000" is six characters, so the biggest element on the canvas renders as
+  **`10,…`**. Any career total, damage number or gold count an esports channel
+  would actually use is silently truncated.
+- **Mid-word line breaks.** "CHAMPIO/NS", "UNTOUC/HABLE". No hyphenation, no
+  rebalance across the two lines.
 - **Duplicate naming.** Every layout with a name slot draws the handle twice in
   placeholder mode — once from the template, once baked into the placeholder
   plate — and they collide. This disappears with real photographs, so it is a

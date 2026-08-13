@@ -9,20 +9,23 @@
  * the veil is thin enough) still matches it — and the render ships with a net
  * over the subject.
  *
- * Two sources of evidence, and both are needed because either alone lies:
+ * The verdict comes from the plan, and the thresholds come from the library.
+ * The plan states exactly what was composited — coverage, opacity, blend mode
+ * and whether the layer sits above the subject layers — and the only question is
+ * where "atmosphere" stops and "a screen door" starts. That line is drawn from
+ * what the shipped templates actually do: the heaviest front-of-subject effect
+ * in the library is a full-frame particle pass at 0.70 opacity in screen, so
+ * 0.70 has to pass, and a full-frame layer at 0.85+ is past anything any
+ * template asks for.
  *
- *   • The plan says how big the effect layers are, how opaque, how they blend
- *     and whether they sit above the subjects. That is the *intent*, and it is
- *     exact — but a full-frame haze at 0.35 is normal and a full-frame web at
- *     0.95 is a bug, and only a number separates them.
- *   • The pixels say whether the effect actually landed on the subjects. A clean
- *     cutout portrait is *quieter* inside the face than the frame around it
- *     (skin is smooth, backdrops are not). When the face is as busy as the busiest
- *     part of the frame, something has been painted across it.
- *
- * So the gate vetoes only when a near-opaque full-frame effect above the
- * subjects is corroborated by the faces having lost their quiet. A heavy-but-
- * deliberate atmosphere pass warns, and says which layer to turn down.
+ * A pixel measurement is reported alongside — the edge density inside the face
+ * rects against the frame's — but it is *not* a condition, and that is a
+ * correction rather than a shortcut. The obvious hypothesis (a clean portrait is
+ * quieter than the frame, so a veiled one is not) does not survive measurement:
+ * on the sample renders in this repo the faces come out 1.06–3.04× the frame's
+ * edge density with no veil on them at all, because a schematic placeholder head
+ * is line art. Until there is a corpus of real photographic renders to calibrate
+ * against, that number is evidence for a human, not a trigger for a veto.
  */
 
 import type { Layer, QaFinding } from '@hexa/core';
@@ -36,13 +39,16 @@ const FX = /(^|[-_:.\s])(fx|vfx|particles?|shards?|glow|flare|haze|fog|smoke|web
 /** Blends that add light — the ones that veil rather than sit behind. */
 const ADDITIVE = new Set(['screen', 'add', 'color-dodge', 'lighten', 'overlay', 'hard-light']);
 
-/** coverage × opacity above which a single effect layer is "the frame". */
-const DOMINANT = 0.8;
-const HEAVY = 0.6;
-/** Face busyness ÷ frame busyness. Above 1 the subject is no calmer than the
- *  noisiest thing in the picture, which is not what a portrait looks like. */
-const FACE_VEILED = 1;
-const FACE_BUSY = 0.85;
+/**
+ * coverage × opacity × blend weight for a single effect layer above the
+ * subjects. 0.85 is past every shipped template (the heaviest is 0.70), so a
+ * layer at or above it is doing something no layout asked for; 0.75 is the
+ * space between the two, which is worth a word but not a veto.
+ */
+const DOMINANT = 0.85;
+const HEAVY = 0.75;
+/** Below this the face measurement is not even computed — nothing to explain. */
+const MEASURE_ABOVE = 0.6;
 
 export const fxDominanceGate: Gate = {
   id: 'fx-dominance',
@@ -82,7 +88,7 @@ export const fxDominanceGate: Gate = {
     const faces = ctx.subjects.filter((s) => s.faceRect);
     const w = Math.min(ANALYSIS_WIDTH, ctx.width);
     const h = Math.max(2, Math.round((w * ctx.height) / ctx.width));
-    if (faces.length && worst.strength >= HEAVY) {
+    if (faces.length && worst.strength >= MEASURE_ABOVE) {
       const gray = await loadGray(ctx.image, { width: w, height: h, background: ctx.plan.canvas.background });
       const mag = sobel(gray);
       const overall = edgeDensity(mag, w, h, undefined, EDGE_THRESHOLD);
@@ -99,21 +105,25 @@ export const fxDominanceGate: Gate = {
 
     const describe = `"${worst.layer.id}" covers ${(worst.coverage * 100).toFixed(0)}% of the canvas at ${(worst.layer.opacity * 100).toFixed(0)}% opacity in ${worst.layer.blend} above the subject layers`;
 
-    if (worst.strength >= DOMINANT && faceRatio !== null && faceRatio >= FACE_VEILED) {
+    const evidence = faceRatio === null
+      ? ''
+      : `; for reference the faces measure ${faceRatio.toFixed(2)}× the frame's edge density (reported, not decisive — see the note in this file)`;
+
+    if (worst.strength >= DOMINANT) {
       return [{
         gate: 'fx-dominance',
         severity: 'fail',
-        message: `The effects pass has taken over the frame: ${describe}, and the faces are ${faceRatio.toFixed(2)}× as busy as the frame average — the effect is being drawn across the subjects, not behind them`,
+        message: `The effects pass has taken over the frame: ${describe}. Nothing in the template library composites a front-of-subject effect above ${(HEAVY * 100).toFixed(0)}% strength, so this is a compositing mistake rather than a look${evidence}`,
         score: clamp01(0.1 + 0.3 * (1 - ramp(worst.strength, DOMINANT, 1))),
         suggestion: `Drop "${worst.layer.id}" below the subject layers, cut its opacity to ~0.3, or mask it off the faces. An effect at ${(worst.layer.opacity * 100).toFixed(0)}% over the whole canvas is not an accent, it is the picture — and it is the one thing in a thumbnail nobody came to look at.`,
       }];
     }
 
-    if (worst.strength >= DOMINANT || (worst.strength >= HEAVY && faceRatio !== null && faceRatio >= FACE_BUSY)) {
+    if (worst.strength >= HEAVY) {
       return [{
         gate: 'fx-dominance',
         severity: 'warn',
-        message: `Heavy effects veil: ${describe}${faceRatio === null ? ' (no face rects, so it could not be checked against the subjects)' : `, faces measuring ${faceRatio.toFixed(2)}× the frame's edge density`}`,
+        message: `Heavy effects veil: ${describe}${evidence}`,
         score: clamp01(0.4 + 0.4 * (1 - ramp(worst.strength, HEAVY, 1))),
         suggestion: `Halve the opacity of "${worst.layer.id}" or move it behind the subjects and see whether the frame loses anything. Atmosphere reads at 20–35%; past that it stops being depth and starts being a screen door.`,
       }];
@@ -132,7 +142,7 @@ export const fxDominanceGate: Gate = {
     return [{
       gate: 'fx-dominance',
       severity: 'pass',
-      message: `Effects stay in their place: heaviest is ${describe.replace(' above the subject layers', '')} (strength ${worst.strength.toFixed(2)})${faceRatio === null ? '' : `, faces ${faceRatio.toFixed(2)}× frame edge density`}`,
+      message: `Effects stay in their place: heaviest is ${describe.replace(' above the subject layers', '')} (strength ${worst.strength.toFixed(2)} against a ${HEAVY} bar)${faceRatio === null ? '' : `, faces ${faceRatio.toFixed(2)}× frame edge density`}`,
       score: clamp01(0.6 + 0.4 * (1 - ramp(worst.strength, 0.2, HEAVY))),
     }];
   },

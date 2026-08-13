@@ -310,10 +310,27 @@ function compact<T extends object>(o: T): T {
   return out as T;
 }
 
+/**
+ * Upper bound for any `--count`-shaped flag.
+ *
+ * `parseInt` is happy to return 1e9, and a negative or absurd count then
+ * travels several packages before something allocates against it. Catching it
+ * at the flag is where the error can still name the flag.
+ */
+const MAX_COUNT = 10_000;
+
 export function parseCount(value: string): number {
+  // `Number.parseInt` stops at the first non-digit, so "4abc" and "4e9" both
+  // parse as 4 — quietly doing something other than what was typed. Insist on
+  // digits so a typo is an error rather than a surprise.
+  if (!/^-?\d+$/.test(value.trim())) {
+    throw new HexaError('INVALID_REQUEST', `Expected a whole number, got "${value}"`, { hint: 'For example: --variants 4' });
+  }
   const n = Number.parseInt(value, 10);
-  if (!Number.isFinite(n)) {
-    throw new HexaError('INVALID_REQUEST', `Expected a number, got "${value}"`, { hint: 'For example: --variants 4' });
+  if (!Number.isFinite(n) || n < 0 || n > MAX_COUNT) {
+    throw new HexaError('INVALID_REQUEST', `Expected a whole number between 0 and ${MAX_COUNT}, got "${value}"`, {
+      hint: 'For example: --variants 4',
+    });
   }
   return n;
 }

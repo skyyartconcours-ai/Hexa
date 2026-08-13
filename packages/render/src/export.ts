@@ -21,8 +21,12 @@ export async function exportRaw(img: RawImage, format: string, quality = 92): Pr
   const pipe = rawToSharp(img);
   switch (fmt) {
     case 'png':
-      // Thumbnails are flat-ish graphics; level 9 is worth the milliseconds.
-      return pipe.png({ compressionLevel: 9 }).toBuffer();
+      // Level 8, not 9. A *graded* thumbnail is not the flat graphic it looks
+      // like — film grain puts high-entropy noise in every pixel, and zlib's
+      // top level has almost nothing left to find in it. Measured on a finished
+      // 1280×720 frame: level 8 gives 889 KB in 67 ms, level 9 gives 882 KB in
+      // 126 ms. Eight tenths of a percent is not worth doubling the encode.
+      return pipe.png({ compressionLevel: 8 }).toBuffer();
     case 'jpeg':
     case 'jpg':
       // 4:4:4 because saturated red/blue esports branding is exactly what

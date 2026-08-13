@@ -77,7 +77,7 @@ export async function ensureReadableDir(dir: string, what = 'directory'): Promis
   }
 
   if (!stat.isDirectory()) {
-    throw new HexaError('IO_ERROR', `${resolved} is a file, not a ${what}`, {
+    throw new HexaError('IO_ERROR', `${resolved} is a file — the ${what} must be a folder`, {
       hint: 'Point it at the folder that holds the images, not at one image.',
       details: { dir: resolved },
     });

@@ -20,6 +20,7 @@
 
 import { buildProgram, drainCommanderOutput, usageContext } from './program.js';
 import { EXIT_INTERRUPTED, EXIT_OK, EXIT_USAGE, describeError } from './exit.js';
+import { quenchLogs } from './context.js';
 import { sweepPartialOutputs } from './interrupt.js';
 import { createUi } from './ui/style.js';
 
@@ -96,6 +97,8 @@ function capitalise(s: string): string {
 }
 
 function reportError(error: unknown, argv: string[]): void {
+  // Concurrent stages may still be logging; the error is the last word.
+  quenchLogs();
   const jsonMode = argv.includes('--json');
   const ui = createUi(!jsonMode && process.stderr.isTTY === true && !argv.includes('--no-color') && !process.env['NO_COLOR']);
   const rendered = describeError(error);

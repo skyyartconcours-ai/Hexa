@@ -31,6 +31,7 @@
  * downsample that ran after it.
  */
 
+import { availableParallelism } from 'node:os';
 import {
   HexaError,
   log,
@@ -46,6 +47,17 @@ import { compositeLayer } from './blend.js';
 import { applyGradeRaw } from './grade.js';
 import { exportRaw, debugOverlaySvg } from './export.js';
 import { timed } from './profile.js';
+
+/**
+ * How many layers may be in preparation at once.
+ *
+ * Sized to the machine but capped: the work is a mix of libvips operations
+ * (already internally threaded) and single-threaded JavaScript pixel loops, so
+ * past a handful of slots the extra concurrency buys contention and resident
+ * memory rather than throughput. One slot restores the old strictly-sequential
+ * behaviour, and produces identical bytes.
+ */
+const LOOKAHEAD = Math.max(1, Math.min(4, availableParallelism()));
 
 export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Promise<RenderResult> {
   const started = performance.now();

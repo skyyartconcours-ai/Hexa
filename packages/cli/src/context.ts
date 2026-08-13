@@ -13,7 +13,7 @@ import type { LogLevel, Logger } from '@hexa/core';
 import { createDeps } from '@hexa/pipeline';
 import type { PipelineDeps } from '@hexa/pipeline';
 import { createUi, glyphs, type Ui } from './ui/style.js';
-import { createSpinner, type Spinner } from './ui/progress.js';
+import { clearActiveSpinner, createSpinner, type Spinner } from './ui/progress.js';
 
 export interface GlobalOptions {
   log?: LogLevel;
@@ -63,7 +63,7 @@ export function createContext(opts: GlobalOptions): CliContext {
   // In --json mode the logger would interleave with the document; silence it
   // unless the user explicitly asked for a level.
   const logLevel: LogLevel = opts.log ?? (json ? 'silent' : (process.env['HEXA_LOG'] as LogLevel | undefined) ?? 'info');
-  const logger = createLogger(logLevel, 'hexa', color);
+  const logger = spinnerAware(createLogger(logLevel, 'hexa', color));
 
   let depsPromise: Promise<PipelineDeps> | undefined;
 
@@ -89,11 +89,16 @@ export function createContext(opts: GlobalOptions): CliContext {
     },
 
     deps() {
+      // The pipeline builds its own logger, which decides on colour from
+      // `process.stdout.isTTY` alone — so `--no-color` and `NO_COLOR` would be
+      // honoured by everything the CLI prints and ignored by everything the
+      // pipeline prints. Handing it ours makes one decision hold for the whole
+      // process.
       depsPromise ??= createDeps({
         assetRoot: opts.assets,
         visionEndpoint: opts.vision,
         logLevel,
-      });
+      }).then((built) => ({ ...built, logger }));
       return depsPromise;
     },
 
@@ -106,6 +111,67 @@ export function createContext(opts: GlobalOptions): CliContext {
       return s;
     },
   };
+}
+
+/**
+ * Once the fatal error has been printed, nothing else may speak.
+ *
+ * Subjects are prepared concurrently, so one failing while another is still
+ * working means a warning about the *other* player lands underneath the error
+ * that ended the run — the last line on screen ends up being unrelated advice.
+ * The command is over; late log lines have nowhere useful to go.
+ */
+let quenched = false;
+
+export function quenchLogs(): void {
+  quenched = true;
+}
+
+/**
+ * A logger that gets out of the spinner's way.
+ *
+ * The pipeline logs from inside the render the spinner is animating, and both
+ * write to the same row: unwrapped, a placeholder warning arrives as
+ * `⠋ rendering Peyz…WARN [hexa:subject:0] No photographs of Peyz`. Blanking the
+ * line first costs one escape sequence and the spinner redraws on its next
+ * frame, 80ms later.
+ */
+function spinnerAware(inner: Logger): Logger {
+  const yieldLine = <A extends unknown[]>(fn: (...args: A) => void) => (...args: A): void => {
+    if (quenched) return;
+    clearActiveSpinner();
+    fn(...args);
+  };
+
+  const wrapped: Logger = {
+    level: inner.level,
+    error: yieldLine((m: string, meta?: unknown) => inner.error(m, meta)),
+    warn: yieldLine((m: string, meta?: unknown) => inner.warn(m, meta)),
+    info: yieldLine((m: string, meta?: unknown) => inner.info(m, meta)),
+    debug: yieldLine((m: string, meta?: unknown) => inner.debug(m, meta)),
+    trace: yieldLine((m: string, meta?: unknown) => inner.trace(m, meta)),
+
+    // `stage` writes its own timing line from inside the core logger, where the
+    // wrapper cannot reach it, so it is re-expressed here in terms of the
+    // methods that do clear the line. Same levels, same shape.
+    async stage<T>(name: string, fn: () => Promise<T>): Promise<T> {
+      const started = performance.now();
+      try {
+        const out = await fn();
+        wrapped.debug(`${name} ${(performance.now() - started).toFixed(0)}ms`);
+        return out;
+      } catch (error) {
+        wrapped.error(`${name} failed after ${(performance.now() - started).toFixed(0)}ms`);
+        throw error;
+      }
+    },
+
+    // Children are what the pipeline actually logs through, so the wrapper has
+    // to survive `logger.child('subject:0')`.
+    child: (prefix) => spinnerAware(inner.child(prefix)),
+  };
+
+  return wrapped;
 }
 
 /**

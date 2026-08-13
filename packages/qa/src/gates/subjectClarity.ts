@@ -72,17 +72,27 @@ export const subjectClarityGate: Gate = {
     const findings: QaFinding[] = [];
     const stats: FaceStat[] = [];
 
-    // Cell lumas of the frame, minus everything a face sits on, so a face is
-    // compared against its *background* rather than against other subjects.
+    // Cell lumas of the frame minus the subjects, so a face is compared against
+    // its *background* rather than against other subjects — or against its own
+    // body, which is the same tone as the face and would otherwise flood the
+    // sample and make every bust look "not the darkest thing here".
     const faceBoxes = faces.map((s) => toPixelRect(s.faceRect!, ctx.width, ctx.height));
-    const field = backgroundCells(gray, faceBoxes);
+    const field = backgroundCells(gray, faceBoxes.flatMap((f) => [f, bodyColumn(f, gray.height)]), faceBoxes);
 
     for (const subject of faces) {
       const px = clampToImage(toPixelRect(subject.faceRect!, ctx.width, ctx.height), gray.width, gray.height);
       const norm = toNormRect(subject.faceRect!, ctx.width, ctx.height);
       if (px.w < 2 || px.h < 2) continue;
 
-      const values = region(gray, px);
+      // Measured on the inner 70% of the face box. The corners of a detected
+      // face rect are background, and letting them in makes the "is there a
+      // highlight anywhere on this face" test answer with the backdrop.
+      const core = clampToImage(
+        { x: px.x + px.w * 0.15, y: px.y + px.h * 0.15, w: px.w * 0.7, h: px.h * 0.7 },
+        gray.width,
+        gray.height,
+      );
+      const values = region(gray, core.w >= 2 && core.h >= 2 ? core : px);
       const mean = values.reduce((a, b) => a + b, 0) / values.length;
       const p90 = percentile(values, 0.9);
       const ringValues = ringOf(gray, px);
@@ -172,14 +182,20 @@ export const subjectClarityGate: Gate = {
     }
 
     if (findings.length === 0) {
-      const best = stats.reduce((a, b) => (Math.abs(b.mean - b.ring) > Math.abs(a.mean - a.ring) ? b : a), stats[0]!);
+      // `stats` is empty when every face rect was degenerate (zero-area,
+      // off-canvas, sub-pixel). Nothing was measured, and the finding has to say
+      // that rather than reduce over an empty array and claim a clean bill.
+      const best = stats.length
+        ? stats.reduce((a, b) => (Math.abs(b.mean - b.ring) > Math.abs(a.mean - a.ring) ? b : a))
+        : null;
       findings.push({
         gate: 'subject-clarity',
-        severity: 'pass',
-        message: stats.length
+        severity: best ? 'pass' : 'warn',
+        message: best
           ? `Subjects sit clear of their background (${best.handle}: face ${best.mean.toFixed(0)}/255 against ${best.ring.toFixed(0)}/255 around it) and hold their structure at ${box.w}×${box.h}`
-          : `Subject clarity holds at ${box.w}×${box.h}`,
-        score: clamp01(0.6 + 0.4 * ramp(Math.abs(best.mean - best.ring) / 255, MIN_SEPARATION, 0.25)),
+          : `None of the ${faces.length} face rect${faces.length === 1 ? '' : 's'} landed on measurable pixels (zero-area, sub-pixel or off-canvas), so subject/background separation was NOT checked`,
+        score: best ? clamp01(0.6 + 0.4 * ramp(Math.abs(best.mean - best.ring) / 255, MIN_SEPARATION, 0.25)) : 0.4,
+        ...(best ? {} : { suggestion: 'Check the compositor is recording face rects in the same units and space as the canvas — a rect off the frame means nothing downstream of it was verified either.' }),
       });
     }
 
@@ -213,38 +229,65 @@ function ringOf(gray: GrayImage, r: { x: number; y: number; w: number; h: number
   return out;
 }
 
-/** Mean luma per cell of a 12×8 grid, dropping any cell a face overlaps. */
+/**
+ * Where the body attached to a face probably is: everything below the chin in a
+ * column a little wider than the shoulders. A rough shape on purpose — it exists
+ * to keep the subject out of the *background* sample, and being generous costs
+ * a few background cells while being mean would let the subject's own torso vote
+ * on how dark the background is.
+ */
+function bodyColumn(face: { x: number; y: number; w: number; h: number }, height: number): { x: number; y: number; w: number; h: number } {
+  const cx = face.x + face.w / 2;
+  const halfWidth = face.w * 1.2;
+  return { x: cx - halfWidth, y: face.y, w: halfWidth * 2, h: Math.max(1, height - face.y) };
+}
+
+/**
+ * Mean luma per cell of a 12×8 grid, dropping any cell the subjects touch.
+ *
+ * `exclude` is the generous subject estimate; `minimal` is just the face boxes.
+ * A hero crop can leave almost nothing outside the generous estimate, and a
+ * background sample of two cells says nothing — so when too little survives, the
+ * measurement falls back to excluding the faces alone rather than reporting a
+ * confident number drawn from noise.
+ */
 function backgroundCells(
   gray: GrayImage,
-  faces: { x: number; y: number; w: number; h: number }[],
+  exclude: { x: number; y: number; w: number; h: number }[],
+  minimal: { x: number; y: number; w: number; h: number }[],
 ): { x: number; y: number; luma: number }[] {
   const cols = 12;
   const rows = 8;
   const cw = gray.width / cols;
   const ch = gray.height / rows;
-  const out: { x: number; y: number; luma: number }[] = [];
 
-  for (let ry = 0; ry < rows; ry++) {
-    for (let rx = 0; rx < cols; rx++) {
-      const cell = clampToImage(
-        { x: rx * cw, y: ry * ch, w: Math.max(1, cw), h: Math.max(1, ch) },
-        gray.width,
-        gray.height,
-      );
-      if (cell.w <= 0 || cell.h <= 0) continue;
-      const overlapsFace = faces.some((f) =>
-        cell.x < f.x + f.w && cell.x + cell.w > f.x && cell.y < f.y + f.h && cell.y + cell.h > f.y,
-      );
-      if (overlapsFace) continue;
-      const values = region(gray, cell);
-      out.push({
-        x: (rx + 0.5) / cols,
-        y: (ry + 0.5) / rows,
-        luma: values.reduce((a, b) => a + b, 0) / values.length,
-      });
+  const sample = (blocked: { x: number; y: number; w: number; h: number }[]) => {
+    const out: { x: number; y: number; luma: number }[] = [];
+    for (let ry = 0; ry < rows; ry++) {
+      for (let rx = 0; rx < cols; rx++) {
+        const cell = clampToImage(
+          { x: rx * cw, y: ry * ch, w: Math.max(1, cw), h: Math.max(1, ch) },
+          gray.width,
+          gray.height,
+        );
+        if (cell.w <= 0 || cell.h <= 0) continue;
+        const hidden = blocked.some((f) =>
+          cell.x < f.x + f.w && cell.x + cell.w > f.x && cell.y < f.y + f.h && cell.y + cell.h > f.y,
+        );
+        if (hidden) continue;
+        const values = region(gray, cell);
+        out.push({
+          x: (rx + 0.5) / cols,
+          y: (ry + 0.5) / rows,
+          luma: values.reduce((a, b) => a + b, 0) / values.length,
+        });
+      }
     }
-  }
-  return out;
+    return out;
+  };
+
+  const strict = sample(exclude);
+  return strict.length >= 8 ? strict : sample(minimal);
 }
 
 /** Mean |Δ| between two rects, resampled onto a common 12×12 lattice. */

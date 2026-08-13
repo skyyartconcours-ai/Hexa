@@ -92,7 +92,7 @@ describe('ensureReadableDir', () => {
     const file = path.join(dir, 'photo.png');
     fs.writeFileSync(file, 'x');
     const { message } = await failure(() => ensureReadableDir(file));
-    expect(message).toMatch(/is a file, not a directory/);
+    expect(message).toMatch(/is a file — the directory must be a folder/);
   });
 });
 

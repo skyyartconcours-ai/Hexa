@@ -35,8 +35,11 @@ const MAX_SALIENT_REGIONS = 6;
  * the most negative-space layout in the library, which was warned for having "no
  * resting area" at 12% quiet while being 88% empty backdrop. Below this density
  * the frame *is* the resting area.
+ *
+ * Sits between the two renders in `out/smoke`: the minimal layout measures 0.094
+ * edge density at feed size, the busy versus render 0.161.
  */
-const CALM_DENSITY = 0.16;
+const CALM_DENSITY = 0.12;
 
 export function analysisGrid(width: number, height: number): { cols: number; rows: number } {
   return width >= height

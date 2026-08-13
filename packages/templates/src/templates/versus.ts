@@ -120,13 +120,28 @@ const versusClassic: ThumbnailTemplate = {
       // ends up with the mark's corners hanging over the edge, reading as two
       // shapes colliding rather than one device. The centre column is kept dark
       // by the colour blocks instead, which is what the mark actually needs.
+      // A broadcast lower-third rather than a slab of brand colour: a dark bar
+      // for the name to sit on, with a team-coloured rule along its top edge.
+      // The solid-colour version put the plate at the same value as the subject
+      // beside it, so the two fought; this way the white name is the brightest
+      // thing in the lower band and the colour still says whose name it is.
       shapeSlot('plate-left', { x: 0.045, y: 0.7, w: 0.315, h: 0.115 }, {
         z: Z.shape + 1,
-        meta: { shape: 'bar', fill: 'left', skew: 0.03 },
+        opacity: 0.88,
+        meta: { shape: 'bar', fill: 'dark', skew: 0.03 },
       }),
       shapeSlot('plate-right', { x: 0.64, y: 0.7, w: 0.315, h: 0.115 }, {
         z: Z.shape + 2,
-        meta: { shape: 'bar', fill: 'right', skew: -0.03 },
+        opacity: 0.88,
+        meta: { shape: 'bar', fill: 'dark', skew: -0.03 },
+      }),
+      shapeSlot('plate-rule-left', { x: 0.045, y: 0.693, w: 0.315, h: 0.009 }, {
+        z: Z.shape + 3,
+        meta: { shape: 'rule', fill: 'left' },
+      }),
+      shapeSlot('plate-rule-right', { x: 0.64, y: 0.693, w: 0.315, h: 0.009 }, {
+        z: Z.shape + 4,
+        meta: { shape: 'rule', fill: 'right' },
       }),
       textSlot('vs', { x: 0.435, y: 0.32, w: 0.13, h: 0.18 }, {
         z: Z.text,
