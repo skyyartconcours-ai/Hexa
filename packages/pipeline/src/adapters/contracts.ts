@@ -447,6 +447,10 @@ export interface TypeModule {
   ensureFonts(): Promise<unknown>;
   fontStack(family?: string): string;
   exactMeasurementAvailable?(): boolean;
+  /** Diagnostics — present in @hexa/type, used only by `hexa doctor`. */
+  registeredFonts?(): { family: string; path: string; weight?: number }[];
+  defaultFontDir?(): string;
+  WANTED_FAMILIES?: readonly string[];
 }
 
 export const TYPE_EXPORTS = [

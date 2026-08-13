@@ -101,7 +101,8 @@ export type { RimSpec } from './style.js';
 export { cacheKey, readCache, writeCache, clearCache, cacheSize, stampFile } from './cache.js';
 export type { CacheKeyInput } from './cache.js';
 
-export { imageSize, cropTo, hasAlpha, readFileSafe } from './image.js';
+export { imageSize, cropTo, hasAlpha, readFileSafe, sharpDiagnostics } from './image.js';
+export type { SharpDiagnostics } from './image.js';
 
 // ── integration surface ──────────────────────────────────────────────────────
 

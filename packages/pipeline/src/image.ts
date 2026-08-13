@@ -15,6 +15,46 @@ export interface ImageSize {
   height: number;
 }
 
+export interface SharpDiagnostics {
+  ok: boolean;
+  version?: string;
+  /** libvips version doing the actual work. */
+  vips?: string;
+  /** Output formats available — a build without webp/avif silently limits `-f`. */
+  formats: string[];
+  concurrency?: number;
+  error?: string;
+}
+
+/**
+ * Whether the compositor's image backend is usable, for `hexa doctor`.
+ *
+ * sharp is a native module, and the failure mode people actually hit is an
+ * install that resolved the wrong prebuilt binary for their platform. That
+ * throws on first use — deep inside a render — so it is worth asking up front.
+ */
+export async function sharpDiagnostics(): Promise<SharpDiagnostics> {
+  try {
+    const formats = Object.entries(sharp.format)
+      .filter(([, v]) => (v as { output?: { buffer?: boolean } }).output?.buffer)
+      .map(([k]) => k)
+      .sort();
+    // Round-trip a 1×1 image: proving the binary runs beats reading its version.
+    await sharp({ create: { width: 1, height: 1, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .png()
+      .toBuffer();
+    return {
+      ok: true,
+      version: sharp.versions?.sharp,
+      vips: sharp.versions?.vips,
+      formats,
+      concurrency: sharp.concurrency(),
+    };
+  } catch (e) {
+    return { ok: false, formats: [], error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /** Intrinsic size, or `undefined` when the bytes are not a decodable image. */
 export async function imageSize(image: Buffer): Promise<ImageSize | undefined> {
   try {

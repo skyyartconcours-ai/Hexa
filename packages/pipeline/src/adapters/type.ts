@@ -216,6 +216,58 @@ export async function fontStack(family?: string): Promise<string> {
   }
 }
 
+/**
+ * The state of the font stack, for `hexa doctor`.
+ *
+ * The distinction that matters: @hexa/type falls back to calibrated metrics for
+ * a family it cannot load, but the *rasteriser* substitutes a different face
+ * entirely. So text gets measured as one font and drawn as another, and long
+ * headlines overflow their box. A stack with fonts installed but not the *wanted*
+ * ones is therefore a real problem that "fonts: found" would hide.
+ */
+export interface FontDiagnostics {
+  ok: boolean;
+  /** Families @hexa/type could actually load. */
+  registered: string[];
+  /** Families the presets ask for. */
+  wanted: string[];
+  /** Wanted but not registered — these are the ones that will be substituted. */
+  missing: string[];
+  /** Where to put font files. */
+  directory?: string;
+  exactMeasurement: boolean;
+  error?: string;
+}
+
+export async function fontDiagnostics(): Promise<FontDiagnostics> {
+  try {
+    const m = await mod();
+    await m.ensureFonts();
+
+    const registered = [...new Set((m.registeredFonts?.() ?? []).map((f) => f.family))].sort();
+    const wanted = [...(m.WANTED_FAMILIES ?? [])];
+    const missing = wanted.filter((w) => !registered.some((r) => r.toLowerCase() === w.toLowerCase()));
+
+    return {
+      ok: missing.length === 0,
+      registered,
+      wanted,
+      missing,
+      directory: m.defaultFontDir?.(),
+      exactMeasurement: m.exactMeasurementAvailable?.() ?? false,
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      registered: [],
+      wanted: [],
+      missing: [],
+      exactMeasurement: false,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
 export async function presetNames(): Promise<string[]> {
   try {
     return Object.keys((await mod()).PRESETS ?? {}).sort();
