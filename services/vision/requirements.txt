@@ -1,0 +1,24 @@
+# Hexa vision sidecar — pinned to compatible ranges rather than exact hashes so
+# a fresh venv still resolves on Linux/macOS, arm64 and x86_64.
+#
+# Heavy: insightface (+onnxruntime) and rembg pull ~500MB of wheels and then
+# download ~350MB of model weights on first use. That is why the sidecar is
+# OPTIONAL — see README.md.
+
+fastapi>=0.115,<0.117
+uvicorn[standard]>=0.32,<0.35
+pydantic>=2.9,<3
+
+numpy>=1.26,<2.0            # insightface 0.7.3 is built against the 1.x ABI
+opencv-python-headless>=4.10,<4.12
+pillow>=10.4,<12
+
+insightface==0.7.3          # provides the buffalo_l bundle: SCRFD detector,
+                            # 2d106/3d68 landmarks (head pose) and ArcFace r100
+onnxruntime>=1.19,<2        # swap for onnxruntime-gpu if HEXA_VISION_DEVICE=cuda
+
+rembg>=2.0.57,<2.1          # isnet-general-use / u2net background removal
+pymatting>=1.1.12           # closed-form alpha matting behind rembg's
+                            # alpha_matting=True — this is what makes hair edges
+                            # survive compositing
+scipy>=1.11                 # pymatting solver dependency

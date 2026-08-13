@@ -1,0 +1,35 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Rendered output
+out/
+output/
+preview/
+*.local.png
+
+# Asset library — reference photography is licensed material and is never
+# committed. The manifest schema lives in code; the photos live on your disk.
+assets/library/**
+!assets/library/.gitkeep
+!assets/library/README.md
+
+# Fonts are SIL OFL but deliberately not vendored — see assets/fonts/README.md
+assets/fonts/*
+!assets/fonts/README.md
+!assets/fonts/.gitkeep
+
+# Caches
+.hexa-cache/
+.cache/
+services/vision/.venv/
+services/vision/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Env
+.env
+.env.*
+!.env.example
+
+.DS_Store

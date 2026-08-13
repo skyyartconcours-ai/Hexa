@@ -1,0 +1,25 @@
+{
+  "name": "hexa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hexa — cinematic esports thumbnail engine with identity-locked player likeness",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' run build",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "hexa": "node packages/cli/dist/bin.js",
+    "studio": "pnpm --filter @hexa/studio dev",
+    "clean": "rm -rf packages/*/dist apps/*/dist node_modules/.cache"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
