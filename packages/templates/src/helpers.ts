@@ -99,7 +99,11 @@ export type BuiltinLut = (typeof BUILTIN_LUTS)[number];
 
 // ── Slot factories ───────────────────────────────────────────────────────────
 
-/** Head-and-shoulders subject. Defaults to a bust crop with natural headroom. */
+/**
+ * Head-and-shoulders subject. The engine-wide focal default is (0.5, 0.38);
+ * a bust crop wants the eyeline higher than that, so this factory starts at
+ * (0.5, 0.32) and most templates tighten it further.
+ */
 export function bustSlot(id: string, rect: Rect, opts: Partial<Slot> = {}): Slot {
   return {
     id,
@@ -329,10 +333,6 @@ export function diagonalGuide(lean = 0.14): { kind: 'diagonal'; points: Vec2[] }
 }
 
 // ── Misc ─────────────────────────────────────────────────────────────────────
-
-export function rect(x: number, y: number, w: number, h: number): Rect {
-  return { x, y, w, h };
-}
 
 /** Mirror a rect about the vertical centre line — keeps versus layouts honest. */
 export function mirrorX(r: Rect): Rect {

@@ -7,10 +7,11 @@
  * value you can diff, snapshot and remix. The pipeline package is what turns
  * one of these plus a cast of subjects into a RenderPlan.
  *
- *   import { requireTemplate, resolveLayout, sampleContextFor } from '@hexa/templates';
+ *   import { requireTemplate, resolveLayout, resolveStyle } from '@hexa/templates';
  *
  *   const t = requireTemplate('versus-classic');
- *   const layout = resolveLayout(t, ctx);
+ *   const layout = resolveLayout(t, ctx);   // geometry, resolved for this cast
+ *   const style = resolveStyle(t, ctx);     // light, atmosphere, grade
  */
 
 export {

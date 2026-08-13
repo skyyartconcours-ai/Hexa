@@ -97,12 +97,29 @@ export function applyLutRaw(img: RawImage, lut: Lut3D, strength: number): RawIma
   const k = clamp(strength, 0, 1);
   if (k === 0) return img;
   const out = Buffer.from(img.data);
+  // Frames are full of flat regions (gradients, plates, letterbox), so a
+  // one-entry memo on the previous input colour skips most of the 24 lattice
+  // fetches per pixel. Exact, not an approximation: the key is the full RGB.
+  let lastKey = -1;
+  let lastR = 0;
+  let lastG = 0;
+  let lastB = 0;
   for (let p = 0; p < out.length; p += 4) {
     if (out[p + 3] === 0) continue;
-    const [r, g, b] = sampleLut(lut, out[p]! / 255, out[p + 1]! / 255, out[p + 2]! / 255);
-    out[p] = Math.round(clamp(out[p]! + (r * 255 - out[p]!) * k, 0, 255));
-    out[p + 1] = Math.round(clamp(out[p + 1]! + (g * 255 - out[p + 1]!) * k, 0, 255));
-    out[p + 2] = Math.round(clamp(out[p + 2]! + (b * 255 - out[p + 2]!) * k, 0, 255));
+    const sr = out[p]!;
+    const sg = out[p + 1]!;
+    const sb = out[p + 2]!;
+    const key = (sr << 16) | (sg << 8) | sb;
+    if (key !== lastKey) {
+      const [r, g, b] = sampleLut(lut, sr / 255, sg / 255, sb / 255);
+      lastKey = key;
+      lastR = Math.round(clamp(sr + (r * 255 - sr) * k, 0, 255));
+      lastG = Math.round(clamp(sg + (g * 255 - sg) * k, 0, 255));
+      lastB = Math.round(clamp(sb + (b * 255 - sb) * k, 0, 255));
+    }
+    out[p] = lastR;
+    out[p + 1] = lastG;
+    out[p + 2] = lastB;
   }
   return { data: out, width: img.width, height: img.height, channels: 4 };
 }

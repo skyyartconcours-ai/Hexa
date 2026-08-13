@@ -91,6 +91,7 @@ export async function generateThumbnail(
       palette,
       canvas,
       seed: request.seed,
+      subjectCount: subjects.length,
       background: request.background,
       provider: resolved.aiProvider,
       logger: log,
@@ -173,7 +174,7 @@ export async function generateThumbnail(
     throw noVariantsError(rejected, warnings);
   }
 
-  const bestIndex = await qaAdapter.pickBest(variants.map((v) => ({ qa: v.qa, appeal: v.appeal })));
+  const bestIndex = await qaAdapter.pickBest(variants);
 
   const contactSheetPath = request.output.contactSheet
     ? await emitContactSheet({ images, labels, dir: outputDir, name: request.output.name, logger: log })

@@ -28,10 +28,16 @@ async function mod(): Promise<AssetsModule> {
   return loadModule<AssetsModule>(SPEC, { needs: ASSETS_EXPORTS, hint: HINT });
 }
 
-/** Open a library rooted at `root`, creating an empty manifest if there is none. */
-export async function openLibrary(root: string, opts: { create?: boolean } = { create: true }): Promise<AssetLibrary> {
+/**
+ * Open a library rooted at `root`.
+ *
+ * `open` creates the directory and an empty manifest when there is none, which
+ * is what makes `hexa gen` work on a machine that has never seen the tool: the
+ * first run gets placeholders and a warning rather than a missing-file error.
+ */
+export async function openLibrary(root: string): Promise<AssetLibrary> {
   const m = await mod();
-  return m.AssetLibrary.open(root, opts);
+  return m.AssetLibrary.open(root);
 }
 
 /** Best asset for a slot, or `undefined` when the library has nothing suitable. */

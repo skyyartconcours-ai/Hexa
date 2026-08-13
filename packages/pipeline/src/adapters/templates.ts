@@ -60,7 +60,7 @@ export async function getTemplate(id: string): Promise<ThumbnailTemplate | undef
   return (await mod()).getTemplate(id);
 }
 
-export async function listTemplates(filter?: { category?: string; aspect?: AspectPreset; tag?: string }): Promise<ThumbnailTemplate[]> {
+export async function listTemplates(filter?: { category?: string; aspect?: AspectPreset; tags?: string[] }): Promise<ThumbnailTemplate[]> {
   const m = await mod();
   return m.listTemplates(filter) ?? [...m.TEMPLATES];
 }
@@ -69,9 +69,12 @@ export async function templatesForSubjectCount(count: number): Promise<Thumbnail
   return (await mod()).templatesForSubjectCount(count);
 }
 
-export async function suggestTemplates(input: { subjects?: number; category?: string; text?: string; aspect?: AspectPreset }): Promise<ThumbnailTemplate[]> {
+export async function suggestTemplates(
+  input: { subjects: number; mood?: string; category?: string; aspect?: AspectPreset },
+  limit?: number,
+): Promise<ThumbnailTemplate[]> {
   try {
-    return (await mod()).suggestTemplates(input) ?? [];
+    return (await mod()).suggestTemplates(input, limit) ?? [];
   } catch {
     return [];
   }
@@ -118,9 +121,16 @@ export async function canvasFor(aspect: AspectPreset): Promise<CanvasSize> {
   return FALLBACK_ASPECT_SIZES[aspect] ?? FALLBACK_ASPECT_SIZES.youtube;
 }
 
+/**
+ * Check one template for integrity.
+ *
+ * The sibling returns a bare list of problems (`[]` means sound); this widens it
+ * into a verdict, because the CLI wants to print "valid" as well as the list.
+ */
 export async function validateTemplate(template: ThumbnailTemplate): Promise<TemplateValidation> {
   try {
-    return (await mod()).validateTemplate(template);
+    const problems = (await mod()).validateTemplate(template) ?? [];
+    return { valid: problems.length === 0, errors: problems, warnings: [] };
   } catch (e) {
     return { valid: false, errors: [e instanceof Error ? e.message : String(e)], warnings: [] };
   }

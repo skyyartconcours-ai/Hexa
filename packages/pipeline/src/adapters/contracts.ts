@@ -22,8 +22,17 @@
  *    package to satisfy, not easier.
  */
 
+/**
+ * An export the pipeline requires to *exist* — `hexa doctor` checks for it, and
+ * its absence means the sibling is half-built — but never calls. Declaring the
+ * signature we do not depend on would be inventing a contract we cannot honour;
+ * this accepts any function shape without asserting one.
+ */
+type UncalledExport = (...args: never[]) => unknown;
+
 import type {
   AspectPreset,
+  Logger,
   AssetKind,
   AssetMetrics,
   AssetQuery,
@@ -88,22 +97,20 @@ export const DATA_EXPORTS = [
 
 export interface LibraryStats {
   total: number;
-  cleared: number;
+  byPlayer: Record<string, number>;
   byKind: Record<string, number>;
-  byLicense: Record<string, number>;
-  players: number;
-  teams: number;
-  bytes: number;
+  /** Publish-grade: cleared by a human *and* carrying a known licence. */
+  cleared: number;
+  uncleared: number;
 }
 
 export interface CoverageReport {
   playerId: string;
-  handle: string;
-  total: number;
-  usable: number;
+  count: number;
   cleared: number;
-  missingKinds: AssetKind[];
   bestQuality: number;
+  /** Machine-readable gap slugs — see @hexa/assets' `COVERAGE_*` constants. */
+  gaps: string[];
 }
 
 export interface AssetLibrary {
@@ -133,31 +140,42 @@ export interface PlaceholderOptions {
   kind?: AssetKind;
 }
 
-/** Licence fields every ingested asset inherits. */
+/**
+ * What every ingested asset inherits.
+ *
+ * `source` and `license` are required together: @hexa/assets refuses to record a
+ * photograph whose provenance nobody stated, which is what keeps the licence
+ * gate meaningful rather than a field everyone leaves blank.
+ */
 export interface IngestDefaults {
   playerId?: string;
   teamId?: string;
   kind?: AssetKind;
-  license?: ReferenceAsset['provenance']['license'];
-  source?: string;
+  source: string;
+  license: ReferenceAsset['provenance']['license'];
   credit?: string;
   photographer?: string;
   cleared?: boolean;
   copy?: boolean;
   recursive?: boolean;
   tags?: string[];
+  onProgress?: (p: { file: string; index: number; total: number }) => void;
 }
 
 export interface IngestResult {
   added: ReferenceAsset[];
-  skipped: { file: string; reason: string }[];
-  failed: { file: string; error: string }[];
+  /** Everything not added, with a reason: duplicate, unsupported, unreadable. */
+  skipped: { path: string; reason: string }[];
+  /** The duplicate subset of `skipped`, pre-split for reporting. */
+  duplicates: { path: string; existingId: string; distance: number }[];
+  /** The failure subset of `skipped`, pre-split for reporting. */
+  errors: { path: string; message: string }[];
 }
 
 export interface AssetsModule {
   AssetLibrary: {
-    open(root: string, opts?: { create?: boolean }): Promise<AssetLibrary>;
-    new (root: string, opts?: { create?: boolean }): AssetLibrary;
+    open(root: string, opts?: { logger?: Logger }): Promise<AssetLibrary>;
+    new (root: string, opts?: { logger?: Logger }): AssetLibrary;
   };
   scoreAsset(asset: ReferenceAsset, query?: AssetQuery): number;
   rankAssets(assets: ReferenceAsset[], query?: AssetQuery): ReferenceAsset[];
@@ -278,11 +296,6 @@ export interface FitSubjectInput {
   contentBox?: PixelRect;
 }
 
-export interface CompositionScore {
-  score: number;
-  findings: { message: string; severity?: string }[];
-}
-
 export interface LayoutModule {
   resolveLayout(layout: LayoutSpec, width: number, height: number): ResolvedLayout;
   adaptLayout(layout: LayoutSpec, targetAspect: number): LayoutSpec;
@@ -291,14 +304,19 @@ export interface LayoutModule {
   alphaContentBox(alpha: Uint8Array, width: number, height: number, threshold?: number): PixelRect | null;
   bustCrop(image: { width: number; height: number }, faceBox: FaceBox, landmarks?: FaceLandmarks, opts?: { headroom?: number; shoulderRatio?: number }): PixelRect;
   facingFromLandmarks(landmarks?: FaceLandmarks): 'left' | 'right' | 'front' | undefined;
-  scoreComposition(input: unknown): CompositionScore;
-  checkSafeZones(input: unknown): unknown;
-  resolveOverlaps(input: unknown): unknown;
   safeZonesFor(aspect: AspectPreset | number): SafeZone[];
   YOUTUBE_SAFE_ZONES: readonly SafeZone[];
   SHORTS_SAFE_ZONES: readonly SafeZone[];
-  makeGrid(opts: unknown): unknown;
-  diagonalSplit(opts: unknown): unknown;
+
+  // Present and checked at load time, but never called from the pipeline — the
+  // template package composes with these, not the compiler. `(...args: never[])`
+  // is the honest declaration for "some function whose shape we do not rely on":
+  // it accepts any arity without asserting one we might get wrong.
+  scoreComposition: UncalledExport;
+  checkSafeZones: UncalledExport;
+  resolveOverlaps: UncalledExport;
+  makeGrid: UncalledExport;
+  diagonalSplit: UncalledExport;
 }
 
 export const LAYOUT_EXPORTS = [
@@ -327,7 +345,7 @@ export interface RenderModule {
     opts?: { cols?: number; width?: number; background?: string },
   ): Promise<Buffer>;
   generators: Record<string, unknown>;
-  registerGenerator(gen: unknown): void;
+  registerGenerator: UncalledExport;
   BUILTIN_LUTS: Record<string, unknown>;
   /** Takes interleaved RGBA, not an encoded image. */
   alphaBounds(rgba: Buffer, width: number, height: number, threshold?: number): PixelRect | null;
@@ -415,17 +433,17 @@ export type PresetName =
   | 'team-tag' | 'vs-mark' | 'stat-value' | 'stat-label' | 'rank-number' | 'date-badge';
 
 export interface TypeModule {
-  renderText(input: LayoutTextInput): LaidOutText;
+  renderText: UncalledExport;
   autoFit(input: LayoutTextInput, opts?: { min?: number; max?: number; steps?: number }): LaidOutText;
-  measureText(text: string, style: TextStyle): { width: number; height: number };
-  wrapText(text: string, style: TextStyle, width: number): string[];
+  measureText: UncalledExport;
+  wrapText: UncalledExport;
   versusMark(opts: VersusMarkOptions): Mark;
-  nameplate(opts: unknown): Mark;
-  statBadge(opts: unknown): Mark;
+  nameplate: UncalledExport;
+  statBadge: UncalledExport;
   PRESETS: Record<string, TextStyle>;
   preset(name: PresetName, overrides?: Partial<TextStyle>): TextStyle;
-  legibilityScore(input: unknown): number;
-  registerFont(input: unknown): unknown;
+  legibilityScore: UncalledExport;
+  registerFont: UncalledExport;
   ensureFonts(): Promise<unknown>;
   fontStack(family?: string): string;
   exactMeasurementAvailable?(): boolean;
@@ -443,6 +461,11 @@ export interface CanvasSize {
   height: number;
 }
 
+/**
+ * @hexa/templates returns a bare list of problems — `[]` means the template is
+ * sound. The adapter widens that into a verdict object for the CLI, which wants
+ * to print "valid" as well as "here is what is wrong".
+ */
 export interface TemplateValidation {
   valid: boolean;
   errors: string[];
@@ -453,18 +476,21 @@ export interface TemplatesModule {
   TEMPLATES: readonly ThumbnailTemplate[];
   getTemplate(id: string): ThumbnailTemplate | undefined;
   requireTemplate(id: string): ThumbnailTemplate;
-  listTemplates(filter?: { category?: string; aspect?: AspectPreset; tag?: string }): ThumbnailTemplate[];
+  listTemplates(filter?: { category?: string; aspect?: AspectPreset; tags?: string[] }): ThumbnailTemplate[];
   templatesForSubjectCount(count: number): ThumbnailTemplate[];
-  suggestTemplates(input: unknown): ThumbnailTemplate[];
+  suggestTemplates(input: { subjects: number; mood?: string; category?: string; aspect?: AspectPreset }, limit?: number): ThumbnailTemplate[];
   /** Template → LayoutSpec. Renamed on import to avoid @hexa/layout's clash. */
   resolveLayout(template: ThumbnailTemplate, ctx: TemplateContext): LayoutSpec;
   resolveStyle(template: ThumbnailTemplate, ctx: TemplateContext): StyleSpec;
-  validateTemplate(template: ThumbnailTemplate): TemplateValidation;
-  ASPECT_SIZES: Record<string, CanvasSize>;
-  bustSlot(input: unknown): Slot;
-  textSlot(input: unknown): Slot;
-  fxSlot(input: unknown): Slot;
-  gridSlots(input: unknown): Slot[];
+  /** Returns the problems found; an empty array means the template is sound. */
+  validateTemplate(template: ThumbnailTemplate): string[];
+  ASPECT_SIZES: Record<AspectPreset, CanvasSize>;
+  // Slot builders are for template authors; the compiler consumes finished
+  // layouts. Checked for presence, never called from here.
+  bustSlot: UncalledExport;
+  textSlot: UncalledExport;
+  fxSlot: UncalledExport;
+  gridSlots: UncalledExport;
 }
 
 export const TEMPLATES_EXPORTS = [
@@ -530,12 +556,12 @@ export interface ProviderStatus {
 
 export interface AiModule {
   generateBackplate(req: BackplateRouteRequest): Promise<GeneratedImage>;
-  identityGuidedEdit(req: unknown): Promise<GeneratedImage>;
+  identityGuidedEdit: UncalledExport;
   buildBackplatePrompt(input: BackplatePromptInput): { prompt: string; negativePrompt: string };
-  resolveProvider(opts?: { prefer?: string }): unknown;
+  resolveProvider: UncalledExport;
   listProviders(): { id: string }[];
   providerStatus(): ProviderStatus[];
-  registerProvider(provider: unknown): void;
+  registerProvider: UncalledExport;
   /** Throws when a prompt asks for a person. Runs before every backplate. */
   assertNoPersonGeneration(prompt: string): void;
   isBackplateStyle(v: string): boolean;
@@ -605,8 +631,8 @@ export interface AppealResult {
 }
 
 export interface DisplaySize {
-  width: number;
-  height: number;
+  w: number;
+  h: number;
   label: string;
 }
 
@@ -614,10 +640,10 @@ export interface QaModule {
   runGates(ctx: GateContext, opts?: { only?: string[]; skip?: string[] }): Promise<QaReport>;
   GATES: readonly { id: string; weight: number; description: string }[];
   scoreAppeal(ctx: AppealContext): Promise<AppealResult>;
-  rankVariants(variants: ThumbnailVariant[]): ThumbnailVariant[];
+  rankVariants: UncalledExport;
   /** Index into `variants` of the best one. -1 when empty. */
   pickBest(variants: ThumbnailVariant[]): number;
-  simulateSizes(image: Buffer, sizes?: DisplaySize[]): Promise<unknown[]>;
+  simulateSizes: UncalledExport;
   proofSheet(image: Buffer, opts?: { background?: string }): Promise<Buffer>;
   summarise(report: QaReport): string;
   dHash(image: Buffer): Promise<string>;

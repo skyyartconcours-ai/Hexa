@@ -174,12 +174,16 @@ const PAINTERS: Record<BackplateStyle, Painter> = {
         // The LED wall behind the stage — the brightest surface in the room, and
         // the thing a cut-out subject will actually read against.
         {
-          svg: glowSvg(size, [
-            { cx: 0.5, cy: deck - 0.2, rx: 0.4, ry: 0.26, colour: pal.primary, alpha: 1 },
-            { cx: 0.5, cy: deck - 0.18, rx: 0.17, ry: 0.13, colour: pal.light, alpha: 0.8 },
-          ]),
+          svg:
+            `<rect x="${(0.16 * size.width).toFixed(1)}" y="${((deck - 0.36) * size.height).toFixed(1)}" ` +
+            `width="${(0.68 * size.width).toFixed(1)}" height="${(0.32 * size.height).toFixed(1)}" ` +
+            `fill="${a(pal.primary, 0.85)}"/>` +
+            `<rect x="${(0.16 * size.width).toFixed(1)}" y="${((deck - 0.05) * size.height).toFixed(1)}" ` +
+            `width="${(0.68 * size.width).toFixed(1)}" height="${(0.012 * size.height).toFixed(1)}" ` +
+            `fill="${a(pal.light, 0.9)}"/>` +
+            glowSvg(size, [{ cx: 0.5, cy: deck - 0.2, rx: 0.42, ry: 0.28, colour: pal.primary, alpha: 0.9 }]),
           blend: 'screen',
-          glow: { sigma: 9, downscale: 3 },
+          glow: { sigma: 7, downscale: 3 },
         },
         // Two side towers gelled to the opposing brand colour: the whole point
         // of a versus plate is that the two halves are lit differently.
@@ -222,11 +226,11 @@ const PAINTERS: Record<BackplateStyle, Painter> = {
             count: 10,
             originY: rig + 0.04,
             colours: [pal.accent, pal.light, pal.primary, pal.secondary],
-            alpha: 0.75,
+            alpha: 1,
             spread: 0.22,
           }),
           blend: 'screen',
-          glow: { sigma: 6, downscale: 3 },
+          glow: { sigma: 4, downscale: 2 },
         },
         // Stage deck: the floor grid, the lit lip, and the glow it throws forward.
         {
@@ -398,11 +402,12 @@ const PAINTERS: Record<BackplateStyle, Painter> = {
         // The corridor's blown-out vanishing point.
         {
           svg: glowSvg(size, [
-            { cx: 0.5, cy: horizon, rx: 0.5, ry: 0.44, colour: pal.primary, alpha: 0.9 },
-            { cx: 0.5, cy: horizon, rx: 0.16, ry: 0.14, colour: pal.light, alpha: 1 },
+            { cx: 0.5, cy: horizon, rx: 0.46, ry: 0.4, colour: pal.primary, alpha: 1 },
+            { cx: 0.5, cy: horizon, rx: 0.2, ry: 0.17, colour: pal.accent, alpha: 1 },
+            { cx: 0.5, cy: horizon, rx: 0.075, ry: 0.065, colour: '#FFFFFF', alpha: 1 },
           ]),
           blend: 'screen',
-          glow: { sigma: 14, downscale: 3 },
+          glow: { sigma: 9, downscale: 3 },
         },
         // Rack walls: dark blocks flanking the corridor, so it reads as an
         // interior rather than a glow on a gradient.
@@ -657,15 +662,15 @@ const PAINTERS: Record<BackplateStyle, Painter> = {
       layers: [
         // One big soft key, deliberately off-centre.
         {
-          svg: glowSvg(size, [{ cx: 0.44, cy: 0.42, rx: 0.52, ry: 0.5, colour: pal.light, alpha: 0.75 }]),
+          svg: glowSvg(size, [{ cx: 0.46, cy: 0.4, rx: 0.44, ry: 0.42, colour: pal.light, alpha: 0.9 }]),
           blend: 'screen',
-          glow: { sigma: 28, downscale: 5 },
+          glow: { sigma: 18, downscale: 4 },
         },
         // Two gridded accents gelled to the brand colours, hard against the edges.
         {
           svg: glowSvg(size, [
-            { cx: 0.0, cy: 0.52, rx: 0.26, ry: 0.46, colour: pal.primary, alpha: 1 },
-            { cx: 1.0, cy: 0.36, rx: 0.24, ry: 0.42, colour: pal.secondary, alpha: 1 },
+            { cx: 0.12, cy: 0.54, rx: 0.3, ry: 0.5, colour: pal.primary, alpha: 1 },
+            { cx: 0.88, cy: 0.34, rx: 0.28, ry: 0.46, colour: pal.secondary, alpha: 1 },
           ]),
           blend: 'screen',
           glow: { sigma: 12, downscale: 3 },
@@ -674,10 +679,10 @@ const PAINTERS: Record<BackplateStyle, Painter> = {
         // thing that tells you this is a room and not a gradient.
         {
           svg:
-            `<rect x="0" y="${(sweep * size.height).toFixed(1)}" width="${size.width}" height="${(0.06 * size.height).toFixed(1)}" fill="${a(shade(pal.deep, -0.04), 0.65)}"/>` +
+            `<rect x="0" y="${(sweep * size.height).toFixed(1)}" width="${size.width}" height="${(0.09 * size.height).toFixed(1)}" fill="${a(shade(pal.deep, -0.05), 0.8)}"/>` +
             `<rect x="0" y="${(sweep * size.height).toFixed(1)}" width="${size.width}" height="${(0.004 * size.height).toFixed(1)}" fill="${a(pal.light, 0.3)}"/>`,
           blend: 'over',
-          glow: { sigma: 9, downscale: 3 },
+          glow: { sigma: 4, downscale: 2 },
         },
         // Floor sheen directly under the key.
         {
@@ -778,11 +783,12 @@ const PAINTERS: Record<BackplateStyle, Painter> = {
         // Backlight behind the plane — what the shard edges catch.
         {
           svg: glowSvg(size, [
-            { cx: 0.68, cy: 0.62, rx: 0.48, ry: 0.46, colour: pal.primary, alpha: 1 },
-            { cx: impact.x, cy: impact.y, rx: 0.22, ry: 0.22, colour: pal.accent, alpha: 0.9 },
+            { cx: 0.68, cy: 0.62, rx: 0.5, ry: 0.48, colour: pal.primary, alpha: 1 },
+            { cx: 0.68, cy: 0.62, rx: 0.16, ry: 0.15, colour: pal.light, alpha: 0.7 },
+            { cx: impact.x, cy: impact.y, rx: 0.24, ry: 0.24, colour: pal.accent, alpha: 1 },
           ]),
           blend: 'screen',
-          glow: { sigma: 20, downscale: 4 },
+          glow: { sigma: 14, downscale: 3 },
         },
         // The fracture plane: bright edges are what read as glass.
         {
@@ -864,9 +870,21 @@ const PAINTERS: Record<BackplateStyle, Painter> = {
       },
       // Thin wisps peeling off, sharper than the body.
       {
-        svg: smokeSvg(size, rng.fork(2), { count: 24, colours: [pal.light], alpha: 0.13, clearCentre: 0.36 }),
+        svg: smokeSvg(size, rng.fork(2), { count: 26, colours: [pal.light], alpha: 0.2, clearCentre: 0.36 }),
         blend: 'screen',
-        glow: { sigma: 7, downscale: 3 },
+        glow: { sigma: 5, downscale: 2 },
+      },
+      // A dark near column at each edge: without one hard edge, layered smoke
+      // reads as a flat wash rather than a volume.
+      {
+        svg: smokeSvg(size, rng.fork(3), {
+          count: 14,
+          colours: [shade(pal.deep, -0.07)],
+          alpha: 0.55,
+          clearCentre: 0.52,
+        }),
+        blend: 'over',
+        glow: { sigma: 16, downscale: 4 },
       },
       { svg: subjectClearanceSvg(size, subjects, 0.2), blend: 'over' },
     ],
@@ -991,7 +1009,7 @@ function rackWallsSvg(size: Size, horizon: number, colour: string): string {
   return (
     `<polygon points="0,0 ${inset.toFixed(1)},${(hy - 0.1 * h).toFixed(1)} ${inset.toFixed(1)},${(hy + 0.12 * h).toFixed(1)} 0,${h}" fill="${a(colour, 0.92)}"/>` +
     `<polygon points="${w},0 ${(w - inset).toFixed(1)},${(hy - 0.1 * h).toFixed(1)} ${(w - inset).toFixed(1)},${(hy + 0.12 * h).toFixed(1)} ${w},${h}" fill="${a(colour, 0.92)}"/>` +
-    `<rect x="0" y="0" width="${w}" height="${(hy - 0.26 * h).toFixed(1)}" fill="${a(colour, 0.55)}"/>`
+    `<rect x="0" y="0" width="${w}" height="${(hy - 0.34 * h).toFixed(1)}" fill="${a(colour, 0.3)}"/>`
   );
 }
 

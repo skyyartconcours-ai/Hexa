@@ -2,21 +2,30 @@
  * Stage 8 — QA.
  *
  * The gates are what turn the identity promise into a guarantee. The pipeline
- * does not trust itself: it crops the face out of the *finished* render, embeds
- * it, and compares it against the player's reference gallery. If it does not
- * match, the render fails and the retry reaches for a different photograph.
+ * does not trust itself: the gates crop the face out of the *finished* render,
+ * embed it, and compare it against the player's reference gallery. If it does
+ * not match, the render fails and the retry reaches for a different photograph.
  *
- * Building the reference gallery is this file's other job. The gallery is every
- * embedding the library holds for that player — *excluding* the asset actually
- * composited, where that leaves anything behind. Verifying a face against the
- * photograph it was cut from is close to a tautology; verifying it against the
- * player's other photographs is a real check that the composite still reads as
- * them after cropping, grading, rim lighting and downscaling.
+ * Two jobs here.
+ *
+ * **Assembling what the gates need.** They want each subject with the face rect
+ * it occupies *in the render* and the embeddings it may be compared against —
+ * both of which the compiler recorded into `plan.meta`. Pulling them back out
+ * happens here rather than in the adapter, because it is pipeline knowledge:
+ * only this package knows that `meta.faceRects` and `meta.textRects` exist.
+ *
+ * **Building the reference gallery.** The gallery is every embedding the library
+ * holds for that player, *excluding* the asset actually composited wherever that
+ * leaves anything behind. Verifying a face against the photograph it was cut
+ * from is close to a tautology; verifying it against the player's *other*
+ * photographs is a real check that the composite still reads as them after
+ * cropping, grading, rim lighting and downscaling.
  */
 
 import type { Logger, PlayerId, QaReport, QaRequest, ReferenceAsset, RenderPlan } from '@hexa/core';
 import * as qa from '../adapters/qa.js';
-import type { AssetLibrary, VisionClient } from '../adapters/contracts.js';
+import type { AssetLibrary, GateSubject, GateTextRect, QaRect, VisionClient, VisionPort } from '../adapters/contracts.js';
+import type { FaceRectRecord, TextRectRecord } from './compile.js';
 import type { PreparedSubject } from '../types.js';
 
 export interface QaStageOptions {
@@ -27,6 +36,8 @@ export interface QaStageOptions {
   vision: VisionClient;
   request?: QaRequest;
   logger: Logger;
+  only?: string[];
+  skip?: string[];
 }
 
 export interface QaStageResult {
@@ -39,24 +50,38 @@ export interface QaStageResult {
 
 export async function runQaStage(opts: QaStageOptions): Promise<QaStageResult> {
   const warnings: string[] = [];
-  const references = buildReferenceGallery(opts.subjects, opts.library, warnings);
+  const gallery = buildReferenceGallery(opts.subjects, opts.library, warnings);
+  const faceRects = readFaceRects(opts.plan);
+  const textRects = readTextRects(opts.plan);
+
+  const subjects: GateSubject[] = opts.subjects.map((s) => ({
+    playerId: s.player.id,
+    handle: s.player.handle,
+    faceRect: faceRects.get(s.player.id),
+    referenceEmbeddings: gallery[s.player.id],
+    anonymous: s.anonymous ?? false,
+    assets: [s.asset],
+  }));
 
   const report = await qa.runGates({
     image: opts.image,
     plan: opts.plan,
-    references,
-    vision: opts.vision,
-    assets: opts.subjects.map((s) => s.asset),
-    thresholds: { identity: opts.request?.identityThreshold },
-    options: {
-      legibility: opts.request?.legibility ?? true,
-      safeZones: opts.request?.safeZones ?? true,
-      requireClearedLicense: opts.request?.requireClearedLicense ?? false,
-      strict: opts.request?.strict ?? false,
-    },
+    subjects,
+    textRects,
+    request: opts.request,
+    // @hexa/vision's client satisfies the structural VisionPort the gates want.
+    vision: opts.vision as unknown as VisionPort,
+    only: opts.only,
+    skip: opts.skip,
   });
 
-  const appeal = await qa.scoreAppeal({ image: opts.image, plan: opts.plan, qa: report });
+  const appeal = await qa.scoreAppeal({
+    image: opts.image,
+    width: opts.plan.canvas.width,
+    height: opts.plan.canvas.height,
+    textRects,
+    faceRects: [...faceRects.values()],
+  });
 
   return {
     report,
@@ -64,6 +89,22 @@ export async function runQaStage(opts: QaStageOptions): Promise<QaStageResult> {
     identityFailures: identityFailuresIn(report, opts.subjects),
     warnings,
   };
+}
+
+/** Face rects the compiler recorded, keyed by player. */
+export function readFaceRects(plan: RenderPlan): Map<PlayerId, QaRect> {
+  const records = (plan.meta['faceRects'] as FaceRectRecord[] | undefined) ?? [];
+  const out = new Map<PlayerId, QaRect>();
+  for (const r of records) {
+    if (r?.playerId && r.rect) out.set(r.playerId, r.rect);
+  }
+  return out;
+}
+
+/** Text rects the compiler recorded, in the shape the gates read. */
+export function readTextRects(plan: RenderPlan): GateTextRect[] {
+  const records = (plan.meta['textRects'] as TextRectRecord[] | undefined) ?? [];
+  return records.filter((r) => r?.rect).map((r) => ({ role: r.role, rect: r.rect }));
 }
 
 /**
@@ -93,7 +134,7 @@ export function buildReferenceGallery(
       if (!subject.placeholder) {
         warnings.push(
           `No reference embeddings for ${subject.player.handle} — identity cannot be verified for this render. ` +
-            `Re-run ingestion with the vision sidecar running to embed the existing photos.`,
+            `Re-run ingestion with the vision sidecar running to embed the photos already on file.`,
         );
       }
       continue;
@@ -102,7 +143,8 @@ export function buildReferenceGallery(
     const coherent = largestModelGroup(embedded);
     if (coherent.length < embedded.length) {
       warnings.push(
-        `${subject.player.handle} has embeddings from more than one model; used the ${coherent.length} from "${coherent[0]?.embeddingModel ?? 'unknown'}" and ignored the rest.`,
+        `${subject.player.handle} has embeddings from more than one model; used the ${coherent.length} from ` +
+          `"${coherent[0]?.embeddingModel ?? 'unknown'}" and ignored the rest.`,
       );
     }
 
@@ -116,7 +158,9 @@ export function buildReferenceGallery(
   return gallery;
 }
 
-function largestModelGroup(assets: (ReferenceAsset & { embedding: number[] })[]): (ReferenceAsset & { embedding: number[] })[] {
+function largestModelGroup(
+  assets: (ReferenceAsset & { embedding: number[] })[],
+): (ReferenceAsset & { embedding: number[] })[] {
   const groups = new Map<string, (ReferenceAsset & { embedding: number[] })[]>();
   for (const a of assets) {
     const key = a.embeddingModel ?? 'unknown';

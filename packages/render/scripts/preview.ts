@@ -355,7 +355,7 @@ async function main(): Promise<void> {
     { buffer: await onPlate(await rimLight(subj, { angle: 0, width: 9, color: '#FFD9A0', intensity: 1.3 })), label: 'rimLight 0° (right)' },
     { buffer: await onPlate(await rimLight(subj, { angle: 90, width: 9, color: '#8CF5FF', intensity: 1.3 })), label: 'rimLight 90° (top)' },
     { buffer: await onPlate(await rimLight(subj, { angle: 180, width: 9, color: '#FF7ACF', intensity: 1.3 })), label: 'rimLight 180° (left)' },
-    { buffer: await onPlate(await lightWrap(subj, plate, { radius: 14, intensity: 1 })), label: 'lightWrap' },
+    { buffer: await onPlate(await lightWrap(subj, plate, { radius: 26, intensity: 1.6 })), label: 'lightWrap (backdrop spill)' },
     { buffer: await onPlate(await outerGlow(subj, { radius: 30, color: '#2E9BFF', intensity: 0.9 })), label: 'outerGlow' },
     { buffer: await onPlate(await dropShadow(subj, { dx: 16, dy: 20, blur: 24, color: '#000000', opacity: 0.75 })), label: 'dropShadow' },
     { buffer: await onPlate(await strokeAlpha(subj, { width: 5, color: '#FFFFFF' })), label: 'strokeAlpha' },

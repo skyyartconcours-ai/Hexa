@@ -19,7 +19,7 @@
  *    duration pill never eats a nameplate.
  */
 
-import type { StyleSpec, TemplateContext, ThumbnailTemplate } from '@hexa/core';
+import type { Rect, StyleSpec, TemplateContext, ThumbnailTemplate } from '@hexa/core';
 import { mix, saturate, shade } from '@hexa/core';
 import {
   RATIO_16_9,
@@ -33,6 +33,7 @@ import {
   goldenGuide,
   hazeSlot,
   inwardBust,
+  mirrorX,
   plateSlot,
   reserve,
   shapeSlot,
@@ -485,6 +486,10 @@ const versusClash: ThumbnailTemplate = {
 
 // ── versus-split-portrait ────────────────────────────────────────────────────
 
+/** Centred under the left face at x 0.30; the right pair is its mirror. */
+const TEAM_TAG_LEFT: Rect = { x: 0.13, y: 0.685, w: 0.34, h: 0.05 };
+const NAMEPLATE_LEFT: Rect = { x: 0.13, y: 0.745, w: 0.34, h: 0.09 };
+
 const versusSplitPortrait: ThumbnailTemplate = {
   id: 'versus-split-portrait',
   name: 'Versus Split Portrait',
@@ -540,19 +545,20 @@ const versusSplitPortrait: ThumbnailTemplate = {
         z: Z.text,
         meta: { weight: 'bold', tracking: 0.02 },
       }),
-      textSlot('left-team', { x: 0.13, y: 0.685, w: 0.34, h: 0.05 }, {
+      // Both pairs are exact mirrors — mirrorX keeps them that way if either moves.
+      textSlot('left-team', TEAM_TAG_LEFT, {
         z: Z.text + 1,
         meta: { weight: 'medium', tracking: 0.24 },
       }),
-      textSlot('right-team', { x: 0.53, y: 0.685, w: 0.34, h: 0.05 }, {
+      textSlot('right-team', mirrorX(TEAM_TAG_LEFT), {
         z: Z.text + 2,
         meta: { weight: 'medium', tracking: 0.24 },
       }),
-      textSlot('left-name', { x: 0.13, y: 0.745, w: 0.34, h: 0.09 }, {
+      textSlot('left-name', NAMEPLATE_LEFT, {
         z: Z.text + 3,
         meta: { weight: 'black', tracking: 0.01 },
       }),
-      textSlot('right-name', { x: 0.53, y: 0.745, w: 0.34, h: 0.09 }, {
+      textSlot('right-name', mirrorX(NAMEPLATE_LEFT), {
         z: Z.text + 4,
         meta: { weight: 'black', tracking: 0.01 },
       }),
