@@ -94,9 +94,12 @@ interface Rendered {
 const CRAFT_GATES = new Set([
   'legibility',
   'contrast',
+  'clipping',
   'safe-zone',
   'face-placement',
+  'subject-clarity',
   'clutter',
+  'fx-dominance',
   'color-harmony',
   'banding',
   'duplicate',

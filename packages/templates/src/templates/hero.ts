@@ -72,7 +72,7 @@ const heroPortrait: ThumbnailTemplate = {
         anchor: 'center-left',
         meta: { weight: 'semibold', tracking: 0.26 },
       }),
-      textSlot('headline', { x: 0.05, y: 0.285, w: 0.36, h: 0.27 }, {
+      textSlot('headline', { x: 0.05, y: 0.285, w: 0.42, h: 0.27 }, {
         z: Z.text + 1,
         anchor: 'center-left',
         meta: { weight: 'black', lines: 3, leading: 0.86 },

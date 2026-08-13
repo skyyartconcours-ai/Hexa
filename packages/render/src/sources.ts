@@ -80,58 +80,6 @@ export function radialSvg(
   return svgDoc(width, height, `<rect width="${width}" height="${height}" fill="url(#g)"/>`, defs);
 }
 
-/**
- * Rasterise a gradient at the resolution the gradient actually needs.
- *
- * A gradient carries no detail except at its stops: between two stops it is, by
- * definition, an interpolation, and upsampling an interpolation reproduces it.
- * The finest feature is therefore the narrowest gap between consecutive stops,
- * measured across the ramp — so the raster only has to be fine enough to put a
- * handful of samples inside that gap. A two-stop backdrop wash across 1280 px
- * needs nothing like 1280 px of librsvg, and librsvg costs what the surface
- * costs: full-canvas gradient layers were ~15% of the layer stage.
- *
- * `SAMPLES_ACROSS_STOP` keeps eight samples inside the narrowest band, and the
- * factor is capped at 4 (a sixteenth of the pixels) — past that the resample
- * costs more than the rasterise it saves. A gradient with tightly-spaced stops
- * decimates less, and one with adjacent stops (a hard edge) not at all.
- */
-const SAMPLES_ACROSS_STOP = 8;
-const MAX_GRADIENT_DECIMATION = 4;
-
-function gradientDecimation(stops: { offset: number }[], extentPx: number): number {
-  if (stops.length > 1) {
-    const offsets = stops.map((s) => clamp(s.offset, 0, 1)).sort((a, b) => a - b);
-    let narrowest = 1;
-    for (let i = 1; i < offsets.length; i++) narrowest = Math.min(narrowest, offsets[i]! - offsets[i - 1]!);
-    if (!(narrowest > 0)) return 1; // coincident stops: a hard edge, keep it hard
-    const finest = narrowest * extentPx;
-    return Math.max(1, Math.min(MAX_GRADIENT_DECIMATION, Math.floor(finest / SAMPLES_ACROSS_STOP)));
-  }
-  return MAX_GRADIENT_DECIMATION;
-}
-
-/** Rasterise `markup(w, h)` decimated by `k`, then resample up to w×h. */
-async function rasteriseSmooth(
-  markup: (w: number, h: number) => string,
-  width: number,
-  height: number,
-  k: number,
-): Promise<RawImage> {
-  if (k <= 1) return toRaw(Buffer.from(markup(width, height)));
-  const sw = Math.max(2, Math.round(width / k));
-  const sh = Math.max(2, Math.round(height / k));
-  const { data, info } = await sharp(Buffer.from(markup(sw, sh)))
-    .ensureAlpha()
-    // `cubic` rather than lanczos: a lanczos upsample overshoots at a stop and
-    // a gradient has nothing to gain from the extra sharpness.
-    .resize(width, height, { kernel: 'cubic', fit: 'fill' })
-    .toColourspace('srgb')
-    .raw({ depth: 'uchar' })
-    .toBuffer({ resolveWithObject: true });
-  return { data, width: info.width, height: info.height, channels: info.channels };
-}
-
 /** Decode a bitmap and fit it to the slot (see fit policy in the file header). */
 async function fitBitmap(input: Buffer | string, width: number, height: number): Promise<RawImage> {
   return timed('src:bitmap', width * height, () => fitBitmapCore(input, width, height));
@@ -220,23 +168,19 @@ export async function resolveSource(
     case 'solid':
       return solidRaw(width, height, src.color);
 
-    case 'gradient': {
-      // The ramp runs along the gradient axis, so that projection is its extent.
-      const a = degToRad(src.angle);
-      const extent = Math.abs(Math.cos(a)) * width + Math.abs(Math.sin(a)) * height;
-      const k = gradientDecimation(src.stops, extent);
+    // Both of these rasterise through librsvg at full size. Decimating the
+    // rasterise and resampling back up was tried and measured at 1.05× — the
+    // cost is dominated by materialising a megapixel of RGBA, which both paths
+    // pay, not by the gradient librsvg draws into it.
+    case 'gradient':
       return timed('src:gradient', width * height, () =>
-        rasteriseSmooth((w, h) => gradientSvg(w, h, src.stops, src.angle), width, height, k),
+        toRaw(Buffer.from(gradientSvg(width, height, src.stops, src.angle))),
       );
-    }
 
-    case 'radial': {
-      const extent = Math.max(1, src.radius * Math.max(width, height));
-      const k = gradientDecimation(src.stops, extent);
+    case 'radial':
       return timed('src:radial', width * height, () =>
-        rasteriseSmooth((w, h) => radialSvg(w, h, src.stops, src.center, src.radius), width, height, k),
+        toRaw(Buffer.from(radialSvg(width, height, src.stops, src.center, src.radius))),
       );
-    }
 
     case 'noise':
       return noiseFieldRaw(width, height, (src.seed ^ ctx.seed) >>> 0, src.scale, Math.max(1, Math.round(src.octaves)));

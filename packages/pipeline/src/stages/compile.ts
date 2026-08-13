@@ -141,6 +141,9 @@ export async function compilePlan(input: CompileInput): Promise<RenderPlan> {
   // ── pass 0–1: backplate and backdrop overlays ─────────────────────────────
   emitBackplate({ input, canvas, backdrop, layers, buffers, rng: rng.fork(1) });
 
+  // ── pass 1b: seat the plate below face value ──────────────────────────────
+  emitPlateScrim({ layers, palette: input.palette, canvas, z: subjectZMin - 6 });
+
   // ── pass 2: atmosphere behind the subjects ────────────────────────────────
   emitAtmosphere({
     layers,
@@ -180,7 +183,14 @@ export async function compilePlan(input: CompileInput): Promise<RenderPlan> {
   // ── pass 4: supporting slots ──────────────────────────────────────────────
   for (const slot of resolved.slots) {
     if (slot.slot.kind === 'shape') emitShape(slot, input.palette, style && brandStrength(style), layers);
-    if (slot.slot.kind === 'backplate' && input.backplate) emitBackplateSlot(slot, layers, buffers);
+    if (slot.slot.kind === 'backplate') {
+      // A colour block is geometry the template drew, not a place to repeat the
+      // plate: `block-left` means "the left team owns this half", so it is
+      // filled with that team's colour. Only a full-canvas plate slot restates
+      // the supplied backplate image.
+      if (isColorBlock(slot.slot)) emitColorBlock(slot, input.palette, brandStrength(style), canvas, layers);
+      else if (input.backplate) emitBackplateSlot(slot, layers, buffers);
+    }
   }
 
   // ── pass 5: atmosphere in front ───────────────────────────────────────────
@@ -207,9 +217,7 @@ export async function compilePlan(input: CompileInput): Promise<RenderPlan> {
       width: canvas.width,
       height: canvas.height,
       background: input.palette.dark,
-      // Subjects have hair. Rendering at 2× and downsampling is the difference
-      // between a matted edge that looks cut and one that looks photographed.
-      supersample: canvas.width >= 1920 ? 1 : 2,
+      supersample: supersampleFor(canvas),
     },
     layers,
     grade: gradeFor(style, axes, lutNames, input.grade),
@@ -257,6 +265,34 @@ function zOf(slot: Slot): number {
   return Z_SLOT_BASE + (slot.z ?? 0) * Z_SCALE;
 }
 
+/** The smallest canvas this product ships; below it, geometry is undersampled. */
+const SMALLEST_SHIPPING_CANVAS = 1280 * 720;
+
+/**
+ * Supersampling policy.
+ *
+ * Supersampling exists to kill *geometric* aliasing — the stair-stepping on
+ * analytic edges that a rasteriser cannot antialias away on its own. It costs
+ * 4× the pixels in every layer, every effect and every composite, so it has to
+ * earn that.
+ *
+ * At 1280×720 and above it does not. Measured on the real versus plan, 1× and
+ * 2× differ by a mean absolute error of 0.5/255, and at 2× magnification the
+ * letterforms, the plate hairlines, the dashed rules and the cutout edge are
+ * indistinguishable — because the two things that actually set edge quality
+ * here are already resolution-independent: librsvg antialiases vector geometry
+ * analytically, and a cutout is a *bitmap*, so lanczos-resampling it once into
+ * its slot is if anything cleaner than resampling it up and averaging it back
+ * down. The 2× frame then costs ~3× the wall clock to arrive at the same image.
+ *
+ * Below the smallest shipping canvas the trade flips — a 640×360 preview really
+ * does show stepped diagonals — so small canvases keep it. `renderPlan` honours
+ * whatever a caller puts on the plan, so this is a default, not a ceiling.
+ */
+function supersampleFor(canvas: { width: number; height: number }): number {
+  return canvas.width * canvas.height < SMALLEST_SHIPPING_CANVAS ? 2 : 1;
+}
+
 // ── pass 0–1: backplate ──────────────────────────────────────────────────────
 
 function emitBackplate(args: {
@@ -283,7 +319,7 @@ function emitBackplate(args: {
     });
     buffers.push({ key: BUFFER_KEYS.backplate, kind: 'backplate', ref: 'backplate' });
   } else {
-    layers.push(proceduralBackdrop(backdrop, full, input.palette, input.seed));
+    layers.push(...proceduralBackdrop(backdrop, full, input.palette, input.seed));
   }
 
   // A colour wash carrying the two team colours across the frame. Even over an
@@ -345,61 +381,165 @@ function emitBackplate(args: {
   });
 }
 
+/**
+ * The base plate, and — where the treatment calls for one — a texture over it.
+ *
+ * The split matters. A generated treatment ("shatter", "arena", "grid",
+ * "abstract") is a *surface*: a field of shards, a crowd bowl, a wireframe. Used
+ * as the base plate at full strength it becomes the loudest thing in the frame —
+ * a white polygon web sprawling across the whole image at the same value as the
+ * subjects, so the eye has nowhere to land. That is exactly what it was doing.
+ *
+ * A professional thumbnail treats that material the way a matte painter does:
+ * lay down a dark graded ground first, then let the texture sit *on* it at a
+ * fraction of its strength, so it reads as depth in the background rather than
+ * as pattern on top of the composition. Hence: always a base, optionally a
+ * texture at {@link TEXTURE_OPACITY}, darkened toward the palette's dark so it
+ * can never out-value a face.
+ */
+const TEXTURE_OPACITY = 0.3;
+
 function proceduralBackdrop(
   backdrop: string,
   rect: PixelRect,
   palette: ResolvedPalette,
   seed: number,
-): Layer {
+): Layer[] {
   const { left, right, dark, accent } = palette;
   const base = { id: 'backdrop', rect, z: 0, opacity: 1, blend: 'over' as BlendMode, label: `backdrop: ${backdrop}` };
 
+  // Diagonal rather than horizontal: a diagonal seam is the versus device, and
+  // it stops the two halves reading as two separate images.
+  const gradientPlate: Layer = {
+    ...base,
+    source: {
+      type: 'gradient',
+      stops: [
+        { offset: 0, color: mix(dark, left, 0.45) },
+        { offset: 0.5, color: shade(dark, 0.02) },
+        { offset: 1, color: mix(dark, right, 0.45) },
+      ],
+      angle: 12,
+    },
+  };
+
   switch (backdrop) {
     case 'solid':
-      return { ...base, source: { type: 'solid', color: dark } };
+      return [{ ...base, source: { type: 'solid', color: dark } }];
     case 'radial':
-      return {
-        ...base,
-        source: {
-          type: 'radial',
-          stops: [
-            { offset: 0, color: mix(dark, accent, 0.28) },
-            { offset: 0.6, color: shade(dark, 0.04) },
-            { offset: 1, color: shade(dark, -0.06) },
-          ],
-          center: [0.5, 0.44],
-          radius: 0.78,
+      return [
+        {
+          ...base,
+          source: {
+            type: 'radial',
+            stops: [
+              { offset: 0, color: mix(dark, accent, 0.28) },
+              { offset: 0.6, color: shade(dark, 0.04) },
+              { offset: 1, color: shade(dark, -0.06) },
+            ],
+            center: [0.5, 0.44],
+            radius: 0.78,
+          },
         },
-      };
+      ];
     case 'arena':
     case 'abstract':
     case 'shatter':
     case 'grid':
-      return {
-        ...base,
-        source: {
-          type: 'generated',
-          generatorId: `${GENERATOR_IDS.backdrop}-${backdrop}`,
-          params: { left, right, dark, accent, seed, treatment: backdrop },
+      return [
+        gradientPlate,
+        {
+          id: `backdrop-texture-${backdrop}`,
+          rect,
+          z: 1,
+          opacity: TEXTURE_OPACITY,
+          // Over, not screen: the generators already emit bright ink, and
+          // screening it back on doubles the brightness that made the web glow.
+          blend: 'over',
+          source: {
+            type: 'generated',
+            generatorId: `${GENERATOR_IDS.backdrop}-${backdrop}`,
+            // The palette handed to the generator is pulled hard toward the
+            // dark, so even its highlights land below face value.
+            params: {
+              left: mix(left, dark, 0.55),
+              right: mix(right, dark, 0.55),
+              dark: shade(dark, -0.1),
+              accent: mix(accent, dark, 0.35),
+              seed,
+              treatment: backdrop,
+            },
+          },
+          effects: { blur: 2 },
+          label: `backdrop texture: ${backdrop} @ ${TEXTURE_OPACITY}`,
         },
-      };
+      ];
     case 'gradient':
     default:
-      // Diagonal rather than horizontal: a diagonal seam is the versus device,
-      // and it stops the two halves reading as two separate images.
-      return {
-        ...base,
-        source: {
-          type: 'gradient',
-          stops: [
-            { offset: 0, color: mix(dark, left, 0.45) },
-            { offset: 0.5, color: shade(dark, 0.02) },
-            { offset: 1, color: mix(dark, right, 0.45) },
-          ],
-          angle: 12,
-        },
-      };
+      return [gradientPlate];
   }
+}
+
+/**
+ * Push the whole plate down in value, just before the subjects land on it.
+ *
+ * The rule this enforces is the one that decides where a viewer looks: the face
+ * must be the brightest thing in its half of the frame. Backdrops do not respect
+ * that on their own — a bright generated arena, a hot centre glow or a pale
+ * texture all compete with the cast, and the eye goes to the background. Rather
+ * than tuning every backdrop separately, the plate is multiplied down as a whole
+ * and left darkest at the top and edges, where nothing important lives.
+ *
+ * It is the cheapest depth cue in the composite: a darker ground behind a
+ * lighter subject *is* separation, before any rim light or wrap is added.
+ */
+function emitPlateScrim(args: {
+  layers: Layer[];
+  palette: ResolvedPalette;
+  canvas: { width: number; height: number };
+  z: number;
+}): void {
+  const { layers, palette, canvas, z } = args;
+
+  // Top shade: a single frame-wide gradient that seats the kicker band and
+  // keeps the upper corners from competing. Applied over the whole canvas so a
+  // colour-blocked seam cannot show up in it as an edge.
+  layers.push({
+    id: 'plate-top-shade',
+    source: {
+      type: 'gradient',
+      stops: [
+        { offset: 0, color: withAlpha(shade(palette.dark, -0.08), 0.62) },
+        { offset: 0.42, color: withAlpha(palette.dark, 0.1) },
+        { offset: 1, color: withAlpha(palette.dark, 0) },
+      ],
+      angle: 270,
+    },
+    rect: { x: 0, y: 0, w: canvas.width, h: canvas.height },
+    z: z - 1,
+    opacity: 0.85,
+    blend: 'over',
+    label: 'top shade',
+  });
+
+  layers.push({
+    id: 'plate-scrim',
+    source: {
+      type: 'radial',
+      stops: [
+        { offset: 0, color: withAlpha(shade(palette.dark, -0.02), 0.06) },
+        { offset: 0.6, color: withAlpha(shade(palette.dark, -0.06), 0.26) },
+        { offset: 1, color: withAlpha(shade(palette.dark, -0.12), 0.6) },
+      ],
+      center: [0.5, 0.42],
+      radius: 0.92,
+    },
+    rect: { x: 0, y: 0, w: canvas.width, h: canvas.height },
+    z,
+    opacity: 0.85,
+    blend: 'over',
+    label: 'plate scrim — keeps the backdrop below face value',
+  });
 }
 
 function emitBackplateSlot(slot: ResolvedSlot, layers: Layer[], buffers: BufferRef[]): void {
@@ -511,12 +651,51 @@ async function emitSubject(args: {
   if (needsMirror) args.mirrored.push(subject.player.id);
 
   const rim = rimFor(subject.side, input.palette, axes, rig, fit.rect.w);
+  // Atmospheric perspective. A subject the template marked as standing further
+  // back loses a little exposure, contrast and saturation, exactly as air
+  // between camera and subject would take it. It is what stops two cutouts
+  // pasted at the same brightness reading as one flat plane, and it is what
+  // makes the near subject the single dominant focal point rather than one of
+  // two co-equals fighting for the eye.
+  const depth = slot.meta?.['depth'];
+  const recession: LayerEffects =
+    depth === 'back' ? { exposure: -0.14, contrast: 0.94, saturation: 0.88 } : {};
   const effects: LayerEffects = {
     ...(input.template.style && typeof input.template.style === 'object' ? subjectEffectsOf(input.template) : {}),
+    ...recession,
     rimLight: { angle: rim.angle, width: rim.width, color: rim.color, intensity: rim.intensity },
     glow: glowFor(rim, rig),
     shadow: separationShadow(rig, input.palette, fit.rect.w),
   };
+
+  // Backlight halo: a pool of the subject's own rim colour on the plate behind
+  // their head. Real key art always has one — it is what a backlight spilling
+  // onto the set actually does — and it is what makes a face read as the
+  // brightest thing in its half of the frame without brightening the face
+  // itself. Placed behind the subject, centred on the focal point rather than
+  // the slot, so it follows the head rather than the shoulders.
+  const focal = slot.focal ?? { x: 0.5, y: 0.32 };
+  const haloR = Math.round(fit.rect.w * 0.62);
+  const haloCx = Math.round(fit.rect.x + focal.x * fit.rect.w);
+  const haloCy = Math.round(fit.rect.y + focal.y * fit.rect.h);
+  layers.push({
+    id: `${layerId}-halo`,
+    source: {
+      type: 'radial',
+      stops: [
+        { offset: 0, color: withAlpha(mix(rim.color, input.palette.light, 0.25), 0.5) },
+        { offset: 0.45, color: withAlpha(rim.color, 0.22) },
+        { offset: 1, color: withAlpha(rim.color, 0) },
+      ],
+      center: [0.5, 0.5],
+      radius: 0.5,
+    },
+    rect: { x: haloCx - haloR, y: haloCy - haloR, w: haloR * 2, h: haloR * 2 },
+    z: z - 3,
+    opacity: 0.75,
+    blend: 'screen',
+    label: `backlight halo — ${subject.player.handle}`,
+  });
 
   // Contact shadow, under the subject: the pool of darkness that says a person
   // is standing on something. Without it a cutout floats like a sticker.
@@ -643,21 +822,305 @@ export function projectFaceRect(
   return { x: Math.round(mirroredX), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
 }
 
-// ── pass 4: shapes ───────────────────────────────────────────────────────────
+// ── pass 4: shapes and colour blocking ───────────────────────────────────────
 
+/**
+ * A slot's `fill` role resolved against the palette.
+ *
+ * `light` used to fall through to `accent`, which is why every VS diamond in
+ * the library came out mustard: the template asked for a light diamond with an
+ * accent stroke and got a flat accent lozenge with no stroke at all.
+ */
+function fillColor(role: string | undefined, palette: ResolvedPalette): string {
+  switch (role) {
+    case 'left':
+      return palette.left;
+    case 'right':
+      return palette.right;
+    case 'dark':
+      return palette.dark;
+    case 'light':
+      return palette.light;
+    default:
+      return palette.accent;
+  }
+}
+
+function svgLayer(w: number, h: number, body: string): LayerSource {
+  return {
+    type: 'svg',
+    markup: `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${body}</svg>`,
+  };
+}
+
+/**
+ * Furniture — bars, diamonds, rules, plinths, frames.
+ *
+ * Every shape used to be drawn as a flat axis-aligned rectangle in one colour,
+ * because that is all `{type:'solid'}` can be. A template asking for a diamond
+ * with an accent stroke, a skewed nameplate bar or a hairline rule all got the
+ * same lozenge. Rendering the declared geometry as SVG is what makes the
+ * furniture look drawn rather than defaulted.
+ *
+ * Fills are gradients, not flats. A flat block of brand colour is the single
+ * clearest tell of a generated thumbnail; the same block with a few percent of
+ * top-to-bottom falloff reads as a lit surface.
+ */
 function emitShape(slot: ResolvedSlot, palette: ResolvedPalette, strength: number, layers: Layer[]): void {
-  const role = String(slot.slot.meta?.['fill'] ?? 'accent');
-  const color =
-    role === 'left' ? palette.left : role === 'right' ? palette.right : role === 'dark' ? palette.dark : palette.accent;
+  const meta = slot.slot.meta ?? {};
+  const shape = String(meta['shape'] ?? 'block');
+  const { w, h } = slot.rect;
+  if (w < 1 || h < 1) return;
+
+  const color = fillColor(meta['fill'] as string | undefined, palette);
+  const strokeColor = meta['stroke'] ? fillColor(meta['stroke'] as string, palette) : undefined;
+  const strokeW = strokeColor ? Math.max(1.5, Math.min(w, h) * 0.035) : 0;
+  const radius = typeof meta['radius'] === 'number' ? (meta['radius'] as number) * w : Math.min(w, h) * 0.04;
+  const skew = typeof meta['skew'] === 'number' ? (meta['skew'] as number) : 0;
+  const id = `sh-${slot.slot.id}`.replace(/[^a-zA-Z0-9-]/g, '');
+
+  // Lit-surface falloff: brighter at the top, deeper at the bottom.
+  const grad =
+    `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="${shade(color, 0.16)}"/>` +
+    `<stop offset="0.55" stop-color="${color}"/>` +
+    `<stop offset="1" stop-color="${shade(color, -0.2)}"/>` +
+    '</linearGradient>';
+  const paint = `fill="url(#${id})"${strokeColor ? ` stroke="${strokeColor}" stroke-width="${strokeW.toFixed(2)}"` : ''}`;
+  const inset = strokeW / 2;
+
+  let body: string;
+  let dropRotation = false;
+
+  switch (shape) {
+    case 'diamond': {
+      // Drawn as a diamond rather than a square the compositor rotates: layer
+      // rotation would also rotate the stroke join and clip the points.
+      dropRotation = true;
+      const cx = w / 2;
+      const cy = h / 2;
+      body = `<polygon points="${cx},${inset} ${w - inset},${cy} ${cx},${h - inset} ${inset},${cy}" ${paint} stroke-linejoin="round"/>`;
+      break;
+    }
+    case 'rule':
+    case 'slash-rule': {
+      const lean = typeof meta['lean'] === 'number' ? (meta['lean'] as number) : 0;
+      body =
+        lean && h > w
+          ? `<line x1="${w / 2 + lean * w}" y1="0" x2="${w / 2 - lean * w}" y2="${h}" stroke="${color}" stroke-width="${Math.max(2, w * 0.02).toFixed(2)}" stroke-linecap="round"/>`
+          : `<rect x="0" y="0" width="${w}" height="${h}" fill="${color}"/>`;
+      break;
+    }
+    case 'pill':
+    case 'tag': {
+      const r = shape === 'pill' ? h / 2 : Math.min(radius, h / 2);
+      const dx = skew * w;
+      body =
+        shape === 'tag' && skew
+          ? `<polygon points="${dx},${inset} ${w - inset},${inset} ${w - dx - inset},${h - inset} ${inset},${h - inset}" ${paint}/>`
+          : `<rect x="${inset}" y="${inset}" width="${w - strokeW}" height="${h - strokeW}" rx="${r}" ry="${r}" ${paint}/>`;
+      break;
+    }
+    case 'bar':
+    case 'parallelogram':
+    case 'chevron': {
+      // A skewed bar: the shear is what stops a nameplate reading as a caption
+      // box. Positive skew leans the top edge to the right.
+      const dx = skew * w;
+      body = dx
+        ? `<polygon points="${Math.max(0, dx)},${inset} ${w - inset},${inset} ${w - Math.max(0, dx) - inset},${h - inset} ${inset},${h - inset}" ${paint}/>`
+        : `<rect x="${inset}" y="${inset}" width="${w - strokeW}" height="${h - strokeW}" rx="${Math.min(radius, h / 2)}" ${paint}/>`;
+      break;
+    }
+    case 'circle': {
+      body = `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${w / 2 - inset}" ry="${h / 2 - inset}" ${paint}/>`;
+      break;
+    }
+    case 'frame':
+    case 'bracket': {
+      const t = Math.max(2, Math.min(w, h) * 0.02);
+      body = `<rect x="${t / 2}" y="${t / 2}" width="${w - t}" height="${h - t}" fill="none" stroke="${color}" stroke-width="${t.toFixed(2)}" rx="${radius}"/>`;
+      break;
+    }
+    case 'glyph': {
+      // A decorative oversized character — a "?" behind a controversy headline,
+      // a "#" behind a rank. Drawn as type at low opacity, because the fallback
+      // rounded rectangle turned it into a pale slab that swallowed whatever it
+      // was sitting next to.
+      const ch = String(meta['glyph'] ?? '?').slice(0, 2);
+      body =
+        `<text x="${w / 2}" y="${h * 0.5}" text-anchor="middle" dominant-baseline="central" ` +
+        `font-family="Arial Black, Helvetica, sans-serif" font-weight="900" font-size="${(h * 0.95).toFixed(1)}" ` +
+        `fill="${color}" fill-opacity="0.55">${ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch}</text>`;
+      break;
+    }
+    case 'cone': {
+      // A spill of light, not a solid wedge: opaque at the source, gone by the
+      // far end.
+      body =
+        `<linearGradient id="${id}c" x1="0" y1="0" x2="0" y2="1">` +
+        `<stop offset="0" stop-color="${withAlpha(color, 0.55)}"/>` +
+        `<stop offset="1" stop-color="${withAlpha(color, 0)}"/>` +
+        `</linearGradient><polygon points="${w * 0.42},0 ${w * 0.58},0 ${w},${h} 0,${h}" fill="url(#${id}c)"/>`;
+      break;
+    }
+    case 'callout-arrow': {
+      const t = h * 0.34;
+      body = `<polygon points="0,${h / 2 - t / 2} ${w * 0.62},${h / 2 - t / 2} ${w * 0.62},0 ${w},${h / 2} ${w * 0.62},${h} ${w * 0.62},${h / 2 + t / 2} 0,${h / 2 + t / 2}" ${paint}/>`;
+      break;
+    }
+    case 'plinth': {
+      const taper = w * 0.08;
+      body = `<polygon points="${taper},0 ${w - taper},0 ${w},${h} 0,${h}" ${paint}/>`;
+      break;
+    }
+    case 'scrim': {
+      // A scrim is a readability device: it must fade out, not end on a line.
+      body =
+        `<linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1">` +
+        `<stop offset="0" stop-color="${withAlpha(color, 0)}"/>` +
+        `<stop offset="0.55" stop-color="${withAlpha(color, 0.75)}"/>` +
+        `<stop offset="1" stop-color="${withAlpha(color, 0.95)}"/>` +
+        `</linearGradient><rect width="${w}" height="${h}" fill="url(#${id}s)"/>`;
+      break;
+    }
+    default: {
+      body = `<rect x="${inset}" y="${inset}" width="${w - strokeW}" height="${h - strokeW}" rx="${Math.min(radius, h / 2)}" ${paint}/>`;
+    }
+  }
+
   layers.push({
     id: `shape-${slot.slot.id}`,
-    source: { type: 'solid', color },
+    source: svgLayer(Math.round(w), Math.round(h), `<defs>${grad}</defs>${body}`),
     rect: slot.rect,
     z: zOf(slot.slot),
-    opacity: (slot.slot.opacity ?? 1) * (0.5 + strength * 0.5),
-    blend: (slot.slot.meta?.['blend'] as BlendMode) ?? 'over',
-    rotation: slot.slot.rotation,
-    label: `shape ${slot.slot.id}`,
+    opacity: (slot.slot.opacity ?? 1) * (0.55 + strength * 0.45),
+    blend: (meta['blend'] as BlendMode) ?? 'over',
+    rotation: dropRotation ? undefined : slot.slot.rotation,
+    label: `shape ${slot.slot.id} (${shape})`,
+  });
+}
+
+/** Colour-blocking geometry, as opposed to a slot that restates the plate. */
+function isColorBlock(slot: Slot): boolean {
+  const shape = slot.meta?.['shape'];
+  return typeof shape === 'string' && shape !== '';
+}
+
+/**
+ * Colour blocking — each side of the frame owned by one team's colour.
+ *
+ * This is the device that makes a versus composite read as an opposition before
+ * a single word is processed, and the compiler was dropping it on the floor:
+ * the block slots are `kind:'backplate'`, and the old pass only drew backplate
+ * slots when a *supplied* plate image existed. With the offline provider — the
+ * default path, and the one every zero-config render takes — the templates'
+ * diagonal halves simply never appeared.
+ *
+ * The halves are built in canvas space, not slot space, because a leaning seam
+ * is defined against the frame: `block-left` with `lean: 0.14` means "the seam
+ * runs from 64% across at the top to 36% at the bottom", which is a line the
+ * slot's own rect cannot express.
+ *
+ * The fill fades from the team colour at the outer edge to near-nothing at the
+ * seam. A solid half would flood the middle of the frame — precisely where the
+ * faces are — and flatten the value structure the subjects depend on.
+ */
+function emitColorBlock(
+  slot: ResolvedSlot,
+  palette: ResolvedPalette,
+  strength: number,
+  canvas: { width: number; height: number },
+  layers: Layer[],
+): void {
+  const meta = slot.slot.meta ?? {};
+  const shape = String(meta['shape']);
+  const side = meta['side'] === 'right' ? 'right' : 'left';
+  const color = fillColor((meta['fill'] as string | undefined) ?? side, palette);
+  const lean = typeof meta['lean'] === 'number' ? (meta['lean'] as number) : 0;
+  const amplitude = typeof meta['amplitude'] === 'number' ? (meta['amplitude'] as number) : 0.05;
+  const id = `blk-${slot.slot.id}`.replace(/[^a-zA-Z0-9-]/g, '');
+
+  const isHalf = shape === 'diagonal-half' || shape === 'wave-half' || shape === 'torn-half';
+  const W = isHalf ? canvas.width : Math.round(slot.rect.w);
+  const H = isHalf ? canvas.height : Math.round(slot.rect.h);
+  if (W < 1 || H < 1) return;
+
+  // Colour blocking is territory, not paint. Filled edge-to-edge at full
+  // strength it floods the frame, lifts the background above the faces in value
+  // and undoes the whole point of the cast — which is what a straight
+  // "team colour half" produced. So the field is deepened toward the palette's
+  // dark before it is laid down, ramps off toward the seam, and is pulled down
+  // again at the top of the frame where the kicker has to stay readable.
+  //
+  // The seam itself stays dark rather than hot: it is the one place both halves
+  // touch, and a dark column there is what gives the VS mark something to read
+  // against instead of two saturated fields.
+  const field = mix(color, palette.dark, 0.22);
+
+  // The ramp runs along the seam's *normal*, not along the frame's x axis.
+  //
+  // A horizontal gradient inside a leaning polygon does not fade out where the
+  // polygon ends — the two halves reach the shared diagonal edge at different
+  // strengths, so the join renders as a hard step from dark to saturated and
+  // the seam reads as a black wedge cut out of the frame rather than as two
+  // territories meeting. Ramping perpendicular to the seam makes both halves
+  // arrive at the join at exactly the same value, whatever the lean.
+  const nx = H;
+  const ny = 2 * lean * W;
+  const nlen = Math.hypot(nx, ny) || 1;
+  const reach = (W * H) / (2 * nlen);
+  const sign = side === 'left' ? -1 : 1;
+  const gx = (W / 2 + (sign * reach * nx) / nlen).toFixed(1);
+  const gy = (H / 2 + (sign * reach * ny) / nlen).toFixed(1);
+
+  const gradient = isHalf
+    ? `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${gx}" y1="${gy}" x2="${W / 2}" y2="${H / 2}">` +
+      `<stop offset="0" stop-color="${withAlpha(field, 0.78)}"/>` +
+      `<stop offset="0.5" stop-color="${withAlpha(field, 0.46)}"/>` +
+      `<stop offset="1" stop-color="${withAlpha(field, 0.1)}"/>` +
+      '</linearGradient>'
+    : `<linearGradient id="${id}" x1="${side === 'left' ? 0 : 1}" y1="0" x2="${side === 'left' ? 1 : 0}" y2="0">` +
+      `<stop offset="0" stop-color="${withAlpha(field, 0.78)}"/>` +
+      `<stop offset="1" stop-color="${withAlpha(field, 0.1)}"/>` +
+      '</linearGradient>';
+
+  // Deliberately one paint, not two. Clipping a vertical darkener to each half
+  // separately looked correct in the abstract and produced a hard black wedge
+  // along the seam in practice: the two halves' ramps do not agree where they
+  // meet, so the join stopped reading as a colour change and started reading as
+  // a hole. Top-shading is a property of the *frame*, so it is done once, over
+  // everything, in `emitTopShade`.
+  let outline: string;
+  if (isHalf) {
+    const topX = W * (0.5 + lean);
+    const botX = W * (0.5 - lean);
+    if (shape === 'wave-half') {
+      const a = W * amplitude;
+      const curve = `C ${topX + (side === 'left' ? a : -a)} ${H * 0.33} ${botX - (side === 'left' ? a : -a)} ${H * 0.66} ${botX} ${H}`;
+      outline =
+        side === 'left'
+          ? `<path d="M 0 0 L ${topX} 0 ${curve} L 0 ${H} Z"`
+          : `<path d="M ${W} 0 L ${topX} 0 ${curve} L ${W} ${H} Z"`;
+    } else {
+      outline =
+        side === 'left'
+          ? `<polygon points="0,0 ${topX},0 ${botX},${H} 0,${H}"`
+          : `<polygon points="${W},0 ${topX},0 ${botX},${H} ${W},${H}"`;
+    }
+  } else {
+    outline = `<rect width="${W}" height="${H}"`;
+  }
+  const body = `${outline} fill="url(#${id})"/>`;
+
+  layers.push({
+    id: `block-${slot.slot.id}`,
+    source: svgLayer(W, H, `<defs>${gradient}</defs>${body}`),
+    rect: isHalf ? { x: 0, y: 0, w: canvas.width, h: canvas.height } : slot.rect,
+    z: zOf(slot.slot),
+    opacity: (slot.slot.opacity ?? 1) * (0.3 + strength * 0.45),
+    blend: 'over',
+    label: `colour block ${slot.slot.id} (${shape}, ${side})`,
   });
 }
 
@@ -816,12 +1279,17 @@ async function emitText(args: {
             })
           : await fitText({
               text: copy,
-              rect,
+              rect: typographyBox(rect, canvas, slot.anchor),
               role,
-              color,
+              color: plateFor(role, input.palette) ? readableOn(plateFor(role, input.palette)!, input.palette.light, input.palette.dark) : color,
               align: alignFor(role, axes.textArrangement),
               anchor: slot.anchor,
-              maxLines: role === 'headline' || role === 'subhead' ? 2 : 1,
+              // A template that declares `lines: 3` has designed a three-line
+              // block and sized its box for one. Overriding that with a flat
+              // two forced "WHAT JUST HAPPENED" into two lines it did not fit,
+              // and the third line came back as an ellipsis.
+              maxLines: maxLinesFor(slot, role),
+              ...plateStyle(role, input.palette),
             });
 
       layers.push({
@@ -950,6 +1418,71 @@ export function arrangeTextRect(
   }
 }
 
+/**
+ * Insurance margin on a centred text box, as a fraction of the slot.
+ *
+ * The type setter emits an SVG exactly the size of the box it was given and
+ * draws the glyphs inside it, so any disagreement between what it *measures*
+ * and what the rasteriser *draws* comes out as a severed last letter rather
+ * than as overflow. That disagreement is real whenever the wanted display faces
+ * are not the ones actually loaded — with the display stack missing, drawn
+ * width ran 10–20% over measured and every headline in the library lost its
+ * final glyph.
+ *
+ * A few percent of slack costs nothing (font size is driven by the box height
+ * for every preset the pipeline uses, so a wider box does not shrink the type)
+ * and turns that failure mode from "sliced letters" into "slightly loose
+ * tracking". It is applied only to centred copy: widening an edge-anchored box
+ * would slide the type out past the plate it is supposed to sit on.
+ */
+const TYPE_WIDTH_SAFETY = 1.25;
+
+/** How many lines a slot's copy may wrap to: the template's word, then the role's. */
+function maxLinesFor(slot: Slot, role: TextRole): number {
+  const declared = slot.meta?.['lines'];
+  if (typeof declared === 'number' && declared >= 1) return Math.min(4, Math.floor(declared));
+  return role === 'headline' || role === 'subhead' ? 2 : 1;
+}
+
+/**
+ * The box actually handed to the type setter.
+ *
+ * The extra room is added on the side the text grows *towards*, never on the
+ * side it is anchored to. A `center-left` kicker keeps its left edge exactly
+ * where the template put it — flush with the rule above it, which is the design
+ * — and gains its slack to the right, where there is nothing to disturb. A
+ * centred nameplate grows symmetrically and stays centred on its plate.
+ *
+ * Without the slack, autofit hits its minimum size and truncates: "ELIMINATION"
+ * came out as "ELIMINA…" in a box that was only a few percent too tight. An
+ * ellipsis in a thumbnail is worse than either a smaller word or a wider box,
+ * and it is the failure mode a hand-authored rect drifts into as soon as the
+ * fonts it was measured against change.
+ */
+export function typographyBox(
+  rect: PixelRect,
+  canvas: { width: number; height: number },
+  anchor?: string,
+): PixelRect {
+  const wanted = Math.min(Math.round(rect.w * TYPE_WIDTH_SAFETY), canvas.width);
+  const grow = wanted - rect.w;
+  if (grow <= 0) return rect;
+
+  const a = anchor ?? 'center';
+  if (a.endsWith('-left')) {
+    return { x: rect.x, y: rect.y, w: Math.min(wanted, canvas.width - rect.x), h: rect.h };
+  }
+  if (a.endsWith('-right')) {
+    const right = rect.x + rect.w;
+    const w = Math.min(wanted, right);
+    return { x: right - w, y: rect.y, w, h: rect.h };
+  }
+  const cx = rect.x + rect.w / 2;
+  const room = 2 * Math.min(cx, canvas.width - cx);
+  const w = Math.max(rect.w, Math.min(wanted, Math.floor(room)));
+  return { x: Math.round(cx - w / 2), y: rect.y, w, h: rect.h };
+}
+
 function clampToCanvas(rect: PixelRect, canvas: { width: number; height: number }): PixelRect {
   const w = Math.min(rect.w, canvas.width);
   const h = Math.min(rect.h, canvas.height);
@@ -983,6 +1516,37 @@ export function backdropColorBehind(rect: PixelRect, palette: ResolvedPalette, c
   const overDark = mix(palette.dark, horizontal, 0.32);
   // The floor gradient darkens the lower half.
   return cy > 0.55 ? shade(overDark, -0.05) : overDark;
+}
+
+/**
+ * The plate colour a chip-shaped role should sit on, if any.
+ *
+ * @hexa/type's `team-tag` preset ships a fixed `#FFD447` plate. That is a
+ * sensible neutral for a package that knows nothing about teams, and completely
+ * wrong here: it painted every team tag in the library the same highlighter
+ * yellow, which made the least important text in the frame the most saturated
+ * thing in it and told the viewer nothing about whose tag it was. A team tag
+ * should be in the team's colour — that is the entire job of a team tag.
+ */
+function plateFor(role: TextRole, palette: ResolvedPalette): string | undefined {
+  if (role === 'left-team') return palette.left;
+  if (role === 'right-team') return palette.right;
+  if (role === 'badge') return palette.accent;
+  return undefined;
+}
+
+/**
+ * Plate override for {@link fitText}.
+ *
+ * `plate` is a real @hexa/type style key that the pipeline's own `TextStyle`
+ * mirror does not list, so it needs a cast to cross the adapter boundary. The
+ * cast is the narrow one — a single well-formed style object — rather than
+ * loosening the adapter contract, which another package owns.
+ */
+function plateStyle(role: TextRole, palette: ResolvedPalette): { style?: Record<string, unknown> } {
+  const color = plateFor(role, palette);
+  if (!color) return {};
+  return { style: { plate: { color, padX: 14, padY: 7, radius: 2, skewX: 10 } } as Record<string, unknown> };
 }
 
 function textColorFor(role: TextRole, palette: ResolvedPalette, behind: string): string {
