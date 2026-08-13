@@ -25,9 +25,13 @@
  * renders are still diffable and cacheable.
  */
 
+import fsp from 'node:fs/promises';
+import nodePath from 'node:path';
 import sharp from 'sharp';
 import { HexaError, createRng, hashString, mix, parseHex, readableOn, shade, withAlpha } from '@hexa/core';
-import type { AssetKind, Rng } from '@hexa/core';
+import type { AssetKind, ReferenceAsset, Rng } from '@hexa/core';
+import type { AssetLibrary } from './library.js';
+import { slugify } from './paths.js';
 
 export interface PlaceholderOptions {
   width: number;
@@ -57,7 +61,9 @@ const MAX_DIM = 8192;
 export async function generatePlaceholder(opts: PlaceholderOptions): Promise<Buffer> {
   const svg = buildPlaceholderSvg(opts);
   try {
-    return await sharp(Buffer.from(svg, 'utf8'), { density: 96 })
+    // density 72 ⇒ 1 SVG user unit renders as exactly 1 pixel, so the buffer
+    // comes back at the requested slot size rather than a DPI-scaled variant.
+    return await sharp(Buffer.from(svg, 'utf8'), { density: 72 })
       .ensureAlpha() // guarantee 4 channels even if the shape happens to fill the frame
       .png({ compressionLevel: 9 })
       .toBuffer();
@@ -141,45 +147,53 @@ function bustSilhouette(w: number, h: number, kind: AssetKind, rng: Rng): BodyAr
   const fullBody = kind === 'fullbody';
   const s = Math.min(w, h);
 
-  const headR = s * (fullBody ? 0.11 : 0.165) * rng.float(0.94, 1.06);
+  const headR = s * (fullBody ? 0.115 : 0.175) * rng.float(0.94, 1.06);
   const headCx = w / 2 + w * rng.float(-0.02, 0.02);
   const headCy = h * (fullBody ? 0.17 : 0.3) + s * rng.float(-0.015, 0.015);
   // Slight vertical stretch: heads are not circles, and the variation keeps a
   // row of placeholders from looking rubber-stamped.
   const headRy = headR * rng.float(1.08, 1.2);
 
-  const neckW = headR * rng.float(0.5, 0.62);
-  const neckTop = headCy + headRy * 0.72;
-  const shoulderY = neckTop + s * rng.float(0.07, 0.1);
-  const shoulderW = headR * (fullBody ? 3.1 : 3.7) * rng.float(0.94, 1.06);
-  const shoulderSlope = s * rng.float(0.045, 0.075);
-  const hipW = shoulderW * (fullBody ? 0.82 : 1);
+  const neckW = headR * rng.float(0.52, 0.66);
+  const neckTop = headCy + headRy * 0.7;
+  const neckBase = neckTop + s * rng.float(0.028, 0.042);
+  // Deltoid point: where the trapezius stops rising and the arm starts falling.
+  const shoulderY = neckBase + s * rng.float(0.07, 0.095);
+  const shoulderW = headR * (fullBody ? 3.2 : 3.6) * rng.float(0.95, 1.05);
+  // Arms splay outward on the way down for a bust, and taper for a full body.
+  const hipW = shoulderW * (fullBody ? 0.86 : 1.1);
 
   const left = headCx - shoulderW / 2;
   const right = headCx + shoulderW / 2;
   const bottom = h + 2; // bleed past the edge so the cutout has no floating base
+  const drop = bottom - shoulderY;
 
-  // Torso: shoulders curve out from the neck, then run down (tapering slightly
-  // for full-body) to below the frame.
+  // Torso, drawn as one closed path: neck → trapezius → deltoid → arm → bleed,
+  // mirrored back up the other side.
   const torso = [
     `M ${f(headCx - neckW / 2)} ${f(neckTop)}`,
-    `C ${f(headCx - neckW / 2)} ${f(shoulderY - shoulderSlope * 0.4)} ${f(left + shoulderW * 0.16)} ${f(shoulderY - shoulderSlope)} ${f(left)} ${f(shoulderY + shoulderSlope)}`,
-    `L ${f(headCx - hipW / 2)} ${f(bottom)}`,
+    `L ${f(headCx - neckW / 2)} ${f(neckBase)}`,
+    // Trapezius: slow rise off the neck, then a hard turn at the shoulder.
+    `C ${f(headCx - neckW * 1.15)} ${f(neckBase + s * 0.012)} ${f(left + shoulderW * 0.2)} ${f(shoulderY - s * 0.05)} ${f(left)} ${f(shoulderY)}`,
+    // Arm: bows very slightly outward on the way off the bottom edge.
+    `C ${f(left - shoulderW * 0.03)} ${f(shoulderY + drop * 0.35)} ${f(headCx - hipW / 2 - shoulderW * 0.01)} ${f(shoulderY + drop * 0.7)} ${f(headCx - hipW / 2)} ${f(bottom)}`,
     `L ${f(headCx + hipW / 2)} ${f(bottom)}`,
-    `L ${f(right)} ${f(shoulderY + shoulderSlope)}`,
-    `C ${f(right - shoulderW * 0.16)} ${f(shoulderY - shoulderSlope)} ${f(headCx + neckW / 2)} ${f(shoulderY - shoulderSlope * 0.4)} ${f(headCx + neckW / 2)} ${f(neckTop)}`,
+    `C ${f(headCx + hipW / 2 + shoulderW * 0.01)} ${f(shoulderY + drop * 0.7)} ${f(right + shoulderW * 0.03)} ${f(shoulderY + drop * 0.35)} ${f(right)} ${f(shoulderY)}`,
+    `C ${f(right - shoulderW * 0.2)} ${f(shoulderY - s * 0.05)} ${f(headCx + neckW * 1.15)} ${f(neckBase + s * 0.012)} ${f(headCx + neckW / 2)} ${f(neckBase)}`,
+    `L ${f(headCx + neckW / 2)} ${f(neckTop)}`,
     'Z',
   ].join(' ');
 
+  const collarY = shoulderY + s * rng.float(0.05, 0.075);
   const shape = [
     '<g>',
     `<path d="${torso}" fill="url(#grad)"/>`,
     `<ellipse cx="${f(headCx)}" cy="${f(headCy)}" rx="${f(headR)}" ry="${f(headRy)}" fill="url(#grad)"/>`,
-    // Hatch overlay, clipped to the same geometry.
+    // Hatch overlay on the same geometry: texture without touching alpha.
     `<path d="${torso}" fill="url(#hatch)"/>`,
     `<ellipse cx="${f(headCx)}" cy="${f(headCy)}" rx="${f(headR)}" ry="${f(headRy)}" fill="url(#hatch)"/>`,
-    // Shoulder seam line: reads as a technical drawing, costs no alpha.
-    `<path d="M ${f(left + shoulderW * 0.12)} ${f(shoulderY + shoulderSlope * 1.6)} L ${f(right - shoulderW * 0.12)} ${f(shoulderY + shoulderSlope * 1.6)}" stroke="${withAlpha('#FFFFFF', 0.25)}" stroke-width="${f(Math.max(1, s * 0.004))}" fill="none" stroke-dasharray="${f(s * 0.03)} ${f(s * 0.02)}"/>`,
+    // Collar seam: reads as a technical drawing, costs no alpha.
+    `<path d="M ${f(left + shoulderW * 0.14)} ${f(collarY)} Q ${f(headCx)} ${f(collarY + s * 0.045)} ${f(right - shoulderW * 0.14)} ${f(collarY)}" stroke="${withAlpha('#FFFFFF', 0.28)}" stroke-width="${f(Math.max(1, s * 0.004))}" fill="none" stroke-dasharray="${f(s * 0.028)} ${f(s * 0.018)}"/>`,
     '</g>',
   ].join('');
 
@@ -218,8 +232,11 @@ function backplatePanel(w: number, h: number, rng: Rng): BodyArt {
       `<line x1="${f(x)}" y1="${f(horizon)}" x2="${f(w / 2 + (x - w / 2) * 3)}" y2="${f(h)}" stroke="${withAlpha('#FFFFFF', 0.12)}" stroke-width="1"/>`,
     );
   }
-  for (let i = 1, y = horizon; y < h; i++) {
-    y = horizon + (h - horizon) * (1 - 1 / (1 + i * 0.45));
+  // Perspective rows converge on the bottom edge asymptotically, so the count
+  // is bounded explicitly — an "until it reaches the edge" loop never would.
+  for (let i = 1; i <= 16; i++) {
+    const y = horizon + (h - horizon) * (1 - 1 / (1 + i * 0.45));
+    if (y >= h - 1) break;
     lines.push(`<line x1="0" y1="${f(y)}" x2="${f(w)}" y2="${f(y)}" stroke="${withAlpha('#FFFFFF', 0.1)}" stroke-width="1"/>`);
   }
 
@@ -306,6 +323,75 @@ function captionPlate(w: number, h: number, label: string, stamp: string, textCo
     `<text x="${f(w / 2)}" y="${f(y + fontSize * 1.28 + capSize * 1.5)}" text-anchor="middle" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" font-size="${f(capSize)}" letter-spacing="${f(capSize * 0.18)}" fill="${withAlpha('#FFFFFF', 0.72)}">${esc(stamp)}</text>`,
     `</g>`,
   ].join('');
+}
+
+// ── library integration ──────────────────────────────────────────────────────
+
+/** Tag every synthetic asset carries, so identity gates can spot one instantly. */
+export const PLACEHOLDER_TAG = 'placeholder';
+
+export interface PlaceholderAssetOptions {
+  playerId?: string;
+  teamId?: string;
+  kind?: AssetKind;
+  /** Defaults to the playerId/teamId. */
+  label?: string;
+  /** Defaults to a neutral slate blue — pass the team accent when you have one. */
+  accent?: string;
+  width?: number;
+  height?: number;
+  seed?: number;
+}
+
+/**
+ * Materialise a placeholder *into* a library and register it, so a clean
+ * checkout with no photographs can still resolve a subject and render.
+ *
+ * Idempotent: if a placeholder for this subject+kind already exists it is
+ * returned untouched. The record is licensed `owned` and cleared — the artwork
+ * is genuinely ours — but it carries the `placeholder`/`synthetic` tags so the
+ * identity gate can refuse to pass it off as a likeness of a real person.
+ */
+export async function ensurePlaceholderAsset(lib: AssetLibrary, opts: PlaceholderAssetOptions = {}): Promise<ReferenceAsset> {
+  const kind: AssetKind = opts.kind ?? 'portrait';
+  const subject = opts.playerId ?? opts.teamId;
+  const existing = lib
+    .all()
+    .find((a) => a.tags.includes(PLACEHOLDER_TAG) && a.kind === kind && (a.playerId ?? a.teamId) === subject);
+  if (existing) return existing;
+
+  const label = opts.label ?? subject ?? 'REFERENCE';
+  const width = opts.width ?? (kind === 'backplate' ? 1920 : 900);
+  const height = opts.height ?? (kind === 'backplate' ? 1080 : 1200);
+  const png = await generatePlaceholder({
+    width,
+    height,
+    label,
+    accent: opts.accent ?? '#4C6FFF',
+    kind,
+    ...(opts.seed === undefined ? {} : { seed: opts.seed }),
+  });
+
+  const rel = `generated/placeholders/${slugify(`${subject ?? 'unassigned'}-${kind}-${label}`, 'placeholder')}.png`;
+  const dest = nodePath.join(lib.root, rel);
+  await fsp.mkdir(nodePath.dirname(dest), { recursive: true });
+  await fsp.writeFile(dest, png);
+
+  return lib.add({
+    path: dest,
+    kind,
+    ...(opts.playerId ? { playerId: opts.playerId } : {}),
+    ...(opts.teamId ? { teamId: opts.teamId } : {}),
+    copy: false,
+    tags: [PLACEHOLDER_TAG, 'synthetic', 'no-identity'],
+    provenance: {
+      source: 'Hexa synthetic placeholder',
+      license: 'owned',
+      cleared: true,
+      addedAt: new Date().toISOString(),
+      notes: 'Generated schematic stand-in. Contains no photographic likeness — replace with a licensed reference photo before publishing a likeness.',
+    },
+  });
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

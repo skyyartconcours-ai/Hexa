@@ -26,8 +26,8 @@ export interface HealthResponse {
 
 export class TransportError extends Error {
   readonly kind = 'transport';
-  constructor(message: string, readonly cause?: unknown) {
-    super(message);
+  constructor(message: string, cause?: unknown) {
+    super(message, cause !== undefined ? { cause } : undefined);
     this.name = 'TransportError';
   }
 }
@@ -44,8 +44,17 @@ export class ProtocolError extends Error {
     this.name = 'ProtocolError';
   }
 
+  /** True when the sidecar is running but the ML model behind this call is not
+   * usable — a missing pip install or a failed weight download. */
+  get isModelMissing(): boolean {
+    return this.code === 'MODEL_UNAVAILABLE' || this.code === 'MODEL_LOAD_FAILED';
+  }
+
   toHexaError(): HexaError {
-    return new HexaError('PROVIDER_ERROR', `vision sidecar: ${this.message}`, {
+    // A reachable sidecar with no model is still "no vision" from the caller's
+    // point of view, and the CLI's remediation for both is the same script.
+    const code = this.isModelMissing ? 'VISION_UNAVAILABLE' : 'PROVIDER_ERROR';
+    return new HexaError(code, `vision sidecar: ${this.message}`, {
       hint: this.hint,
       details: { status: this.status, sidecarCode: this.code },
     });

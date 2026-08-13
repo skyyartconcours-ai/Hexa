@@ -142,8 +142,12 @@ export function isPublishable(a: ReferenceAsset): boolean {
  * Build the attribution string that must accompany published output.
  *
  * Format: `Photos: Name (Source), Other Name (Other Source)`.
- * Entries are deduplicated case-insensitively and sorted so the same set of
- * assets always yields a byte-identical line (renders stay diffable/cacheable).
+ *
+ * Entries are deduplicated case-insensitively and sorted, so the same set of
+ * assets always yields a byte-identical line regardless of the order they were
+ * composited in (renders stay diffable and cacheable). Where two records spell
+ * the same credit differently, the better-capitalised spelling wins — names are
+ * proper nouns, and "Riot Games" beats "riot games".
  *
  * An asset contributes an entry when its licence requires credit, or whenever
  * an explicit `provenance.credit` was recorded — an operator who chose to
@@ -162,7 +166,8 @@ export function creditLine(assets: ReferenceAsset[], opts: { prefix?: string } =
     const entry = explicit ?? formatEntry(clean(p.photographer), clean(p.source));
     if (!entry) continue;
     const key = entry.toLowerCase();
-    if (!entries.has(key)) entries.set(key, entry);
+    const held = entries.get(key);
+    if (held === undefined || preferSpelling(entry, held) < 0) entries.set(key, entry);
   }
 
   if (entries.size === 0) return '';
@@ -176,6 +181,16 @@ function formatEntry(photographer: string | undefined, source: string | undefine
     return `${photographer} (${source})`;
   }
   return photographer ?? source;
+}
+
+/**
+ * Order two spellings of the same credit: more capitals first (proper nouns),
+ * then alphabetically. Negative ⇒ `a` is the better spelling. Total and
+ * order-independent, so the printed line does not depend on composite order.
+ */
+function preferSpelling(a: string, b: string): number {
+  const capitals = (s: string) => (s.match(/[A-Z]/g) ?? []).length;
+  return capitals(b) - capitals(a) || a.localeCompare(b, 'en');
 }
 
 function clean(v: string | undefined): string | undefined {

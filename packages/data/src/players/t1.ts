@@ -1,0 +1,237 @@
+/**
+ * T1 — LCK. Roster as of the 2026 LCK season.
+ *
+ * ROSTERS CHANGE. Re-verify before a season, after any trade window, and any
+ * time a render surprises you. See `../roster.ts` for the full provenance
+ * block and the re-verification procedure.
+ *
+ * sourcedAt: 2026-08-13
+ * sources:
+ *  - https://www.sheepesports.com/en/all/articles/lol-t1-completed-2026-lck-roster/en
+ *  - https://esportsinsider.com/2025/11/every-confirmed-lck-roster-2026-league-of-legends
+ *  - https://esportsinsider.com/2025/11/peyz-joins-t1-2026-lck-league-of-legends
+ *  - https://esportsinsider.com/2025/11/t1-wins-league-of-legends-lol-worlds-2025
+ *  - https://www.sheepesports.com/en/all/articles/t1-announce-kkoma-hiatus-tom-to-lead-as-interim-head-coach/en
+ *  - https://liquipedia.net/leagueoflegends/T1
+ */
+
+import type { Player } from '@hexa/core';
+
+export const T1_PLAYERS: Player[] = [
+  {
+    id: 'doran',
+    handle: 'Doran',
+    aliases: ['t1-doran', 'Choi Hyeon-joon', 'Choi Hyeonjun', '최현준'],
+    fullName: 'Choi Hyeon-joon',
+    nativeName: '최현준',
+    role: 'top',
+    teamId: 't1',
+    region: 'KR',
+    nationality: 'South Korea',
+    signatureChampions: ['Aatrox', 'Jax', "K'Sante", 'Renekton', 'Gnar'],
+    careerHighlights: [
+      'World Champion 2025 (T1)',
+      'LCK champion (4x)',
+      'LCK 2024 Summer champion with Hanwha Life Esports',
+      'Worlds 2019 with Griffin as a rookie top laner',
+    ],
+    referenceQueries: [
+      'Doran T1 LCK 2026 press photo',
+      'Choi Hyeon-joon Doran T1 portrait lolesports',
+      'Doran T1 Worlds 2025 champion media day photo',
+      'Doran T1 jersey top laner LCK media kit 2026',
+    ],
+    active: true,
+    joinedAt: '2024-11',
+    tags: ['starter', 'worlds-winner', 'veteran'],
+  },
+  {
+    id: 'oner',
+    handle: 'Oner',
+    aliases: ['t1-oner', 'Mun Hyeon-jun', 'Moon Hyeon-jun', '문현준'],
+    fullName: 'Mun Hyeon-jun',
+    nativeName: '문현준',
+    role: 'jungle',
+    teamId: 't1',
+    region: 'KR',
+    nationality: 'South Korea',
+    signatureChampions: ['Lee Sin', 'Viego', 'Vi', 'Jarvan IV', 'Xin Zhao'],
+    careerHighlights: [
+      'World Champion 2023, 2024, 2025 (T1) — part of the first Worlds three-peat',
+      'MSI 2024 runner-up',
+      'LCK champion with T1',
+      'Career-long T1 player, promoted from the T1 academy system',
+    ],
+    referenceQueries: [
+      'Oner T1 LCK 2026 press photo',
+      'Mun Hyeon-jun Oner T1 portrait lolesports',
+      'Oner T1 Worlds 2025 stage photo jungler',
+      'Oner T1 media day 2026 jersey photo',
+    ],
+    active: true,
+    joinedAt: '2021',
+    tags: ['starter', 'worlds-winner', 'faceofteam'],
+  },
+  {
+    id: 'faker',
+    handle: 'Faker',
+    aliases: ['t1-faker', 'Lee Sang-hyeok', 'Lee Sanghyeok', '이상혁', 'GOAT', 'Unkillable Demon King'],
+    fullName: 'Lee Sang-hyeok',
+    nativeName: '이상혁',
+    role: 'mid',
+    teamId: 't1',
+    region: 'KR',
+    nationality: 'South Korea',
+    signatureChampions: ['Ahri', 'LeBlanc', 'Azir', 'Ryze', 'Orianna', 'Zed'],
+    careerHighlights: [
+      'World Champion 2013, 2015, 2016, 2023, 2024, 2025 — six titles, no other player has more',
+      'Worlds 2023 and 2024 Finals MVP',
+      'MSI champion 2016, 2017',
+      '2023 Asian Games gold medallist with South Korea',
+      'Ten LCK titles; the most decorated player in League of Legends history',
+      'Part-owner of T1 and the sport’s defining figure since 2013',
+    ],
+    socials: {
+      twitter: 'faker',
+      twitch: 'faker',
+    },
+    referenceQueries: [
+      'Faker T1 LCK 2026 press photo',
+      'Lee Sang-hyeok Faker portrait lolesports high resolution',
+      'Faker T1 Worlds 2025 trophy celebration photo',
+      'Faker T1 media day 2026 jersey portrait',
+      'Faker LCK official media kit headshot',
+    ],
+    active: true,
+    joinedAt: '2013-02',
+    tags: ['starter', 'worlds-winner', 'veteran', 'faceofteam', 'legend'],
+  },
+  {
+    id: 'peyz',
+    handle: 'Peyz',
+    aliases: ['t1-peyz', 'geng-peyz', 'Kim Su-hwan', 'Kim Suhwan', '김수환'],
+    fullName: 'Kim Su-hwan',
+    nativeName: '김수환',
+    role: 'bot',
+    teamId: 't1',
+    region: 'KR',
+    nationality: 'South Korea',
+    signatureChampions: ["Kai'Sa", 'Jinx', 'Xayah', 'Aphelios', 'Varus', 'Zeri'],
+    careerHighlights: [
+      'MSI 2024 champion with Gen.G',
+      'LCK Rookie of the Year 2023 — youngest bot laner to win an LCK title, at 17',
+      'LCK champion (3x) with Gen.G',
+      'LCK 2023 Spring Finals MVP',
+      'Holds the all-time record for pentakills in professional play',
+      'Spent 2025 in the LPL with JD Gaming before returning to the LCK',
+    ],
+    referenceQueries: [
+      'Peyz T1 LCK 2026 press photo',
+      'Kim Su-hwan Peyz portrait lolesports',
+      'Peyz T1 signing announcement photo 2026 bot laner',
+      'Peyz Gen.G MSI 2024 champion photo',
+      'Peyz LCK media kit headshot 2026',
+    ],
+    active: true,
+    joinedAt: '2025-11',
+    tags: ['starter', 'msi-winner', 'faceofteam'],
+  },
+  {
+    id: 'keria',
+    handle: 'Keria',
+    aliases: ['t1-keria', 'Ryu Min-seok', 'Ryu Minseok', '류민석'],
+    fullName: 'Ryu Min-seok',
+    nativeName: '류민석',
+    role: 'support',
+    teamId: 't1',
+    region: 'KR',
+    nationality: 'South Korea',
+    signatureChampions: ['Renata Glasc', 'Bard', 'Thresh', 'Rakan', 'Pyke', 'Ashe'],
+    careerHighlights: [
+      'World Champion 2023, 2024, 2025 (T1)',
+      'Worlds 2022 runner-up with T1',
+      'LCK champion with T1',
+      'Widely regarded as the most inventive support in the game; repeat LCK First All-Pro support',
+    ],
+    referenceQueries: [
+      'Keria T1 LCK 2026 press photo',
+      'Ryu Min-seok Keria T1 portrait lolesports',
+      'Keria T1 Worlds 2025 stage photo support',
+      'Keria T1 media day 2026 jersey portrait',
+    ],
+    active: true,
+    joinedAt: '2020-11',
+    tags: ['starter', 'worlds-winner', 'faceofteam'],
+  },
+  {
+    id: 'tom',
+    handle: 'Tom',
+    aliases: ['t1-tom', 'Im Jae-hyeon', 'Im Jaehyeon', '임재현'],
+    fullName: 'Im Jae-hyeon',
+    nativeName: '임재현',
+    role: 'coach',
+    teamId: 't1',
+    region: 'KR',
+    nationality: 'South Korea',
+    signatureChampions: [],
+    careerHighlights: [
+      'Interim head coach of T1 for the 2026 LCK season while kkOma is on hiatus',
+      'Coach on the T1 staff through the 2023–2025 World Championship three-peat',
+    ],
+    referenceQueries: [
+      'Tom T1 head coach LCK 2026 press photo',
+      'Im Jae-hyeon T1 coach portrait lolesports',
+      'T1 coaching staff 2026 media day photo',
+    ],
+    active: true,
+    tags: ['coach'],
+  },
+  {
+    id: 'mata',
+    handle: 'Mata',
+    aliases: ['t1-mata', 'Cho Se-hyeong', 'Cho Sehyeong', '조세형'],
+    fullName: 'Cho Se-hyeong',
+    nativeName: '조세형',
+    role: 'coach',
+    teamId: 't1',
+    region: 'KR',
+    nationality: 'South Korea',
+    signatureChampions: [],
+    careerHighlights: [
+      'World Champion 2014 and Worlds 2014 Finals MVP as a player with Samsung White',
+      'Joined T1’s LCK coaching staff in November 2024',
+    ],
+    referenceQueries: [
+      'Mata T1 coach LCK 2026 press photo',
+      'Cho Se-hyeong Mata coach portrait lolesports',
+      'Mata Samsung White Worlds 2014 MVP photo',
+    ],
+    active: true,
+    joinedAt: '2024-11',
+    tags: ['coach', 'worlds-winner', 'legend'],
+  },
+  {
+    id: 'kkoma',
+    handle: 'kkOma',
+    aliases: ['t1-kkoma', 'Kim Jeong-gyun', 'Kim Junggyun', '김정균'],
+    fullName: 'Kim Jeong-gyun',
+    nativeName: '김정균',
+    role: 'coach',
+    teamId: 't1',
+    region: 'KR',
+    nationality: 'South Korea',
+    signatureChampions: [],
+    careerHighlights: [
+      'Head coach of the 2013, 2015, 2016, 2023, 2024 and 2025 World Champion T1/SKT sides',
+      'The most successful coach in League of Legends history',
+      'Stepped away from the T1 bench on hiatus ahead of the 2026 LCK regular season',
+    ],
+    referenceQueries: [
+      'kkOma T1 head coach press photo',
+      'Kim Jeong-gyun kkOma coach portrait lolesports',
+      'kkOma T1 Worlds 2025 trophy photo',
+    ],
+    active: false,
+    tags: ['coach', 'worlds-winner', 'legend'],
+  },
+];

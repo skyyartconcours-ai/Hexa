@@ -10,12 +10,14 @@ import type { PixelRect, Rect, RenderPlan, SafeZone } from '@hexa/core';
 import type { GateContext, GateTextRect, QaRect } from './types.js';
 
 /**
- * A rect is treated as normalised when every component fits in 0–1. A device
- * rect that small would be sub-pixel and meaningless, so the heuristic is safe;
- * it is what lets callers hand us either flavour without ceremony.
+ * A rect is treated as normalised when its size fits in 0–1 and its origin is
+ * within one canvas of the frame. A device rect that small would be sub-pixel
+ * and meaningless, so the heuristic is safe, and allowing a negative origin
+ * matters: a face half off the left edge is exactly the case the placement gate
+ * needs to catch.
  */
 export function isNormalised(r: QaRect): boolean {
-  return r.x >= -0.001 && r.y >= -0.001 && r.w <= 1.001 && r.h <= 1.001 && r.x <= 1.001 && r.y <= 1.001;
+  return r.w <= 1.001 && r.h <= 1.001 && Math.abs(r.x) <= 1.001 && Math.abs(r.y) <= 1.001;
 }
 
 export function toPixelRect(r: QaRect, width: number, height: number): PixelRect {

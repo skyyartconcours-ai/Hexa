@@ -43,6 +43,20 @@ export function n(v: number): string {
   return Math.abs(r) < 1e-6 ? '0' : String(r);
 }
 
+/**
+ * Round a length to the precision `n()` serialises at.
+ *
+ * Anything a function *reports* as a width or height must be run through this
+ * before it is returned, so the number the caller lays out against is exactly
+ * the number the document declares. Otherwise a computed `200 * 1.1` reports
+ * 220.00000000000003 while the SVG says 220, and the layer rect and its
+ * contents disagree by a hair — which is the kind of drift that surfaces much
+ * later as a one-pixel seam.
+ */
+export function px(v: number): number {
+  return Number.isFinite(v) ? Math.round(v * 1000) / 1000 : 0;
+}
+
 /** Build an attribute list, dropping undefined/null values. */
 export function attrs(map: Record<string, string | number | undefined | null>): string {
   const out: string[] = [];

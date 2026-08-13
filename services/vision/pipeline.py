@@ -626,10 +626,13 @@ def _decontaminate(rgb: np.ndarray, alpha: np.ndarray, radius: int = 6) -> np.nd
     it in proportionally to how transparent the pixel is.
     """
     a = (alpha.astype(np.float32) / 255.0)[:, :, None]
-    core = (alpha >= 250).astype(np.float32)[:, :, None]
+    core2d = (alpha >= 250).astype(np.float32)
+    core = core2d[:, :, None]
     k = max(3, radius * 2 + 1)
     num = cv2.blur(rgb.astype(np.float32) * core, (k, k))
-    den = cv2.blur(core, (k, k))
+    # cv2 drops the trailing singleton axis on 1-channel input, so put it back
+    # explicitly rather than relying on a broadcast that would not happen.
+    den = cv2.blur(core2d, (k, k))[:, :, None]
     est = num / np.maximum(den, 1e-4)
     valid = (den > 1e-3).astype(np.float32)
     mix = (1.0 - a) * valid
