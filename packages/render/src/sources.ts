@@ -25,6 +25,7 @@ import { type RawImage, toRaw, solidRaw } from './raw.js';
 import { resolveGenerator, generatorIds } from './generators/index.js';
 import { noiseFieldRaw } from './generators/raster.js';
 import { f, svgDoc } from './generators/util.js';
+import { timed } from './profile.js';
 
 function fail(layer: Layer, message: string, hint?: string, cause?: unknown): never {
   throw new HexaError('RENDER_FAILED', `layer "${layer.id}": ${message}`, {
@@ -81,6 +82,10 @@ export function radialSvg(
 
 /** Decode a bitmap and fit it to the slot (see fit policy in the file header). */
 async function fitBitmap(input: Buffer | string, width: number, height: number): Promise<RawImage> {
+  return timed('src:bitmap', width * height, () => fitBitmapCore(input, width, height));
+}
+
+async function fitBitmapCore(input: Buffer | string, width: number, height: number): Promise<RawImage> {
   const pipeline = sharp(input, { failOn: 'none' });
   const meta = await pipeline.metadata();
   const fit = meta.hasAlpha ? 'contain' : 'cover';
@@ -142,7 +147,8 @@ export async function resolveSource(
 
     case 'svg': {
       try {
-        const { data, info } = await sharp(Buffer.from(src.markup))
+        const { data, info } = await timed('src:svg', width * height, () =>
+          sharp(Buffer.from(src.markup))
           .ensureAlpha()
           .resize(width, height, {
             fit: 'contain',
@@ -150,7 +156,8 @@ export async function resolveSource(
             kernel: 'lanczos3',
           })
           .raw({ depth: 'uchar' })
-          .toBuffer({ resolveWithObject: true });
+          .toBuffer({ resolveWithObject: true }),
+        );
         return { data, width: info.width, height: info.height, channels: info.channels };
       } catch (cause) {
         fail(layer, 'SVG markup could not be rasterised', 'librsvg rejected the markup — check for unclosed tags.', cause);
@@ -162,10 +169,14 @@ export async function resolveSource(
       return solidRaw(width, height, src.color);
 
     case 'gradient':
-      return toRaw(Buffer.from(gradientSvg(width, height, src.stops, src.angle)));
+      return timed('src:gradient', width * height, () =>
+        toRaw(Buffer.from(gradientSvg(width, height, src.stops, src.angle))),
+      );
 
     case 'radial':
-      return toRaw(Buffer.from(radialSvg(width, height, src.stops, src.center, src.radius)));
+      return timed('src:radial', width * height, () =>
+        toRaw(Buffer.from(radialSvg(width, height, src.stops, src.center, src.radius))),
+      );
 
     case 'noise':
       return noiseFieldRaw(width, height, (src.seed ^ ctx.seed) >>> 0, src.scale, Math.max(1, Math.round(src.octaves)));
@@ -180,8 +191,10 @@ export async function resolveSource(
         );
       }
       try {
-        const png = await gen(src.params ?? {}, { width, height }, layerSeed(ctx, layer));
-        return await toRaw(png);
+        const png = await timed(`gen:${src.generatorId}`, width * height, () =>
+          gen(src.params ?? {}, { width, height }, layerSeed(ctx, layer)),
+        );
+        return await timed('gen:decode', width * height, () => toRaw(png));
       } catch (cause) {
         if (cause instanceof HexaError) throw cause;
         fail(layer, `generator "${src.generatorId}" failed`, undefined, cause);

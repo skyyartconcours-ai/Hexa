@@ -10,8 +10,12 @@
  * Conventions honoured:
  *   meta.textStyles  : Record<role, { color?, stroke?, plate? }>
  *   meta.textColors  : Record<role, string>            (shorthand for the above)
+ *   meta.textRects   : { role, rect, color?, text? }[] (what the compiler laid
+ *                                                       out — authoritative)
  *   meta.safeZones   : SafeZone[]                      (see geom.ts)
  *   meta.palette     : { left?, right?, accent? }
+ *   meta.placeholders: string[]                        (subjects rendered from a
+ *                                                       synthetic stand-in)
  *   meta.siblingHashes : string[]                      (dHashes of the other
  *                                                       variants in the batch)
  */
@@ -55,6 +59,17 @@ export function resolveTextStyle(plan: RenderPlan, role: string, rect: PixelRect
     if (typeof c === 'string') { hint.color = c; hint.source = 'meta'; }
   }
 
+  // The compiler's own record of what it laid out. Consulted *before* sniffing
+  // the layer markup: a text layer's SVG also contains its plate, its badge and
+  // its shadow, and the first hex in it is very often one of those rather than
+  // the type — which is how "left-team" used to report the yellow badge as its
+  // text colour and measure the contrast of the plate against itself.
+  if (!hint.color) {
+    for (const rec of textRectRecords(plan)) {
+      if (rec.role === role && typeof rec.color === 'string') { hint.color = rec.color; hint.source = 'meta'; break; }
+    }
+  }
+
   const layer = plan.layers.find((l) => textRoleOfLayer(l.id, l.label) === role);
   if (layer) {
     if (layer.effects?.stroke && layer.effects.stroke.width > 0) hint.hasStroke = true;
@@ -78,6 +93,54 @@ function hasPlateBehind(plan: RenderPlan, textLayer: Layer, rect: PixelRect): bo
     if (!flat || l.opacity < 0.45) return false;
     return overlapRatio(norm(rect), norm(l.rect)) >= 0.7;
   });
+}
+
+interface TextRectRecord {
+  role: string;
+  color?: string;
+  text?: string;
+}
+
+/** `meta.textRects` as the compiler writes it, defensively narrowed. */
+export function textRectRecords(plan: RenderPlan): TextRectRecord[] {
+  const raw = (plan.meta as Record<string, unknown>)['textRects'];
+  if (!Array.isArray(raw)) return [];
+  const out: TextRectRecord[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const e = entry as { role?: unknown; color?: unknown; text?: unknown };
+    if (typeof e.role !== 'string') continue;
+    out.push({
+      role: e.role,
+      ...(typeof e.color === 'string' ? { color: e.color } : {}),
+      ...(typeof e.text === 'string' ? { text: e.text } : {}),
+    });
+  }
+  return out;
+}
+
+/** The copy the compiler says it set for a role, when it recorded any. */
+export function declaredText(plan: RenderPlan, role: string): string | undefined {
+  return textRectRecords(plan).find((r) => r.role === role)?.text;
+}
+
+/**
+ * Subjects the renderer filled with a synthetic stand-in rather than a
+ * photograph. Both spellings the pipeline uses are accepted: `meta.placeholders`
+ * (player ids) and the `placeholder:<id>` entries in `meta.assets`.
+ */
+export function placeholderSubjects(plan: RenderPlan): Set<string> {
+  const out = new Set<string>();
+  const meta = plan.meta as Record<string, unknown>;
+  const ids = meta['placeholders'];
+  if (Array.isArray(ids)) for (const id of ids) if (typeof id === 'string') out.add(id);
+  const assets = meta['assets'];
+  if (Array.isArray(assets)) {
+    for (const a of assets) {
+      if (typeof a === 'string' && a.startsWith('placeholder:')) out.add(a.slice('placeholder:'.length));
+    }
+  }
+  return out;
 }
 
 export interface PlanPalette {

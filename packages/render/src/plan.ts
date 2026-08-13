@@ -35,6 +35,7 @@ import { renderLayerRaw, layerOpacity } from './layer.js';
 import { compositeLayer } from './blend.js';
 import { applyGradeRaw } from './grade.js';
 import { exportRaw, debugOverlaySvg } from './export.js';
+import { timed } from './profile.js';
 
 export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Promise<RenderResult> {
   const started = performance.now();
@@ -75,6 +76,7 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
       if (entry === undefined) {
         resolving.add(layerId);
         try {
+          // eslint-disable-next-line no-await-in-loop
           // Mask renders never see a backdrop: a mask is a stencil, and light
           // wrapping a stencil would be meaningless.
           entry = await renderLayerRaw(layer, canvas, { ...ctx, backdrop: undefined });
@@ -125,10 +127,13 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
 
   if (ss > 1) {
     const t = performance.now();
-    const { data, info } = await rawToSharp(acc)
-      .resize(W, H, { kernel: 'lanczos3', fit: 'fill' })
-      .raw({ depth: 'uchar' })
-      .toBuffer({ resolveWithObject: true });
+    const full = acc;
+    const { data, info } = await timed('downsample', full.width * full.height, () =>
+      rawToSharp(full)
+        .resize(W, H, { kernel: 'lanczos3', fit: 'fill' })
+        .raw({ depth: 'uchar' })
+        .toBuffer({ resolveWithObject: true }),
+    );
     acc = { data, width: info.width, height: info.height, channels: info.channels };
     timings.downsample = performance.now() - t;
   }
@@ -158,7 +163,10 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
 
   const tExport = performance.now();
   const format = opts.format ?? 'png';
-  const buffer = await exportRaw(acc, format, opts.quality);
+  const encoded = acc;
+  const buffer = await timed(`export:${format}`, encoded.width * encoded.height, () =>
+    exportRaw(encoded, format, opts.quality),
+  );
   timings.export = performance.now() - tExport;
   timings.total = performance.now() - started;
 

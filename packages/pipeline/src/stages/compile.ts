@@ -283,7 +283,7 @@ function emitBackplate(args: {
     });
     buffers.push({ key: BUFFER_KEYS.backplate, kind: 'backplate', ref: 'backplate' });
   } else {
-    layers.push(proceduralBackdrop(backdrop, full, input.palette, input.seed));
+    layers.push(...proceduralBackdrop(backdrop, full, input.palette, input.seed));
   }
 
   // A colour wash carrying the two team colours across the frame. Even over an
@@ -816,11 +816,13 @@ async function emitText(args: {
             })
           : await fitText({
               text: copy,
-              rect,
+              rect: typographyBox(rect, canvas),
               role,
               color,
               align: alignFor(role, axes.textArrangement),
-              anchor: slot.anchor,
+              // Deliberately always 'center'. See typographyBox: an edge anchor
+              // pins the glyphs against the edge that clips them.
+              anchor: 'center',
               maxLines: role === 'headline' || role === 'subhead' ? 2 : 1,
             });
 
@@ -948,6 +950,48 @@ export function arrangeTextRect(
     default:
       return rect;
   }
+}
+
+/**
+ * Extra horizontal room handed to the type setter, as a fraction of the slot.
+ *
+ * @hexa/type measures with its own calibrated family metrics and the rasteriser
+ * draws with whatever face is actually installed. When the wanted display faces
+ * (Anton, Bebas Neue, …) are missing, the substitute is consistently *wider*
+ * than the metrics predict — measured here at 1.10–1.20× — so a string that
+ * autofit believes fits exactly gets its last glyph sliced off by the edge of
+ * its own SVG viewport. Every clipped headline in the gallery came from this.
+ *
+ * The safety factor is the margin that absorbs the mismatch. It is not a fudge
+ * for bad layout: font size is driven by the box *height* for every preset the
+ * pipeline uses, so a wider box costs nothing in type size — it only stops the
+ * glyphs colliding with the viewport.
+ */
+const TYPE_WIDTH_SAFETY = 1.3;
+
+/**
+ * The box actually handed to the type setter.
+ *
+ * Two corrections, both forced by the measurement mismatch above:
+ *
+ *  - widen around the slot's centre so drawn glyphs have somewhere to go;
+ *  - centre the block rather than anchoring it to an edge. An edge anchor
+ *    (`center-right`, `center-left`) pins the block flush against the very edge
+ *    the overflow runs past, which turns a 10% mismatch into a visibly severed
+ *    letter. Centred, the same mismatch is absorbed by the margin.
+ *
+ * The result is placed at the returned rect, so the type still reads as
+ * belonging to its slot — it is centred on it instead of flush inside it.
+ */
+export function typographyBox(rect: PixelRect, canvas: { width: number; height: number }): PixelRect {
+  const cx = rect.x + rect.w / 2;
+  const wanted = Math.round(rect.w * TYPE_WIDTH_SAFETY);
+  // Never wider than the canvas, and never pushed off it: if the slot sits near
+  // an edge, give back the room that will not fit rather than sliding the box
+  // sideways — a nameplate that drifts off its plate is worse than a tighter one.
+  const room = 2 * Math.min(cx, canvas.width - cx);
+  const w = Math.max(rect.w, Math.min(wanted, Math.floor(room), canvas.width));
+  return { x: Math.round(cx - w / 2), y: rect.y, w, h: rect.h };
 }
 
 function clampToCanvas(rect: PixelRect, canvas: { width: number; height: number }): PixelRect {

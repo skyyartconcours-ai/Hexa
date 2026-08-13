@@ -60,6 +60,7 @@ import {
 } from './raw.js';
 import { bloomRaw, halationRaw, chromaticAberrationRaw, vignetteRaw, filmGrainRaw } from './effects/optical.js';
 import { applyLutRaw, BUILTIN_LUTS } from './lut.js';
+import { record, timed, timedSync } from './profile.js';
 
 /** How hard a split-tone hex pushes at weight 1. Tuned by eye on skin tones. */
 const SPLIT_TONE_STRENGTH = 0.55;
@@ -159,6 +160,7 @@ export async function applyGradeRaw(
 
   let work = img;
   if (curves || sat !== 1 || shadowTint || highlightTint) {
+    const tTone = performance.now();
     const out = Buffer.from(img.data);
     for (let p = 0; p < out.length; p += 4) {
       if (out[p + 3] === 0) continue;
@@ -196,33 +198,47 @@ export async function applyGradeRaw(
       out[p + 2] = Math.round(clamp(b, 0, 255));
     }
     work = { data: out, width: w, height: h, channels: 4 };
+    record('grade:tone', performance.now() - tTone, w * h);
   }
 
   // ── 7: LUT ────────────────────────────────────────────────────────────────
   if (grade.lut) {
     const lut = BUILTIN_LUTS[grade.lut];
-    if (lut) work = applyLutRaw(work, lut, grade.lutStrength ?? 1);
+    if (lut) {
+      const src = work;
+      work = timedSync('grade:lut', w * h, () => applyLutRaw(src, lut, grade.lutStrength ?? 1));
+    }
   }
 
   // ── 8–9: bloom, then halation ─────────────────────────────────────────────
   if ((grade.bloomIntensity ?? 0) > 0) {
-    work = await bloomRaw(
-      work,
-      grade.bloomThreshold ?? 0.72,
-      grade.bloomIntensity ?? 0,
-      Math.max(1, Math.max(w, h) * 0.012),
+    const src = work;
+    work = await timed('grade:bloom', w * h, () =>
+      bloomRaw(src, grade.bloomThreshold ?? 0.72, grade.bloomIntensity ?? 0, Math.max(1, Math.max(w, h) * 0.012)),
     );
   }
-  if ((grade.halation ?? 0) > 0) work = await halationRaw(work, grade.halation ?? 0);
+  if ((grade.halation ?? 0) > 0) {
+    const src = work;
+    work = await timed('grade:halation', w * h, () => halationRaw(src, grade.halation ?? 0));
+  }
 
   // ── 10–11: lens — aberration first so the vignette hides the fringe ───────
   if ((grade.chromaticAberration ?? 0) > 0) {
-    work = chromaticAberrationRaw(work, (grade.chromaticAberration ?? 0) * scale);
+    const src = work;
+    work = timedSync('grade:aberration', w * h, () =>
+      chromaticAberrationRaw(src, (grade.chromaticAberration ?? 0) * scale),
+    );
   }
-  if ((grade.vignette ?? 0) > 0) work = vignetteRaw(work, grade.vignette ?? 0);
+  if ((grade.vignette ?? 0) > 0) {
+    const src = work;
+    work = timedSync('grade:vignette', w * h, () => vignetteRaw(src, grade.vignette ?? 0));
+  }
 
   // ── 12: grain, after every blur-based stage ───────────────────────────────
-  if ((grade.grain ?? 0) > 0) work = await filmGrainRaw(work, grade.grain ?? 0, seed);
+  if ((grade.grain ?? 0) > 0) {
+    const src = work;
+    work = await timed('grade:grain', w * h, () => filmGrainRaw(src, grade.grain ?? 0, seed));
+  }
 
   // ── 13: letterbox furniture ───────────────────────────────────────────────
   const bars = grade.letterbox ?? 0;

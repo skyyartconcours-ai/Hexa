@@ -348,11 +348,13 @@ function printReport(
   ctx.say(` ${report.passed ? ui.ok(`${glyph.ok} passed`) : ui.fail(`${glyph.fail} failed`)}   ` +
     `qa ${formatScore(report.score, ui)}   appeal ${formatScore(appeal.score, ui)}`);
 
+  // Gate scores are 0–1 (the aggregate `report.score` is the 0–100 one), so
+  // they are scaled here rather than guessed at from their magnitude.
   const gateScores = Object.entries(report.gateScores ?? {});
   if (gateScores.length > 0) {
-    ctx.say(`\n ${ui.dim('per gate')}`);
+    ctx.say(`\n ${ui.dim('per gate')} ${ui.dim('— worst first')}`);
     for (const [gate, score] of gateScores.sort((a, b) => a[1] - b[1])) {
-      ctx.say(`   ${gate.padEnd(20)} ${formatScore(score * (score <= 1 ? 100 : 1), ui)}`);
+      ctx.say(`   ${gate.padEnd(20)} ${formatScore(score * 100, ui)}`);
     }
   }
 

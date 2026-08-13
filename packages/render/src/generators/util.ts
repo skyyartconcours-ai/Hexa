@@ -14,6 +14,7 @@
 import sharp from 'sharp';
 import { parseHex, clamp } from '@hexa/core';
 import { type RawImage, toRaw, rawToSharp } from '../raw.js';
+import { timed } from '../profile.js';
 
 export interface Size {
   width: number;
@@ -74,16 +75,19 @@ export function svgDoc(width: number, height: number, body: string, defs = ''): 
 
 /** Rasterise SVG markup to raw RGBA at its natural size. */
 export async function renderSvg(markup: string): Promise<RawImage> {
-  return toRaw(Buffer.from(markup));
+  return timed('gen:rasterise-svg', 0, () => toRaw(Buffer.from(markup)));
 }
 
 /** Encode a raw image as an RGBA PNG (alpha forced, so every generator agrees). */
 export async function toRgbaPng(img: RawImage): Promise<Buffer> {
-  return rawToSharp(img).ensureAlpha().png({ compressionLevel: 6 }).toBuffer();
+  return timed('gen:encode-png', img.width * img.height, () =>
+    rawToSharp(img).ensureAlpha().png({ compressionLevel: 6 }).toBuffer(),
+  );
 }
 
 /** Additive stack — how light layers actually combine. Runs inside libvips. */
 export async function addLayers(width: number, height: number, layers: RawImage[]): Promise<RawImage> {
+  return timed('gen:add-layers', width * height, async () => {
   let acc = sharp({
     create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   });
@@ -97,6 +101,7 @@ export async function addLayers(width: number, height: number, layers: RawImage[
   if (composites.length) acc = acc.composite(composites);
   const { data, info } = await acc.raw({ depth: 'uchar' }).toBuffer({ resolveWithObject: true });
   return { data, width: info.width, height: info.height, channels: info.channels };
+  });
 }
 
 /** Gaussian-blur a raw layer (alpha-correct, see raw.ts header). */

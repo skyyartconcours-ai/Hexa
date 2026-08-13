@@ -22,7 +22,7 @@ import { contrastRatio, toHex } from '@hexa/core';
 import type { QaFinding } from '@hexa/core';
 import type { Gate, GateContext } from '../types.js';
 import { clamp01, collectTextRects, ramp, toNormRect } from '../geom.js';
-import { cropPixels, loadRgb, luma, meanColor, otsu } from '../image.js';
+import { INK_TOLERANCE, colorDistance, cropPixels, loadRgb, luma, meanColor, otsu, parseHexRgb } from '../image.js';
 import { resolveTextStyle } from '../plan.js';
 
 export const MIN_RATIO_BARE = 4.5;
@@ -35,19 +35,6 @@ interface Sample {
   /** 'declared' when the plan told us the text colour, 'estimated' otherwise. */
   basis: 'declared' | 'estimated';
   cell: string;
-}
-
-function colorDistance(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }): number {
-  return Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
-}
-
-function parseRgb(hex: string): { r: number; g: number; b: number } | null {
-  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(hex.trim());
-  if (!m) return null;
-  let h = m[1]!;
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
-  const n = Number.parseInt(h.slice(0, 6), 16);
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
 export const contrastGate: Gate = {
@@ -66,7 +53,7 @@ export const contrastGate: Gate = {
 
     for (const { role, rect } of rects) {
       const style = resolveTextStyle(ctx.plan, role, rect);
-      const declared = style.color ? parseRgb(style.color) : null;
+      const declared = style.color ? parseHexRgb(style.color) : null;
       const where = toNormRect(rect, ctx.width, ctx.height);
 
       // Worst 3×3 cell wins; a rect too small to dice is measured whole.
@@ -153,8 +140,8 @@ function sample(
   cell: string,
 ): Sample | null {
   if (declared) {
-    const glyph = px.filter((p) => colorDistance(p, declared) < 90);
-    const bg = px.filter((p) => colorDistance(p, declared) > 140);
+    const glyph = px.filter((p) => colorDistance(p, declared) < INK_TOLERANCE);
+    const bg = px.filter((p) => colorDistance(p, declared) > INK_TOLERANCE + 50);
     // Enough of both populations to trust the split.
     if (glyph.length >= px.length * 0.02 && bg.length >= px.length * 0.1) {
       const bgHex = toHex(meanColor(bg));

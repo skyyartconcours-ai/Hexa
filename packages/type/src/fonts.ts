@@ -22,8 +22,7 @@
  */
 
 import { createRequire } from 'node:module';
-import { existsSync, statSync, readFileSync } from 'node:fs';
-import { readdir } from 'node:fs/promises';
+import { existsSync, statSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname, basename, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HexaError } from '@hexa/core';
@@ -59,6 +58,17 @@ const registry: FontRegistration[] = [];
 /** path → parsed font, or `null` once parsing has been tried and failed. */
 const parsed = new Map<string, OTFont | null>();
 
+/**
+ * Whether this process has yet looked at the disk for faces.
+ *
+ * `'pending'` — nobody has registered anything and nobody has told us not to
+ * look, so the first measurement discovers what is installed (see
+ * `autoDiscover`). `'done'` — a scan has happened; never scan twice.
+ * `'off'` — `clearFonts()` established a deliberately empty registry, so
+ * measurement stays on the class tables until `ensureFonts()` is called again.
+ */
+let discovery: 'pending' | 'done' | 'off' = 'pending';
+
 function normFamily(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -92,16 +102,25 @@ export function registerFont(f: FontRegistration): void {
   if (i >= 0) registry[i] = entry;
   else registry.push(entry);
   parsed.delete(path);
+  // Replacing a face leaves `registry.length` unchanged, so the resolved-face
+  // cache cannot detect the change on its own.
+  faceCache.clear();
 }
 
 export function registeredFonts(): FontRegistration[] {
   return registry.map((r) => ({ ...r }));
 }
 
-/** Test seam — drops every registration and the parse cache. */
+/**
+ * Test seam — drops every registration, the parse cache and the resolved faces,
+ * and suppresses auto-discovery so measurement stays on the class tables. Call
+ * `ensureFonts()` to go back to measuring what is actually installed.
+ */
 export function clearFonts(): void {
   registry.length = 0;
   parsed.clear();
+  faceCache.clear();
+  discovery = 'off';
 }
 
 // ── opentype.js, loaded lazily and optionally ────────────────────────────────
@@ -196,9 +215,17 @@ const faceCache = new Map<string, ResolvedFace>();
  *
  * So: measure whatever the renderer will pick, and fall back to the class table
  * only when nothing in the stack is registered at all.
+ *
+ * That walk is worthless unless *something* has been registered, which is why
+ * discovery is triggered from here rather than left to the caller: a host that
+ * forgets to `await ensureFonts()` would otherwise measure the requested
+ * family's class table — condensed — while fontconfig hands the rasteriser a
+ * wide grotesque, and every fit would be reported ~30 % too narrow.
  */
 export function resolveFace(family: string, weight = 400, italic = false): ResolvedFace {
-  const key = `${normFamily(family)}|${weight}|${italic}|${registry.length}`;
+  if (discovery === 'pending') autoDiscover();
+
+  const key = `${normFamily(family)}|${weight}|${italic}`;
   const hit = faceCache.get(key);
   if (hit) return hit;
 
@@ -348,18 +375,27 @@ function matchFamily(fileBase: string, families: readonly string[]): string | nu
   return best;
 }
 
-async function scanDir(dir: string, depth: number, out: string[]): Promise<void> {
-  if (depth < 0) return;
+/**
+ * Upper bound on font files collected in one scan.
+ *
+ * The walk is synchronous because measurement is, so it must be bounded: a
+ * pathological font tree cannot be allowed to stall the first `measureLine`.
+ */
+const MAX_FONT_FILES = 6000;
+
+function scanDir(dir: string, depth: number, out: string[]): void {
+  if (depth < 0 || out.length >= MAX_FONT_FILES) return;
   let entries;
   try {
-    entries = await readdir(dir, { withFileTypes: true });
+    entries = readdirSync(dir, { withFileTypes: true });
   } catch {
     return; // Missing or unreadable — nothing to report, nothing to fail.
   }
   for (const e of entries) {
+    if (out.length >= MAX_FONT_FILES) return;
     const full = join(dir, e.name);
     if (e.isDirectory()) {
-      await scanDir(full, depth - 1, out);
+      scanDir(full, depth - 1, out);
     } else if (e.isFile() && FONT_EXT.has(extname(e.name).toLowerCase())) {
       out.push(full);
     }

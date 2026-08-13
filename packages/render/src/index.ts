@@ -57,5 +57,6 @@ export {
   blurRaw,
 } from './raw.js';
 export { gradientSvg, radialSvg, resolveSource } from './sources.js';
+export { startProfile, endProfile, snapshotProfile, profiling, type Profile, type ProfileEntry } from './profile.js';
 
 export type { RenderOptions, RenderContext, Generator, PixelRect } from './types.js';

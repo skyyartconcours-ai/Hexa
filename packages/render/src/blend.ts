@@ -13,6 +13,7 @@ import sharp from 'sharp';
 import type { BlendMode, Logger } from '@hexa/core';
 import { clamp } from '@hexa/core';
 import { type RawImage, rawToSharp, cropRaw } from './raw.js';
+import { timed, timedSync } from './profile.js';
 
 /** Hexa BlendMode → libvips blend nickname. */
 const NATIVE: Record<BlendMode, string> = {
@@ -134,18 +135,20 @@ export async function compositeLayer(
 
   const nativeName = NATIVE[mode];
   if (nativeName && (await supportsNative(nativeName))) {
-    const { data, info } = await rawToSharp(base)
-      .composite([
-        {
-          input: clipped.data,
-          raw: { width: clipped.width, height: clipped.height, channels: 4 },
-          left: x0,
-          top: y0,
-          blend: nativeName as 'over',
-        },
-      ])
-      .raw({ depth: 'uchar' })
-      .toBuffer({ resolveWithObject: true });
+    const { data, info } = await timed(`composite:${mode}`, base.width * base.height, () =>
+      rawToSharp(base)
+        .composite([
+          {
+            input: clipped.data,
+            raw: { width: clipped.width, height: clipped.height, channels: 4 },
+            left: x0,
+            top: y0,
+            blend: nativeName as 'over',
+          },
+        ])
+        .raw({ depth: 'uchar' })
+        .toBuffer({ resolveWithObject: true }),
+    );
     return { data, width: info.width, height: info.height, channels: info.channels };
   }
 
@@ -154,5 +157,7 @@ export async function compositeLayer(
   } else {
     logger.warn(`libvips build does not support blend "${nativeName}" — computing "${mode}" in raw pixels`);
   }
-  return manualComposite(base, clipped, x0, y0, mode);
+  return timedSync(`composite:manual:${mode}`, base.width * base.height, () =>
+    manualComposite(base, clipped, x0, y0, mode),
+  );
 }

@@ -160,10 +160,49 @@ export function eyeLineY(faceBox: FaceBox, landmarks?: FaceLandmarks): number {
   return faceBox.y + EYE_LINE_IN_FACE * faceBox.h;
 }
 
+/** Every component of a rect-like is a real number (no NaN, no ±Infinity). */
+function finiteRect(r: { x: number; y: number; w: number; h: number } | undefined): boolean {
+  return (
+    !!r &&
+    Number.isFinite(r.x) &&
+    Number.isFinite(r.y) &&
+    Number.isFinite(r.w) &&
+    Number.isFinite(r.h)
+  );
+}
+
+/**
+ * A face box we are willing to anchor on.
+ *
+ * `x`/`y` are checked as strictly as `w`/`h`: a NaN or ±Infinity origin used to
+ * sail straight through into `srcCrop`, and `sharp.extract({ left: NaN })` dies
+ * deep inside libvips with a message that names neither the asset nor the slot.
+ * An unusable box degrades to a face-less fit (cover framing), which is the same
+ * thing that happens when no detector ran at all.
+ */
 function usableFace(face?: FaceBox): FaceBox | undefined {
-  if (!face) return undefined;
-  if (!Number.isFinite(face.w) || !Number.isFinite(face.h) || face.w <= 0 || face.h <= 0) return undefined;
+  if (!finiteRect(face)) return undefined;
+  if (face!.w <= 0 || face!.h <= 0) return undefined;
   return face;
+}
+
+/**
+ * Landmarks are advisory (framing polish, mirror decisions), so a set with a
+ * non-finite point is dropped rather than fatal — but it must never reach
+ * `eyeLineY`, which would poison the bust crop with NaN.
+ *
+ * Mirrored / swapped eyes (left eye to the RIGHT of the right eye, as happens
+ * with a horizontally flipped source) are deliberately NOT rejected: every
+ * consumer here uses the eye *midpoint* and the absolute eye *span*, both of
+ * which are invariant under that swap.
+ */
+function usableLandmarks(l?: FaceLandmarks): FaceLandmarks | undefined {
+  if (!l) return undefined;
+  const pts = [l.leftEye, l.rightEye, l.nose, l.mouthLeft, l.mouthRight];
+  for (const p of pts) {
+    if (!p || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) return undefined;
+  }
+  return l;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -202,10 +241,18 @@ export function bustCrop(
 ): PixelRect {
   const face = usableFace(faceBox);
   if (!face) {
-    throw new HexaError('INVALID_REQUEST', 'bustCrop needs a face box with positive width and height');
+    throw new HexaError('INVALID_REQUEST', 'bustCrop needs a finite face box with positive width and height', {
+      details: { faceBox },
+    });
   }
-  const headroom = opts.headroom ?? DEFAULT_BUST_HEADROOM;
-  const shoulderRatio = opts.shoulderRatio ?? DEFAULT_SHOULDER_RATIO;
+  if (!Number.isFinite(image?.width) || !Number.isFinite(image?.height) || image.width < 1 || image.height < 1) {
+    throw new HexaError('INVALID_REQUEST', `bustCrop: bad image size ${image?.width}×${image?.height}`);
+  }
+  // Advisory only — a landmark set with a NaN in it must not poison the eye line.
+  landmarks = usableLandmarks(landmarks);
+  // 0 is a legitimate "no headroom"; NaN/Infinity/negative are not.
+  const headroom = readOffset(opts.headroom) ?? DEFAULT_BUST_HEADROOM;
+  const shoulderRatio = readOffset(opts.shoulderRatio) ?? DEFAULT_SHOULDER_RATIO;
 
   const fh = face.h;
   const crown = crownY(face);
@@ -226,7 +273,7 @@ export function bustCrop(
   const faceCx = face.x + face.w / 2;
   const cx = landmarks ? (landmarks.leftEye[0] + landmarks.rightEye[0]) / 2 * 0.5 + faceCx * 0.5 : faceCx;
 
-  return intersectImage({ x: cx - w / 2, y: top, w, h }, image.width, image.height, 'bustCrop');
+  return intersectImage({ x: cx - w / 2, y: top, w, h }, Math.floor(image.width), Math.floor(image.height), 'bustCrop');
 }
 
 /* ------------------------------------------------------------------------- */
@@ -252,40 +299,60 @@ export function bustCrop(
  *  • 'contain' — whole image inside the slot, positioned by `slot.anchor`.
  */
 export function fitSubject(input: FitSubjectInput): SubjectFit {
-  const { image, slot, slotRect, mode } = input;
-  if (!(image.width > 0) || !(image.height > 0)) {
-    throw new HexaError('INVALID_REQUEST', `fitSubject: bad image size ${image.width}×${image.height}`);
+  const { slot, slotRect, mode } = input;
+
+  // The image bounds are the coordinate frame everything else is validated
+  // against, so they are checked first and hardest. Fractional dimensions are
+  // floored: `srcCrop` is contractually integral and a 100.7px-wide buffer has
+  // 100 sampleable columns.
+  if (!Number.isFinite(input.image?.width) || !Number.isFinite(input.image?.height)) {
+    throw new HexaError('INVALID_REQUEST', `fitSubject: non-finite image size ${input.image?.width}×${input.image?.height}`);
   }
-  if (!(slotRect.w > 0) || !(slotRect.h > 0)) {
-    throw new HexaError('INVALID_REQUEST', `fitSubject: bad slot rect for "${slot.id}"`);
+  const image = { width: Math.floor(input.image.width), height: Math.floor(input.image.height) };
+  if (image.width < 1 || image.height < 1) {
+    throw new HexaError('INVALID_REQUEST', `fitSubject: bad image size ${input.image.width}×${input.image.height}`, {
+      hint: 'The image must be at least 1×1 device pixels.',
+    });
+  }
+  // x/y matter as much as w/h: a NaN slot origin produced a NaN destRect in
+  // every mode, which the compositor would happily hand to the rasteriser.
+  if (!finiteRect(slotRect) || !(slotRect.w > 0) || !(slotRect.h > 0)) {
+    throw new HexaError('INVALID_REQUEST', `fitSubject: bad slot rect for "${slot?.id}": ${JSON.stringify(slotRect)}`, {
+      hint: 'slotRect needs finite x/y and strictly positive w/h — resolveLayout produces exactly that.',
+    });
   }
 
-  const flipX = decideFlip(slot, input.landmarks);
+  const landmarks0 = usableLandmarks(input.landmarks);
+  const flipX = decideFlip(slot, landmarks0);
   const iw = image.width;
 
   // Everything below runs in DISPLAY space (post-mirror).
   const face0 = usableFace(input.faceBox);
   const face = face0 && flipX ? mirrorRect(face0, iw) : face0;
-  const landmarks = input.landmarks && flipX ? mirrorLandmarks(input.landmarks, iw) : input.landmarks;
-  const content = input.contentBox && flipX ? mirrorRect(input.contentBox, iw) : input.contentBox;
+  const landmarks = landmarks0 && flipX ? mirrorLandmarks(landmarks0, iw) : landmarks0;
+  const content0 = finiteRect(input.contentBox) ? input.contentBox : undefined;
+  const content = content0 && flipX ? mirrorRect(content0, iw) : content0;
 
   const focal = normaliseFocal(input.focal ?? slot.focal ?? DEFAULT_FOCAL);
+
+  // Sub-fits read image/slotRect off this, so they see the validated frame.
+  const safe: FitSubjectInput = { ...input, image };
 
   let fit: SubjectFit;
   switch (mode) {
     case 'face-anchor': {
       if (!face) {
-        fit = coverFit(input, undefined, focal);
+        fit = coverFit(safe, undefined, focal);
         break;
       }
       const ratio = readRatio(slot.meta?.['faceHeightRatio']) ?? DEFAULT_FACE_HEIGHT_RATIO;
       const wanted = (ratio * slotRect.h) / face.h;
-      fit = anchoredFit(input, face, focal, wanted);
+      fit = anchoredFit(safe, face, focal, wanted);
       break;
     }
     case 'bust': {
       if (!face) {
-        fit = coverFit(input, undefined, focal);
+        fit = coverFit(safe, undefined, focal);
         break;
       }
       const crop = bustCrop(image, face, landmarks, {
@@ -293,24 +360,52 @@ export function fitSubject(input: FitSubjectInput): SubjectFit {
         shoulderRatio: readRatio(slot.meta?.['shoulderRatio']) ?? undefined,
       });
       const wanted = fitScale(crop.w, crop.h, slotRect.w, slotRect.h, 'cover');
-      fit = anchoredFit(input, face, focal, wanted);
+      fit = anchoredFit(safe, face, focal, wanted);
       break;
     }
     case 'full':
-      fit = fullFit(input, face, content, focal);
+      fit = fullFit(safe, face, content, focal);
       break;
     case 'contain':
-      fit = containFit(input, face, focal);
+      fit = containFit(safe, face, focal);
       break;
     case 'cover':
     default:
-      fit = coverFit(input, face, focal);
+      fit = coverFit(safe, face, focal);
       break;
   }
 
   // Convert the crop back into original (unmirrored) image coordinates.
   const srcCrop = flipX ? mirrorRect(fit.srcCrop, iw) : fit.srcCrop;
-  return { ...fit, srcCrop, flipX };
+  return assertPaintable({ ...fit, srcCrop, flipX }, image, slot?.id ?? '?', mode);
+}
+
+/**
+ * Last line of defence before the result reaches `sharp.extract` / the
+ * compositor. Nothing should ever trip this — every known route to a bad rect
+ * is closed upstream — but a NaN or negative width that escapes here surfaces
+ * inside libvips as an unattributable error, so it is worth one final check
+ * that names the slot and the mode.
+ */
+function assertPaintable(fit: SubjectFit, image: { width: number; height: number }, slotId: string, mode: FitMode): SubjectFit {
+  const { srcCrop: s, destRect: d } = fit;
+  const bad =
+    !finiteRect(s) ||
+    !finiteRect(d) ||
+    !Number.isInteger(s.x) || !Number.isInteger(s.y) || !Number.isInteger(s.w) || !Number.isInteger(s.h) ||
+    s.w < 1 || s.h < 1 ||
+    s.x < 0 || s.y < 0 || s.x + s.w > image.width || s.y + s.h > image.height ||
+    !Number.isInteger(d.x) || !Number.isInteger(d.y) || !Number.isInteger(d.w) || !Number.isInteger(d.h) ||
+    d.w < 1 || d.h < 1 ||
+    !Number.isFinite(fit.scale) || fit.scale <= 0 ||
+    !Number.isFinite(fit.faceCenterInDest.x) || !Number.isFinite(fit.faceCenterInDest.y);
+  if (bad) {
+    throw new HexaError('INVALID_REQUEST', `fitSubject produced an unpaintable fit for "${slotId}" (${mode})`, {
+      hint: 'This is a bug in @hexa/layout — please report the inputs.',
+      details: { srcCrop: s, destRect: d, scale: fit.scale, image },
+    });
+  }
+  return fit;
 }
 
 /**
@@ -407,8 +502,15 @@ function coverFit(input: FitSubjectInput, face: FaceBox | undefined, focal: Vec2
     w: Math.max(1, Math.min(Math.round(cropW), image.width - x)),
     h: Math.max(1, Math.min(Math.round(cropH), image.height - y)),
   };
-  const finalScale = slotRect.w / srcCrop.w;
-  const destRect: PixelRect = { ...slotRect };
+  // destRect is contractually integral; a hand-authored fractional slotRect
+  // would otherwise pass straight through into the compositor.
+  const destRect: PixelRect = {
+    x: Math.round(slotRect.x),
+    y: Math.round(slotRect.y),
+    w: Math.max(1, Math.round(slotRect.w)),
+    h: Math.max(1, Math.round(slotRect.h)),
+  };
+  const finalScale = destRect.w / srcCrop.w;
   const faceCenterInDest = face
     ? {
         x: destRect.x + (faceCx - srcCrop.x) * finalScale,
@@ -426,8 +528,8 @@ function containFit(input: FitSubjectInput, face: FaceBox | undefined, focal: Ve
   const destH = Math.max(1, Math.round(image.height * scale));
   const off = anchorOffset(slot.anchor, slotRect.w, slotRect.h, destW, destH);
   const destRect: PixelRect = {
-    x: slotRect.x + Math.round(off.x),
-    y: slotRect.y + Math.round(off.y),
+    x: Math.round(slotRect.x + off.x),
+    y: Math.round(slotRect.y + off.y),
     w: destW,
     h: destH,
   };
@@ -463,7 +565,7 @@ function fullFit(
   const finalScale = destW / srcCrop.w;
   const destRect: PixelRect = {
     x: Math.round(slotRect.x + focal.x * slotRect.w - destW / 2),
-    y: slotRect.y + slotRect.h - destH,
+    y: Math.round(slotRect.y + slotRect.h) - destH,
     w: destW,
     h: destH,
   };
@@ -513,23 +615,50 @@ function mirrorLandmarks(l: FaceLandmarks, imageWidth: number): FaceLandmarks {
   };
 }
 
+/**
+ * Focal points are authored data with a documented default, so an out-of-range
+ * value clamps and a non-finite one falls back per-axis rather than failing the
+ * render. `clamp` alone was not enough: `Math.max(0, Math.min(1, NaN))` is NaN,
+ * so a NaN focal used to reach `srcCrop` and `destRect` intact.
+ */
 function normaliseFocal(f: Vec2): Vec2 {
-  return { x: clamp(f.x, 0, 1), y: clamp(f.y, 0, 1) };
+  return {
+    x: Number.isFinite(f?.x) ? clamp(f.x, 0, 1) : DEFAULT_FOCAL.x,
+    y: Number.isFinite(f?.y) ? clamp(f.y, 0, 1) : DEFAULT_FOCAL.y,
+  };
 }
 
+/** A strictly-positive finite tuning ratio, or undefined for "use the default". */
 function readRatio(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined;
 }
 
-/** Integer crop clipped to the image. Throws when nothing is left to sample. */
+/** Like {@link readRatio} but 0 is a meaningful value (e.g. zero headroom). */
+function readOffset(v: unknown): number | undefined {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined;
+}
+
+/**
+ * Integer crop clipped to the image. Throws when nothing is left to sample.
+ *
+ * The emptiness test is written `!(w > 0)` rather than `w <= 0` on purpose:
+ * every NaN comparison is false, so the old `w <= 0` form failed OPEN and
+ * returned `{x: NaN, y: NaN, w: NaN, h: NaN}` — the single deepest route by
+ * which a NaN reached `sharp.extract`.
+ */
 function intersectImage(r: { x: number; y: number; w: number; h: number }, iw: number, ih: number, who: string): PixelRect {
+  if (!finiteRect(r)) {
+    throw new HexaError('INVALID_REQUEST', `${who}: crop rect is not finite (${JSON.stringify(r)})`, {
+      hint: 'A NaN or Infinity reached the crop maths — check the face box, content box and focal point.',
+    });
+  }
   const x0 = clamp(Math.round(r.x), 0, iw);
   const y0 = clamp(Math.round(r.y), 0, ih);
   const x1 = clamp(Math.round(r.x + r.w), 0, iw);
   const y1 = clamp(Math.round(r.y + r.h), 0, ih);
   const w = x1 - x0;
   const h = y1 - y0;
-  if (w <= 0 || h <= 0) {
+  if (!(w > 0) || !(h > 0)) {
     throw new HexaError('INVALID_REQUEST', `${who}: crop falls entirely outside the ${iw}×${ih} image`, {
       hint: 'Check the face box / content box are in this image’s pixel space.',
     });

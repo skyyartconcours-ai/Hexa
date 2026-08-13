@@ -32,6 +32,7 @@ import { type RawImage, rawToSharp, encodePng, cropRaw } from './raw.js';
 import { resolveSource } from './sources.js';
 import { toneRaw, duotoneRaw, tintRaw, motionBlurRaw } from './effects/color.js';
 import { rimLightRaw, lightWrapRaw, outerGlowRaw, dropShadowRaw, strokeAlphaRaw } from './effects/edge.js';
+import { timed, timedSync } from './profile.js';
 
 /**
  * Optional extension recognised on `LayerEffects`. @hexa/core does not (yet)
@@ -93,13 +94,16 @@ export async function renderLayerRaw(
     return null;
   }
 
-  let img = await resolveSource(layer, { width: rect.w, height: rect.h }, ctx);
+  let img = await timed(`source:${layer.source.type}`, rect.w * rect.h, () =>
+    resolveSource(layer, { width: rect.w, height: rect.h }, ctx),
+  );
 
   // ── geometry ──────────────────────────────────────────────────────────────
-  if (layer.flipX) img = await flopRaw(img);
+  if (layer.flipX) img = await timed('fx:flip', img.width * img.height, () => flopRaw(img));
   if (layer.rotation) {
     const before = { w: img.width, h: img.height };
-    img = await rotateRaw(img, layer.rotation);
+    const spun = img;
+    img = await timed('fx:rotate', spun.width * spun.height, () => rotateRaw(spun, layer.rotation!));
     // Rotation expands the raster; keep the layer centred on its original box.
     rect.x -= Math.round((img.width - before.w) / 2);
     rect.y -= Math.round((img.height - before.h) / 2);
@@ -122,7 +126,8 @@ export async function renderLayerRaw(
     ),
   );
   if (pad > 0) {
-    img = await extendRaw(img, pad);
+    const src = img;
+    img = await timed('fx:pad', src.width * src.height, () => extendRaw(src, pad));
     rect.x -= pad;
     rect.y -= pad;
     rect.w = img.width;
@@ -130,23 +135,42 @@ export async function renderLayerRaw(
   }
 
   // ── colour ────────────────────────────────────────────────────────────────
-  img = toneRaw(img, {
-    exposure: fx.exposure ?? 0,
-    contrast: fx.contrast ?? 1,
-    saturation: fx.saturation ?? 1,
-  });
-  if (fx.duotone) img = duotoneRaw(img, fx.duotone.shadow, fx.duotone.highlight, fx.duotone.amount);
-  if (fx.tint) img = tintRaw(img, fx.tint.color, fx.tint.amount);
+  {
+    const src = img;
+    img = timedSync('fx:tone', src.width * src.height, () =>
+      toneRaw(src, {
+        exposure: fx.exposure ?? 0,
+        contrast: fx.contrast ?? 1,
+        saturation: fx.saturation ?? 1,
+      }),
+    );
+  }
+  if (fx.duotone) {
+    const src = img;
+    img = timedSync('fx:duotone', src.width * src.height, () =>
+      duotoneRaw(src, fx.duotone!.shadow, fx.duotone!.highlight, fx.duotone!.amount),
+    );
+  }
+  if (fx.tint) {
+    const src = img;
+    img = timedSync('fx:tint', src.width * src.height, () => tintRaw(src, fx.tint!.color, fx.tint!.amount));
+  }
 
   // ── spatial ───────────────────────────────────────────────────────────────
   if (fx.motionBlur && fx.motionBlur.distance >= 2) {
-    img = await motionBlurRaw(img, fx.motionBlur.angle, px(fx.motionBlur.distance));
+    const src = img;
+    img = await timed('fx:motion-blur', src.width * src.height, () =>
+      motionBlurRaw(src, fx.motionBlur!.angle, px(fx.motionBlur!.distance)),
+    );
   }
   if (fx.blur && fx.blur > 0) {
-    const { data, info } = await rawToSharp(img)
-      .blur(Math.max(0.3, px(fx.blur)))
-      .raw({ depth: 'uchar' })
-      .toBuffer({ resolveWithObject: true });
+    const src = img;
+    const { data, info } = await timed('fx:blur', src.width * src.height, () =>
+      rawToSharp(src)
+        .blur(Math.max(0.3, px(fx.blur!)))
+        .raw({ depth: 'uchar' })
+        .toBuffer({ resolveWithObject: true }),
+    );
     img = { data, width: info.width, height: info.height, channels: info.channels };
   }
 
@@ -160,34 +184,50 @@ export async function renderLayerRaw(
           ? { radius: Math.max(2, Math.round(rect.w * 0.012)), intensity: 0.45 }
           : null;
   if (wrapSpec && ctx.backdrop) {
-    const plate = cropRaw(ctx.backdrop, rect.x, rect.y, rect.w, rect.h);
-    img = await lightWrapRaw(img, plate, {
-      radius: fx.lightWrap ? px(wrapSpec.radius) : wrapSpec.radius,
-      intensity: wrapSpec.intensity,
+    const src = img;
+    const backdrop = ctx.backdrop;
+    img = await timed('fx:light-wrap', src.width * src.height, () => {
+      const plate = cropRaw(backdrop, rect.x, rect.y, rect.w, rect.h);
+      return lightWrapRaw(src, plate, {
+        radius: fx.lightWrap ? px(wrapSpec.radius) : wrapSpec.radius,
+        intensity: wrapSpec.intensity,
+      });
     });
   }
   if (fx.rimLight) {
-    img = await rimLightRaw(img, {
-      angle: fx.rimLight.angle,
-      width: px(fx.rimLight.width),
-      color: fx.rimLight.color,
-      intensity: fx.rimLight.intensity,
-    });
+    const src = img;
+    img = await timed('fx:rim-light', src.width * src.height, () =>
+      rimLightRaw(src, {
+        angle: fx.rimLight!.angle,
+        width: px(fx.rimLight!.width),
+        color: fx.rimLight!.color,
+        intensity: fx.rimLight!.intensity,
+      }),
+    );
   }
   if (fx.stroke && fx.stroke.width > 0) {
-    img = await strokeAlphaRaw(img, { width: px(fx.stroke.width), color: fx.stroke.color });
+    const src = img;
+    img = await timed('fx:stroke', src.width * src.height, () =>
+      strokeAlphaRaw(src, { width: px(fx.stroke!.width), color: fx.stroke!.color }),
+    );
   }
   if (fx.glow && fx.glow.radius > 0) {
-    img = await outerGlowRaw(img, { radius: px(fx.glow.radius), color: fx.glow.color, intensity: fx.glow.intensity });
+    const src = img;
+    img = await timed('fx:glow', src.width * src.height, () =>
+      outerGlowRaw(src, { radius: px(fx.glow!.radius), color: fx.glow!.color, intensity: fx.glow!.intensity }),
+    );
   }
   if (fx.shadow) {
-    img = await dropShadowRaw(img, {
-      dx: px(fx.shadow.dx),
-      dy: px(fx.shadow.dy),
-      blur: px(fx.shadow.blur),
-      color: fx.shadow.color,
-      opacity: fx.shadow.opacity,
-    });
+    const src = img;
+    img = await timed('fx:shadow', src.width * src.height, () =>
+      dropShadowRaw(src, {
+        dx: px(fx.shadow!.dx),
+        dy: px(fx.shadow!.dy),
+        blur: px(fx.shadow!.blur),
+        color: fx.shadow!.color,
+        opacity: fx.shadow!.opacity,
+      }),
+    );
   }
 
   // ── mask ──────────────────────────────────────────────────────────────────
