@@ -11,6 +11,7 @@ import {
   subscriberFacts,
 } from '../db.js';
 import { log } from '../log.js';
+import { reloadChannelContext } from './channel.js';
 import { deleteAudio, synthesise } from '../tts/index.js';
 import { RefusedError, generateRoast } from './generator.js';
 import { judgeRoast } from './judge.js';
@@ -20,6 +21,12 @@ import type { QueuedRoast, RoastTrigger, SessionState } from '../types.js';
 const GIFT_WINDOW_MS = 60_000;
 /** Filet de securite si l'overlay ne renvoie jamais la fin de lecture. */
 const PLAYBACK_TIMEOUT_MS = 25_000;
+/**
+ * Combien d'angles de vanne on garde en memoire pendant une session.
+ * Assez pour couvrir une quinzaine de minutes de diffusion, assez peu pour ne
+ * pas finir par interdire au modele tous les angles possibles.
+ */
+const SESSION_ANGLE_MEMORY = 12;
 
 export class RoastQueue extends EventEmitter {
   private readonly items = new Map<string, QueuedRoast>();
@@ -39,6 +46,9 @@ export class RoastQueue extends EventEmitter {
 
   private giftBudget = { remaining: config.gifts.recipientsMax, resetAt: 0 };
 
+  /** Angles deja servis dans la session en cours (voir SESSION_ANGLE_MEMORY). */
+  private sessionAngles: string[] = [];
+
   /** Plafond de generations simultanees (voir acquireSlot). */
   private running = 0;
   private waiting: Array<() => void> = [];
@@ -57,6 +67,11 @@ export class RoastQueue extends EventEmitter {
       roastsPlayed: 0,
     };
     this.sessionTimer = setTimeout(() => this.stop('minuteur'), durationMs);
+
+    this.sessionAngles = [];
+    // Relu a chaque session : tu peux corriger data/channel.md entre deux
+    // segments sans redemarrer l'outil.
+    reloadChannelContext();
 
     log.ok(`Session de roast lancee pour ${minutes} minutes.`);
     // C'est ce qui declenche l'annonce en chat. Elle n'est pas cosmetique :
@@ -249,6 +264,7 @@ export class RoastQueue extends EventEmitter {
         profile,
         history,
         subscriberFacts(item.trigger.userId),
+        this.sessionAngles,
       );
       const verdict = checkRoast(draft);
 
@@ -273,6 +289,15 @@ export class RoastQueue extends EventEmitter {
       item.angle = draft.angle;
       item.severity = draft.severity;
       item.delivery = draft.delivery ?? null;
+
+      // Rien n'empechait jusqu'ici la dixieme vanne de la session d'etre le
+      // dixieme jeu de mots sur le pseudo. Chaque vanne est drole seule, et
+      // l'ensemble sonne comme une machine. On garde les angles deja servis
+      // pour que le modele parte ailleurs.
+      if (draft.angle) {
+        this.sessionAngles.push(draft.angle);
+        if (this.sessionAngles.length > SESSION_ANGLE_MEMORY) this.sessionAngles.shift();
+      }
 
       // Le texte affiche a l'overlay reste propre : la didascalie ne part
       // qu'au TTS, et seulement s'il sait l'interpreter.

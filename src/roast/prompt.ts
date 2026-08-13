@@ -113,6 +113,7 @@ export function buildUserPrompt(
   profile: UserProfile,
   pastRoasts: string[],
   facts: SubscriberFacts | null = null,
+  sessionAngles: string[] = [],
 ): string {
   const blocks = [
     `<pseudo>${trigger.userName}</pseudo>`,
@@ -150,6 +151,17 @@ export function buildUserPrompt(
       `<deja_dit>Vannes deja passees sur cette personne, ne les repete pas et ne recycle pas le meme angle :\n${pastRoasts
         .map((text) => `- ${text}`)
         .join('\n')}\n</deja_dit>`,
+    );
+  }
+
+  // Une session, c'est trente vannes d'affilee devant le meme public. Chacune
+  // peut etre bonne et l'ensemble sonner comme une machine si l'angle ne change
+  // jamais. Le chat entend la repetition bien avant de trouver une vanne ratee.
+  if (sessionAngles.length) {
+    blocks.push(
+      `<angles_deja_servis>Angles deja utilises dans cette session, sur d'autres personnes. Prends-en un different :\n${sessionAngles
+        .map((angle) => `- ${angle}`)
+        .join('\n')}\n</angles_deja_servis>`,
     );
   }
 

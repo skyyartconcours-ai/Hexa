@@ -94,6 +94,32 @@ de volume*).
 
 ---
 
+## Le réglage qui change le plus : `data/channel.md`
+
+Sans lui, Hexa écrit du roast français correct et **interchangeable** — le même
+qu'il écrirait pour n'importe quelle chaîne. Avec lui, il écrit du roast de *ta*
+chaîne, et le chat entend la différence à la première vanne.
+
+```bash
+cp channel.example.md data/channel.md
+```
+
+Puis remplis-le : tes private jokes, le vocabulaire du chat, les angles qui
+marchent chez toi, ceux qui tombent à plat, les habitués. Écris en vrac, comme
+si tu briefais un pote qui fait le chauffeur de salle ce soir. Deux pages, c'est
+bien.
+
+La section la plus rentable est **les private jokes**. Une vanne qui reprend une
+référence que le chat connaît par cœur fait rire immédiatement, parce qu'elle
+prouve que l'outil suit — c'est exactement ce qui sépare un membre de la
+communauté d'un bot.
+
+Le fichier est relu **à chaque lancement de session** : tu peux le corriger entre
+deux segments sans redémarrer. Il n'est jamais commité (`data/` est ignoré) et il
+ne lève aucun interdit du prompt de sécurité.
+
+---
+
 ## Le point important : l'historique du chat
 
 **Twitch ne fournit aucune API pour lire les messages passés d'un viewer, quel

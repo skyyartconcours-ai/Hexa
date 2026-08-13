@@ -10,6 +10,7 @@ import {
   syncSubscribers,
 } from './db.js';
 import { log } from './log.js';
+import { reportChannelContext } from './roast/channel.js';
 import { RoastQueue } from './roast/queue.js';
 import { loadCustomBlocklist, sanitiseChatMessage } from './roast/safety.js';
 import { startServer } from './server/index.js';
@@ -46,6 +47,7 @@ async function main(): Promise<void> {
   }
 
   loadCustomBlocklist();
+  reportChannelContext();
   clearAudioDir();
   purgeOldMessages();
   setInterval(purgeOldMessages, 6 * 3600_000);
