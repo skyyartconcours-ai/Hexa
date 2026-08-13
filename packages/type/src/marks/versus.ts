@@ -175,40 +175,57 @@ export function versusMark(opts: VersusMarkOptions): Mark {
       break;
     }
 
-    // ── blade: a katana sweep, thin at the tips, colours split down the arc ──
+    // ── blade: a katana sweep — squared tang, curved sori, chisel point ─────
     case 'blade': {
-      const midY = h / 2;
-      // A katana, not a lens: a wide squared tang at the left, a spine that
-      // curves up across the length, and a real chisel point at the right. The
-      // asymmetry is the whole difference between "blade" and "ellipse".
-      const tangY0 = midY - h * 0.17;
-      const tangY1 = midY + h * 0.17;
+      // The failure mode here is drawing a lens: two mirrored bulges meeting at
+      // both ends. A katana is asymmetric along *both* axes — the spine and the
+      // cutting edge run near-parallel (roughly constant width) and arc the
+      // same way, the butt end is a squared tang, and only the last tenth of
+      // the length tapers to a point.
+      // Every extreme is inset by half the outline width: the point is the one
+      // place where a clipped stroke is instantly obvious.
+      const inset = strokeW / 2 + 1;
+      const tangX = inset;
+      const tangY = h * 0.93 - inset; // butt end sits low-left
+      const thick = h * 0.26;         // blade width, near-constant along the arc
+      const rise = h * 0.6;           // total climb from tang to tip (the sori)
+      const tipX = w - inset;
+      const tipY = tangY - thick - rise;
+
       const blade =
-        `M 0 ${n(tangY0)} ` +
-        // spine: sweeps up toward the tip
-        `C ${n(w * 0.34)} ${n(midY - h * 0.46)} ${n(w * 0.72)} ${n(midY - h * 0.44)} ${n(w * 0.99)} ${n(midY - h * 0.13)} ` +
-        // chisel point
-        `L ${n(w)} ${n(midY - h * 0.02)} ` +
-        `L ${n(w * 0.9)} ${n(midY + h * 0.07)} ` +
-        // cutting edge: shallower curve back to the tang
-        `C ${n(w * 0.66)} ${n(midY + h * 0.3)} ${n(w * 0.32)} ${n(midY + h * 0.3)} 0 ${n(tangY1)} Z`;
+        `M ${n(tangX)} ${n(tangY)} ` +
+        `L ${n(tangX)} ${n(tangY - thick)} ` +                       // squared tang face
+        `C ${n(w * 0.34)} ${n(tangY - thick - rise * 0.55)} ` +       // spine, arcing up
+        `${n(w * 0.7)} ${n(tangY - thick - rise * 0.86)} ` +
+        `${n(tipX)} ${n(tipY)} ` +
+        `C ${n(w * 0.7)} ${n(tangY - rise * 0.76)} ` +                // cutting edge, back down
+        `${n(w * 0.34)} ${n(tangY - rise * 0.42)} ` +
+        `${n(tangX)} ${n(tangY)} Z`;
+
       const clipId = scope.def('cl', (id) => `<clipPath${attrs({ id })}><path${attrs({ d: blade })}/></clipPath>`);
       const lean = 22;
       const dx = (h / 2) * Math.tan((lean * Math.PI) / 180);
+      // Centre of the blade at mid-length, where the lettering rides.
+      const bellyX = w * 0.45;
+      const bellyY = tangY - thick / 2 - rise * 0.42;
+
       body =
         `<g${attrs({ 'clip-path': `url(#${clipId})` })}>` +
         `<polygon${attrs({ points: `0,0 ${n(w / 2 + dx)},0 ${n(w / 2 - dx)},${n(h)} 0,${n(h)}`, fill: gradFor(left, false) })}/>` +
         `<polygon${attrs({ points: `${n(w / 2 + dx)},0 ${n(w)},0 ${n(w)},${n(h)} ${n(w / 2 - dx)},${n(h)}`, fill: gradFor(right, true) })}/>` +
-        // The hamon line — the tempered edge that makes it read as a blade.
+        // The hamon — the tempered line above the cutting edge. It is what
+        // makes the silhouette read as forged steel rather than a coloured leaf.
         `<path${attrs({
-          d: `M ${n(w * 0.04)} ${n(midY + h * 0.1)} ` +
-             `C ${n(w * 0.34)} ${n(midY - h * 0.16)} ${n(w * 0.7)} ${n(midY - h * 0.15)} ${n(w * 0.95)} ${n(midY - h * 0.02)}`,
-          fill: 'none', stroke: '#FFFFFF', 'stroke-width': Math.max(1, size * 0.014), opacity: 0.5,
+          d: `M ${n(tangX)} ${n(tangY - thick * 0.3)} ` +
+             `C ${n(w * 0.34)} ${n(tangY - thick * 0.3 - rise * 0.42)} ` +
+             `${n(w * 0.7)} ${n(tangY - thick * 0.35 - rise * 0.76)} ` +
+             `${n(w * 0.97)} ${n(tipY + thick * 0.5)}`,
+          fill: 'none', stroke: '#FFFFFF', 'stroke-width': Math.max(1, size * 0.016), opacity: 0.45,
         })}/>` +
         `<line${attrs({ x1: w / 2 + dx, y1: 0, x2: w / 2 - dx, y2: h, stroke: seam, 'stroke-width': bevelW })}/>` +
         `</g>` +
         `<path${attrs({ d: blade, fill: 'none', stroke: outline, 'stroke-width': strokeW, 'stroke-linejoin': 'round' })}/>` +
-        lettering(text, w * 0.46, h * 0.49, w * 0.34, h * 0.4, '#FFFFFF', outline, 16);
+        lettering(text, bellyX, bellyY, w * 0.3, h * 0.34, '#FFFFFF', outline, 16);
       break;
     }
 
@@ -236,10 +253,12 @@ export function versusMark(opts: VersusMarkOptions): Mark {
 
     // ── bolt: lightning, the two colours meeting across the fracture ────────
     case 'bolt': {
+      // Chunky enough to carry lettering across the waist — a hairline bolt
+      // looks sharper on its own but leaves the VS nowhere to sit.
       const bolt =
-        `M ${n(w * 0.58)} ${n(h * 0.02)} L ${n(w * 0.1)} ${n(h * 0.55)} ` +
-        `L ${n(w * 0.42)} ${n(h * 0.55)} L ${n(w * 0.3)} ${n(h * 0.98)} ` +
-        `L ${n(w * 0.92)} ${n(h * 0.4)} L ${n(w * 0.56)} ${n(h * 0.4)} Z`;
+        `M ${n(w * 0.62)} ${n(h * 0.02)} L ${n(w * 0.05)} ${n(h * 0.58)} ` +
+        `L ${n(w * 0.4)} ${n(h * 0.58)} L ${n(w * 0.32)} ${n(h * 0.98)} ` +
+        `L ${n(w * 0.95)} ${n(h * 0.42)} L ${n(w * 0.58)} ${n(h * 0.42)} Z`;
       const clipId = scope.def('cl', (id) => `<clipPath${attrs({ id })}><path${attrs({ d: bolt })}/></clipPath>`);
       body =
         `<g${attrs({ 'clip-path': `url(#${clipId})` })}>` +
@@ -248,7 +267,7 @@ export function versusMark(opts: VersusMarkOptions): Mark {
         `<line${attrs({ x1: 0, y1: h * 0.5, x2: w, y2: h * 0.5, stroke: seam, 'stroke-width': bevelW })}/>` +
         `</g>` +
         `<path${attrs({ d: bolt, fill: 'none', stroke: outline, 'stroke-width': strokeW, 'stroke-linejoin': 'miter' })}/>` +
-        lettering(text, w * 0.5, h * 0.5, w * 0.34, h * 0.2, '#FFFFFF', outline, 12);
+        lettering(text, w * 0.5, h * 0.5, w * 0.42, h * 0.24, '#FFFFFF', outline, 12);
       break;
     }
 
@@ -270,7 +289,7 @@ export function versusMark(opts: VersusMarkOptions): Mark {
         `</g>` +
         `<circle${attrs({ cx, cy, r, fill: 'none', stroke: outline, 'stroke-width': strokeW })}/>` +
         `<circle${attrs({ cx, cy, r: r - strokeW * 1.6, fill: 'none', stroke: '#FFFFFF', 'stroke-width': Math.max(1, strokeW * 0.45), opacity: 0.35 })}/>` +
-        lettering(text, cx, cy, r * 1.25, r * 0.95, '#FFFFFF', outline, 10);
+        lettering(text, cx, cy, r * 1.15, r * 0.8, '#FFFFFF', outline, 10);
       break;
     }
 

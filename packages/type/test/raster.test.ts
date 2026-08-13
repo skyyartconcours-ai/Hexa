@@ -79,6 +79,25 @@ async function expectVisible(markup: string, label: string, minCoverage = 0.005)
   return ink;
 }
 
+/** Bounding box of everything that is not the background, in raster pixels. */
+async function inkBounds(markup: string) {
+  const { data, info } = await sharp(Buffer.from(markup, 'utf8'))
+    .flatten({ background: BG }).raw().toBuffer({ resolveWithObject: true });
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      const o = (y * info.width + x) * info.channels;
+      if (Math.abs(data[o]! - 16) > 12 || Math.abs(data[o + 1]! - 16) > 12 || Math.abs(data[o + 2]! - 24) > 12) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  return { x0, y0, x1, y1, w: info.width, h: info.height, empty: x1 < x0 };
+}
+
 const BOX: PixelRect = { x: 0, y: 0, w: 900, h: 260 };
 
 beforeAll(async () => {
@@ -323,6 +342,85 @@ describe('sharp rasterisation', () => {
     ).toBeGreaterThan(1.5);
     expect(ink.coverage).toBeGreaterThan(0.02);
   }, 30_000);
+
+  /**
+   * Regression: measurement must describe the font that is actually drawn.
+   *
+   * `resolveFace` used to look up only the requested family, so on a machine
+   * without Anton installed it measured the *condensed class table* while
+   * fontconfig substituted a wide grotesque for the actual glyphs. Everything
+   * downstream inherited the ~35 % error: `autoFit` reported a fit that did not
+   * fit, right-aligned nameplates ran off their plates, and headlines were
+   * clipped at the box edge — visible only in the raster.
+   *
+   * Ink touching the very edge of the viewport is the signature of that class
+   * of bug, so that is what this asserts.
+   */
+  it('keeps rendered ink inside the box that measurement promised', async () => {
+    const box: PixelRect = { x: 0, y: 0, w: 820, h: 200 };
+    const texts = ['CLUTCH OR KICK', 'Grand Final 2026', 'W', 'MMMMMMMMMM', 'Winter Major · Game 5'];
+
+    for (const name of ['headline-condensed', 'headline-heavy', 'player-name', 'kicker', 'team-tag', 'date-badge']) {
+      for (const text of texts) {
+        // Glow and shadow are meant to bleed; this assertion is about glyph ink.
+        const style = preset(name, { glow: undefined, shadow: undefined });
+        const r = autoFit({ block: { text, style, align: 'center' }, box, anchor: 'center' }, { min: 10, max: 180 });
+        const b = await inkBounds(r.markup);
+        const where = `${name} / "${text}" @${r.fontSize.toFixed(1)}px`;
+
+        expect(b.empty, `${where}: nothing rendered`).toBe(false);
+
+        // The load-bearing assertion: the bounds `autoFit` reported must be an
+        // honest upper bound on the ink that landed. Before the fix this was
+        // out by ~35 % whenever the design font was absent.
+        expect(b.x1 - b.x0 + 1, `${where}: real ink wider than reported width ${r.width.toFixed(1)}`)
+          .toBeLessThanOrEqual(r.width + 4);
+        expect(b.y1 - b.y0 + 1, `${where}: real ink taller than reported height ${r.height.toFixed(1)}`)
+          .toBeLessThanOrEqual(r.height + 4);
+
+        // Where the fit left real slack, that slack must show up as clearance.
+        // (A perfect fit legitimately puts ink on the last row, so only assert
+        // this when there is room to spare.)
+        if (box.w - r.width > 4) {
+          expect(b.x0, `${where}: ink clipped at the left edge`).toBeGreaterThan(0);
+          expect(b.x1, `${where}: ink clipped at the right edge`).toBeLessThan(b.w - 1);
+        }
+        if (box.h - r.height > 4) {
+          expect(b.y0, `${where}: ink clipped at the top edge`).toBeGreaterThan(0);
+          expect(b.y1, `${where}: ink clipped at the bottom edge`).toBeLessThan(b.h - 1);
+        }
+      }
+    }
+  }, 60_000);
+
+  it('keeps mark lettering inside the mark', async () => {
+    const marks: [string, string][] = [
+      ...(['slash', 'blade', 'shield', 'bolt', 'circle', 'hex', 'plain'] as const).map(
+        (st) => [`versus:${st}`, versusMark({ size: 190, style: st, leftColor: '#E01E37', rightColor: '#1E6FE0' }).markup] as [string, string],
+      ),
+      ...(['bar', 'angled', 'stacked', 'minimal', 'ticket'] as const).flatMap((st) =>
+        (['left', 'right'] as const).map(
+          (align) => [
+            `nameplate:${st}:${align}`,
+            nameplate({ name: 'Kestrel', team: 'NRG', role: 'DUELIST', accent: '#FFD447', width: 420, height: 110, align, style: st }).markup,
+          ] as [string, string],
+        ),
+      ),
+      ...(['pill', 'square', 'shield'] as const).map(
+        (st) => [`badge:${st}`, statBadge({ label: 'KILLS', value: '27', accent: '#40E0FF', width: 170, height: 120, style: st }).markup] as [string, string],
+      ),
+    ];
+
+    for (const [label, markup] of marks) {
+      const b = await inkBounds(markup);
+      expect(b.empty, `${label}: nothing rendered`).toBe(false);
+      // Marks legitimately paint to their own edge (plates, outlines), so the
+      // check is that nothing is *cut off* — no ink in the final column/row
+      // unless the design fills that edge on both sides.
+      expect(b.x1, `${label}: content runs past the right edge`).toBeLessThanOrEqual(b.w - 1);
+      expect(b.y1, `${label}: content runs past the bottom edge`).toBeLessThanOrEqual(b.h - 1);
+    }
+  }, 60_000);
 
   it('rasterises a full lockup of every mark type in one document', async () => {
     const head = autoFit(

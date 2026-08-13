@@ -109,6 +109,7 @@ export function buildPlaceholderSvg(opts: PlaceholderOptions): string {
         : bustSilhouette(w, h, kind, rng);
 
   const stamp = kind === 'logo' || kind === 'backplate' ? 'PLACEHOLDER' : 'NO LICENSED REFERENCE';
+  const hatch = Math.max(8, Math.min(w, h) * 0.028);
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
@@ -119,12 +120,12 @@ export function buildPlaceholderSvg(opts: PlaceholderOptions): string {
     `<stop offset="1" stop-color="${bottom}"/>`,
     '</linearGradient>',
     // Diagonal hatch, drawn *over* the opaque fill so alpha stays 1 inside the
-    // shape while the surface still reads as "schematic".
-    `<pattern id="hatch" width="${f(14)}" height="${f(14)}" patternUnits="userSpaceOnUse" patternTransform="rotate(35 0 0)">`,
-    `<line x1="0" y1="0" x2="0" y2="${f(14)}" stroke="${withAlpha('#FFFFFF', 0.08)}" stroke-width="2"/>`,
+    // shape while the surface still reads as "schematic". Scaled with the frame
+    // so the texture is equally visible on a 240px thumb and a 4K plate.
+    `<pattern id="hatch" width="${f(hatch)}" height="${f(hatch)}" patternUnits="userSpaceOnUse" patternTransform="rotate(35 0 0)">`,
+    `<line x1="0" y1="0" x2="0" y2="${f(hatch)}" stroke="${withAlpha('#FFFFFF', 0.08)}" stroke-width="${f(Math.max(1, hatch * 0.14))}"/>`,
     '</pattern>',
     '</defs>',
-    body.defs ?? '',
     // Background stays fully transparent: this is a cutout, not a card.
     body.shape,
     constructionMarks(w, h, line, body.headMark, rng),
@@ -138,7 +139,6 @@ export function buildPlaceholderSvg(opts: PlaceholderOptions): string {
 interface BodyArt {
   /** Opaque geometry: the alpha shape the layout engine measures. */
   shape: string;
-  defs?: string;
   /** Where to draw the "no face here" crosshair, if anywhere. */
   headMark?: { cx: number; cy: number; r: number };
 }

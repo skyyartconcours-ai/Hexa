@@ -13,7 +13,7 @@
  * @hexa/core) because sRGB midpoints drag saturated colours through grey.
  */
 
-import { ensureDistinct, hexToOklab, mix, parseHex, saturate, shade, toHex } from '@hexa/core';
+import { ensureDistinct, hexToOklab, mix, parseHex, rotateHue, saturate, shade, toHex } from '@hexa/core';
 import type { PreparedSubject, ResolvedPalette } from './types.js';
 
 /**
@@ -73,17 +73,19 @@ export function resolvePalette(
 
   // The subject's own accent (a per-player override) outranks the team primary:
   // a player who is the face of the video should be lit in their colour.
-  const left = normalise(overrides?.left) ?? normalise(leftSubject.accent) ?? leftBrand.primary;
+  const left = normalise(overrides?.left) ?? normalise(leftSubject.accent) ?? normalise(leftBrand.primary)!;
 
-  // Teammates, or a single subject, get the secondary on the other side —
-  // ensureDistinct on identical colours would just spin a hue that means nothing.
-  const rawRight =
-    normalise(overrides?.right) ??
-    normalise(rightSubject && rightSubject !== leftSubject ? rightSubject.accent : undefined) ??
-    (sameTeam ? rightBrand.secondary : rightBrand.primary);
-
-  // Only force separation when the caller did not pick the colour themselves.
-  const right = overrides?.right ? normalise(overrides.right)! : ensureDistinct(left, rawRight, MIN_SIDE_SEPARATION);
+  // The right side is chosen from the opposing brand kit, in preference order,
+  // taking the first colour that is genuinely separable from the left *and*
+  // bright enough to work as a rim light. Reaching into the kit beats computing
+  // a colour: `secondary` is documented as the one that "drives rim light on the
+  // opposing side", so a designer already answered this question. Rotating the
+  // hue is the last resort, because it invents a colour nobody chose.
+  const right = overrides?.right
+    ? normalise(overrides.right)!
+    : pickSideColor(left, sameTeam
+        ? [normalise(rightSubject?.accent), rightBrand.secondary, rightBrand.accent, rightBrand.primary]
+        : [normalise(rightSubject?.accent), rightBrand.primary, rightBrand.secondary, rightBrand.accent]);
 
   const accent = normalise(overrides?.accent) ?? deriveAccent(left, right, leftBrand.accent, rightBrand.accent);
 
@@ -112,6 +114,37 @@ export function canonicalise(palette: ResolvedPalette): ResolvedPalette {
 }
 
 /**
+ * First candidate that is both separable from `left` and usable as a light.
+ *
+ * Falls back to forcing separation on the strongest candidate — a computed
+ * colour is worse than a designed one, but far better than two teams rendering
+ * in the same red.
+ */
+function pickSideColor(left: string, candidates: (string | undefined)[]): string {
+  const usable = candidates.map(normalise).filter((c): c is string => c !== undefined);
+  for (const candidate of usable) {
+    if (separation(left, candidate) >= MIN_SIDE_SEPARATION && isEmissive(candidate)) return candidate;
+  }
+  const fallback = usable[0] ?? complementOf(left);
+  return liftTo(ensureDistinct(left, fallback, MIN_SIDE_SEPARATION), MIN_EMISSIVE_L);
+}
+
+/** Bright enough to read as a light source rather than a shadow. */
+function isEmissive(hex: string): boolean {
+  return hexToOklab(hex).L >= MIN_EMISSIVE_L;
+}
+
+/** Raise lightness to `target` if it falls short, leaving hue and chroma alone. */
+function liftTo(hex: string, target: number): string {
+  const { L } = hexToOklab(hex);
+  return L < target ? shade(hex, target - L) : hex;
+}
+
+function complementOf(hex: string): string {
+  return rotateHue(hex, 180);
+}
+
+/**
  * The accent carries the versus mark, glows and energy FX, so it has to sit
  * apart from both sides rather than between them.
  *
@@ -137,8 +170,7 @@ function deriveAccent(left: string, right: string, leftAccent?: string, rightAcc
  * mark vanishes into the backplate; too desaturated and it reads as a mistake.
  */
 function ensureLively(hex: string): string {
-  const { L } = hexToOklab(hex);
-  const lifted = L < 0.45 ? shade(hex, 0.45 - L) : hex;
+  const lifted = liftTo(hex, MIN_ACCENT_L);
   return chroma(lifted) < 0.06 ? saturate(lifted, 1.8) : lifted;
 }
 
@@ -194,8 +226,10 @@ export function rimColorFor(
   polarity: 'opposing' | 'unified' | 'inverted' = 'opposing',
 ): string {
   if (polarity === 'unified') return palette.accent;
+  if (side === 'center') return polarity === 'inverted' ? palette.left : palette.accent;
   const own = side === 'right' ? palette.right : palette.left;
   const other = side === 'right' ? palette.left : palette.right;
-  if (side === 'center') return polarity === 'inverted' ? palette.left : palette.accent;
-  return polarity === 'inverted' ? own : other;
+  // A rim has to emit. A team that brands in near-black would otherwise light
+  // their opponent with a colour indistinguishable from no light at all.
+  return liftTo(polarity === 'inverted' ? own : other, MIN_EMISSIVE_L);
 }

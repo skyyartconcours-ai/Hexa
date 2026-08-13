@@ -109,7 +109,7 @@ export async function readCache(
   try {
     const meta = JSON.parse(await fs.readFile(p.meta, 'utf8')) as CacheSidecar;
     if (!meta || typeof meta.storedAt !== 'number') return undefined;
-    if (ttlMs > 0 && Date.now() - meta.storedAt > ttlMs) return undefined;
+    if (isExpired(meta.storedAt, ttlMs)) return undefined;
     const buffer = await fs.readFile(p.bin(meta.ext || 'png'));
     if (buffer.length === 0) return undefined;
     return {
@@ -181,7 +181,7 @@ export async function pruneCache(opts: AiCacheOptions = {}): Promise<number> {
         const metaPath = path.join(shardDir, name);
         try {
           const meta = JSON.parse(await fs.readFile(metaPath, 'utf8')) as CacheSidecar;
-          if (ttlMs > 0 && Date.now() - meta.storedAt > ttlMs) {
+          if (isExpired(meta.storedAt, ttlMs)) {
             await fs.rm(metaPath, { force: true });
             await fs.rm(path.join(shardDir, `${name.slice(0, -5)}.${meta.ext || 'png'}`), { force: true });
             removed++;
@@ -195,6 +195,17 @@ export async function pruneCache(opts: AiCacheOptions = {}): Promise<number> {
     /* no cache directory yet */
   }
   return removed;
+}
+
+/**
+ * A finite TTL expires an entry once it is at least that old; pass `Infinity`
+ * for an entry that should never expire. A zero or negative TTL therefore means
+ * "nothing is fresh", which is the intuitive reading and makes `ttlMs: 0` a
+ * usable way to force a refresh.
+ */
+function isExpired(storedAt: number, ttlMs: number): boolean {
+  if (!Number.isFinite(ttlMs)) return false;
+  return Date.now() - storedAt >= ttlMs;
 }
 
 function sniffExtension(buf: Buffer): string {

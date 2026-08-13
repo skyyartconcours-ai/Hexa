@@ -56,7 +56,9 @@ const PERSON_TERMS: readonly string[] = [
   'player', 'players', 'gamer', 'gamers', 'pro player', 'esports player', 'athlete',
   'athletes', 'streamer', 'streamers', 'caster', 'casters', 'celebrity', 'celebrities',
   'influencer', 'influencers', 'idol', 'actor', 'actress', 'singer', 'rapper',
-  'supermodel', 'fashion model', 'spokesperson', 'coach', 'referee',
+  'supermodel', 'fashion model', 'spokesperson', 'coach', 'referee', 'captain',
+  'teammate', 'teammates', 'opponent', 'opponents', 'contestant', 'contestants',
+  'competitor', 'competitors',
   // Depicted characters
   'character', 'characters', 'avatar', 'avatars', 'mascot', 'protagonist',
   'cosplay', 'cosplayer', 'warrior', 'soldier', 'knight', 'samurai', 'ninja',
@@ -68,12 +70,20 @@ const PERSON_TERMS: readonly string[] = [
 ];
 
 /**
- * Cues that a prompt is reaching for a specific individual. These only refuse
- * when followed by something name-shaped or person-shaped, so "looks like a
- * thunderstorm" stays legal while "looks like Peyz" does not.
+ * Cues that have no legitimate reading in a backplate prompt. There is no
+ * scene these describe — they are only ever a request to reproduce a specific
+ * person — so they refuse on sight, with no name required.
+ */
+const IMPERSONATION_CUES =
+  /\b(?:deepfake|deep\s*fake|face\s*swap|faceswap|impersonat\w+|spitting\s+image\s+of|likeness\s+of|look[-\s]?alikes?)\b/;
+
+/**
+ * Cues that *may* be reaching for a specific individual. These only refuse when
+ * followed by something name-shaped, so "looks like a thunderstorm" stays legal
+ * while "looks like Peyz" does not.
  */
 const REFERENCE_CUES =
-  /\b(?:looks?\s+like|looking\s+like|resembl(?:e|es|ing)|likeness\s+of|modell?ed\s+after|based\s+on\s+the\s+(?:real\s+)?(?:person|player|face)|spitting\s+image\s+of|impersonat\w+|cosplay(?:ing)?\s+(?:as|of)|dressed\s+as|deepfake|face\s*swap)\b/;
+  /\b(?:looks?\s+like|looking\s+like|resembl(?:e|es|ing)|modell?ed\s+after|based\s+on\s+the\s+(?:real\s+)?(?:person|player|face))\b/;
 
 /** "<something>'s face" — the classic oblique route to a likeness. */
 const POSSESSIVE_LIKENESS =
@@ -232,6 +242,15 @@ export function assertNoPersonGeneration(prompt: string): void {
     refuse(
       "Backplate prompt asks for someone's facial likeness. Faces are never generated.",
       { rule: 'possessive-likeness' },
+    );
+  }
+
+  const impersonation = IMPERSONATION_CUES.exec(positive);
+  if (impersonation) {
+    refuse(
+      `Backplate prompt asks for a reproduction of a real person ("${impersonation[0]}"). ` +
+        'Hexa never generates a likeness of a real person.',
+      { rule: 'impersonation-cue', matched: impersonation[0] },
     );
   }
 

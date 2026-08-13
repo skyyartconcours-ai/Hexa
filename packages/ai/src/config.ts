@@ -88,6 +88,7 @@ export function redactSecrets(text: unknown, extra: readonly (string | undefined
 }
 
 function safeString(v: unknown): string {
+  if (v === null || v === undefined) return '';
   if (v instanceof Error) return `${v.name}: ${v.message}`;
   if (typeof v === 'string') return v;
   try {

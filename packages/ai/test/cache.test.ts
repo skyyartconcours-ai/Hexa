@@ -115,10 +115,15 @@ describe('cache read/write', () => {
     expect(await readCache(key, { dir, enabled: false })).toBeUndefined();
   });
 
-  it('never throws on an unwritable directory', async () => {
+  it('never throws when the cache directory cannot be created', async () => {
+    // A regular file where a directory needs to be: mkdir fails with ENOTDIR.
+    const { writeFile } = await import('node:fs/promises');
+    const blocker = path.join(dir, 'blocker');
+    await writeFile(blocker, 'not a directory');
+    const bad = path.join(blocker, 'cache');
     const key = cacheKey({ prompt: 'unwritable' });
-    await expect(writeCache(key, image(), { dir: '/proc/definitely/not/writable' })).resolves.toBeUndefined();
-    await expect(readCache(key, { dir: '/proc/definitely/not/writable' })).resolves.toBeUndefined();
+    await expect(writeCache(key, image(), { dir: bad })).resolves.toBeUndefined();
+    await expect(readCache(key, { dir: bad })).resolves.toBeUndefined();
   });
 
   it('never throws on a corrupt entry', async () => {

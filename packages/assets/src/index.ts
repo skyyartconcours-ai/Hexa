@@ -95,4 +95,4 @@ export {
   ANALYSIS_MAX_DIM,
   DEFAULT_DUPLICATE_DISTANCE,
 } from './ingest.js';
-export type { ImageSource, IngestDefaults, IngestResult } from './ingest.js';
+export type { ImageSource, IngestDefaults, IngestLicenceFields, IngestOptionsBase, IngestResult } from './ingest.js';

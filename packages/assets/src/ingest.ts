@@ -247,24 +247,12 @@ export async function contentHash(file: ImageSource, length = 10): Promise<strin
 
 // ── directory ingestion ──────────────────────────────────────────────────────
 
-export interface IngestDefaults {
+/** Everything about an ingest run except where the photographs came from. */
+export interface IngestOptionsBase {
   /** Applied when the kind cannot be inferred from the path. Default 'portrait'. */
   kind?: AssetKind;
   playerId?: PlayerId;
   teamId?: TeamId;
-  /**
-   * Provenance stamped on everything ingested in this run. `addedAt` defaults
-   * to now. Either this or the flat `source`/`license` pair below is required —
-   * a run with neither is refused, because an unsourced photo is not an asset.
-   */
-  provenance?: Omit<AssetProvenance, 'addedAt'> & { addedAt?: string };
-  /** Flat alternative to `provenance`, matching how a CLI passes flags through. */
-  source?: string;
-  license?: LicenseKind;
-  credit?: string;
-  photographer?: string;
-  capturedAt?: string;
-  cleared?: boolean;
   tags?: string[];
   /** Copy files into the library (default: copy when the source is outside the root). */
   copy?: boolean;
@@ -282,6 +270,38 @@ export interface IngestDefaults {
   inferFromPath?: boolean;
   onProgress?: (p: { file: string; index: number; total: number }) => void;
 }
+
+/** Provenance expressed as loose fields — the shape CLI flags map onto. */
+export interface IngestLicenceFields {
+  source?: string;
+  license?: LicenseKind;
+  credit?: string;
+  photographer?: string;
+  capturedAt?: string;
+  /** Defaults to false: clearing a licence is a human act, not an ingest flag. */
+  cleared?: boolean;
+}
+
+/**
+ * Ingest defaults.
+ *
+ * Provenance is not optional — it is the whole point of the library — but it
+ * may be given either as a complete `provenance` record or as flat
+ * `source` + `license` fields. The union makes "one of the two" a compile-time
+ * requirement rather than a runtime surprise.
+ */
+export type IngestDefaults =
+  | (IngestOptionsBase &
+      IngestLicenceFields & {
+        /** `addedAt` defaults to now. */
+        provenance: Omit<AssetProvenance, 'addedAt'> & { addedAt?: string };
+      })
+  | (IngestOptionsBase &
+      IngestLicenceFields & {
+        provenance?: undefined;
+        source: string;
+        license: LicenseKind;
+      });
 
 export interface IngestResult {
   added: ReferenceAsset[];
@@ -325,8 +345,8 @@ function resolveProvenance(defaults: IngestDefaults): AssetProvenance {
 }
 
 /**
- * Walk `dir`, add every usable image to `lib`, and report exactly what was
- * skipped and why.
+ * Walk `dir`, add every usable image to the library, and report exactly what
+ * was skipped and why.
  *
  * Near-duplicates are rejected against both the existing library and the files
  * added earlier in this same run — press kits routinely ship the same frame at
@@ -334,7 +354,10 @@ function resolveProvenance(defaults: IngestDefaults): AssetProvenance {
  * variety the ranker has to work with.
  *
  * The whole walk runs inside one library batch: a single atomic manifest write
- * at the end rather than one per file.
+ * at the end rather than one per file. Partial failure is normal and reported,
+ * never fatal — one corrupt download must not cost the other 400 photos.
+ *
+ * `lib` may be an open {@link AssetLibrary} or just a library root to open.
  */
 export async function ingestDirectory(
   lib: AssetLibrary | string,
