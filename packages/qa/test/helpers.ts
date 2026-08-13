@@ -129,6 +129,102 @@ export async function gradientImage(w = W, h = H): Promise<Buffer> {
   return sharp(data, { raw: { width: w, height: h, channels: 3 } }).png().toBuffer();
 }
 
+// ── adversarial fixtures ─────────────────────────────────────────────────────
+//
+// Everything below builds a *defect* on purpose, together with the good-looking
+// control it must be told apart from. A gate that fires on the defect but also
+// on the control has not detected anything.
+
+export interface BoxTextSpec {
+  text: string;
+  /** Line box in device pixels — also the SVG viewport, so anything wider than
+   *  the box is sliced exactly the way a real over-long headline is. */
+  rect: { x: number; y: number; w: number; h: number };
+  color?: string;
+  fontSize?: number;
+  /** Left inset of the text origin inside the box. */
+  inset?: number;
+  anchor?: 'start' | 'end';
+}
+
+/**
+ * Composite text through an SVG viewport the size of its own rect.
+ *
+ * This is the mechanism behind the real bug: the compositor rasterises each
+ * text layer at the size of its slot, so when auto-fit measures with one font
+ * and the rasteriser substitutes another, the last glyph is cut off by the
+ * viewport and the render says "VIPEI".
+ */
+export async function textInBox(base: Buffer, spec: BoxTextSpec, w = W, h = H): Promise<Buffer> {
+  const { rect } = spec;
+  const fontSize = spec.fontSize ?? Math.round(rect.h * 0.82);
+  const x = spec.anchor === 'end' ? rect.w - (spec.inset ?? 0) : (spec.inset ?? 0);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${rect.w}" height="${rect.h}" viewBox="0 0 ${rect.w} ${rect.h}">
+    <text x="${x}" y="${Math.round(rect.h * 0.82)}" font-family="DejaVu Sans, Liberation Sans, sans-serif" font-size="${fontSize}" font-weight="bold" text-anchor="${spec.anchor ?? 'start'}" fill="${spec.color ?? '#FFFFFF'}">${spec.text}</text>
+  </svg>`;
+  const layer = await sharp(Buffer.from(svg)).png().toBuffer();
+  return sharp(base)
+    .composite([{ input: layer, left: Math.max(0, rect.x), top: Math.max(0, rect.y) }])
+    .resize(w, h, { fit: 'fill' })
+    .png()
+    .toBuffer();
+}
+
+/** Plan carrying the text-rect records the compiler really writes, so the gates
+ *  see the same authoritative colours they would in production. */
+export function planWithText(
+  rects: { role: string; rect: { x: number; y: number; w: number; h: number }; color?: string; text?: string }[],
+  overrides: Partial<RenderPlan> = {},
+): RenderPlan {
+  return plan({
+    meta: {
+      templateId: 'test', subjects: [], createdAt: '',
+      textRects: rects.map((r) => ({ role: r.role, rect: r.rect, color: r.color ?? '#FFFFFF', text: r.text ?? r.role })),
+      ...(overrides.meta ?? {}),
+    },
+    ...overrides,
+  });
+}
+
+/**
+ * A subject block against a background of a chosen luminance.
+ *
+ * `subjectLuma` below `bgLuma` gives the "face is the darkest thing in its half"
+ * defect: the eye lands on the backdrop and the person becomes a hole in it.
+ */
+export async function subjectOnField(opts: {
+  faceRect: { x: number; y: number; w: number; h: number };
+  subjectLuma: number;
+  bgLuma: number;
+  /** Second subject, drawn the same way. */
+  faceRect2?: { x: number; y: number; w: number; h: number };
+  subjectLuma2?: number;
+  /** Internal detail inside the face box, so it is not a flat slab. */
+  detail?: boolean;
+  w?: number;
+  h?: number;
+}): Promise<Buffer> {
+  const w = opts.w ?? W;
+  const h = opts.h ?? H;
+  const grey = (v: number) => `rgb(${clampByte(v)},${clampByte(v * 0.96)},${clampByte(v * 0.92)})`;
+  const face = (r: { x: number; y: number; w: number; h: number }, l: number) => {
+    const px = { x: r.x * w, y: r.y * h, w: r.w * w, h: r.h * h };
+    const features = opts.detail === false ? '' : `
+      <ellipse cx="${px.x + px.w * 0.32}" cy="${px.y + px.h * 0.38}" rx="${px.w * 0.09}" ry="${px.h * 0.05}" fill="${grey(l * 0.55)}"/>
+      <ellipse cx="${px.x + px.w * 0.68}" cy="${px.y + px.h * 0.38}" rx="${px.w * 0.09}" ry="${px.h * 0.05}" fill="${grey(l * 0.55)}"/>
+      <rect x="${px.x + px.w * 0.3}" y="${px.y + px.h * 0.68}" width="${px.w * 0.4}" height="${px.h * 0.08}" fill="${grey(l * 0.5)}"/>`;
+    return `<g><ellipse cx="${px.x + px.w / 2}" cy="${px.y + px.h / 2}" rx="${px.w / 2}" ry="${px.h / 2}" fill="${grey(l)}"/>${features}
+      <rect x="${px.x - px.w * 0.35}" y="${px.y + px.h}" width="${px.w * 1.7}" height="${h - (px.y + px.h)}" rx="${px.w * 0.3}" fill="${grey(l * 0.9)}"/></g>`;
+  };
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+    <rect width="${w}" height="${h}" fill="${grey(opts.bgLuma)}"/>
+    <rect x="0" y="0" width="${w}" height="${h * 0.55}" fill="${grey(opts.bgLuma * 1.08)}"/>
+    ${face(opts.faceRect, opts.subjectLuma)}
+    ${opts.faceRect2 ? face(opts.faceRect2, opts.subjectLuma2 ?? opts.subjectLuma) : ''}
+  </svg>`;
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
 /** Deterministic unit-length embedding. */
 export function embedding(seed: number, dim = 512): number[] {
   const rng = createRng(seed);

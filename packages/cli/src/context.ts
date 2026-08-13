@@ -50,8 +50,14 @@ export interface CliContext {
 export function createContext(opts: GlobalOptions): CliContext {
   const json = opts.json === true;
   // Colour off for --json (escape codes in a parsed stream) and whenever the
-  // user asked. picocolors handles NO_COLOR and non-TTY on its own.
-  const color = opts.color !== false && !json && (process.stdout.isTTY ?? false);
+  // user asked. picocolors honours NO_COLOR for its own helpers, but `ui.hex`
+  // and the team swatches write 24-bit escapes by hand, so the environment
+  // variable has to be checked here as well or `NO_COLOR=1 hexa teams` still
+  // emits colour.
+  const color = opts.color !== false
+    && !json
+    && !process.env['NO_COLOR']
+    && (process.stdout.isTTY ?? false);
   const ui = createUi(color);
 
   // In --json mode the logger would interleave with the document; silence it

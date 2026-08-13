@@ -1,22 +1,36 @@
 /**
- * KT Rolster — LCK. Roster as of 2026-08-13, i.e. AFTER the mid-season bot
- * lane change: Aiming was removed from the active roster on 29 July 2026 and
- * traded to Kiwoom DRX for Jiwoo on 30 July 2026. KT carries two supports
- * (Pollu and Ghost) and rotates them; Pollu is marked as the starter here.
+ * KT Rolster — LCK. The most volatile roster in this dataset; it changed twice
+ * during the 2026 season and the second change was missing from the data until
+ * the 2026-08-13 audit.
  *
- * ROSTERS CHANGE. Re-verify before a season, after any trade window, and any
- * time a render surprises you. See `../roster.ts` for the full provenance
- * block and the re-verification procedure.
+ * What actually happened in 2026, in order:
+ *  1. KT signed Aiming as starting AD carry and Ghost + Pollu as a rotating
+ *     support pair.
+ *  2. Ghost lost the support job during Spring to Lee "Effort" Sang-ho, called
+ *     up from KT Challengers, and was later moved back to AD carry on the
+ *     Challengers roster.
+ *  3. Aiming was pulled from the active roster on 29 July 2026 over an internal
+ *     dispute and traded to Kiwoom DRX for Jiwoo on 30 July 2026.
+ *
+ * The starting five recorded here is therefore PerfecT / Cuzz / Bdd / Jiwoo /
+ * Effort. The previous version of this file had Pollu starting at support and
+ * did not contain Effort at all.
+ *
+ * ROSTERS CHANGE, AND THIS ONE CHANGES FASTEST. Per-field provenance and
+ * confidence live in `../verification.ts`. See `../README.md` for how to
+ * re-verify.
  *
  * sourcedAt: 2026-08-13
  * sources:
- *  - https://www.sheepesports.com/en/all/articles/lol-kt-rolster-s-completed-2026-lck-roster/en
  *  - https://www.sheepesports.com/en/all/articles/jiwoo-joins-kt-rolster-as-aiming-heads-the-other-way-to-kiwoom-drx/en
  *  - https://www.invenglobal.com/articles/24302/aiming-leaves-kt-rolster-for-krx-following-internal-conflict-traded-for-jiwoo
+ *  - https://insider-gaming.com/kt-rolster-krx-aiming-jiwoo-swap/
  *  - https://www.sheepesports.com/en/all/articles/lol-lck-ghost-and-pollu-join-kt-rolster-as-supports/en
+ *  - https://www.sheepesports.com/en/all/articles/kt-challengers-ghost-returns-to-adc-ahead-of-lck-cl-rounds-3-4/en
+ *  - https://rft.gg/news/kt-rolster-ghost-adc-lck-2026
+ *  - https://bo3.gg/lol/players/effort
  *  - https://esportsinsider.com/2025/11/kt-rolster-geng-deokdam-peter-canyon-departures
- *  - https://esportsinsider.com/2025/11/t1-wins-league-of-legends-lol-worlds-2025
- *  - https://liquipedia.net/leagueoflegends/KT_Rolster
+ *  - https://dotesports.com/league-of-legends/news/kt-rolster-are-your-2018-lck-summer-split-champions
  */
 
 import type { Player } from '@hexa/core';
@@ -86,8 +100,10 @@ export const KT_PLAYERS: Player[] = [
     careerHighlights: [
       'Worlds 2025 runner-up with KT Rolster',
       'LCK 2017 Summer champion with Longzhu Gaming',
-      'Worlds 2017 quarter-finalist as the most hyped rookie mid of his year',
-      'Multiple-time LCK All-Pro mid laner; a fixture of the league since 2017',
+      'LCK 2017 Summer regular-season MVP',
+      // DELETED 2026-08-13: an unsourced Worlds 2017 placement and an unsourced
+      // All-Pro claim.
+      'A fixture of the LCK since 2017',
     ],
     referenceQueries: [
       'Bdd KT Rolster LCK 2026 press photo',
@@ -137,8 +153,14 @@ export const KT_PLAYERS: Player[] = [
     nationality: 'South Korea',
     signatureChampions: ['Rakan', 'Nautilus', 'Leona', 'Braum', 'Rell'],
     careerHighlights: [
-      'Two LCK seasons with OKSavingsBank BRION (2024–2025) before joining KT Rolster',
+      // CORRECTED 2026-08-13: was "Two LCK seasons with OKSavingsBank BRION
+      // (2024–2025)". Sources give one LCK season, 2025, after a career inside
+      // the BRO organisation.
+      'Spent his whole career to date inside OKSavingsBank BRION; LCK debut season in 2025',
+      'KeSPA Cup 2024 winner with BRION',
       'Signed to KT Rolster for 2026 as part of a two-support rotation with Ghost',
+      // NOTE: neither half of that rotation held the job. Effort took the
+      // starting support role during Spring 2026.
     ],
     referenceQueries: [
       'Pollu KT Rolster LCK 2026 press photo',
@@ -148,7 +170,36 @@ export const KT_PLAYERS: Player[] = [
     ],
     active: true,
     joinedAt: '2025-11',
-    tags: ['starter', 'rookie'],
+    // CORRECTED 2026-08-13: the 'starter' tag was removed. Pollu was signed as
+    // half of a rotation, and Effort took the starting job during Spring 2026.
+    tags: ['rookie'],
+  },
+  {
+    // ADDED 2026-08-13. KT's actual starting support was missing from this
+    // dataset entirely, which left a superseded Pollu/Ghost rotation on record.
+    id: 'effort',
+    handle: 'Effort',
+    aliases: ['kt-effort', 'Lee Sang-ho', 'Lee Sangho', '이상호'],
+    fullName: 'Lee Sang-ho',
+    nativeName: '이상호',
+    role: 'support',
+    teamId: 'kt',
+    region: 'KR',
+    nationality: 'South Korea',
+    signatureChampions: ['Nautilus', 'Rakan', 'Rell', 'Alistar'],
+    careerHighlights: [
+      'Called up from KT Challengers during the 2026 season and took over the starting support role from Ghost',
+      // Deliberately short. Nothing earlier in his career could be sourced in
+      // the 2026-08-13 audit, and an absent honour beats an invented one.
+    ],
+    referenceQueries: [
+      'Effort KT Rolster LCK 2026 press photo',
+      'Lee Sang-ho Effort KT support portrait lolesports',
+      'Effort KT Rolster support media kit 2026',
+    ],
+    active: true,
+    joinedAt: '2026-04',
+    tags: ['starter'],
   },
   {
     id: 'ghost',
@@ -156,7 +207,10 @@ export const KT_PLAYERS: Player[] = [
     aliases: ['kt-ghost', 'Jang Yong-jun', 'Jang Yongjun', '장용준'],
     fullName: 'Jang Yong-jun',
     nativeName: '장용준',
-    role: 'support',
+    // CORRECTED 2026-08-13: was `role: 'support'`. He joined KT as a role-swapped
+    // support for 2026, lost the job during Spring and was moved back to AD
+    // carry on the KT Challengers roster. `role` records where he plays now.
+    role: 'bot',
     teamId: 'kt',
     region: 'KR',
     nationality: 'South Korea',
@@ -165,17 +219,19 @@ export const KT_PLAYERS: Player[] = [
       'World Champion 2020 with DAMWON Gaming',
       'Worlds 2021 runner-up; MSI 2021 runner-up',
       'LCK 2020 Summer, 2021 Spring and 2021 Summer champion',
-      'Returned to Korea for 2026 after three years abroad and role-swapped from bot lane to support',
+      'Joined KT Rolster for 2026, returning to Korea after three years abroad and role-swapping from bot lane to support',
+      'Moved to the KT Challengers roster and back to AD carry during the 2026 season',
     ],
     referenceQueries: [
       'Ghost KT Rolster LCK 2026 press photo',
       'Jang Yong-jun Ghost KT portrait lolesports',
       'Ghost DAMWON Gaming Worlds 2020 champion photo',
-      'Ghost KT Rolster support media kit 2026',
+      'Ghost KT Challengers 2026 bot laner photo',
     ],
     active: true,
     joinedAt: '2025-11',
-    tags: ['worlds-winner', 'veteran', 'substitute'],
+    // CORRECTED 2026-08-13: 'substitute' removed — he is not on the main roster.
+    tags: ['worlds-winner', 'veteran', 'academy'],
   },
   {
     id: 'score',
@@ -189,8 +245,11 @@ export const KT_PLAYERS: Player[] = [
     nationality: 'South Korea',
     signatureChampions: [],
     careerHighlights: [
-      'Head coach of KT Rolster, signed through 2026; led KT to the Worlds 2025 final',
-      'LCK 2018 Summer champion as KT Rolster’s jungler',
+      // CORRECTED 2026-08-13: a "signed through 2026" contract length was
+      // removed — coverage in the audit reports an extension to 2029, so the
+      // original figure is at best stale.
+      'Head coach of KT Rolster; led KT to the Worlds 2025 final',
+      'LCK 2018 Summer champion as KT Rolster’s jungler, and the split MVP',
       'One of the longest-serving players in KT Rolster history before moving to the bench',
     ],
     referenceQueries: [
@@ -213,9 +272,12 @@ export const KT_PLAYERS: Player[] = [
     nationality: 'South Korea',
     signatureChampions: ['Jinx', "Kai'Sa", 'Varus', 'Xayah', 'Ezreal'],
     careerHighlights: [
-      'LCK debut in 2018 with Kwangdong Freecs; LCK 2018 Spring runner-up',
-      'Dplus KIA’s starting bot laner in 2025',
-      'Signed by KT Rolster for 2026, benched on 29 July 2026 after an internal dispute and traded to Kiwoom DRX the following day',
+      // CORRECTED 2026-08-13: the 2018 org was Afreeca Freecs (renamed Kwangdong
+      // Freecs later), and an "LCK 2018 Spring runner-up" line was deleted — the
+      // placing is the team's and his part in it could not be sourced.
+      'LCK debut in 2018 with Afreeca Freecs, now Kwangdong Freecs',
+      'Two seasons with Dplus KIA (2024–2025) before returning to KT Rolster',
+      'Signed by KT Rolster for 2026, pulled from the active roster on 29 July 2026 after an internal dispute and traded to Kiwoom DRX the following day',
     ],
     referenceQueries: [
       'Aiming KT Rolster LCK 2026 press photo',
@@ -240,7 +302,7 @@ export const KT_PLAYERS: Player[] = [
     careerHighlights: [
       'Worlds 2025 runner-up with KT Rolster',
       'KT Rolster’s starting bot laner in 2025 after a spell in the LPL with FunPlus Phoenix',
-      'Left KT Rolster for DN Freecs ahead of the 2026 season',
+      'Left KT Rolster for DN Freecs, since rebranded DN SOOPers, ahead of the 2026 season',
     ],
     referenceQueries: [
       'deokdam KT Rolster Worlds 2025 press photo',
@@ -264,7 +326,7 @@ export const KT_PLAYERS: Player[] = [
     signatureChampions: ['Rakan', 'Nautilus', 'Alistar', 'Rell'],
     careerHighlights: [
       'Worlds 2025 runner-up with KT Rolster',
-      'Left KT Rolster for DN Freecs ahead of the 2026 season, staying paired with deokdam',
+      'Left KT Rolster for DN Freecs, since rebranded DN SOOPers, ahead of the 2026 season, staying paired with deokdam',
     ],
     referenceQueries: [
       'Peter KT Rolster Worlds 2025 press photo',
@@ -287,8 +349,10 @@ export const KT_PLAYERS: Player[] = [
     signatureChampions: ['Ezreal', 'Caitlyn', 'Aphelios', 'Varus', 'Jinx'],
     careerHighlights: [
       'World Champion 2022 with DRX — the lowest seed ever to win the title',
-      'One of the highest career kill totals in professional League of Legends',
-      'A decade-long career across Samsung, EDG, KT Rolster and DRX; last competed for KT Rolster before military service',
+      // DELETED 2026-08-13: an unsourced "highest career kill totals" claim.
+      // Dplus KIA was missing from the team list; he joined them in Nov 2022.
+      'A decade-long career across Samsung, EDward Gaming, KT Rolster, DRX and Dplus KIA',
+      'Enlisted for mandatory military service in 2025, bidding farewell on stream',
     ],
     referenceQueries: [
       'Deft KT Rolster LCK press photo',

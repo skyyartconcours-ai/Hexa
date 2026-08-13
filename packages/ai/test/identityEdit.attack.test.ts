@@ -26,15 +26,13 @@ async function plate(): Promise<Buffer> {
 
 /** Mask whose `editable` rects are transparent (OpenAI convention). */
 async function alphaMask(editable: Array<{ x: number; y: number; w: number; h: number }>): Promise<Buffer> {
-  const holes = editable
-    .map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="#000000" fill-opacity="0"/>`)
-    .join('');
   // Opaque black everywhere, then punch fully transparent holes.
   const base = await sharp({ create: { width: W, height: H, channels: 4, background: '#000000ff' } }).png().toBuffer();
   if (editable.length === 0) return base;
-  const cut = Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${holes.replace(/fill-opacity="0"/g, 'fill="#ffffff"')}</svg>`,
-  );
+  const holes = editable
+    .map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="#ffffff"/>`)
+    .join('');
+  const cut = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${holes}</svg>`);
   return sharp(base)
     .composite([{ input: cut, blend: 'dest-out' }])
     .png()

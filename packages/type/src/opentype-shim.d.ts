@@ -11,6 +11,8 @@ declare module 'opentype.js' {
     index: number;
     advanceWidth?: number;
     unicode?: number;
+    /** Ink extent in font units. Absent on a blank glyph, or on older builds. */
+    getBoundingBox?(): { x1: number; y1: number; x2: number; y2: number };
   }
 
   export interface OTFont {

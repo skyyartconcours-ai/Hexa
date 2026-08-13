@@ -22,15 +22,23 @@ import { colorHarmonyGate } from './gates/colorHarmony.js';
 import { licenseGate } from './gates/license.js';
 import { bandingGate } from './gates/banding.js';
 import { duplicateGate } from './gates/duplicate.js';
+import { clippingGate } from './gates/clipping.js';
+import { likenessGate } from './gates/likeness.js';
+import { subjectClarityGate } from './gates/subjectClarity.js';
+import { fxDominanceGate } from './gates/fxDominance.js';
 
 /** Registered gates, in report order. Mutable so hosts can add their own. */
 export const GATES: Gate[] = [
   identityGate,
+  likenessGate,
   legibilityGate,
+  clippingGate,
   contrastGate,
   safeZoneGate,
   facePlacementGate,
+  subjectClarityGate,
   clutterGate,
+  fxDominanceGate,
   colorHarmonyGate,
   licenseGate,
   bandingGate,
@@ -52,13 +60,40 @@ function severityScore(f: QaFinding): number {
 }
 
 /**
+ * A failing render can never score above this, however well everything else
+ * went, and the ceiling drops as more (and heavier) gates veto.
+ *
+ * The weighted mean on its own is far too forgiving about a veto. Take the real
+ * sample render in this repo: a clipped headline sets `clipping` (weight 2.2) to
+ * ~0.1 while thirteen other gates stay high, and the mean moves by four points —
+ * an unpublishable thumbnail reporting 81/100. Averaging is the right way to
+ * combine *degrees* of quality and the wrong way to combine a veto with them,
+ * because a veto is not a low score, it is a different kind of statement: this
+ * must not ship. So the mean is computed as before and then capped.
+ *
+ * The cap is proportional to how much of the total weight is vetoing, so a
+ * banding fail (weight 0.4) and an identity fail (weight 3) do not read alike,
+ * and a render with five failures lands near zero.
+ */
+export const FAIL_CEILING = 0.5;
+
+/**
+ * A render with a crashed gate cannot score above this either. It is not a
+ * veto — the render may be perfect — but "we did not check" must not be able to
+ * present itself as 100/100.
+ */
+export const UNCHECKED_CEILING = 0.85;
+
+/**
  * Run the gates and aggregate.
  *
  * A gate's score is the *worst* of its findings — averaging would let three
  * cheerful passes hide one broken headline. The report score is the weighted
- * mean of those gate scores, scaled to 0–100. Gates that crashed are left out
- * of both `gateScores` and the mean: a score they never produced should not be
- * invented, and the warning they generate is what the reader acts on.
+ * mean of those gate scores, scaled to 0–100, then capped by any veto (see
+ * FAIL_CEILING) and by any gate that crashed (UNCHECKED_CEILING). Gates that
+ * crashed are left out of both `gateScores` and the mean: a score they never
+ * produced should not be invented, and the warning they generate is what the
+ * reader acts on.
  */
 export async function runGates(
   ctx: GateContext,
@@ -74,6 +109,8 @@ export async function runGates(
   const gateScores: Record<string, number> = {};
   let weighted = 0;
   let totalWeight = 0;
+  let vetoWeight = 0;
+  let crashed = 0;
 
   for (const gate of selected) {
     try {
@@ -84,7 +121,9 @@ export async function runGates(
       gateScores[gate.id] = Math.round(score * 1000) / 1000;
       weighted += score * gate.weight;
       totalWeight += gate.weight;
+      if (own.some((f) => f.severity === 'fail')) vetoWeight += gate.weight;
     } catch (err) {
+      crashed++;
       findings.push({
         gate: gate.id,
         severity: 'warn',
@@ -106,10 +145,26 @@ export async function runGates(
     });
   }
 
+  const passed = !findings.some((f) => f.severity === 'fail');
   return {
-    passed: !findings.some((f) => f.severity === 'fail'),
-    score: totalWeight === 0 ? 0 : Math.round((weighted / totalWeight) * 100),
+    passed,
+    score: totalWeight === 0 ? 0 : Math.round(aggregate(weighted / totalWeight, vetoWeight / totalWeight, crashed) * 100),
     findings,
     gateScores,
   };
+}
+
+/**
+ * Weighted mean, capped by vetoes and by anything left unchecked.
+ *
+ * `vetoShare` is the fraction of the running weight held by gates that failed:
+ * one light gate failing caps around 0.47, the identity gate alone caps near
+ * 0.39, and everything failing floors the score. The mean is still used when it
+ * is lower — a render can be mediocre without failing anything.
+ */
+export function aggregate(mean: number, vetoShare: number, crashedGates = 0): number {
+  let score = Math.max(0, Math.min(1, mean));
+  if (vetoShare > 0) score = Math.min(score, FAIL_CEILING * (1 - Math.max(0, Math.min(1, vetoShare))));
+  if (crashedGates > 0) score = Math.min(score, UNCHECKED_CEILING);
+  return score;
 }

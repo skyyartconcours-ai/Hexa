@@ -24,6 +24,19 @@ const BUSY_DENSITY = 0.34;
 const MIN_QUIET_SHARE = 0.12;
 /** More distinct busy blobs than this and the hierarchy is gone. */
 const MAX_SALIENT_REGIONS = 6;
+/**
+ * Overall edge density below which the frame is calm *everywhere*, and the
+ * resting-area question stops meaning anything.
+ *
+ * The quiet-region test is relative — a cell counts as quiet when it is below
+ * half the frame's own mean — so a uniformly calm frame can fail it while having
+ * nothing in it at all: half the cells of a still, near-empty picture sit above
+ * half of its (tiny) mean. That is exactly what happened to `versus-minimal`,
+ * the most negative-space layout in the library, which was warned for having "no
+ * resting area" at 12% quiet while being 88% empty backdrop. Below this density
+ * the frame *is* the resting area.
+ */
+const CALM_DENSITY = 0.16;
 
 export function analysisGrid(width: number, height: number): { cols: number; rows: number } {
   return width >= height
@@ -65,7 +78,7 @@ export const clutterGate: Gate = {
       });
     }
 
-    if (quietShare < MIN_QUIET_SHARE) {
+    if (quietShare < MIN_QUIET_SHARE && density > CALM_DENSITY) {
       const biggest = quiet[0];
       findings.push({
         gate: 'clutter',
@@ -88,11 +101,14 @@ export const clutterGate: Gate = {
 
     if (findings.length === 0) {
       const dominant = salient[0];
+      const calm = density <= CALM_DENSITY;
       findings.push({
         gate: 'clutter',
         severity: 'pass',
-        message: `Focal hierarchy holds: ${(density * 100).toFixed(0)}% edge density, ${salient.length} salient region${salient.length === 1 ? '' : 's'}${dominant ? ` (dominant one around ${dominant.center.x.toFixed(2)}, ${dominant.center.y.toFixed(2)})` : ''}, ${(quietShare * 100).toFixed(0)}% quiet area`,
-        score: clamp01(0.6 + 0.4 * ramp(quietShare, MIN_QUIET_SHARE, 0.35)),
+        message: calm
+          ? `Calm frame: ${(density * 100).toFixed(0)}% edge density at feed size, ${salient.length} salient region${salient.length === 1 ? '' : 's'}${dominant ? ` (dominant one around ${dominant.center.x.toFixed(2)}, ${dominant.center.y.toFixed(2)})` : ''} — quiet enough that the whole picture is somewhere to rest`
+          : `Focal hierarchy holds: ${(density * 100).toFixed(0)}% edge density, ${salient.length} salient region${salient.length === 1 ? '' : 's'}${dominant ? ` (dominant one around ${dominant.center.x.toFixed(2)}, ${dominant.center.y.toFixed(2)})` : ''}, ${(quietShare * 100).toFixed(0)}% quiet area`,
+        score: calm ? 1 : clamp01(0.6 + 0.4 * ramp(quietShare, MIN_QUIET_SHARE, 0.35)),
       });
     }
 

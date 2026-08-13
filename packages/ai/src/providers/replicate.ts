@@ -32,7 +32,7 @@
  * wants: a photograph supplying identity, a model supplying everything else.
  */
 
-import { HexaError } from '@hexa/core';
+import { HexaError, log } from '@hexa/core';
 import type {
   BackplateRequest,
   GeneratedImage,
@@ -40,7 +40,7 @@ import type {
   ImageProvider,
   ProviderCapabilities,
 } from '../types.js';
-import { assertNoPersonGeneration, guardIdentityEdit } from '../guard.js';
+import { assertIdentityEditSafe, assertNegativePromptSafe, assertNoPersonGeneration } from '../guard.js';
 import { PROVIDER_ENV, readApiKey } from '../config.js';
 import { fetchBinary, getJson, postJson } from '../http.js';
 import { clampToCapabilities, nearestAspect, notConfigured, toGeneratedImage } from './shared.js';
@@ -118,6 +118,7 @@ export class ReplicateProvider implements ImageProvider {
 
   async generateBackplate(req: BackplateRequest): Promise<GeneratedImage> {
     assertNoPersonGeneration(req.prompt ?? '');
+    assertNegativePromptSafe(req.negativePrompt);
     const key = readApiKey('replicate', this.env) ?? notConfigured('replicate', PROVIDER_ENV.replicate!);
     const { width, height } = clampToCapabilities(req.width, req.height, this.capabilities, 'replicate');
     const model = this.model();
@@ -149,7 +150,7 @@ export class ReplicateProvider implements ImageProvider {
   }
 
   async identityGuidedEdit(req: IdentityEditRequest): Promise<GeneratedImage> {
-    guardIdentityEdit(req);
+    await assertIdentityEditSafe(req);
     const key = readApiKey('replicate', this.env) ?? notConfigured('replicate', PROVIDER_ENV.replicate!);
     const model = this.editModel();
     const size = await imageSize(req.image);
@@ -211,7 +212,22 @@ export class ReplicateProvider implements ImageProvider {
         });
       }
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-      const pollUrl = prediction.urls?.get ?? `${BASE}/predictions/${prediction.id}`;
+      // The poll URL comes out of the response body, and the body is shaped by
+      // whatever model the user pointed us at. Following it blindly would send
+      // the account token wherever a marketplace model asked.
+      const offered = prediction.urls?.get;
+      const canonical = `${BASE}/predictions/${prediction.id}`;
+      let pollUrl = canonical;
+      if (offered) {
+        if (isReplicateHost(offered)) {
+          pollUrl = offered;
+        } else {
+          log.warn('Ignoring a non-Replicate polling URL from a prediction response.', {
+            offered: hostOf(offered),
+            using: 'api.replicate.com',
+          });
+        }
+      }
       prediction = await getJson<Prediction>(pollUrl, {
         provider: 'replicate',
         secret: key,
@@ -240,11 +256,55 @@ export class ReplicateProvider implements ImageProvider {
     if (url.startsWith('data:')) {
       return Buffer.from(url.slice(url.indexOf(',') + 1), 'base64');
     }
+    if (!/^https?:$/.test(schemeOf(url))) {
+      throw new HexaError('PROVIDER_ERROR', `[replicate] model "${model}" returned a non-HTTP output URL.`, {
+        hint: 'Hexa only downloads model output over http(s) or as a data: URI.',
+        details: { provider: 'replicate', model, scheme: schemeOf(url) },
+      });
+    }
+    // Replicate is a marketplace: the *model* decides this URL. Attaching the
+    // account token to it means any published model can harvest the token by
+    // returning `https://attacker.example/x.png`. Output on Replicate's own
+    // hosts gets the token; anywhere else is fetched anonymously.
+    const trusted = isReplicateHost(url);
+    if (!trusted) {
+      log.warn('Downloading Replicate model output from a third-party host without the API token.', {
+        host: hostOf(url),
+      });
+    }
     return fetchBinary(url, {
       provider: 'replicate',
       secret: key,
-      headers: { authorization: `Bearer ${key}` },
+      ...(trusted ? { headers: { authorization: `Bearer ${key}` } } : {}),
     });
+  }
+}
+
+/** Replicate's own hosts: the API and the CDN model outputs are served from. */
+const REPLICATE_HOSTS = /(?:^|\.)replicate\.(?:com|delivery)$/i;
+
+function isReplicateHost(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return (u.protocol === 'https:' || u.protocol === 'http:') && REPLICATE_HOSTS.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '<unparseable>';
+  }
+}
+
+function schemeOf(url: string): string {
+  try {
+    return new URL(url).protocol;
+  } catch {
+    return '';
   }
 }
 

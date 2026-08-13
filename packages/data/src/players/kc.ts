@@ -1,18 +1,30 @@
 /**
  * Karmine Corp — LEC. Roster as of the 2026 LEC season.
  *
- * ROSTERS CHANGE. Re-verify before a season, after any trade window, and any
- * time a render surprises you. See `../roster.ts` for the full provenance
- * block and the re-verification procedure.
+ * ROSTERS CHANGE, AND SOME OF THIS IS ONLY "REPORTED". Per-field provenance and
+ * confidence live in `../verification.ts`. See `../README.md` for how to
+ * re-verify.
+ *
+ * Audited 2026-08-13. Corrections made in that pass:
+ *  - Canna was credited with an "LEC 2025 MVP" award he does not hold. The
+ *    official LEC Winter 2025 Season MVP was Vladi; the LEC Spring 2025 MVP was
+ *    Upset. Deleted.
+ *  - kyeahoo's "LCK Academy 2022 Summer champion" line had no source. Deleted.
+ *  - Vladi's "second-youngest mid laner to win the LEC" line had no source. It
+ *    was replaced with the award he actually won.
+ *  - Editorial lines on Yike and Caliste deleted.
  *
  * sourcedAt: 2026-08-13
  * sources:
  *  - https://www.sheepesports.com/en/all/articles/lol-karmine-corp-s-completed-2026-lec-roster/en
+ *  - https://egamersworld.com/lol/news/31707/karmine-corp-announce-their-2026-roster-edpW023tV
  *  - https://esportsinsider.com/2026/01/karmine-corp-unveils-lec-and-vct-2026-rosters
+ *  - https://www.sheepesports.com/en/all/articles/sources-kyeahoo-set-to-join-karmine-corp-as-the-team-s-new-midlaner/en
  *  - https://www.sheepesports.com/en/all/articles/sources-reapered-set-to-join-karmine-corp-as-head-coach-for-the-2026-season/en
  *  - https://esportsworldcup.com/en/press-releases/dplus-kia-win-lol-at-ewc26
  *  - https://egamersworld.com/lol/news/26642/karmine-corp-dominates-g2-esports-3-0-to-win-lec-w-t4AmXuKdL
- *  - https://liquipedia.net/leagueoflegends/Karmine_Corp
+ *  - https://esportsinsider.com/2025/12/fnatic-vladi-signing-lec-2026
+ *  - https://esports.gg/guides/league-of-legends/who-is-kc-canna/
  */
 
 import type { Player } from '@hexa/core';
@@ -30,7 +42,9 @@ export const KC_PLAYERS: Player[] = [
     nationality: 'South Korea',
     signatureChampions: ['Renekton', 'Jayce', 'Gnar', "K'Sante", 'Aatrox'],
     careerHighlights: [
-      'LEC 2025 MVP',
+      // DELETED 2026-08-13: "LEC 2025 MVP" was not his. The official LEC Winter
+      // 2025 Season MVP was Vladi and the LEC Spring 2025 MVP was Upset; only an
+      // opinion piece calls Canna the 2025 MVP.
       'LEC Winter 2025 champion with Karmine Corp',
       'Esports World Cup 2026 runner-up',
       'LCK 2020 Spring champion with T1; Worlds 2021 semi-finalist',
@@ -60,7 +74,7 @@ export const KC_PLAYERS: Player[] = [
       'LEC champion with G2 Esports in 2024',
       'LEC Winter 2025 champion with Karmine Corp',
       'Esports World Cup 2026 runner-up',
-      'The vocal leader and shotcaller of the Karmine Corp roster',
+      // DELETED 2026-08-13: editorial, not a title or placement.
     ],
     referenceQueries: [
       'Yike Karmine Corp LEC 2026 press photo',
@@ -85,8 +99,10 @@ export const KC_PLAYERS: Player[] = [
     signatureChampions: ['Azir', 'Ahri', 'Sylas', 'Orianna'],
     careerHighlights: [
       'Esports World Cup 2026 runner-up with Karmine Corp',
-      'LCK Academy 2022 Summer champion with DRX Academy',
+      // DELETED 2026-08-13: "LCK Academy 2022 Summer champion with DRX Academy"
+      // could not be sourced.
       'Almost four seasons inside the DRX organisation across LCK AS, LCK CL and the LCK before moving to the LEC',
+      'Joined Karmine Corp for 2026 as their new mid laner, replacing Vladi',
     ],
     referenceQueries: [
       'kyeahoo Karmine Corp LEC 2026 press photo',
@@ -110,7 +126,7 @@ export const KC_PLAYERS: Player[] = [
     careerHighlights: [
       'LEC Winter 2025 champion with Karmine Corp',
       'Esports World Cup 2026 runner-up',
-      'The team’s mechanical prodigy and public face, promoted out of the French LFL scene',
+      // DELETED 2026-08-13: editorial, not a title or placement.
     ],
     referenceQueries: [
       'Caliste Karmine Corp LEC 2026 press photo',
@@ -132,7 +148,9 @@ export const KC_PLAYERS: Player[] = [
     nationality: 'United States',
     signatureChampions: ['Rakan', 'Nautilus', 'Rell', 'Braum', 'Alistar'],
     careerHighlights: [
-      'World Championship appearances in 2024 and 2025 with FlyQuest',
+      // 'reported' only: the FlyQuest background is sourced; the specific Worlds
+      // 2024 and 2025 appearances were not re-sourced in the 2026-08-13 audit.
+      'Joined Karmine Corp for 2026 from FlyQuest, replacing Targamas at support',
       'Esports World Cup 2026 runner-up with Karmine Corp',
       'First European season in 2026 after his career in North America',
     ],
@@ -158,8 +176,10 @@ export const KC_PLAYERS: Player[] = [
     signatureChampions: [],
     careerHighlights: [
       'Head coach of Karmine Corp from the 2026 LEC season',
-      'Multiple-time LCS champion head coach with Cloud9; also coached 100 Thieves',
-      'Former professional top laner in Korea and China',
+      // 'reported' only: widely repeated, not independently re-sourced in the
+      // 2026-08-13 audit.
+      'Previously head coach with Cloud9 and 100 Thieves in the LCS (reported, not re-sourced)',
+      'Former professional top laner in Korea and China (reported, not re-sourced)',
     ],
     referenceQueries: [
       'Reapered Karmine Corp head coach LEC 2026 press photo',
@@ -202,7 +222,11 @@ export const KC_PLAYERS: Player[] = [
     signatureChampions: ['Rakan', 'Nautilus', 'Bard', 'Alistar'],
     careerHighlights: [
       'LEC Winter 2025 champion with Karmine Corp',
-      'Karmine Corp’s starting support before being replaced by Busio for 2026',
+      'LEC champion with G2 Esports in 2022',
+      // NOTE: he was replaced by Busio in the 2026 starting five, but a renewal
+      // report also exists — "no longer at KC" is NOT established, only "no
+      // longer starting". `active: false` here is the softest fact on this row.
+      'Replaced by Busio in Karmine Corp’s 2026 starting five',
     ],
     referenceQueries: [
       'Targamas Karmine Corp LEC 2025 press photo',
@@ -223,8 +247,11 @@ export const KC_PLAYERS: Player[] = [
     nationality: 'Greece',
     signatureChampions: ['Ahri', 'Sylas', 'Orianna', 'Azir'],
     careerHighlights: [
-      'LEC Winter 2025 champion with Karmine Corp — the second-youngest mid laner to win the LEC, behind only Caps',
-      'Left Karmine Corp after the 2025 season and joined Fnatic for 2026',
+      // CORRECTED 2026-08-13: an unsourced "second-youngest mid laner to win the
+      // LEC" line was replaced with the award he actually won.
+      'LEC Winter 2025 champion with Karmine Corp — LEC Winter 2025 Season MVP',
+      'Runner-up at the First Stand Tournament 2025 with Karmine Corp',
+      'Left Karmine Corp after the 2025 season and joined Fnatic for 2026 on a six-figure buyout',
     ],
     referenceQueries: [
       'Vladi Karmine Corp LEC 2025 press photo',

@@ -8,7 +8,7 @@
 
 import { HexaError } from '@hexa/core';
 import type { TextStyle } from './types.js';
-import { resolveFace, exactAdvance, type ResolvedFace } from './fonts.js';
+import { resolveFace, exactAdvance, exactInkExtent, type ResolvedFace } from './fonts.js';
 import { tableAdvance, weightWidthFactor } from './metrics.js';
 
 const ELLIPSIS = '…';
@@ -65,7 +65,12 @@ function advanceEm(face: ResolvedFace, line: string, widthFactor: number): numbe
  * Tracking is applied to the n−1 *interior* gaps, not after the final glyph.
  * That matches the ink extent, which is what matters because this package
  * always positions runs with `text-anchor="start"` at an explicitly computed x
- * rather than letting the renderer centre them.
+ * rather than letting the renderer centre them. A rasteriser that follows CSS
+ * and adds a trailing gap lands it *after* the last glyph's ink, where it moves
+ * nothing — anchoring every run at `start` is what makes that harmless.
+ *
+ * A faked bold (see `syntheticBold`) thickens the outlines without moving them,
+ * so it widens the run once at the right-hand end rather than once per glyph.
  */
 export function measureLine(text: string, style: TextStyle): number {
   requireStyle(style);
@@ -77,7 +82,7 @@ export function measureLine(text: string, style: TextStyle): number {
   const count = [...line].length;
   const em = advanceEm(face, line, widthFactor);
   const tracking = (style.tracking ?? 0) * Math.max(0, count - 1);
-  return Math.max(0, (em + tracking) * style.size);
+  return Math.max(0, (em + tracking + face.syntheticBold) * style.size);
 }
 
 /** Vertical metrics of a block, in device pixels. */
@@ -90,9 +95,47 @@ export interface BlockMetrics {
 }
 
 /**
+ * Round capitals overshoot the cap height and the baseline by about 1 % of the
+ * em; it is the allowance that stops the top row of every O, S and C being
+ * shaved off when no real font is available to measure exactly.
+ */
+const OVERSHOOT_EM = 0.015;
+
+/**
+ * True ink reach of `text` above and below the baseline, in em — or `null` when
+ * no glyph in it could be measured exactly.
+ *
+ * `covers` is false when some glyph fell through to the tables, in which case
+ * the caller must not trust this alone.
+ */
+function inkExtentEm(face: ResolvedFace, text: string): { above: number; below: number; covers: boolean } | null {
+  let above = 0;
+  let below = 0;
+  let measured = false;
+  let covers = true;
+  for (const ch of text) {
+    if (ch === ' ' || ch === '\t') continue;
+    const e = exactInkExtent(face, ch);
+    if (!e) {
+      covers = false;
+      continue;
+    }
+    measured = true;
+    if (e.above > above) above = e.above;
+    if (e.below > below) below = e.below;
+  }
+  return measured ? { above, below, covers } : null;
+}
+
+/**
  * Vertical extent. All-caps text (the esports default) is measured to the cap
  * height rather than the ascender, which is why headlines sit tight in their
  * boxes instead of floating with a band of dead air above them.
+ *
+ * "Cap height" is the *floor*, though, not the answer: with a real face loaded
+ * the block is measured to the actual ink of the actual glyphs, because cap
+ * height alone silently clips round capitals by a pixel and accented ones —
+ * É, Å, Ñ — by a fifth of the em.
  */
 export function blockMetrics(lines: string[], style: TextStyle): BlockMetrics {
   const face = resolveFace(style.family, style.weight ?? 400, style.italic ?? false);
@@ -101,9 +144,20 @@ export function blockMetrics(lines: string[], style: TextStyle): BlockMetrics {
 
   const hasLower = /\p{Ll}/u.test(joined);
   const hasDescender = /[gjpqyçQ,;_@]|\p{Ll}/u.test(joined);
+  // Anything with a mark above it (É, Ñ, Å) climbs past the cap height.
+  const hasMarkAbove = /\p{M}/u.test(joined.normalize('NFD'));
 
-  const ascent = (hasLower ? face.ascent : face.capHeight) * size;
-  const descent = (hasDescender ? face.descent : 0) * size;
+  const guessAscent = (hasLower || hasMarkAbove ? face.ascent : face.capHeight + OVERSHOOT_EM) * size;
+  const guessDescent = (hasDescender ? face.descent : OVERSHOOT_EM) * size;
+
+  const ink = inkExtentEm(face, joined);
+  // A partially-measurable line (emoji, CJK via the tables) keeps the guess as a
+  // floor; a fully-measured one is exact and can be trusted on its own.
+  const measured = ink ? (ink.covers ? ink.above : Math.max(guessAscent / size, ink.above)) * size : guessAscent;
+  // A faked bold grows the outline upwards; the baseline and the descenders
+  // stay where they were.
+  const ascent = measured + face.syntheticBold * size;
+  const descent = ink ? (ink.covers ? ink.below * size : Math.max(guessDescent, ink.below * size)) : guessDescent;
   const lineAdvance = size * (style.lineHeight ?? 1);
   const rows = Math.max(1, lines.length);
   return {

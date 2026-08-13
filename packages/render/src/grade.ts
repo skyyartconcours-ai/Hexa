@@ -136,6 +136,25 @@ function chromaOffset(hex: string): [number, number, number] {
   return [r - l, g - l, b - l];
 }
 
+/**
+ * Split-tone weight as a function of luminance, tabulated.
+ *
+ * `(1−L)^shadowExp` and `L^highlightExp` are fractional powers — the only
+ * `Math.pow` left in the tone loop, and at ~40 ns each they cost more than
+ * everything else in it combined. The weight is a smooth function of luminance
+ * alone, so 2048 steps put the quantisation error at ~0.02 of one 8-bit level.
+ */
+const WEIGHT_STEPS = 2048;
+
+function weightTable(exponent: number, invert: boolean): Float32Array {
+  const table = new Float32Array(WEIGHT_STEPS + 1);
+  for (let i = 0; i <= WEIGHT_STEPS; i++) {
+    const l = i / WEIGHT_STEPS;
+    table[i] = (invert ? 1 - l : l) ** exponent * SPLIT_TONE_STRENGTH;
+  }
+  return table;
+}
+
 export async function applyGradeRaw(
   img: RawImage,
   grade: GradeSpec,
@@ -157,6 +176,8 @@ export async function applyGradeRaw(
   // highlight tint reach further down the curve, and vice versa.
   const shadowExp = 2 + bal * 1.5;
   const highlightExp = 2 - bal * 1.5;
+  const shadowWeights = shadowTint ? weightTable(shadowExp, true) : null;
+  const highlightWeights = highlightTint ? weightTable(highlightExp, false) : null;
 
   let work = img;
   if (curves || sat !== 1 || shadowTint || highlightTint) {
@@ -179,15 +200,15 @@ export async function applyGradeRaw(
         b = l + (b - l) * sat;
       }
       if (shadowTint || highlightTint) {
-        const l = clamp(luma8(r, g, b) / 255, 0, 1);
+        const li = (clamp(luma8(r, g, b) / 255, 0, 1) * WEIGHT_STEPS) | 0;
         if (shadowTint) {
-          const wgt = (1 - l) ** shadowExp * SPLIT_TONE_STRENGTH;
+          const wgt = shadowWeights![li]!;
           r += shadowTint[0] * wgt;
           g += shadowTint[1] * wgt;
           b += shadowTint[2] * wgt;
         }
         if (highlightTint) {
-          const wgt = l ** highlightExp * SPLIT_TONE_STRENGTH;
+          const wgt = highlightWeights![li]!;
           r += highlightTint[0] * wgt;
           g += highlightTint[1] * wgt;
           b += highlightTint[2] * wgt;

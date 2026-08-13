@@ -44,6 +44,16 @@ import {
 
 // ── versus-classic ───────────────────────────────────────────────────────────
 
+/**
+ * How far the seam leans off vertical, as a fraction of frame width.
+ *
+ * A dead-vertical split reads as two portraits filed side by side. The lean is
+ * what turns the same two busts into an opposition, and it has to be shared by
+ * the colour blocks, the seam glow and the diagonal guide or the frame ends up
+ * with three divisions at slightly different angles.
+ */
+const LEAN = 0.18;
+
 const versusClassic: ThumbnailTemplate = {
   id: 'versus-classic',
   name: 'Versus Classic',
@@ -62,98 +72,103 @@ const versusClassic: ThumbnailTemplate = {
     designAspect: RATIO_16_9,
     slots: [
       plateSlot('backplate', { meta: { fill: 'dark', treatment: 'gradient', vignette: 0.4 } }),
-      blockSlot('block-left', { x: 0, y: 0, w: 0.58, h: 1 }, {
+      blockSlot('block-left', { x: 0, y: 0, w: 0.7, h: 1 }, {
         z: Z.backplate + 1,
-        meta: { shape: 'diagonal-half', side: 'left', lean: 0.14, fill: 'left' },
+        meta: { shape: 'diagonal-half', side: 'left', lean: LEAN, fill: 'left' },
       }),
-      blockSlot('block-right', { x: 0.42, y: 0, w: 0.58, h: 1 }, {
+      blockSlot('block-right', { x: 0.3, y: 0, w: 0.7, h: 1 }, {
         z: Z.backplate + 2,
-        meta: { shape: 'diagonal-half', side: 'right', lean: 0.14, fill: 'right' },
+        meta: { shape: 'diagonal-half', side: 'right', lean: LEAN, fill: 'right' },
       }),
       hazeSlot('haze', { meta: { fx: 'haze', density: 0.35 } }),
       fxSlot('floor-fog', { x: 0, y: 0.62, w: 1, h: 0.38 }, {
         z: Z.atmosphereBack + 1,
         meta: { fx: 'fog', height: 0.2 },
       }),
-      inwardBust('subject-left', { x: -0.04, y: 0.05, w: 0.54, h: 0.95 }, 'right', {
+      // The near subject: larger, lower, and the one the eye is meant to land
+      // on first. Two identically-sized busts at the same height read as a
+      // fixture list; one clearly in front reads as a confrontation.
+      inwardBust('subject-left', { x: 0.015, y: 0.1, w: 0.435, h: 0.9 }, 'right', {
         z: Z.subject,
         anchor: 'bottom-left',
-        focal: { x: 0.63, y: 0.29 },
-        constraints: { faceKeepIn: { x: 0.12, y: 0.16, w: 0.34, h: 0.34 } },
-        meta: { preferFacing: 'right', faceHeight: 0.26, rimAngle: 200, side: 'left' },
+        focal: { x: 0.55, y: 0.3 },
+        constraints: { faceKeepIn: { x: 0.1, y: 0.16, w: 0.3, h: 0.32 } },
+        meta: { preferFacing: 'right', faceHeight: 0.26, rimAngle: 200, side: 'left', depth: 'front' },
       }),
-      inwardBust('subject-right', { x: 0.5, y: 0.05, w: 0.54, h: 0.95 }, 'left', {
+      // The far subject: ~9% smaller and set 5% of frame height higher, so it
+      // sits behind rather than beside. `depth: 'back'` also costs it a little
+      // exposure and saturation — atmospheric perspective, applied by the
+      // compiler rather than baked into the photograph.
+      inwardBust('subject-right', { x: 0.545, y: 0.175, w: 0.4, h: 0.825 }, 'left', {
         z: Z.subject + 1,
         anchor: 'bottom-right',
-        focal: { x: 0.37, y: 0.29 },
-        constraints: { faceKeepIn: { x: 0.54, y: 0.16, w: 0.34, h: 0.34 } },
-        meta: { preferFacing: 'left', faceHeight: 0.26, rimAngle: 340, side: 'right' },
+        focal: { x: 0.45, y: 0.3 },
+        constraints: { faceKeepIn: { x: 0.6, y: 0.22, w: 0.28, h: 0.3 } },
+        meta: { preferFacing: 'left', faceHeight: 0.24, rimAngle: 340, side: 'right', depth: 'back' },
       }),
-      fxSlot('seam-glow', { x: 0.44, y: -0.08, w: 0.12, h: 1.16 }, {
+      fxSlot('seam-glow', { x: 0.42, y: -0.08, w: 0.16, h: 1.16 }, {
         z: Z.atmosphereFront,
-        meta: { fx: 'glow-seam', lean: 0.14 },
+        meta: { fx: 'glow-seam', lean: LEAN },
       }),
       fxSlot('sparks', { x: 0.28, y: -0.05, w: 0.44, h: 1.1 }, {
         z: Z.atmosphereFront + 1,
         meta: { fx: 'particles', particles: 'spark', bias: 'center' },
       }),
-      shapeSlot('vs-diamond', { x: 0.405, y: 0.255, w: 0.19, h: 0.27 }, {
-        z: Z.shape,
-        rotation: 45,
-        meta: { shape: 'diamond', fill: 'light', stroke: 'accent' },
-      }),
-      shapeSlot('plate-left', { x: 0.045, y: 0.705, w: 0.355, h: 0.125 }, {
+      // No plate behind the VS. The mark @hexa/type draws is already a finished
+      // badge carrying both team colours, and its artwork runs up to 2× the
+      // nominal size it is asked for — so any diamond sized to sit behind it
+      // ends up with the mark's corners hanging over the edge, reading as two
+      // shapes colliding rather than one device. The centre column is kept dark
+      // by the colour blocks instead, which is what the mark actually needs.
+      shapeSlot('plate-left', { x: 0.045, y: 0.7, w: 0.315, h: 0.115 }, {
         z: Z.shape + 1,
-        meta: { shape: 'bar', fill: 'left', skew: 0.035 },
+        meta: { shape: 'bar', fill: 'left', skew: 0.03 },
       }),
-      shapeSlot('plate-right', { x: 0.6, y: 0.705, w: 0.355, h: 0.125 }, {
+      shapeSlot('plate-right', { x: 0.64, y: 0.7, w: 0.315, h: 0.115 }, {
         z: Z.shape + 2,
-        meta: { shape: 'bar', fill: 'right', skew: -0.035 },
+        meta: { shape: 'bar', fill: 'right', skew: -0.03 },
       }),
-      textSlot('vs', { x: 0.425, y: 0.285, w: 0.15, h: 0.21 }, {
+      textSlot('vs', { x: 0.435, y: 0.32, w: 0.13, h: 0.18 }, {
         z: Z.text,
         meta: { weight: 'black', italic: true, stroke: 0.02 },
       }),
-      textSlot('left-name', { x: 0.055, y: 0.715, w: 0.335, h: 0.105 }, {
+      textSlot('left-name', { x: 0.055, y: 0.71, w: 0.295, h: 0.095 }, {
         z: Z.text + 1,
-        anchor: 'center-left',
         meta: { weight: 'black', tracking: -0.01 },
       }),
-      textSlot('right-name', { x: 0.61, y: 0.715, w: 0.335, h: 0.105 }, {
+      textSlot('right-name', { x: 0.65, y: 0.71, w: 0.295, h: 0.095 }, {
         z: Z.text + 2,
-        anchor: 'center-right',
         meta: { weight: 'black', tracking: -0.01 },
       }),
-      textSlot('left-team', { x: 0.055, y: 0.635, w: 0.24, h: 0.062 }, {
+      textSlot('left-team', { x: 0.055, y: 0.63, w: 0.2, h: 0.055 }, {
         z: Z.text + 3,
-        anchor: 'bottom-left',
         meta: { weight: 'medium', tracking: 0.12 },
       }),
-      textSlot('right-team', { x: 0.705, y: 0.635, w: 0.24, h: 0.062 }, {
+      textSlot('right-team', { x: 0.745, y: 0.63, w: 0.2, h: 0.055 }, {
         z: Z.text + 4,
-        anchor: 'bottom-right',
         meta: { weight: 'medium', tracking: 0.12 },
       }),
-      textSlot('kicker', { x: 0.315, y: 0.055, w: 0.37, h: 0.075 }, {
+      textSlot('kicker', { x: 0.315, y: 0.055, w: 0.37, h: 0.07 }, {
         z: Z.text + 5,
         meta: { weight: 'semibold', tracking: 0.22 },
       }),
-      badgeSlot('badge', { x: 0.045, y: 0.05, w: 0.2, h: 0.075 }, {
+      badgeSlot('badge', { x: 0.045, y: 0.05, w: 0.18, h: 0.07 }, {
         z: Z.badge,
-        anchor: 'center-left',
         meta: { shape: 'pill', fill: 'accent' },
       }),
     ],
     safeZones: ytSafeZones([
-      reserve('vs-column', { x: 0.42, y: 0.22, w: 0.16, h: 0.32 }, 'The VS mark owns the centre column — keep cutouts out of it.'),
+      reserve('vs-column', { x: 0.42, y: 0.22, w: 0.16, h: 0.36 }, 'The VS mark owns the centre column — keep cutouts out of it.'),
     ]),
+    // Deliberately not mirrored: the near face outranks the far one, and the
+    // list is read in order by the composition gates.
     focalPoints: [
-      { x: 0.3, y: 0.326 },
-      { x: 0.7, y: 0.326 },
-      { x: 0.5, y: 0.39 },
-      { x: 0.22, y: 0.767 },
+      { x: 0.233, y: 0.37 },
+      { x: 0.745, y: 0.423 },
+      { x: 0.5, y: 0.41 },
+      { x: 0.2, y: 0.757 },
     ],
-    guides: [thirdsGuide(), diagonalGuide(0.14)],
+    guides: [thirdsGuide(), diagonalGuide(LEAN)],
   },
   style: {
     lightRig: 'split-rim',

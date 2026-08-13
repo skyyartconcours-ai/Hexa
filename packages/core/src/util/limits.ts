@@ -76,6 +76,12 @@ export const MAX_MASK_DEPTH = 16;
  */
 export const MAX_TEXT_LENGTH = 4_096;
 
+/** C0 controls other than tab/LF/CR, plus the two BMP noncharacters XML forbids. */
+const ILLEGAL_XML_CHAR = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g;
+
+/** A surrogate with no partner: legal inside a JS string, unencodable as UTF-8. */
+const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
 /**
  * Strip characters that XML 1.0 forbids and repair unpaired surrogates.
  *
@@ -88,12 +94,6 @@ export const MAX_TEXT_LENGTH = 4_096;
  * This deliberately does *not* escape `&<>"'` — that is the serialiser's job,
  * and doing it in two places would double-escape.
  */
-/** C0 controls other than tab/LF/CR, plus the two BMP noncharacters XML forbids. */
-const ILLEGAL_XML_CHAR = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g;
-
-/** A surrogate with no partner: legal inside a JS string, unencodable as UTF-8. */
-const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
-
 export function sanitiseXmlText(input: unknown): string {
   const s = input === null || input === undefined ? '' : String(input);
   return s.replace(LONE_SURROGATE, '\uFFFD').replace(ILLEGAL_XML_CHAR, '');

@@ -1,18 +1,30 @@
 /**
  * T1 — LCK. Roster as of the 2026 LCK season.
  *
- * ROSTERS CHANGE. Re-verify before a season, after any trade window, and any
- * time a render surprises you. See `../roster.ts` for the full provenance
- * block and the re-verification procedure.
+ * ROSTERS CHANGE, AND SOME OF THIS IS ONLY "REPORTED". Per-field provenance and
+ * confidence live in `../verification.ts`; read that before quoting any line
+ * here. See `../roster.ts` for the accuracy policy and `../README.md` for the
+ * re-verification procedure.
+ *
+ * Audited 2026-08-13. Corrections made in that pass:
+ *  - Faker: the Worlds 2023 Finals MVP award was **not** his — it went to Zeus.
+ *    His Finals MVPs are 2016 and 2024. An unsourced "part-owner of T1" line
+ *    was deleted.
+ *  - Oner: "MSI 2024 runner-up" was false. Bilibili Gaming were the runners-up;
+ *    T1 finished third. Deleted.
+ *  - Peyz: an unsourced "LCK 2023 Spring Finals MVP" line was deleted and an
+ *    exact LCK title count softened.
+ *  - kkOma: the hiatus was announced on 23 March 2026, mid-season.
  *
  * sourcedAt: 2026-08-13
  * sources:
- *  - https://www.sheepesports.com/en/all/articles/lol-t1-completed-2026-lck-roster/en
- *  - https://esportsinsider.com/2025/11/every-confirmed-lck-roster-2026-league-of-legends
  *  - https://esportsinsider.com/2025/11/peyz-joins-t1-2026-lck-league-of-legends
+ *  - https://esports-news.co.uk/2025/11/19/t1-sign-peyz-for-the-2026-season/
  *  - https://esportsinsider.com/2025/11/t1-wins-league-of-legends-lol-worlds-2025
+ *  - https://www.invenglobal.com/articles/18655/zeus-is-your-worlds-2023-finals-mvp
+ *  - https://www.oneesports.gg/league-of-legends/faker-worlds-2024-final-mvp/
  *  - https://www.sheepesports.com/en/all/articles/t1-announce-kkoma-hiatus-tom-to-lead-as-interim-head-coach/en
- *  - https://liquipedia.net/leagueoflegends/T1
+ *  - https://insider-gaming.com/t1-coach-tom-interim/
  */
 
 import type { Player } from '@hexa/core';
@@ -31,9 +43,10 @@ export const T1_PLAYERS: Player[] = [
     signatureChampions: ['Aatrox', 'Jax', "K'Sante", 'Renekton', 'Gnar'],
     careerHighlights: [
       'World Champion 2025 (T1)',
-      'LCK champion (4x)',
+      // Title count is DISPUTED: sources give both 4x and 3x. See ../verification.ts.
+      'LCK champion (reported as 4x; one source says 3x)',
       'LCK 2024 Summer champion with Hanwha Life Esports',
-      'Worlds 2019 with Griffin as a rookie top laner',
+      'Debuted in the LCK with Griffin in the 2019 Summer Split, finishing runner-up',
     ],
     referenceQueries: [
       'Doran T1 LCK 2026 press photo',
@@ -58,7 +71,8 @@ export const T1_PLAYERS: Player[] = [
     signatureChampions: ['Lee Sin', 'Viego', 'Vi', 'Jarvan IV', 'Xin Zhao'],
     careerHighlights: [
       'World Champion 2023, 2024, 2025 (T1) — part of the first Worlds three-peat',
-      'MSI 2024 runner-up',
+      // DELETED 2026-08-13: "MSI 2024 runner-up" was false. Bilibili Gaming lost
+      // that final to Gen.G; T1 went out in the lower bracket final, third.
       'LCK champion with T1',
       'Career-long T1 player, promoted from the T1 academy system',
     ],
@@ -85,11 +99,13 @@ export const T1_PLAYERS: Player[] = [
     signatureChampions: ['Ahri', 'LeBlanc', 'Azir', 'Ryze', 'Orianna', 'Zed'],
     careerHighlights: [
       'World Champion 2013, 2015, 2016, 2023, 2024, 2025 — six titles, no other player has more',
-      'Worlds 2023 and 2024 Finals MVP',
+      // CORRECTED 2026-08-13: this row previously read "Worlds 2023 and 2024
+      // Finals MVP". The 2023 Finals MVP was Zeus. Faker's are 2016 and 2024.
+      'Worlds 2016 and 2024 Finals MVP',
       'MSI champion 2016, 2017',
-      '2023 Asian Games gold medallist with South Korea',
+      'Asian Games gold medallist with South Korea (Hangzhou 2022, held in 2023)',
       'Ten LCK titles; the most decorated player in League of Legends history',
-      'Part-owner of T1 and the sport’s defining figure since 2013',
+      // DELETED 2026-08-13: an unsourced "part-owner of T1" claim plus editorial.
     ],
     socials: {
       twitter: 'faker',
@@ -120,8 +136,9 @@ export const T1_PLAYERS: Player[] = [
     careerHighlights: [
       'MSI 2024 champion with Gen.G',
       'LCK Rookie of the Year 2023 — youngest bot laner to win an LCK title, at 17',
-      'LCK champion (3x) with Gen.G',
-      'LCK 2023 Spring Finals MVP',
+      // SOFTENED 2026-08-13: the exact count could not be pinned to a source.
+      'Multiple-time LCK champion with Gen.G',
+      // DELETED 2026-08-13: "LCK 2023 Spring Finals MVP" — no source found.
       'Holds the all-time record for pentakills in professional play',
       'Spent 2025 in the LPL with JD Gaming before returning to the LCK',
     ],
@@ -151,7 +168,8 @@ export const T1_PLAYERS: Player[] = [
       'World Champion 2023, 2024, 2025 (T1)',
       'Worlds 2022 runner-up with T1',
       'LCK champion with T1',
-      'Widely regarded as the most inventive support in the game; repeat LCK First All-Pro support',
+      // DELETED 2026-08-13: an editorial "most inventive support" line and an
+      // unsourced All-Pro claim.
     ],
     referenceQueries: [
       'Keria T1 LCK 2026 press photo',
@@ -175,8 +193,8 @@ export const T1_PLAYERS: Player[] = [
     nationality: 'South Korea',
     signatureChampions: [],
     careerHighlights: [
-      'Interim head coach of T1 for the 2026 LCK season while kkOma is on hiatus',
-      'Coach on the T1 staff through the 2023–2025 World Championship three-peat',
+      'Interim head coach of T1 from 23 March 2026, after kkOma took a temporary leave of absence',
+      'Long-serving T1 coach; handled draft on stage while kkOma worked from backstage',
     ],
     referenceQueries: [
       'Tom T1 head coach LCK 2026 press photo',
@@ -198,8 +216,9 @@ export const T1_PLAYERS: Player[] = [
     nationality: 'South Korea',
     signatureChampions: [],
     careerHighlights: [
-      'World Champion 2014 and Worlds 2014 Finals MVP as a player with Samsung White',
-      'Joined T1’s LCK coaching staff in November 2024',
+      'World Champion 2014 and Worlds 2014 MVP as a player with Samsung White',
+      'First person to win the World Championship as a player (2014) and as a coach (2025, T1)',
+      'Returned to T1 as a coach for the 2025 LCK season',
     ],
     referenceQueries: [
       'Mata T1 coach LCK 2026 press photo',
@@ -222,9 +241,12 @@ export const T1_PLAYERS: Player[] = [
     nationality: 'South Korea',
     signatureChampions: [],
     careerHighlights: [
-      'Head coach of the 2013, 2015, 2016, 2023, 2024 and 2025 World Champion T1/SKT sides',
+      // DISPUTED count: profiles written before Worlds 2025 say five titles as a
+      // coach. He was T1's head coach for the 2025 win, which makes six, but no
+      // single source states six. See ../verification.ts.
+      'Head coach of the World Champion SKT/T1 sides of 2013, 2015, 2016, 2023, 2024 and 2025',
       'The most successful coach in League of Legends history',
-      'Stepped away from the T1 bench on hiatus ahead of the 2026 LCK regular season',
+      'Took a temporary leave of absence from T1 on 23 March 2026; Tom took over as interim head coach',
     ],
     referenceQueries: [
       'kkOma T1 head coach press photo',

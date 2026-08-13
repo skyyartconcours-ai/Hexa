@@ -1,19 +1,30 @@
 /**
  * Hanwha Life Esports — LCK. Roster as of the 2026 LCK season.
  *
- * ROSTERS CHANGE. Re-verify before a season, after any trade window, and any
- * time a render surprises you. See `../roster.ts` for the full provenance
- * block and the re-verification procedure.
+ * ROSTERS CHANGE, AND SOME OF THIS IS ONLY "REPORTED". Per-field provenance and
+ * confidence live in `../verification.ts`. See `../README.md` for how to
+ * re-verify.
+ *
+ * Audited 2026-08-13. Corrections made in that pass:
+ *  - Homme did **not** head-coach Hanwha Life to the LCK 2024 Summer title.
+ *    Choi "DanDy" In-gyu did; Homme joined HLE for the 2026 season. Deleted.
+ *  - Kanavi: "five-time LPL champion" cut to the four titles that can be named;
+ *    an unsourced "two-time LPL Jungler of the Year" line deleted.
+ *  - Peanut did not stop playing in September 2025 — he announced his
+ *    enlistment then and played on through Worlds 2025.
+ *  - Zeus gained the Worlds 2023 Finals MVP, which the dataset had credited to
+ *    Faker.
  *
  * sourcedAt: 2026-08-13
  * sources:
- *  - https://www.sheepesports.com/en/all/articles/lol-hanwha-life-esports-completed-2026-lck-roster/en
- *  - https://esportsinsider.com/2025/11/every-confirmed-lck-roster-2026-league-of-legends
- *  - https://esportsinsider.com/2025/11/geng-canyon-resigning-hanwha-life-esports-viper-departure
- *  - https://www.sheepesports.com/en/all/articles/hanwha-life-esports-crowned-msi-2026-champion-after-3-2-against-bilibili-gaming/en
+ *  - https://www.sheepesports.com/en/all/articles/lol-lck-gumayusi-joins-hanwha-life-esports/en
+ *  - https://egamersworld.com/lol/news/30721/gumayusi-officially-becomes-the-new-adc-of-hanwha--CRku_kA7n
+ *  - https://esportsinsider.com/2025/11/hanwha-life-esports-zeus-zeka-2026
+ *  - https://www.sheepesports.com/en/all/articles/lol-homme-joins-hle-as-head-coach-for-the-2026-lck-season-mowgli-renews/en
  *  - https://www.koreaherald.com/article/10806145
- *  - https://en.wikipedia.org/wiki/Kanavi_(gamer)
- *  - https://liquipedia.net/leagueoflegends/Hanwha_Life_Esports
+ *  - https://dotesports.com/league-of-legends/news/hanwha-life-esports-win-msi-2026
+ *  - https://egamersworld.com/lol/news/30913/viper-joins-bilibili-gaming-for-the-2026-season-aVKkclhr3
+ *  - https://esports-news.co.uk/2025/10/28/peanut-jungler-retires-from-lol-esports-after-hle-worlds-exit/
  */
 
 import type { Player } from '@hexa/core';
@@ -32,9 +43,12 @@ export const HLE_PLAYERS: Player[] = [
     signatureChampions: ['Jayce', 'Gnar', 'Aatrox', "K'Sante", 'Rumble', 'Camille'],
     careerHighlights: [
       'World Champion 2023, 2024 (T1)',
+      // ADDED 2026-08-13: the dataset had credited this award to Faker.
+      'Worlds 2023 Finals MVP',
       'MSI 2026 champion with Hanwha Life Esports — Finals MVP',
       'Worlds 2022 runner-up with T1',
-      'LCK champion; repeat LCK First All-Pro top laner',
+      // DELETED 2026-08-13: an unsourced All-Pro claim. "LCK champion" kept.
+      'LCK champion',
     ],
     referenceQueries: [
       'Zeus Hanwha Life Esports LCK 2026 press photo',
@@ -60,8 +74,10 @@ export const HLE_PLAYERS: Player[] = [
     careerHighlights: [
       'MSI 2023 champion with JD Gaming',
       'MSI 2026 champion with Hanwha Life Esports',
-      'Five-time LPL champion; two-time LPL Jungler of the Year',
-      'Asian Games 2023 gold medallist with South Korea',
+      // CORRECTED 2026-08-13: was "five-time LPL champion". Four titles can be
+      // named; an unsourced "two-time LPL Jungler of the Year" line was deleted.
+      'Four-time LPL champion with JD Gaming (2020 Spring, 2022 Summer, 2023 Spring, 2023 Summer)',
+      'Asian Games gold medallist with South Korea (Hangzhou 2022, held in 2023)',
       'Spent 2019–2024 with JD Gaming and 2025 with Top Esports before his first LCK season',
     ],
     referenceQueries: [
@@ -89,7 +105,7 @@ export const HLE_PLAYERS: Player[] = [
       'World Champion 2022 with DRX — Worlds 2022 Finals MVP',
       'MSI 2026 champion with Hanwha Life Esports',
       'LCK 2024 Summer champion with Hanwha Life Esports',
-      'Author of one of the great Worlds runs, taking the last seed to the title',
+      // DELETED 2026-08-13: editorial narrative, not a title or placement.
     ],
     referenceQueries: [
       'Zeka Hanwha Life Esports LCK 2026 press photo',
@@ -133,7 +149,10 @@ export const HLE_PLAYERS: Player[] = [
   {
     id: 'delight',
     handle: 'Delight',
-    aliases: ['hle-delight', 'Yu Hwan-jung', 'Yoo Hwan-joong', 'Yu Hwanjung', '유환중'],
+    // DISPUTED romanisation: Liquipedia/Esports Charts read 유환중 as
+    // "Yu Hwan-jung"; Leaguepedia/ggscore/Esports Earnings read it
+    // "Yoo Hwan-joong". Both are kept as aliases. See ../verification.ts.
+    aliases: ['hle-delight', 'Yu Hwan-jung', 'Yoo Hwan-joong', 'Yu Hwanjung', 'Yoo Hwanjoong', '유환중'],
     fullName: 'Yu Hwan-jung',
     nativeName: '유환중',
     role: 'support',
@@ -144,7 +163,7 @@ export const HLE_PLAYERS: Player[] = [
     careerHighlights: [
       'MSI 2026 champion with Hanwha Life Esports',
       'LCK 2024 Summer champion with Hanwha Life Esports',
-      'Scouted out of the Gen.G academy system; LCK debut with Kwangdong Freecs',
+      // DELETED 2026-08-13: the academy/debut path could not be sourced.
     ],
     referenceQueries: [
       'Delight Hanwha Life Esports LCK 2026 press photo',
@@ -168,9 +187,14 @@ export const HLE_PLAYERS: Player[] = [
     nationality: 'South Korea',
     signatureChampions: [],
     careerHighlights: [
+      'Joined Hanwha Life Esports as head coach for the 2026 LCK season',
       'Head coach of Hanwha Life Esports through the MSI 2026 title run',
-      'Head coach for the LCK 2024 Summer championship side',
-      'Long career as a top laner and then a coach in the LCK and LPL',
+      // DELETED 2026-08-13: "Head coach for the LCK 2024 Summer championship
+      // side" was FALSE. That title was won under Choi "DanDy" In-gyu; Homme was
+      // at JD Gaming and then Top Esports, and only joined HLE for 2026.
+      'Head coach of JD Gaming from 2018 to 2023, winning four LPL titles and MSI 2023',
+      'Head coach of Top Esports from December 2024',
+      'Played top lane for MVP White/MVP Ozone before moving to the bench in 2014',
     ],
     referenceQueries: [
       'Homme Hanwha Life head coach LCK 2026 press photo',
@@ -220,7 +244,9 @@ export const HLE_PLAYERS: Player[] = [
       'MSI 2017 champion with SK Telecom T1; Worlds 2017 runner-up',
       'LCK 2024 Summer champion with Hanwha Life Esports',
       'Multiple-time LCK champion across SKT, Gen.G and Hanwha Life',
-      'Stepped away from play in September 2025 for mandatory military service',
+      // CORRECTED 2026-08-13: he did NOT stop playing in September 2025.
+      'Announced in September 2025 that he would enlist for mandatory military service',
+      'Played his final competitive match at Worlds 2025, in Hanwha Life’s quarter-final exit to Gen.G',
     ],
     referenceQueries: [
       'Peanut Hanwha Life Esports LCK 2025 press photo',

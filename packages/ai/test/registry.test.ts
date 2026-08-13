@@ -3,7 +3,7 @@
  * offline painter, the stub, or a fake registered for the test.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isHexaError } from '@hexa/core';
 import {
   generateBackplate,
@@ -288,7 +288,16 @@ describe('generateBackplate routing', () => {
 
 describe('identityGuidedEdit routing', () => {
   const face = [{ x: 10, y: 10, w: 40, h: 50 }];
-  const image = Buffer.from([0x89, 0x50, 0x4e, 0x47, 9, 9, 9, 9]);
+  // A real raster: the guard measures the preserve boxes against the actual
+  // frame and inspects the mask, so it refuses bytes it cannot decode.
+  let image: Buffer;
+
+  beforeAll(async () => {
+    const sharp = (await import('sharp')).default;
+    image = await sharp({ create: { width: 128, height: 128, channels: 3, background: '#303040' } })
+      .png()
+      .toBuffer();
+  });
 
   it('applies the identity guard before routing', async () => {
     await expect(

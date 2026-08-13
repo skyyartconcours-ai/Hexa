@@ -8,19 +8,27 @@
  * Legibility measured their cap height and passed it. Nothing was looking at the
  * one thing a human sees instantly: the word is cut.
  *
- * The signature of a cut glyph is ink at a boundary. Type is laid out inside a
- * line box with side bearing, so the outermost columns of a healthy text rect
- * are background — a couple of stray antialiased pixels at most. When a glyph is
- * clipped by the layer's viewport (or by the canvas), the cut leaves a straight
- * wall of ink standing exactly on that boundary, spanning most of the rows the
- * type occupies. That is what is measured here, per side:
+ * The signature of a cut glyph is a wall of ink standing on a boundary. Type is
+ * laid out inside a line box with horizontal side bearing, so the outermost
+ * *columns* of a healthy text rect are background — a couple of antialiased
+ * pixels at most. When a glyph is sliced by the layer's viewport (or by the
+ * canvas), the cut leaves ink hard against that boundary, spanning most of the
+ * rows the type occupies. That is what is measured, per vertical side:
  *
  *   coverage = inked pixels in the outermost 2px band
- *              ÷ pixels of that band within the type's own row/column extent
+ *              ÷ pixels of that band within the type's own row extent
  *
  * Normalising by the ink's extent rather than by the whole rect matters: a
  * headline occupies maybe half the height of its line box, and dividing by the
  * box would halve every number and hide a real cut.
+ *
+ * Deliberately *not* measured: the top and bottom edges of a text rect. Display
+ * faces are routinely set with a font size larger than the line box (86px type
+ * in a 76px slot is normal in this renderer), so caps sit flush on the top edge
+ * of a perfectly good render — measured across the sample renders in this repo,
+ * top-edge ink runs at 50–80% on type nobody would call clipped. Horizontal ink
+ * on the same renders is 0.00 on every well-fitting rect, which is what makes
+ * the left/right reading worth vetoing on.
  *
  * Three distinct failures come out of it, and they want different remedies:
  *   • ink standing on the canvas edge — the layout ran off the frame;
@@ -29,32 +37,48 @@
  *   • ink continuing outside the rect — the text overflowed a box that did not
  *     clip, so it is now sitting on top of whatever is next to it.
  *
- * Marks (logos, badges, sponsor lozenges) are checked against the canvas edge
- * too. A half-sponsor-logo is a contractual problem as well as an ugly one.
+ * Marks (logos, badges, sponsor lozenges) go through the same check. A
+ * half-sponsor-logo is a contractual problem as well as an ugly one.
  */
 
 import type { QaFinding, PixelRect } from '@hexa/core';
 import type { Gate, GateContext } from '../types.js';
 import { clamp01, collectMarkRects, collectTextRects, toNormRect } from '../geom.js';
-import { clampToImage, inkMask, loadRgb, parseHexRgb } from '../image.js';
+import { inkMask, loadRgb, parseHexRgb } from '../image.js';
 import { declaredText, resolveTextStyle } from '../plan.js';
 
 /** Band, in pixels, taken as "the boundary". Two, not one: a single column can
  *  be pure antialiasing, and a real cut always inks both. */
 const BAND = 2;
-/** Share of the ink's own extent standing on the boundary before it is a cut. */
-export const CLIP_COVERAGE = 0.35;
-const WARN_COVERAGE = 0.18;
+/**
+ * Share of the type's own height standing on the boundary before it counts as a
+ * wall of cut ink. A slice through a heavy display face leaves most of the cap
+ * height inked in that band; the outermost column of a *complete* glyph tapers
+ * (the leg of an R, the tail of an S) well below this.
+ */
+export const CLIP_COVERAGE = 0.45;
+/**
+ * Any ink at all in the boundary band, above pure antialiasing. A cut can land
+ * anywhere in a word — through a stem it leaves a wall, through the bowl of an S
+ * it leaves 20% — so the boundary is also flagged at this much lower level. What
+ * it means depends on which boundary: at the canvas edge there is no innocent
+ * reading (pixels past it do not exist, so the glyph is gone), at a layer rect
+ * there is (the slot may simply be tight), and the severities differ to match.
+ */
+const TOUCH_COVERAGE = 0.12;
 /** Ink found this far outside the declared rect counts as an overflow. */
 const OVERFLOW_BAND = 3;
-const OVERFLOW_COVERAGE = 0.12;
+const OVERFLOW_COVERAGE = 0.2;
 
-type Side = 'left' | 'right' | 'top' | 'bottom';
+type Side = 'left' | 'right';
 
 interface SideReading {
   side: Side;
   /** 0–1 of the ink's own extent along that edge. */
   coverage: number;
+  /** Ink reaches the outermost column at all — the taper of a complete glyph
+   *  stops short of it, a cut does not. */
+  touchesEdge: boolean;
   /** Same measurement in the strip just *outside* the rect. */
   outside: number;
   /** The boundary is also the canvas boundary. */
@@ -80,6 +104,7 @@ export const clippingGate: Gate = {
 
     const img = await loadRgb(ctx.image, { background: ctx.plan.canvas.background });
     const findings: QaFinding[] = [];
+    const unmeasurable: string[] = [];
 
     for (const { role, rect } of [...texts, ...marks.map((m) => ({ role: m.role, rect: m.rect }))]) {
       const where = toNormRect(rect, ctx.width, ctx.height);
@@ -104,12 +129,20 @@ export const clippingGate: Gate = {
       const style = resolveTextStyle(ctx.plan, role, rect);
       const declared = style.color ? parseHexRgb(style.color) : null;
       const mask = inkMask(img, rect, declared);
-      if (!mask) continue; // nothing measurable here; contrast reports that case
+      if (!mask || !readsAsType(mask)) {
+        // No trustworthy figure/ground split — usually a glow or a plate the
+        // same colour as the type, which fills the rect corner to corner. Saying
+        // "unchecked" is the honest answer; inventing a verdict off a mask that
+        // is really the plate would flag every glowing headline as clipped.
+        unmeasurable.push(role);
+        continue;
+      }
 
       const readings = sides(mask, img, ctx.width, ctx.height);
-      const cut = readings.filter((r) => r.coverage >= CLIP_COVERAGE);
+      const touching = readings.filter((r) => r.touchesEdge && r.coverage >= TOUCH_COVERAGE);
+      const cut = touching.filter((r) => r.coverage >= CLIP_COVERAGE || r.atCanvas);
       const overflow = readings.filter((r) => r.outside >= OVERFLOW_COVERAGE);
-      const marginal = readings.filter((r) => r.coverage >= WARN_COVERAGE && r.coverage < CLIP_COVERAGE);
+      const marginal = touching.filter((r) => !cut.includes(r));
 
       if (cut.length) {
         const worst = cut.reduce((a, b) => (b.coverage > a.coverage ? b : a));
@@ -131,7 +164,7 @@ export const clippingGate: Gate = {
         findings.push({
           gate: 'clipping',
           severity: 'fail',
-          message: `${label} spills outside its declared rect on the ${overflow.map((r) => r.side).join(' and ')} — ${(worst.outside * 100).toFixed(0)}% of the strip just beyond the ${rect.w}×${rect.h}px box is the same ink`,
+          message: `${label} spills outside its declared rect on the ${overflow.map((r) => r.side).join(' and ')} — ${(worst.outside * 100).toFixed(0)}% of the type's rows carry the same ink straight on past the ${rect.w}×${rect.h}px box`,
           score: 0.25,
           where,
           suggestion: `The layout measured this text smaller than it rendered, so every downstream check (contrast, safe zones, collision) is looking at the wrong rectangle. Re-measure "${role}" with the font that actually rasterised.`,
@@ -141,10 +174,10 @@ export const clippingGate: Gate = {
         findings.push({
           gate: 'clipping',
           severity: 'warn',
-          message: `${label} sits hard against the ${worst.side} edge of its rect (${(worst.coverage * 100).toFixed(0)}% of the type's height is ink in the last ${BAND}px) — tight enough that one more character, or a font substitution, would clip it`,
-          score: 0.6,
+          message: `${label} runs right up to the ${worst.side} edge of its rect (ink in the outermost ${BAND}px, covering ${(worst.coverage * 100).toFixed(0)}% of the type's height) — either the last glyph is already shaved or it is one character away from being`,
+          score: 0.55,
           where,
-          suggestion: `Leave a side bearing of at least 2% of the slot width around "${role}", or shorten the copy. Renders that clip on one machine and not another usually look exactly like this first.`,
+          suggestion: `Leave a side bearing of at least 2% of the slot width around "${role}", or shorten the copy. A render that clips on one machine and not another — different font, different rounding — looks exactly like this first.`,
         });
       } else {
         findings.push({
@@ -157,13 +190,13 @@ export const clippingGate: Gate = {
       }
     }
 
-    if (findings.length === 0) {
+    if (unmeasurable.length) {
       findings.push({
         gate: 'clipping',
         severity: 'warn',
-        message: `None of the ${texts.length + marks.length} placed element${texts.length + marks.length === 1 ? '' : 's'} had a measurable figure/ground split, so clipping could not be checked on any of them`,
-        score: 0.6,
-        suggestion: 'Record the text colour the compositor used (plan.meta.textRects[].color) so the ink can be separated from the plate.',
+        message: `Could not separate ink from background for ${unmeasurable.map((r) => `"${r}"`).join(', ')} — ${unmeasurable.length === 1 ? 'that element was' : 'those elements were'} NOT checked for clipping`,
+        score: findings.length === 0 ? 0.5 : 0.7,
+        suggestion: 'Usually a glow or plate painted in the same colour as the type, which fills the rect. Record the actual glyph colour in plan.meta.textRects[].color, or drop the glow radius, so the ink can be told from the halo.',
       });
     }
 
@@ -171,8 +204,34 @@ export const clippingGate: Gate = {
   },
 };
 
-function offCanvas(rect: PixelRect, width: number, height: number): Side[] {
-  const out: Side[] = [];
+/**
+ * Does this mask look like type rather than like a filled box?
+ *
+ * A glow, a lozenge or a gradient plate painted in the declared text colour
+ * produces a mask whose bounding box is the rect itself — ink on all four
+ * sides — and every edge reading taken from it is meaningless. Real type is
+ * inset on at least one axis, because that is what a line box is for.
+ */
+function readsAsType(mask: NonNullable<ReturnType<typeof inkMask>>): boolean {
+  const { data, rect } = mask;
+  let minX = rect.w, maxX = -1, minY = rect.h, maxY = -1;
+  for (let y = 0; y < rect.h; y++) {
+    for (let x = 0; x < rect.w; x++) {
+      if (data[y * rect.w + x] !== 1) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (maxX < 0) return false;
+  const spanX = (maxX - minX + 1) / rect.w;
+  const spanY = (maxY - minY + 1) / rect.h;
+  return !(spanX >= 0.95 && spanY >= 0.95);
+}
+
+function offCanvas(rect: PixelRect, width: number, height: number): string[] {
+  const out: string[] = [];
   if (rect.x < -1) out.push('left');
   if (rect.y < -1) out.push('top');
   if (rect.x + rect.w > width + 1) out.push('right');
@@ -197,107 +256,91 @@ function sides(
   const at = (x: number, y: number) => data[y * rect.w + x] === 1;
 
   const rowsWithInk: number[] = [];
-  const colsWithInk: number[] = [];
   for (let y = 0; y < rect.h; y++) {
     for (let x = 0; x < rect.w; x++) {
       if (at(x, y)) { rowsWithInk.push(y); break; }
     }
   }
-  for (let x = 0; x < rect.w; x++) {
-    for (let y = 0; y < rect.h; y++) {
-      if (at(x, y)) { colsWithInk.push(x); break; }
-    }
-  }
-  if (rowsWithInk.length === 0 || colsWithInk.length === 0) return [];
+  if (rowsWithInk.length === 0) return [];
 
-  const band = Math.max(1, Math.min(BAND, Math.floor(Math.min(rect.w, rect.h) / 2)));
-  const readings: SideReading[] = [];
+  const band = Math.max(1, Math.min(BAND, Math.floor(rect.w / 2)));
 
-  const vertical = (side: 'left' | 'right') => {
-    // Every column of the band must carry ink somewhere, or this is one stray
-    // antialiased column rather than a wall.
+  const inkColour = meanInk(img, mask);
+
+  const vertical = (side: Side): SideReading => {
     let hits = 0;
-    let columnsInked = 0;
+    let edgeInked = false;
     for (let b = 0; b < band; b++) {
       const x = side === 'left' ? b : rect.w - 1 - b;
       let inked = 0;
       for (const y of rowsWithInk) if (at(x, y)) inked++;
-      if (inked > 0) columnsInked++;
+      if (b === 0 && inked > 0) edgeInked = true;
       hits += inked;
     }
-    const coverage = columnsInked === band ? hits / (band * rowsWithInk.length) : 0;
-    const x0 = side === 'left' ? rect.x - OVERFLOW_BAND : rect.x + rect.w;
     return {
       side,
-      coverage,
-      outside: outsideInk(img, mask, { x: x0, y: rect.y, w: OVERFLOW_BAND, h: rect.h }, rowsWithInk.length, canvasW, canvasH),
+      coverage: hits / (band * rowsWithInk.length),
+      touchesEdge: edgeInked,
+      outside: continuesOutside(img, mask, rowsWithInk, side, inkColour, canvasW, canvasH),
       atCanvas: side === 'left' ? rect.x <= 1 : rect.x + rect.w >= canvasW - 1,
-    } satisfies SideReading;
+    };
   };
 
-  const horizontal = (side: 'top' | 'bottom') => {
-    let hits = 0;
-    let rowsInked = 0;
-    for (let b = 0; b < band; b++) {
-      const y = side === 'top' ? b : rect.h - 1 - b;
-      let inked = 0;
-      for (const x of colsWithInk) if (at(x, y)) inked++;
-      if (inked > 0) rowsInked++;
-      hits += inked;
-    }
-    const coverage = rowsInked === band ? hits / (band * colsWithInk.length) : 0;
-    const y0 = side === 'top' ? rect.y - OVERFLOW_BAND : rect.y + rect.h;
-    return {
-      side,
-      coverage,
-      outside: outsideInk(img, mask, { x: rect.x, y: y0, w: rect.w, h: OVERFLOW_BAND }, colsWithInk.length, canvasW, canvasH),
-      atCanvas: side === 'top' ? rect.y <= 1 : rect.y + rect.h >= canvasH - 1,
-    } satisfies SideReading;
-  };
-
-  readings.push(vertical('left'), vertical('right'), horizontal('top'), horizontal('bottom'));
-  return readings;
+  return [vertical('left'), vertical('right')];
 }
 
-/**
- * How much of the strip just outside the rect is the same ink.
- *
- * The mask itself only covers the rect, so the comparison is done by colour: the
- * mean of the ink inside, matched against the strip outside with the same
- * tolerance. Cheap, and specific enough — a glyph that overflows its box is the
- * *same* colour a few pixels further along, whereas the plate it sits on is not.
- */
-function outsideInk(
+function meanInk(
   img: { data: Uint8Array; width: number; height: number },
   mask: NonNullable<ReturnType<typeof inkMask>>,
-  strip: { x: number; y: number; w: number; h: number },
-  extent: number,
-  canvasW: number,
-  canvasH: number,
-): number {
-  const s = clampToImage(strip, Math.min(img.width, canvasW), Math.min(img.height, canvasH));
-  if (s.w <= 0 || s.h <= 0 || extent <= 0) return 0;
-
-  let ir = 0, ig = 0, ib = 0, n = 0;
+): { r: number; g: number; b: number } {
+  let r = 0, g = 0, b = 0, n = 0;
   for (let y = 0; y < mask.rect.h; y++) {
     for (let x = 0; x < mask.rect.w; x++) {
       if (mask.data[y * mask.rect.w + x] !== 1) continue;
       const i = ((mask.rect.y + y) * img.width + (mask.rect.x + x)) * 3;
-      ir += img.data[i]!; ig += img.data[i + 1]!; ib += img.data[i + 2]!; n++;
+      r += img.data[i]!; g += img.data[i + 1]!; b += img.data[i + 2]!; n++;
     }
   }
-  if (n === 0) return 0;
-  const ink = { r: ir / n, g: ig / n, b: ib / n };
+  return n === 0 ? { r: 0, g: 0, b: 0 } : { r: r / n, g: g / n, b: b / n };
+}
 
-  let hits = 0;
-  for (let y = s.y; y < s.y + s.h; y++) {
-    for (let x = s.x; x < s.x + s.w; x++) {
-      const i = (y * img.width + x) * 3;
-      const d = Math.hypot(img.data[i]! - ink.r, img.data[i + 1]! - ink.g, img.data[i + 2]! - ink.b);
-      if (d < 60) hits++;
+/**
+ * Does the ink carry on past the rect?
+ *
+ * Continuity, not mere presence: a row only counts when the boundary column
+ * *inside* the rect is inked and the pixels immediately outside it are the same
+ * colour. Presence alone would flag any headline that happens to sit next to
+ * another white element; continuity only fires when a stroke walks out of the
+ * box, which is what an overflowing text layer looks like.
+ */
+function continuesOutside(
+  img: { data: Uint8Array; width: number; height: number },
+  mask: NonNullable<ReturnType<typeof inkMask>>,
+  rowsWithInk: number[],
+  side: Side,
+  ink: { r: number; g: number; b: number },
+  canvasW: number,
+  canvasH: number,
+): number {
+  const { data, rect } = mask;
+  const w = Math.min(img.width, canvasW);
+  const h = Math.min(img.height, canvasH);
+  const boundaryX = side === 'left' ? 0 : rect.w - 1;
+  const step = side === 'left' ? -1 : 1;
+  let rows = 0;
+
+  for (const y of rowsWithInk) {
+    if (data[y * rect.w + boundaryX] !== 1) continue;
+    const py = rect.y + y;
+    if (py < 0 || py >= h) continue;
+    let matched = 0;
+    for (let d = 1; d <= OVERFLOW_BAND; d++) {
+      const px = rect.x + boundaryX + step * d;
+      if (px < 0 || px >= w) { matched = 0; break; }
+      const i = (py * img.width + px) * 3;
+      if (Math.hypot(img.data[i]! - ink.r, img.data[i + 1]! - ink.g, img.data[i + 2]! - ink.b) < 60) matched++;
     }
+    if (matched === OVERFLOW_BAND) rows++;
   }
-  // Normalised by the ink's own extent along the shared edge, matching the
-  // `coverage` scale so the two numbers can be compared to each other.
-  return hits / Math.max(1, extent * Math.min(OVERFLOW_BAND, Math.max(s.w, s.h)));
+  return rows / Math.max(1, rowsWithInk.length);
 }

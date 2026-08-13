@@ -42,6 +42,20 @@ const METRIC_ANALYSIS_EDGE = 1024; // must match SHARPNESS_LONG_EDGE in pipeline
  */
 const MAX_HEURISTIC_CONFIDENCE = 0.4;
 
+/**
+ * Fill ratio (blob pixels / bounding-box pixels) of a solid ellipse: π/4.
+ *
+ * A head is an ellipse, so it can never fill its own bounding box — 0.78 is the
+ * CEILING for a face-shaped blob, not a shortfall. Anything approaching 1.0 is a
+ * rectangle: a plank of stage furniture, a cardboard box, a bare forearm.
+ * Scoring fill as "more is better" therefore ranked furniture above faces and
+ * handed it the confidence cap; head-likeness is a distance from this value, not
+ * a climb toward 1.
+ */
+const ELLIPSE_FILL = Math.PI / 4;
+/** Fill distance from {@link ELLIPSE_FILL} at which head-likeness reaches 0. */
+const FILL_TOLERANCE = 0.28;
+
 interface RawImage {
   data: Buffer;
   width: number;
@@ -292,9 +306,10 @@ export async function heuristicFaceLocate(bytes: Buffer, log?: Logger): Promise<
     const aspect = bw / bh;
     if (aspect < 0.45 || aspect > 1.9) continue;
 
-    // Confidence is compactness-driven and hard-capped; see the constant.
+    // Confidence is shape-driven and hard-capped; see the constants.
     const aspectScore = 1 - Math.min(1, Math.abs(aspect - 0.78) / 0.8);
-    const confidence = Math.min(MAX_HEURISTIC_CONFIDENCE, 0.15 + 0.15 * fill + 0.12 * aspectScore);
+    const fillScore = 1 - Math.min(1, Math.abs(fill - ELLIPSE_FILL) / FILL_TOLERANCE);
+    const confidence = Math.min(MAX_HEURISTIC_CONFIDENCE, 0.15 + 0.15 * fillScore + 0.12 * aspectScore);
 
     const box: FaceBox = {
       x: Math.round(bx * img.scale),
@@ -303,11 +318,19 @@ export async function heuristicFaceLocate(bytes: Buffer, log?: Logger): Promise<
       h: Math.round(bh * img.scale),
       confidence: Number(confidence.toFixed(3)),
     };
-    // Rank by "biggest, most compact, most head-shaped".
-    ranked.push({ face: { box }, score: areaFrac * fill * (0.5 + 0.5 * aspectScore) });
+    // Rank by "biggest, most head-shaped". `fillScore` rather than raw `fill`:
+    // with the latter a bare forearm (fill 1.00) outranked the actual head
+    // (fill 0.79) in the same frame, so `faces[0]` — what fallbackMetrics
+    // records as the face box and what fallbackMatte crops a bust around — was
+    // the arm.
+    ranked.push({ face: { box }, score: areaFrac * fillScore * (0.5 + 0.5 * aspectScore) });
   }
 
-  ranked.sort((a, b) => b.score - a.score);
+  // Ties are routine here — a symmetric frame, or two equally-sized skin
+  // patches — and `.slice(0, 3)` means a tie decides which boxes SURVIVE, not
+  // just their order. Break on raster position so the answer is a property of
+  // the pixels rather than of the labelling order.
+  ranked.sort((a, b) => b.score - a.score || a.face.box.y - b.face.box.y || a.face.box.x - b.face.box.x);
   // Multi-face separation is beyond a colour rule; report the best few only.
   return ranked.slice(0, 3).map((r) => r.face);
 }
@@ -619,10 +642,13 @@ async function dominantColours(bytes: Buffer, count = 5): Promise<string[]> {
       buckets.set(key, { n: 1, r, g, b });
     }
   }
-  return [...buckets.values()]
-    .sort((a, b) => b.n - a.n)
+  // A photograph produces thousands of single-pixel buckets, so `n` ties
+  // constantly and the tie decides which five colours are reported. Order by
+  // the quantised key second: same pixels ⇒ same palette, every run.
+  return [...buckets.entries()]
+    .sort((a, b) => b[1].n - a[1].n || a[0] - b[0])
     .slice(0, count)
-    .map(({ n, r, g, b }) => hex(r / n, g / n, b / n));
+    .map(([, { n, r, g, b }]) => hex(r / n, g / n, b / n));
 }
 
 function hex(r: number, g: number, b: number): string {

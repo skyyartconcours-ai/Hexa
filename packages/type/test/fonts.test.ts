@@ -196,7 +196,10 @@ describe('ensureFonts', () => {
     await writeFile(join(dir, 'Anton-Regular.txt'), 'not a font');
     await writeFile(join(dir, 'README.md'), '# fonts');
     await ensureFonts(dir);
-    expect(registeredFonts().some((r) => r.family === 'Anton')).toBe(false);
+    // Scoped to `dir`: the same scan also walks the system and per-user font
+    // paths, so "no Anton anywhere" would be an assertion about the machine
+    // rather than about the two files this test wrote.
+    expect(registeredFonts().filter((r) => r.path.startsWith(dir))).toEqual([]);
   });
 
   it('points its default at <repo>/assets/fonts', () => {

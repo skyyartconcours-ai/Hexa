@@ -27,6 +27,27 @@
  * - `light`     — near-white for text on dark plates, warmed or cooled a few
  *                 points toward `primary` so type doesn't read as pure #FFF.
  *
+ * ## Which of these are actually sourced (audited 2026-08-13)
+ *
+ * `primary` is supposed to be "always a real, sourced brand swatch". After the
+ * audit that is true for four of seven organisations, not all seven:
+ *
+ * | Team | `primary` | Status |
+ * |------|-----------|--------|
+ * | T1 | `#E2012D` | **confirmed** — published as T1's brand red (Pantone 185 C) |
+ * | Gen.G | `#A58721` | **confirmed** — published as Gen.G gold |
+ * | G2 | `#EE3D23` | **confirmed** — published as G2's brand colour (they call it Orange, Pantone 3556 C) |
+ * | Dplus KIA | `#B8FCCC` | **confirmed** — "Dplus Mint", with `#E2EE83` "Dplus Lime" as the sub colour |
+ * | KT Rolster | `#A3122B` | **UNVERIFIED** — no published hex found |
+ * | Hanwha Life | `#F3721F` | **UNVERIFIED** — orange + grey is confirmed as the palette, the hex is not |
+ * | Karmine Corp | `#057E9D` | **UNVERIFIED** — blue is confirmed as the brand colour, the hex is not |
+ *
+ * `accent`, `dark` and `light` are engine-side derivations for every team by
+ * design — they are not brand swatches and are never "confirmed". `secondary`
+ * is sourced only where the org publishes a second colour.
+ *
+ * Machine-readable form: {@link TEAM_COLOR_VERIFICATION}.
+ *
  * ## Known hue collisions
  *
  * T1 (#E2012D), KT Rolster and G2 (#EE3D23) are all red-family brands, and the
@@ -175,3 +196,61 @@ export const TEAMS: Team[] = [
     aliases: ['G2', 'Gamers2', 'G2 Samurai', 'Samurai'],
   },
 ];
+
+/**
+ * Whether each team's `primary` (and `secondary`, where it is meant to be a
+ * real swatch) could be matched to a published brand colour on 2026-08-13.
+ *
+ * `'derived'` means the value is an engine-side computation and was never
+ * intended to be a brand swatch — that is not a gap, it is the design.
+ * `'unverified'` means it *is* presented as a brand swatch and no source could
+ * be found for it. Do not print an unverified hex next to a client's logo
+ * without checking their brand guidelines first.
+ */
+export const TEAM_COLOR_VERIFICATION: Record<
+  string,
+  { primary: 'confirmed' | 'unverified'; secondary: 'confirmed' | 'derived' | 'unverified'; sources: string[]; note?: string }
+> = {
+  t1: {
+    primary: 'confirmed',
+    secondary: 'derived',
+    sources: ['https://www.brandcolorcode.com/t1', 'https://sportsfancovers.com/esports-colors/t1-team-colors/'],
+    note: '#E2012D is published as T1 red (Pantone 185 C). The silver secondary is a readability choice, not a published swatch.',
+  },
+  hle: {
+    primary: 'unverified',
+    secondary: 'unverified',
+    sources: ['https://sportsfancovers.com/esports-colors/hanwha-life-esports-team-colors/'],
+    note: 'Orange plus grey is confirmed as the brand palette; no published hex for either could be found.',
+  },
+  geng: {
+    primary: 'confirmed',
+    secondary: 'derived',
+    sources: ['https://teamcolorcodes.com/gen-g-esports-colors/'],
+    note: '#A58721 is published as Gen.G gold. Note this differs from the commonly quoted #AA8A00.',
+  },
+  kt: {
+    primary: 'unverified',
+    secondary: 'unverified',
+    sources: [],
+    note: 'No published KT Rolster brand hex could be found in this audit. Both values are best-guess.',
+  },
+  dplus: {
+    primary: 'confirmed',
+    secondary: 'confirmed',
+    sources: ['https://en.namu.wiki/w/Dplus%20Kia/%EC%9C%A0%EB%8B%88%ED%8F%BC'],
+    note: '#B8FCCC "Dplus Mint" and #E2EE83 "Dplus Lime" are both published brand colours. Which is key and which is sub has swapped over time; mint was restored as key during 2025.',
+  },
+  kc: {
+    primary: 'unverified',
+    secondary: 'derived',
+    sources: [],
+    note: 'Blue is confirmed as the Karmine Corp brand colour; #057E9D itself could not be sourced.',
+  },
+  g2: {
+    primary: 'confirmed',
+    secondary: 'derived',
+    sources: ['https://www.brandcolorcode.com/g2-esports'],
+    note: '#EE3D23 is published as G2\'s brand colour (Pantone 3556 C). G2 call it Orange; this file treats it as the orange side of red.',
+  },
+};

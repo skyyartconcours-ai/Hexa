@@ -25,6 +25,7 @@ import { createRequire } from 'node:module';
 import { existsSync, statSync, readFileSync, readdirSync } from 'node:fs';
 import { join, dirname, basename, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os';
 import { HexaError } from '@hexa/core';
 import type { FontRegistration } from './types.js';
 import { classifyFamily, FAMILY_METRICS, type ClassMetrics } from './metrics.js';
@@ -44,13 +45,35 @@ const OPPORTUNISTIC_FAMILIES = [
   'Arial', 'Helvetica', 'Barlow Condensed', 'Archivo Narrow', 'Montserrat',
 ];
 
-const SYSTEM_FONT_DIRS = [
-  '/usr/share/fonts',
-  '/usr/local/share/fonts',
-  '/System/Library/Fonts',
-  '/Library/Fonts',
-  'C:\\Windows\\Fonts',
-];
+/**
+ * Where fonts live, machine-wide and per user.
+ *
+ * The per-user directories are not optional extras: fontconfig scans
+ * `~/.fonts` and `~/.local/share/fonts` unconditionally, so a face installed
+ * there is one the rasteriser will happily set text in. Leaving them out of
+ * this list is how measurement ends up on a class table while the glyphs on
+ * screen come from a real font — the same measure-one-font-draw-another split
+ * that clips headlines.
+ */
+function fontDirs(): string[] {
+  const home = homedir();
+  const dirs = [
+    '/usr/share/fonts',
+    '/usr/local/share/fonts',
+    '/System/Library/Fonts',
+    '/Library/Fonts',
+    'C:\\Windows\\Fonts',
+  ];
+  if (home) {
+    dirs.push(
+      join(home, '.fonts'),
+      join(home, '.local', 'share', 'fonts'),
+      join(home, 'Library', 'Fonts'),
+      join(home, 'AppData', 'Local', 'Microsoft', 'Windows', 'Fonts'),
+    );
+  }
+  return dirs;
+}
 
 // ── registry ─────────────────────────────────────────────────────────────────
 
@@ -196,6 +219,35 @@ export interface ResolvedFace {
   exact: boolean;
   /** Which family in the stack actually backed this face. */
   resolvedFamily: string;
+  /**
+   * Extra ink, in em, that the rasteriser will add by faking a weight this face
+   * does not ship — see `syntheticBoldEm`. Zero when the real cut was found.
+   */
+  syntheticBold: number;
+}
+
+/**
+ * How much ink FreeType adds when it fakes a bold, in em.
+ *
+ * `FT_GlyphSlot_Embolden` thickens an outline by roughly one twenty-fourth of
+ * the em, growing the glyph to the right and upwards while leaving the origin,
+ * the left side bearing and the advance where they were. So the *positions* of
+ * the glyphs are still exactly what the advances predict — but the ink box is
+ * bigger on two sides, and measurement that ignores it shaves the top off every
+ * capital in the flagship headline.
+ */
+const EMBOLDEN_EM = 1 / 24;
+
+/**
+ * Weight shortfall, in CSS weight units, at which the rasteriser stops picking
+ * a near-enough cut and starts faking one. Deliberately cautious: over-reserving
+ * a couple of pixels costs a hair of type size, under-reserving clips glyphs.
+ */
+const SYNTHETIC_BOLD_AT = 150;
+
+/** Ink allowance for a weight the registered cut cannot actually supply. */
+function syntheticBoldEm(requested: number, available: number): number {
+  return requested - available >= SYNTHETIC_BOLD_AT ? EMBOLDEN_EM : 0;
 }
 
 const faceCache = new Map<string, ResolvedFace>();
@@ -258,6 +310,11 @@ export function resolveFace(family: string, weight = 400, italic = false): Resol
       unitsPerEm: upm,
       exact: true,
       resolvedFamily,
+      // The file's own OS/2 weight class, not the one guessed from its name:
+      // "ArchivoBlack-400.ttf" reads as a 900 to a filename heuristic and as
+      // the Regular it actually is to fontconfig — which is what decides
+      // whether a bold gets faked.
+      syntheticBold: syntheticBoldEm(weight, os2?.usWeightClass || reg?.weight || 400),
     };
   } else {
     face = {
@@ -270,10 +327,61 @@ export function resolveFace(family: string, weight = 400, italic = false): Resol
       unitsPerEm: 1000,
       exact: false,
       resolvedFamily: family,
+      // The class tables already carry a width factor for weight; nothing is
+      // known about which real cut fontconfig will land on.
+      syntheticBold: 0,
     };
   }
   faceCache.set(key, face);
   return face;
+}
+
+/** Ink reach of a glyph above and below the baseline, in em. */
+export interface InkExtent {
+  above: number;
+  below: number;
+}
+
+/** Per-face glyph ink cache — `getBoundingBox()` walks the outline each call. */
+const inkCache = new WeakMap<ResolvedFace, Map<string, InkExtent | null>>();
+
+/**
+ * Exact vertical ink extent of one code point, or `null` when the face cannot
+ * say (no font file, glyph absent, blank glyph).
+ *
+ * Cap height is not this number. Round capitals overshoot it by about 1 % of the
+ * em on both the top and the baseline, and an accented capital — É, Å, Ñ —
+ * reaches 16–26 % of the em above it. Measuring an all-caps line to its cap
+ * height therefore promises a box the glyphs do not fit in, and the top row of
+ * every O, S and C is shaved off at the document edge.
+ */
+export function exactInkExtent(face: ResolvedFace, ch: string): InkExtent | null {
+  const font = face.font;
+  if (!font) return null;
+
+  let cache = inkCache.get(face);
+  if (!cache) {
+    cache = new Map();
+    inkCache.set(face, cache);
+  }
+  const hit = cache.get(ch);
+  if (hit !== undefined) return hit;
+
+  let out: InkExtent | null = null;
+  try {
+    const glyph = font.charToGlyph(ch);
+    if (glyph && glyph.index !== 0 && typeof glyph.getBoundingBox === 'function') {
+      const bb = glyph.getBoundingBox();
+      // A blank glyph (space) comes back as an inverted, infinite box.
+      if (bb && Number.isFinite(bb.y1) && Number.isFinite(bb.y2) && bb.y2 >= bb.y1) {
+        out = { above: bb.y2 / face.unitsPerEm, below: -bb.y1 / face.unitsPerEm };
+      }
+    }
+  } catch {
+    out = null;
+  }
+  cache.set(ch, out);
+  return out;
 }
 
 /** Exact advance in em for one code point, or `null` if the face lacks it. */
@@ -439,7 +547,7 @@ export async function ensureFonts(dir?: string): Promise<{ available: string[]; 
 function discoverFonts(dir?: string): { available: string[]; missing: string[] } {
   discovery = 'done';
 
-  const roots = [dir ?? defaultFontDir(), ...SYSTEM_FONT_DIRS];
+  const roots = [dir ?? defaultFontDir(), ...fontDirs()];
   const files: string[] = [];
   for (const root of roots) {
     // Project fonts get a deeper walk than the (potentially enormous) system trees.

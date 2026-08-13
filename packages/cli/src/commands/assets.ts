@@ -15,6 +15,7 @@ import type { AssetKind, LicenseKind, ReferenceAsset } from '@hexa/core';
 import { assets as assetsAdapter, data } from '@hexa/pipeline/integration';
 import type { AssetLibrary, CoverageReport } from '@hexa/pipeline/integration';
 import { createContext, globalsFrom, type CliContext } from '../context.js';
+import { ensureReadableDir } from '../preflight.js';
 import { formatBytes, renderTable } from '../ui/table.js';
 
 const LICENSES: LicenseKind[] = ['press-kit', 'cc-by', 'cc-by-sa', 'cc0', 'owned', 'rights-managed', 'unverified'];
@@ -64,12 +65,17 @@ Nothing is publish-grade until a human passes --cleared, having read the terms.`
         });
       }
 
+      // Check the folder before opening the library: "no such directory" is the
+      // mistake people actually make, and it should not be reported in terms of
+      // a flag that does not exist on this command.
+      const from = await ensureReadableDir(dir, 'ingest directory');
+
       const deps = await ctx.deps();
       const playerId = o['player'] ? (await data.resolvePlayer(String(o['player']))).id : undefined;
       const teamId = o['team'] ? (await data.resolveTeam(String(o['team']))).id : undefined;
 
       const spinner = ctx.spinner(`ingesting ${dir}…`);
-      const result = await assetsAdapter.ingestDirectory(deps.library, path.resolve(dir), {
+      const result = await assetsAdapter.ingestDirectory(deps.library, from, {
         playerId,
         teamId,
         kind: o['kind'] as AssetKind | undefined,

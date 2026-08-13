@@ -141,6 +141,9 @@ export async function compilePlan(input: CompileInput): Promise<RenderPlan> {
   // ── pass 0–1: backplate and backdrop overlays ─────────────────────────────
   emitBackplate({ input, canvas, backdrop, layers, buffers, rng: rng.fork(1) });
 
+  // ── pass 1b: seat the plate below face value ──────────────────────────────
+  emitPlateScrim({ layers, palette: input.palette, canvas, z: subjectZMin - 6 });
+
   // ── pass 2: atmosphere behind the subjects ────────────────────────────────
   emitAtmosphere({
     layers,
@@ -214,9 +217,7 @@ export async function compilePlan(input: CompileInput): Promise<RenderPlan> {
       width: canvas.width,
       height: canvas.height,
       background: input.palette.dark,
-      // Subjects have hair. Rendering at 2× and downsampling is the difference
-      // between a matted edge that looks cut and one that looks photographed.
-      supersample: canvas.width >= 1920 ? 1 : 2,
+      supersample: supersampleFor(canvas),
     },
     layers,
     grade: gradeFor(style, axes, lutNames, input.grade),
@@ -262,6 +263,34 @@ function templateContext(input: CompileInput): TemplateContext {
 
 function zOf(slot: Slot): number {
   return Z_SLOT_BASE + (slot.z ?? 0) * Z_SCALE;
+}
+
+/** The smallest canvas this product ships; below it, geometry is undersampled. */
+const SMALLEST_SHIPPING_CANVAS = 1280 * 720;
+
+/**
+ * Supersampling policy.
+ *
+ * Supersampling exists to kill *geometric* aliasing — the stair-stepping on
+ * analytic edges that a rasteriser cannot antialias away on its own. It costs
+ * 4× the pixels in every layer, every effect and every composite, so it has to
+ * earn that.
+ *
+ * At 1280×720 and above it does not. Measured on the real versus plan, 1× and
+ * 2× differ by a mean absolute error of 0.5/255, and at 2× magnification the
+ * letterforms, the plate hairlines, the dashed rules and the cutout edge are
+ * indistinguishable — because the two things that actually set edge quality
+ * here are already resolution-independent: librsvg antialiases vector geometry
+ * analytically, and a cutout is a *bitmap*, so lanczos-resampling it once into
+ * its slot is if anything cleaner than resampling it up and averaging it back
+ * down. The 2× frame then costs ~3× the wall clock to arrive at the same image.
+ *
+ * Below the smallest shipping canvas the trade flips — a 640×360 preview really
+ * does show stepped diagonals — so small canvases keep it. `renderPlan` honours
+ * whatever a caller puts on the plan, so this is a default, not a ceiling.
+ */
+function supersampleFor(canvas: { width: number; height: number }): number {
+  return canvas.width * canvas.height < SMALLEST_SHIPPING_CANVAS ? 2 : 1;
 }
 
 // ── pass 0–1: backplate ──────────────────────────────────────────────────────
@@ -451,6 +480,46 @@ function proceduralBackdrop(
   }
 }
 
+/**
+ * Push the whole plate down in value, just before the subjects land on it.
+ *
+ * The rule this enforces is the one that decides where a viewer looks: the face
+ * must be the brightest thing in its half of the frame. Backdrops do not respect
+ * that on their own — a bright generated arena, a hot centre glow or a pale
+ * texture all compete with the cast, and the eye goes to the background. Rather
+ * than tuning every backdrop separately, the plate is multiplied down as a whole
+ * and left darkest at the top and edges, where nothing important lives.
+ *
+ * It is the cheapest depth cue in the composite: a darker ground behind a
+ * lighter subject *is* separation, before any rim light or wrap is added.
+ */
+function emitPlateScrim(args: {
+  layers: Layer[];
+  palette: ResolvedPalette;
+  canvas: { width: number; height: number };
+  z: number;
+}): void {
+  const { layers, palette, canvas, z } = args;
+  layers.push({
+    id: 'plate-scrim',
+    source: {
+      type: 'radial',
+      stops: [
+        { offset: 0, color: withAlpha(shade(palette.dark, -0.02), 0.12) },
+        { offset: 0.55, color: withAlpha(shade(palette.dark, -0.06), 0.42) },
+        { offset: 1, color: withAlpha(shade(palette.dark, -0.12), 0.82) },
+      ],
+      center: [0.5, 0.42],
+      radius: 0.85,
+    },
+    rect: { x: 0, y: 0, w: canvas.width, h: canvas.height },
+    z,
+    opacity: 0.9,
+    blend: 'over',
+    label: 'plate scrim — keeps the backdrop below face value',
+  });
+}
+
 function emitBackplateSlot(slot: ResolvedSlot, layers: Layer[], buffers: BufferRef[]): void {
   layers.push({
     id: `slot-${slot.slot.id}`,
@@ -560,12 +629,51 @@ async function emitSubject(args: {
   if (needsMirror) args.mirrored.push(subject.player.id);
 
   const rim = rimFor(subject.side, input.palette, axes, rig, fit.rect.w);
+  // Atmospheric perspective. A subject the template marked as standing further
+  // back loses a little exposure, contrast and saturation, exactly as air
+  // between camera and subject would take it. It is what stops two cutouts
+  // pasted at the same brightness reading as one flat plane, and it is what
+  // makes the near subject the single dominant focal point rather than one of
+  // two co-equals fighting for the eye.
+  const depth = slot.meta?.['depth'];
+  const recession: LayerEffects =
+    depth === 'back' ? { exposure: -0.14, contrast: 0.94, saturation: 0.88 } : {};
   const effects: LayerEffects = {
     ...(input.template.style && typeof input.template.style === 'object' ? subjectEffectsOf(input.template) : {}),
+    ...recession,
     rimLight: { angle: rim.angle, width: rim.width, color: rim.color, intensity: rim.intensity },
     glow: glowFor(rim, rig),
     shadow: separationShadow(rig, input.palette, fit.rect.w),
   };
+
+  // Backlight halo: a pool of the subject's own rim colour on the plate behind
+  // their head. Real key art always has one — it is what a backlight spilling
+  // onto the set actually does — and it is what makes a face read as the
+  // brightest thing in its half of the frame without brightening the face
+  // itself. Placed behind the subject, centred on the focal point rather than
+  // the slot, so it follows the head rather than the shoulders.
+  const focal = slot.focal ?? { x: 0.5, y: 0.32 };
+  const haloR = Math.round(fit.rect.w * 0.62);
+  const haloCx = Math.round(fit.rect.x + focal.x * fit.rect.w);
+  const haloCy = Math.round(fit.rect.y + focal.y * fit.rect.h);
+  layers.push({
+    id: `${layerId}-halo`,
+    source: {
+      type: 'radial',
+      stops: [
+        { offset: 0, color: withAlpha(mix(rim.color, input.palette.light, 0.25), 0.5) },
+        { offset: 0.45, color: withAlpha(rim.color, 0.22) },
+        { offset: 1, color: withAlpha(rim.color, 0) },
+      ],
+      center: [0.5, 0.5],
+      radius: 0.5,
+    },
+    rect: { x: haloCx - haloR, y: haloCy - haloR, w: haloR * 2, h: haloR * 2 },
+    z: z - 3,
+    opacity: 0.75,
+    blend: 'screen',
+    label: `backlight halo — ${subject.player.handle}`,
+  });
 
   // Contact shadow, under the subject: the pool of darkness that says a person
   // is standing on something. Without it a cutout floats like a sticker.
@@ -692,21 +800,257 @@ export function projectFaceRect(
   return { x: Math.round(mirroredX), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
 }
 
-// ── pass 4: shapes ───────────────────────────────────────────────────────────
+// ── pass 4: shapes and colour blocking ───────────────────────────────────────
 
+/**
+ * A slot's `fill` role resolved against the palette.
+ *
+ * `light` used to fall through to `accent`, which is why every VS diamond in
+ * the library came out mustard: the template asked for a light diamond with an
+ * accent stroke and got a flat accent lozenge with no stroke at all.
+ */
+function fillColor(role: string | undefined, palette: ResolvedPalette): string {
+  switch (role) {
+    case 'left':
+      return palette.left;
+    case 'right':
+      return palette.right;
+    case 'dark':
+      return palette.dark;
+    case 'light':
+      return palette.light;
+    default:
+      return palette.accent;
+  }
+}
+
+function svgLayer(w: number, h: number, body: string): LayerSource {
+  return {
+    type: 'svg',
+    markup: `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${body}</svg>`,
+  };
+}
+
+/**
+ * Furniture — bars, diamonds, rules, plinths, frames.
+ *
+ * Every shape used to be drawn as a flat axis-aligned rectangle in one colour,
+ * because that is all `{type:'solid'}` can be. A template asking for a diamond
+ * with an accent stroke, a skewed nameplate bar or a hairline rule all got the
+ * same lozenge. Rendering the declared geometry as SVG is what makes the
+ * furniture look drawn rather than defaulted.
+ *
+ * Fills are gradients, not flats. A flat block of brand colour is the single
+ * clearest tell of a generated thumbnail; the same block with a few percent of
+ * top-to-bottom falloff reads as a lit surface.
+ */
 function emitShape(slot: ResolvedSlot, palette: ResolvedPalette, strength: number, layers: Layer[]): void {
-  const role = String(slot.slot.meta?.['fill'] ?? 'accent');
-  const color =
-    role === 'left' ? palette.left : role === 'right' ? palette.right : role === 'dark' ? palette.dark : palette.accent;
+  const meta = slot.slot.meta ?? {};
+  const shape = String(meta['shape'] ?? 'block');
+  const { w, h } = slot.rect;
+  if (w < 1 || h < 1) return;
+
+  const color = fillColor(meta['fill'] as string | undefined, palette);
+  const strokeColor = meta['stroke'] ? fillColor(meta['stroke'] as string, palette) : undefined;
+  const strokeW = strokeColor ? Math.max(1.5, Math.min(w, h) * 0.035) : 0;
+  const radius = typeof meta['radius'] === 'number' ? (meta['radius'] as number) * w : Math.min(w, h) * 0.04;
+  const skew = typeof meta['skew'] === 'number' ? (meta['skew'] as number) : 0;
+  const id = `sh-${slot.slot.id}`.replace(/[^a-zA-Z0-9-]/g, '');
+
+  // Lit-surface falloff: brighter at the top, deeper at the bottom.
+  const grad =
+    `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="${shade(color, 0.16)}"/>` +
+    `<stop offset="0.55" stop-color="${color}"/>` +
+    `<stop offset="1" stop-color="${shade(color, -0.2)}"/>` +
+    '</linearGradient>';
+  const paint = `fill="url(#${id})"${strokeColor ? ` stroke="${strokeColor}" stroke-width="${strokeW.toFixed(2)}"` : ''}`;
+  const inset = strokeW / 2;
+
+  let body: string;
+  let dropRotation = false;
+
+  switch (shape) {
+    case 'diamond': {
+      // Drawn as a diamond rather than a square the compositor rotates: layer
+      // rotation would also rotate the stroke join and clip the points.
+      dropRotation = true;
+      const cx = w / 2;
+      const cy = h / 2;
+      body = `<polygon points="${cx},${inset} ${w - inset},${cy} ${cx},${h - inset} ${inset},${cy}" ${paint} stroke-linejoin="round"/>`;
+      break;
+    }
+    case 'rule':
+    case 'slash-rule': {
+      const lean = typeof meta['lean'] === 'number' ? (meta['lean'] as number) : 0;
+      body =
+        lean && h > w
+          ? `<line x1="${w / 2 + lean * w}" y1="0" x2="${w / 2 - lean * w}" y2="${h}" stroke="${color}" stroke-width="${Math.max(2, w * 0.02).toFixed(2)}" stroke-linecap="round"/>`
+          : `<rect x="0" y="0" width="${w}" height="${h}" fill="${color}"/>`;
+      break;
+    }
+    case 'pill':
+    case 'tag': {
+      const r = shape === 'pill' ? h / 2 : Math.min(radius, h / 2);
+      const dx = skew * w;
+      body =
+        shape === 'tag' && skew
+          ? `<polygon points="${dx},${inset} ${w - inset},${inset} ${w - dx - inset},${h - inset} ${inset},${h - inset}" ${paint}/>`
+          : `<rect x="${inset}" y="${inset}" width="${w - strokeW}" height="${h - strokeW}" rx="${r}" ry="${r}" ${paint}/>`;
+      break;
+    }
+    case 'bar':
+    case 'parallelogram':
+    case 'chevron': {
+      // A skewed bar: the shear is what stops a nameplate reading as a caption
+      // box. Positive skew leans the top edge to the right.
+      const dx = skew * w;
+      body = dx
+        ? `<polygon points="${Math.max(0, dx)},${inset} ${w - inset},${inset} ${w - Math.max(0, dx) - inset},${h - inset} ${inset},${h - inset}" ${paint}/>`
+        : `<rect x="${inset}" y="${inset}" width="${w - strokeW}" height="${h - strokeW}" rx="${Math.min(radius, h / 2)}" ${paint}/>`;
+      break;
+    }
+    case 'circle': {
+      body = `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${w / 2 - inset}" ry="${h / 2 - inset}" ${paint}/>`;
+      break;
+    }
+    case 'frame':
+    case 'bracket': {
+      const t = Math.max(2, Math.min(w, h) * 0.02);
+      body = `<rect x="${t / 2}" y="${t / 2}" width="${w - t}" height="${h - t}" fill="none" stroke="${color}" stroke-width="${t.toFixed(2)}" rx="${radius}"/>`;
+      break;
+    }
+    case 'scrim': {
+      // A scrim is a readability device: it must fade out, not end on a line.
+      body =
+        `<linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1">` +
+        `<stop offset="0" stop-color="${withAlpha(color, 0)}"/>` +
+        `<stop offset="0.55" stop-color="${withAlpha(color, 0.75)}"/>` +
+        `<stop offset="1" stop-color="${withAlpha(color, 0.95)}"/>` +
+        `</linearGradient><rect width="${w}" height="${h}" fill="url(#${id}s)"/>`;
+      break;
+    }
+    default: {
+      body = `<rect x="${inset}" y="${inset}" width="${w - strokeW}" height="${h - strokeW}" rx="${Math.min(radius, h / 2)}" ${paint}/>`;
+    }
+  }
+
   layers.push({
     id: `shape-${slot.slot.id}`,
-    source: { type: 'solid', color },
+    source: svgLayer(Math.round(w), Math.round(h), `<defs>${grad}</defs>${body}`),
     rect: slot.rect,
     z: zOf(slot.slot),
-    opacity: (slot.slot.opacity ?? 1) * (0.5 + strength * 0.5),
-    blend: (slot.slot.meta?.['blend'] as BlendMode) ?? 'over',
-    rotation: slot.slot.rotation,
-    label: `shape ${slot.slot.id}`,
+    opacity: (slot.slot.opacity ?? 1) * (0.55 + strength * 0.45),
+    blend: (meta['blend'] as BlendMode) ?? 'over',
+    rotation: dropRotation ? undefined : slot.slot.rotation,
+    label: `shape ${slot.slot.id} (${shape})`,
+  });
+}
+
+/** Colour-blocking geometry, as opposed to a slot that restates the plate. */
+function isColorBlock(slot: Slot): boolean {
+  const shape = slot.meta?.['shape'];
+  return typeof shape === 'string' && shape !== '';
+}
+
+/**
+ * Colour blocking — each side of the frame owned by one team's colour.
+ *
+ * This is the device that makes a versus composite read as an opposition before
+ * a single word is processed, and the compiler was dropping it on the floor:
+ * the block slots are `kind:'backplate'`, and the old pass only drew backplate
+ * slots when a *supplied* plate image existed. With the offline provider — the
+ * default path, and the one every zero-config render takes — the templates'
+ * diagonal halves simply never appeared.
+ *
+ * The halves are built in canvas space, not slot space, because a leaning seam
+ * is defined against the frame: `block-left` with `lean: 0.14` means "the seam
+ * runs from 64% across at the top to 36% at the bottom", which is a line the
+ * slot's own rect cannot express.
+ *
+ * The fill fades from the team colour at the outer edge to near-nothing at the
+ * seam. A solid half would flood the middle of the frame — precisely where the
+ * faces are — and flatten the value structure the subjects depend on.
+ */
+function emitColorBlock(
+  slot: ResolvedSlot,
+  palette: ResolvedPalette,
+  strength: number,
+  canvas: { width: number; height: number },
+  layers: Layer[],
+): void {
+  const meta = slot.slot.meta ?? {};
+  const shape = String(meta['shape']);
+  const side = meta['side'] === 'right' ? 'right' : 'left';
+  const color = fillColor((meta['fill'] as string | undefined) ?? side, palette);
+  const lean = typeof meta['lean'] === 'number' ? (meta['lean'] as number) : 0;
+  const amplitude = typeof meta['amplitude'] === 'number' ? (meta['amplitude'] as number) : 0.05;
+  const id = `blk-${slot.slot.id}`.replace(/[^a-zA-Z0-9-]/g, '');
+
+  const isHalf = shape === 'diagonal-half' || shape === 'wave-half' || shape === 'torn-half';
+  const W = isHalf ? canvas.width : Math.round(slot.rect.w);
+  const H = isHalf ? canvas.height : Math.round(slot.rect.h);
+  if (W < 1 || H < 1) return;
+
+  // Colour blocking is territory, not paint. Filled edge-to-edge at full
+  // strength it floods the frame, lifts the background above the faces in value
+  // and undoes the whole point of the cast — which is what a straight
+  // "team colour half" produced. So the field is deepened toward the palette's
+  // dark before it is laid down, ramps off toward the seam, and is pulled down
+  // again at the top of the frame where the kicker has to stay readable.
+  //
+  // The seam itself stays dark rather than hot: it is the one place both halves
+  // touch, and a dark column there is what gives the VS mark something to read
+  // against instead of two saturated fields.
+  const field = mix(color, palette.dark, 0.35);
+  const x1 = side === 'left' ? 0 : 1;
+  const gradient =
+    `<linearGradient id="${id}" x1="${x1}" y1="0" x2="${1 - x1}" y2="0">` +
+    `<stop offset="0" stop-color="${withAlpha(field, 0.62)}"/>` +
+    `<stop offset="0.45" stop-color="${withAlpha(field, 0.42)}"/>` +
+    `<stop offset="1" stop-color="${withAlpha(field, 0.08)}"/>` +
+    '</linearGradient>' +
+    // Vertical falloff: darkest at the top, where copy lives and where a lit
+    // field would otherwise compete with the headline.
+    `<linearGradient id="${id}v" x1="0" y1="0" x2="0" y2="1">` +
+    `<stop offset="0" stop-color="${withAlpha(shade(palette.dark, -0.08), 0.72)}"/>` +
+    `<stop offset="0.45" stop-color="${withAlpha(palette.dark, 0.12)}"/>` +
+    `<stop offset="1" stop-color="${withAlpha(palette.dark, 0)}"/>` +
+    '</linearGradient>';
+
+  // One outline, painted twice: the team-colour ramp, then the vertical
+  // darkener clipped to the same silhouette so the falloff cannot leak across
+  // the seam into the other team's territory.
+  let outline: string;
+  if (isHalf) {
+    const topX = W * (0.5 + lean);
+    const botX = W * (0.5 - lean);
+    if (shape === 'wave-half') {
+      const a = W * amplitude;
+      const curve = `C ${topX + (side === 'left' ? a : -a)} ${H * 0.33} ${botX - (side === 'left' ? a : -a)} ${H * 0.66} ${botX} ${H}`;
+      outline =
+        side === 'left'
+          ? `<path d="M 0 0 L ${topX} 0 ${curve} L 0 ${H} Z"`
+          : `<path d="M ${W} 0 L ${topX} 0 ${curve} L ${W} ${H} Z"`;
+    } else {
+      outline =
+        side === 'left'
+          ? `<polygon points="0,0 ${topX},0 ${botX},${H} 0,${H}"`
+          : `<polygon points="${W},0 ${topX},0 ${botX},${H} ${W},${H}"`;
+    }
+  } else {
+    outline = `<rect width="${W}" height="${H}"`;
+  }
+  const body = `${outline} fill="url(#${id})"/>${outline} fill="url(#${id}v)"/>`;
+
+  layers.push({
+    id: `block-${slot.slot.id}`,
+    source: svgLayer(W, H, `<defs>${gradient}</defs>${body}`),
+    rect: isHalf ? { x: 0, y: 0, w: canvas.width, h: canvas.height } : slot.rect,
+    z: zOf(slot.slot),
+    opacity: (slot.slot.opacity ?? 1) * (0.3 + strength * 0.45),
+    blend: 'over',
+    label: `colour block ${slot.slot.id} (${shape}, ${side})`,
   });
 }
 

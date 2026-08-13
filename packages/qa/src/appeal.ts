@@ -26,6 +26,25 @@
  *
  * Treat it as a sortable opinion, and let the QA gates — which measure defects,
  * not taste — be the ones that actually block a render.
+ *
+ * ── Why appeal and QA disagree, and what was done about it ───────────────────
+ * Measured on the sample render in `out/smoke`: the gates scored it 48/100 and
+ * failed it; appeal scored the same file 78/100. Both numbers were "right" and
+ * together they were dangerous, because a UI showing them side by side reads the
+ * higher one as a second opinion.
+ *
+ * The divergence is structural, not a bug. Every appeal component measures the
+ * *presence* of something desirable — a big face, punchy colour, a wide tonal
+ * range, one focal point, a balanced text area — and a broken render can have
+ * all of them. Placeholder silhouettes are big faces. Illegible micro-type is a
+ * balanced text area. A clipped headline still fills its rect. Appeal cannot see
+ * any of that, and enumerating defect detectors inside it would just be a second,
+ * worse copy of the gates.
+ *
+ * So appeal now takes the QA report when there is one, and refuses to look like
+ * an endorsement of a render that failed: the score is capped (see FAILED_CAP)
+ * and the note says which gates vetoed. Without a report the behaviour is
+ * unchanged, and the first note still says what this number is not.
  * ────────────────────────────────────────────────────────────────────────────
  */
 
@@ -45,7 +64,18 @@ export interface AppealResult {
   /** Each component 0–1, so a UI can explain the score. */
   parts: Record<string, number>;
   notes: string[];
+  /** What the components came to before any QA cap was applied. Present only
+   *  when the cap actually bit, so a UI can show both honestly. */
+  uncapped?: number;
 }
+
+/**
+ * Ceiling on appeal for a render the gates vetoed.
+ *
+ * Chosen to sit below the QA fail ceiling, so no failing render can ever show a
+ * higher appeal than the QA score a reader is meant to act on.
+ */
+export const FAILED_CAP = 40;
 
 /** Component weights. They sum to 1; changing them changes the house style. */
 export const APPEAL_WEIGHTS: Record<string, number> = {

@@ -1,15 +1,21 @@
 /**
  * Roster integrity pass.
  *
- * This catches *shape* errors, not *fact* errors. It cannot tell you that a
- * player was traded last Tuesday; it can tell you that two rows claim the same
- * id, that a team has six starters, or that someone is missing the reference
- * queries the asset ingester needs to find photographs of them.
+ * This mostly catches *shape* errors, not *fact* errors. It cannot tell you
+ * that a player was traded last Tuesday; it can tell you that two rows claim
+ * the same id, that a team has six starters, or that someone is missing the
+ * reference queries the asset ingester needs to find photographs of them.
  *
- * `validateRoster()` returns human-readable problems, newest concern first,
- * and returns `[]` when the dataset is clean. The vitest suite asserts on the
- * empty array, so a bad edit fails CI rather than surfacing as a wrong face in
- * a render.
+ * The one *provenance* rule it does enforce, added in the 2026-08-13 audit:
+ * **a player may not carry career highlights with no sources behind them.**
+ * Career highlights are claims about a real person's achievements. Shipping one
+ * that nobody can trace is the failure mode this package most needs to prevent,
+ * so it is a hard validation error rather than a lint warning.
+ *
+ * `validateRoster()` returns human-readable problems and returns `[]` when the
+ * dataset is clean. The vitest suite asserts on the empty array, so a bad edit
+ * fails CI rather than surfacing as a wrong face — or a wrong trophy — in a
+ * render.
  */
 
 import { ROLE_ORDER } from '@hexa/core';
@@ -17,6 +23,7 @@ import type { Player, Role } from '@hexa/core';
 
 import { PLAYERS } from './roster.js';
 import { TEAMS } from './teams.js';
+import { VERIFICATION } from './verification.js';
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const ISO_DATE = /^\d{4}(-\d{2}(-\d{2})?)?$/;
@@ -79,6 +86,52 @@ export function validateRoster(): string[] {
 
     if (player.fullName.trim().length === 0) problems.push(`Player ${label} has an empty fullName.`);
     if (player.careerHighlights.length === 0) problems.push(`Player ${label} has no careerHighlights.`);
+
+    // ---- Provenance: no unsourced claims about a real person -------------
+    // A career highlight asserts that a named human won something. If no URL
+    // backs it, delete the highlight or find a source — do not ship it.
+    if (player.careerHighlights.length > 0) {
+      const audit = VERIFICATION[player.id];
+      if (audit === undefined) {
+        problems.push(
+          `Player ${label} carries ${player.careerHighlights.length} careerHighlights but has no entry in verification.ts. ` +
+            `Add one with source URLs, or remove the highlights.`,
+        );
+      } else {
+        const highlights = audit.fields.careerHighlights;
+        if (highlights === undefined) {
+          problems.push(
+            `Player ${label} carries careerHighlights but verification.ts records no provenance for that field. ` +
+              `Add sources, or remove the highlights.`,
+          );
+        } else if (highlights.sources.length === 0) {
+          problems.push(
+            `Player ${label} carries careerHighlights with zero source URLs (confidence: "${highlights.confidence}"). ` +
+              `An unsourced achievement attributed to a real person must not ship.`,
+          );
+        }
+      }
+    }
+
+    // A verification entry that cites nothing is worse than none at all: it
+    // looks like diligence and provides none.
+    const audit = VERIFICATION[player.id];
+    if (audit !== undefined) {
+      for (const [field, record] of Object.entries(audit.fields)) {
+        if (!record) continue;
+        if (record.confidence !== 'unverified' && record.sources.length === 0) {
+          problems.push(
+            `Player ${label} claims "${record.confidence}" confidence for "${field}" but lists no sources. ` +
+              `Only "unverified" may have an empty source list.`,
+          );
+        }
+      }
+      for (const url of Object.values(audit.fields).flatMap((f) => f?.sources ?? [])) {
+        if (!url.startsWith('https://')) {
+          problems.push(`Player ${label} has a non-https verification source: "${url}".`);
+        }
+      }
+    }
 
     if (player.jerseyNumber !== undefined && !Number.isInteger(player.jerseyNumber)) {
       problems.push(`Player ${label} has a non-integer jerseyNumber: ${player.jerseyNumber}.`);

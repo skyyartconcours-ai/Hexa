@@ -65,14 +65,22 @@ export async function writeImage(
   const format = opts.format ?? extensionFormat(dest) ?? 'png';
 
   let encoded: Buffer;
-  try {
-    encoded = await m.exportImage(image, format, opts.quality);
-  } catch (cause) {
-    throw new HexaError('RENDER_FAILED', `Could not encode ${format}: ${message(cause)}`, {
-      hint: `Try --format png. If this persists, sharp may lack ${format} support — run \`hexa doctor\`.`,
-      details: { format, dest },
-      cause,
-    });
+  // The compositor hands back an encoded PNG, so asking it to encode a PNG again
+  // is a decode plus the slowest encode in the pipeline (level 9 over a grained
+  // frame) for bytes that are already correct — PNG is lossless, so the second
+  // pass cannot change a pixel. Write what we were given.
+  if (format === 'png' && isPng(image)) {
+    encoded = image;
+  } else {
+    try {
+      encoded = await m.exportImage(image, format, opts.quality);
+    } catch (cause) {
+      throw new HexaError('RENDER_FAILED', `Could not encode ${format}: ${message(cause)}`, {
+        hint: `Try --format png. If this persists, sharp may lack ${format} support — run \`hexa doctor\`.`,
+        details: { format, dest },
+        cause,
+      });
+    }
   }
 
   try {
@@ -131,6 +139,15 @@ export async function generatorIds(): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+/** PNG signature — eight bytes that no other format we emit begins with. */
+function isPng(buf: Buffer): boolean {
+  return (
+    buf.length > 8 &&
+    buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47 &&
+    buf[4] === 0x0d && buf[5] === 0x0a && buf[6] === 0x1a && buf[7] === 0x0a
+  );
 }
 
 function extensionFormat(dest: string): string | undefined {

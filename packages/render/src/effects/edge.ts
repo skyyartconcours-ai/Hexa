@@ -73,19 +73,29 @@ export async function rimLightRaw(img: RawImage, opts: RimLightOptions): Promise
   const intensity = clamp(opts.intensity, 0, 4);
   const out = Buffer.from(img.data);
 
+  // `band^1.25` is a fractional power of an *integer* difference of two 8-bit
+  // planes, so there are only 256 possible values of it. Tabulating them turns
+  // the one `Math.pow` in the hottest loop in the effect stack into a lookup —
+  // exact, not approximate, because the input really is an integer.
+  const gamma = new Float64Array(256);
+  for (let d = 0; d < 256; d++) gamma[d] = (d / 255) ** 1.25 * intensity;
+
   for (let y = 0; y < h; y++) {
+    const rowStart = y * w;
+    const sy = y + dy;
+    const rowSafe = sy >= 0 && sy < h;
+    const srcRow = rowSafe ? sy * w : 0;
     for (let x = 0; x < w; x++) {
-      const i = y * w + x;
+      const i = rowStart + x;
       const a = alpha.data[i]!;
       if (a === 0) continue; // hard invariant: never light empty space
       const sx = x + dx;
-      const sy = y + dy;
-      const shifted = sx < 0 || sy < 0 || sx >= w || sy >= h ? 0 : blurred.data[sy * w + sx]!;
-      let band = (a - shifted) / 255;
-      if (band <= 0) continue;
+      const shifted = !rowSafe || sx < 0 || sx >= w ? 0 : blurred.data[srcRow + sx]!;
+      const d = a - shifted;
+      if (d <= 0) continue;
       // A slight gamma tightens the crescent against the contour instead of
       // letting it wash across the whole lit half.
-      band = band ** 1.25 * (a / 255) * intensity;
+      const band = gamma[d]! * (a / 255);
       if (band <= 0) continue;
       const k = Math.min(1, band);
       const p = i * 4;
@@ -161,16 +171,25 @@ export async function lightWrap(
   return encodePng(await lightWrapRaw(img, bg, opts));
 }
 
-/** Porter-Duff "subject over backing", where the backing is a coloured mask. */
+/**
+ * Porter-Duff "subject over backing", where the backing is a coloured mask.
+ *
+ * The backing arrives as a single-channel plane plus a 256-entry curve rather
+ * than as a per-pixel callback: every caller's coverage is some fixed function
+ * of one 8-bit value, so the curve is exact, and a plane lookup replaces an
+ * indirect megamorphic call (three call sites) per pixel — along with, in the
+ * drop shadow's case, an integer divide and modulo per pixel to recover x and y.
+ */
 function overColouredMask(
   img: RawImage,
-  maskAt: (i: number) => number,
+  plane: Buffer,
+  curve: Float64Array,
   colour: { r: number; g: number; b: number },
 ): RawImage {
   const out = Buffer.allocUnsafe(img.data.length);
   for (let i = 0; i < img.width * img.height; i++) {
     const p = i * 4;
-    const back = clamp(maskAt(i), 0, 1);
+    const back = curve[plane[i]!]!;
     const sAlpha = img.data[p + 3]! / 255;
     const outA = sAlpha + back * (1 - sAlpha);
     if (outA <= 0) {

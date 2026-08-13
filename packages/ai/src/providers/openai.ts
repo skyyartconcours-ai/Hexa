@@ -43,8 +43,8 @@ import type {
   InpaintRequest,
   ProviderCapabilities,
 } from '../types.js';
-import { assertNoPersonGeneration, guardIdentityEdit } from '../guard.js';
-import { PROVIDER_ENV, readApiKey } from '../config.js';
+import { assertIdentityEditSafe, assertNegativePromptSafe, assertNoPersonGeneration } from '../guard.js';
+import { PROVIDER_ENV, readApiKey, redactSecrets } from '../config.js';
 import { httpRequest, postJson } from '../http.js';
 import { clampToCapabilities, decodeBase64Image, multipart, notConfigured, toGeneratedImage } from './shared.js';
 
@@ -138,6 +138,7 @@ export class OpenAiProvider implements ImageProvider {
 
   async generateBackplate(req: BackplateRequest): Promise<GeneratedImage> {
     assertNoPersonGeneration(req.prompt ?? '');
+    assertNegativePromptSafe(req.negativePrompt);
     const key = readApiKey('openai', this.env) ?? notConfigured('openai', PROVIDER_ENV.openai!);
     const { width, height } = clampToCapabilities(req.width, req.height, this.capabilities, 'openai');
     const model = this.generateModel();
@@ -173,7 +174,7 @@ export class OpenAiProvider implements ImageProvider {
   }
 
   async identityGuidedEdit(req: IdentityEditRequest): Promise<GeneratedImage> {
-    guardIdentityEdit(req);
+    await assertIdentityEditSafe(req);
     const key = readApiKey('openai', this.env) ?? notConfigured('openai', PROVIDER_ENV.openai!);
     const size = await imageSize(req.image);
 
@@ -263,10 +264,17 @@ export class OpenAiProvider implements ImageProvider {
     try {
       return JSON.parse(text) as ImagesResponse;
     } catch (err) {
-      throw new HexaError('PROVIDER_ERROR', `[openai] malformed JSON response: ${text.slice(0, 200)}`, {
-        details: { provider: 'openai' },
-        cause: err,
-      });
+      // The body goes into the message, so it goes through redaction first: a
+      // gateway that echoes request headers back would otherwise put the key in
+      // an error string that ends up in a log, a render plan or a bug report.
+      throw new HexaError(
+        'PROVIDER_ERROR',
+        redactSecrets(`[openai] malformed JSON response: ${text.slice(0, 200)}`, [key]),
+        {
+          details: { provider: 'openai' },
+          cause: err,
+        },
+      );
     }
   }
 }

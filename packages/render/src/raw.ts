@@ -149,7 +149,7 @@ export function scaleAlpha(img: RawImage, factor: number): RawImage {
 export async function blurRaw(img: RawImage, sigma: number): Promise<RawImage> {
   if (!(sigma >= MIN_SIGMA)) return cloneRaw(img);
   const s = Math.min(1000, sigma);
-  const k = decimation(s, img.width, img.height);
+  const k = decimation(s, img.width, img.height, img.channels);
   return timed(k > 1 ? 'vips:blur-mip' : 'vips:blur', img.width * img.height, async () => {
     if (k > 1) return mipBlur(img, s, k);
     let pipe = rawToSharp(img).blur(s);
@@ -160,29 +160,40 @@ export async function blurRaw(img: RawImage, sigma: number): Promise<RawImage> {
 }
 
 /**
- * How far a blur of this sigma can be decimated before it stops looking like
- * itself.
+ * When a blur is cheaper to evaluate on a decimated copy — measured, not assumed.
  *
- * A gaussian of sigma σ is a low-pass filter: the output provably contains no
- * detail finer than ~σ, so evaluating it on a 1/k copy and resampling back
- * throws away only frequencies the blur was about to destroy anyway. libvips'
- * gaussian costs ~O(σ·n), so working at 1/k costs O(σ·n / k³) — a sigma-98
- * bloom veil (the widest scale of a 1280×720 bloom) drops from ~350 ms to ~4.
+ * A gaussian of sigma σ contains no detail finer than σ, so it can be evaluated
+ * at 1/k and resampled back. That is only worth doing where libvips' own
+ * gaussian is more expensive than two resizes, and the crossover is nowhere near
+ * where intuition puts it. Benchmarked at 1 Mpx (sharp 0.34 / libvips 8.17, 4
+ * threads):
  *
- * `SAFE_SIGMA` is the sigma the decimated blur is aimed at: keeping it ≥ 3 px
- * means the gaussian is still sampled by ~19 taps after decimation, which is
- * where the discretisation error stops being measurable. The result was diffed
- * against the exact blur across the effect stack: mean absolute error < 0.6/255
- * with no structural difference.
+ * |  sigma |  1-band exact | 4-band exact | decimated |
+ * |--------|---------------|--------------|-----------|
+ * |     16 |         7 ms  |       36 ms  |    ~30 ms |
+ * |     32 |        11 ms  |       76 ms  |    ~73 ms |
+ * |     57 |        20 ms  |      211 ms  |    ~96 ms |
+ * |     96 |        42 ms  |      428 ms  |    ~65 ms |
+ * |    150 |       104 ms  |     1064 ms  |    ~75 ms |
+ *
+ * So a single-band mask blur — which is most of the edge stack — stays exact
+ * almost always, while a 4-band blur past sigma ~32 is worth decimating and
+ * past sigma ~96 is worth it by an order of magnitude. Below the crossover the
+ * decimated path is *slower*, because it is two sharp pipelines instead of one.
+ *
+ * `TARGET_SIGMA` is what the decimated blur is aimed at; 6 px keeps ~37 taps
+ * under the kernel, which halves the resampling error versus a tighter target
+ * for a few milliseconds.
  */
-const SAFE_SIGMA = 3;
+const TARGET_SIGMA = 6;
+const CROSSOVER_SIGMA: Record<number, number> = { 1: 80, 4: 32 };
 /** Never decimate below this on the short side, or edge handling starts to show. */
-const MIN_DECIMATED_EDGE = 24;
+const MIN_DECIMATED_EDGE = 32;
 
-function decimation(sigma: number, width: number, height: number): number {
-  if (sigma < SAFE_SIGMA * 2) return 1;
+function decimation(sigma: number, width: number, height: number, channels: number): number {
+  if (sigma < (CROSSOVER_SIGMA[channels] ?? 32)) return 1;
   const byEdge = Math.floor(Math.min(width, height) / MIN_DECIMATED_EDGE);
-  const k = Math.min(Math.floor(sigma / SAFE_SIGMA), byEdge);
+  const k = Math.min(Math.floor(sigma / TARGET_SIGMA), byEdge);
   return k >= 2 ? k : 1;
 }
 

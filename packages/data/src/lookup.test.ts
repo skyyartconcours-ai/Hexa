@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { HexaError, ROLE_ORDER, isHexaError } from '@hexa/core';
 
 import {
+  BLOCKED_SOURCES,
   PLAYERS,
   ROSTER_SOURCED_AT,
   ROSTER_SOURCES,
   TEAMS,
+  TEAM_COLOR_VERIFICATION,
+  VERIFICATION,
+  confidenceOf,
   findPlayer,
   findTeam,
   listPlayers,
@@ -15,8 +19,13 @@ import {
   requireTeam,
   rosterOf,
   searchPlayers,
+  sourceCount,
   teamOf,
+  unverifiedPlayers,
   validateRoster,
+  verificationOf,
+  verificationSources,
+  verifiedPlayers,
 } from './index.js';
 
 describe('validateRoster', () => {
@@ -40,6 +49,21 @@ describe('dataset shape', () => {
     for (const url of ROSTER_SOURCES) expect(url).toMatch(/^https:\/\//);
   });
 
+  it('names the sources it could not reach, so the gap is visible', () => {
+    expect(BLOCKED_SOURCES.length).toBeGreaterThan(0);
+    for (const url of BLOCKED_SOURCES) expect(url).toMatch(/^https:\/\//);
+    // The wikis are the sources you would reach for first. They were blocked.
+    expect(BLOCKED_SOURCES.some((u) => u.includes('liquipedia'))).toBe(true);
+    expect(BLOCKED_SOURCES.some((u) => u.includes('lol.fandom.com'))).toBe(true);
+  });
+
+  it('does not cite a blocked domain as a roster source', () => {
+    const blockedHosts = BLOCKED_SOURCES.map((u) => new URL(u).host);
+    for (const url of ROSTER_SOURCES) {
+      expect(blockedHosts, url).not.toContain(new URL(url).host);
+    }
+  });
+
   it('gives every player at least three reference queries', () => {
     for (const player of PLAYERS) {
       expect(player.referenceQueries.length, player.handle).toBeGreaterThanOrEqual(3);
@@ -57,6 +81,151 @@ describe('dataset shape', () => {
   it('keeps team primaries distinct so opposing rim lights separate', () => {
     const primaries = TEAMS.map((t) => t.colors.primary.toLowerCase());
     expect(new Set(primaries).size).toBe(TEAMS.length);
+  });
+});
+
+describe('verification', () => {
+  it('audits every player in the dataset', () => {
+    for (const player of PLAYERS) {
+      expect(VERIFICATION[player.id], player.handle).toBeDefined();
+    }
+  });
+
+  it('never claims confidence without citing a source', () => {
+    for (const [id, audit] of Object.entries(VERIFICATION)) {
+      for (const [field, record] of Object.entries(audit.fields)) {
+        if (!record) continue;
+        if (record.confidence === 'unverified') continue;
+        expect(record.sources.length, `${id}.${field}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('only calls a field "confirmed" with two or more independent sources', () => {
+    for (const [id, audit] of Object.entries(VERIFICATION)) {
+      for (const [field, record] of Object.entries(audit.fields)) {
+        if (record?.confidence !== 'confirmed') continue;
+        expect(record.sources.length, `${id}.${field}`).toBeGreaterThanOrEqual(2);
+        expect(new Set(record.sources).size, `${id}.${field} has duplicate sources`).toBe(
+          record.sources.length,
+        );
+      }
+    }
+  });
+
+  it('records both readings whenever it marks a field disputed', () => {
+    for (const [id, audit] of Object.entries(VERIFICATION)) {
+      for (const [field, record] of Object.entries(audit.fields)) {
+        if (record?.confidence !== 'disputed') continue;
+        expect(record.variants?.length ?? 0, `${id}.${field}`).toBeGreaterThanOrEqual(2);
+        expect(record.note, `${id}.${field}`).toBeTruthy();
+      }
+    }
+  });
+
+  it('rolls a player up to their weakest field', () => {
+    for (const [id, audit] of Object.entries(VERIFICATION)) {
+      const rank = { unverified: 0, disputed: 1, reported: 2, confirmed: 3 } as const;
+      const fields = Object.values(audit.fields).filter((f) => f !== undefined);
+      if (fields.length === 0) continue;
+      const min = Math.min(...fields.map((f) => rank[f.confidence]));
+      expect(rank[audit.confidence], id).toBe(min);
+    }
+  });
+
+  it('deletes rather than guesses a name it cannot settle', () => {
+    // Ryu's surname reads as either 유 or 류 depending on the outlet, and his
+    // handle collides with one of them. nativeName is absent by choice.
+    const ryu = requirePlayer('ryu');
+    expect(ryu.nativeName).toBeUndefined();
+    expect(confidenceOf('ryu', 'nativeName')).toBe('disputed');
+    expect(verificationOf('ryu')?.fields.nativeName?.variants).toEqual(['유상욱', '류상욱']);
+  });
+
+  it('exposes per-field confidence and source counts', () => {
+    expect(confidenceOf('peyz', 'teamId')).toBe('confirmed');
+    expect(sourceCount('peyz', 'teamId')).toBeGreaterThanOrEqual(2);
+
+    // A player id that does not exist reads as unverified, never as confirmed.
+    expect(confidenceOf('not-a-player', 'fullName')).toBe('unverified');
+    expect(sourceCount('not-a-player', 'fullName')).toBe(0);
+    expect(verificationOf('not-a-player')).toBeUndefined();
+  });
+
+  it('attaches an audit to every player via verifiedPlayers()', () => {
+    const verified = verifiedPlayers();
+    expect(verified).toHaveLength(PLAYERS.length);
+    for (const player of verified) {
+      expect(player.verification.checkedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(player.handle).toBeTruthy();
+    }
+  });
+
+  it('collects every source URL it relied on', () => {
+    const urls = verificationSources();
+    expect(urls.length).toBeGreaterThan(50);
+    for (const url of urls) expect(url).toMatch(/^https:\/\//);
+    expect(urls).toEqual([...urls].sort());
+  });
+});
+
+describe('unverifiedPlayers', () => {
+  it('reports rows still carrying unverified or disputed fields', () => {
+    const rows = unverifiedPlayers();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.player).toBeTruthy();
+      expect(row.fields.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('flags the disputed Korean romanisations', () => {
+    const byPlayer = new Map(unverifiedPlayers().map((r) => [r.player, r.fields]));
+    expect(byPlayer.get('Delight')).toContain('fullName');
+    expect(byPlayer.get('Ryu')).toContain('fullName');
+    expect(byPlayer.get('Cuzz')).toContain('fullName');
+  });
+
+  it('does not flag a field the player does not carry', () => {
+    // Latin-name players have no nativeName, so it must never be reported.
+    const latin = new Set(PLAYERS.filter((p) => p.nativeName === undefined).map((p) => p.handle));
+    for (const row of unverifiedPlayers()) {
+      if (latin.has(row.player)) expect(row.fields, row.player).not.toContain('nativeName');
+    }
+  });
+
+  it('never reports a player whose audited fields are all confirmed', () => {
+    const flagged = new Set(unverifiedPlayers().map((r) => r.player));
+    // Gumayusi's move to HLE is one of the best-sourced facts in the set, but
+    // his romanisation is disputed — so he IS expected here. Jiwoo is not.
+    expect(flagged.has('Jiwoo')).toBe(false);
+  });
+});
+
+describe('team colour provenance', () => {
+  it('records a verification status for every team', () => {
+    for (const team of TEAMS) {
+      expect(TEAM_COLOR_VERIFICATION[team.id], team.id).toBeDefined();
+    }
+  });
+
+  it('cites a source whenever it claims a colour is confirmed', () => {
+    for (const [id, record] of Object.entries(TEAM_COLOR_VERIFICATION)) {
+      if (record.primary === 'confirmed' || record.secondary === 'confirmed') {
+        expect(record.sources.length, id).toBeGreaterThan(0);
+      }
+      if (record.primary === 'unverified') {
+        expect(record.note, id).toBeTruthy();
+      }
+    }
+  });
+
+  it('is honest that three brand primaries could not be sourced', () => {
+    const unverified = Object.entries(TEAM_COLOR_VERIFICATION)
+      .filter(([, r]) => r.primary === 'unverified')
+      .map(([id]) => id)
+      .sort();
+    expect(unverified).toEqual(['hle', 'kc', 'kt']);
   });
 });
 
@@ -224,6 +393,16 @@ describe('rosterOf', () => {
     const kt = rosterOf('KT').map((p) => p.handle);
     expect(kt).toContain('Jiwoo');
     expect(kt).not.toContain('Aiming');
+  });
+
+  // Found in the 2026-08-13 audit: KT signed Pollu and Ghost as a rotating
+  // support pair, but Effort took the starting job during Spring and was
+  // missing from the dataset entirely.
+  it('reflects the mid-season KT support change', () => {
+    const kt = rosterOf('KT').map((p) => p.handle);
+    expect(kt).toContain('Effort');
+    expect(kt).not.toContain('Pollu');
+    expect(kt).not.toContain('Ghost');
   });
 
   it('returns an empty lineup for an unknown team rather than throwing', () => {

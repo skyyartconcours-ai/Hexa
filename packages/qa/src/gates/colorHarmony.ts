@@ -23,6 +23,21 @@ import { resolvePalette } from '../plan.js';
 
 /** Weighted mean OKLab chroma below which the frame reads as mud. */
 const MUDDY_CHROMA = 0.045;
+/**
+ * Lightness below which a cluster is shadow, not colour.
+ *
+ * OKLab chroma scales with lightness, so near-black pixels are near-zero chroma
+ * *however saturated the grade is*. Averaging them in means any low-key picture
+ * reads as mud: `versus-minimal` — a deliberately dark, cold, low-saturation
+ * grade with a clean accent — measured 0.017 against a 0.045 floor, purely
+ * because 60% of its palette is backdrop. Mud is a property of the *lit* part of
+ * a frame, so that is what gets measured, with the dark share reported instead
+ * of silently averaged in.
+ */
+const SHADOW_L = 0.28;
+/** A single strong accent is enough to prove the frame is not mud. */
+const ACCENT_CHROMA = 0.09;
+const ACCENT_SHARE = 0.04;
 /** Chroma a cluster needs before it counts as a "colour" rather than a neutral. */
 const COLOUR_CHROMA = 0.06;
 /** Area share a cluster needs before it counts as competing. */
@@ -36,6 +51,8 @@ export interface PaletteEntry {
   share: number;
   chroma: number;
   hue: number;
+  /** OKLab lightness, 0–1. Used to keep shadows out of the mud measurement. */
+  lightness: number;
 }
 
 /** k-means (k-means++ init, deterministic from `seed`) over RGB pixels. */
@@ -94,6 +111,7 @@ export function quantise(pixels: { r: number; g: number; b: number }[], k: numbe
         share: counts[i]! / pixels.length,
         chroma: Math.hypot(lab.a, lab.b),
         hue: (Math.atan2(lab.b, lab.a) * 180) / Math.PI,
+        lightness: lab.L,
       };
     })
     .filter((e) => e.share > 0)
@@ -121,12 +139,23 @@ export const colorHarmonyGate: Gate = {
     const palette = quantise(pixels, 5, ctx.plan.seed || 1);
     const findings: QaFinding[] = [];
 
-    const meanChroma = palette.reduce((a, e) => a + e.chroma * e.share, 0);
-    if (meanChroma < MUDDY_CHROMA) {
+    // Mud is measured on the lit part of the palette. A dark grade is not mud;
+    // a *flat* one is. See the note on SHADOW_L.
+    const lit = palette.filter((e) => e.lightness >= SHADOW_L);
+    const litWeight = lit.reduce((a, e) => a + e.share, 0);
+    const meanChroma = litWeight > 0
+      ? lit.reduce((a, e) => a + e.chroma * e.share, 0) / litWeight
+      : palette.reduce((a, e) => a + e.chroma * e.share, 0);
+    const accent = palette.find((e) => e.chroma >= ACCENT_CHROMA && e.share >= ACCENT_SHARE);
+    const shadowShare = 1 - litWeight;
+
+    if (meanChroma < MUDDY_CHROMA && !accent) {
       findings.push({
         gate: 'color-harmony',
         severity: 'warn',
-        message: `Palette is muddy: weighted mean OKLab chroma ${meanChroma.toFixed(3)} (want ≥${MUDDY_CHROMA}) across ${palette.map((p) => p.hex).join(', ')}`,
+        message: litWeight > 0
+          ? `Palette is muddy: mean OKLab chroma ${meanChroma.toFixed(3)} across the lit ${(litWeight * 100).toFixed(0)}% of the frame (want ≥${MUDDY_CHROMA}); ${lit.map((p) => p.hex).join(', ')}${shadowShare > 0.2 ? ` — the other ${(shadowShare * 100).toFixed(0)}% is shadow and was left out of the average, so this is not simply a dark grade` : ''}`
+          : `Palette is entirely in shadow: every cluster sits below OKLab L ${SHADOW_L} (${palette.map((p) => p.hex).join(', ')}), so nothing in the frame carries colour`,
         score: clamp01(ramp(meanChroma, 0, MUDDY_CHROMA)),
         suggestion: 'Something is blending the brand colours through grey — usually an overlay/soft-light layer at high opacity or a desaturating grade. Push saturation, or separate the two team colours onto opposite sides instead of mixing them.',
       });
@@ -189,7 +218,7 @@ export const colorHarmonyGate: Gate = {
       findings.push({
         gate: 'color-harmony',
         severity: 'pass',
-        message: `Palette reads: ${palette.slice(0, 3).map((p) => `${p.hex} ${(p.share * 100).toFixed(0)}%`).join(', ')}; mean chroma ${meanChroma.toFixed(3)}, ${hueBins.size} competing hue${hueBins.size === 1 ? '' : 's'}`,
+        message: `Palette reads: ${palette.slice(0, 3).map((p) => `${p.hex} ${(p.share * 100).toFixed(0)}%`).join(', ')}; mean chroma ${meanChroma.toFixed(3)} over the lit ${(litWeight * 100).toFixed(0)}% of the frame${accent ? `, accent ${accent.hex} holding ${(accent.share * 100).toFixed(0)}%` : ''}, ${hueBins.size} competing hue${hueBins.size === 1 ? '' : 's'}`,
         score: clamp01(0.6 + 0.4 * ramp(meanChroma, MUDDY_CHROMA, 0.12)),
       });
     }

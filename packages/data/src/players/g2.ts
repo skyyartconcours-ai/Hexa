@@ -2,18 +2,31 @@
  * G2 Esports — LEC. Roster as of the 2026 LEC season. G2 retained all five
  * starters and the full coaching staff from 2025.
  *
- * ROSTERS CHANGE. Re-verify before a season, after any trade window, and any
- * time a render surprises you. See `../roster.ts` for the full provenance
- * block and the re-verification procedure.
+ * ROSTERS CHANGE, AND SOME OF THIS IS ONLY "REPORTED". Per-field provenance and
+ * confidence live in `../verification.ts`. See `../README.md` for how to
+ * re-verify.
+ *
+ * Audited 2026-08-13. Corrections made in that pass:
+ *  - Caps was described as "the only player to reach a Worlds final with two
+ *    different organisations". No source supports "only". Replaced with the
+ *    claim that is sourced.
+ *  - Jankos returned to G2 as a content creator ahead of the 2026 LEC season —
+ *    added, because the row otherwise reads as a clean 2022 departure.
+ *
+ * The 2026 LEC titles (Versus and Spring, both over Karmine Corp) and the whole
+ * retained roster are confirmed. Individual honours from 2019 and 2023–24 are
+ * widely repeated but were NOT independently re-sourced in this pass.
  *
  * sourcedAt: 2026-08-13
  * sources:
  *  - https://www.sheepesports.com/en/all/articles/lol-g2-esports-completed-2026-lec-roster/en
  *  - https://esports-news.co.uk/2025/11/25/g2-esports-retain-lol-roster-for-lec-2026/
  *  - https://win.gg/g2-esports-comeback-karmine-corp-win-lec-spring-2026/
+ *  - https://egamersworld.com/lol/news/35328/g2-esports-clinch-back-to-back-title-a-hard-fought-v3R9NnCzi
  *  - https://egamersworld.com/lol/news/32882/lec-versus-2026-finals-recap-g2-esports-claim-titl--PtJZ8KyV
  *  - https://esports.gg/news/league-of-legends/mikyx-part-ways-with-g2-esports/
- *  - https://liquipedia.net/leagueoflegends/G2_Esports
+ *  - https://esports-news.co.uk/2025/12/10/lec-legend-jankos-returns-to-g2-esports/
+ *  - https://www.sheepesports.com/en/all/articles/how-many-titles-did-caps-win/en
  */
 
 import type { Player } from '@hexa/core';
@@ -82,7 +95,10 @@ export const G2_PLAYERS: Player[] = [
     signatureChampions: ['Sylas', 'LeBlanc', 'Azir', 'Twisted Fate', 'Ahri', 'Orianna'],
     careerHighlights: [
       'Worlds 2019 runner-up and MSI 2019 champion with G2 Esports',
-      'Worlds 2018 runner-up with Fnatic — the only player to reach a Worlds final with two different organisations',
+      // CORRECTED 2026-08-13: previously claimed he was "the only player to reach
+      // a Worlds final with two different organisations". No source supports
+      // "only"; the sourced claim is the consecutive-finals one.
+      'Worlds 2018 runner-up with Fnatic — the first European player to reach two consecutive Worlds finals, with two different organisations',
       'The most decorated player in LEC history by domestic titles',
       'LEC Versus 2026 and LEC Spring 2026 champion; contracted to G2 through 2027',
     ],
@@ -211,8 +227,11 @@ export const G2_PLAYERS: Player[] = [
     signatureChampions: ['Rakan', 'Alistar', 'Nautilus', 'Bard', 'Pyke'],
     careerHighlights: [
       'Worlds 2019 runner-up and MSI 2019 champion with G2 Esports',
-      'LEC 2023 Summer champion and 2023 & 2024 LEC Season Finals champion with G2',
-      'Two spells at G2; parted ways with the org in November 2024',
+      // 'reported' only: the 2023/2024 LEC titles were not independently
+      // re-sourced in the 2026-08-13 audit.
+      'LEC 2023 Summer champion and 2023 & 2024 LEC Season Finals champion with G2 (reported, not re-sourced)',
+      'Two spells at G2; parted ways with the org on 26 November 2024',
+      'Joined Fnatic for 2025; Fnatic announced his departure in October 2025',
     ],
     referenceQueries: [
       'Mikyx G2 Esports LEC press photo',
@@ -233,9 +252,12 @@ export const G2_PLAYERS: Player[] = [
     nationality: 'Poland',
     signatureChampions: ['Jarvan IV', 'Lee Sin', 'Sejuani', 'Xin Zhao', 'Elise'],
     careerHighlights: [
-      'Worlds 2019 runner-up and MSI 2019 champion with G2 Esports',
-      'Multiple-time LEC champion across five seasons with G2 (2018–2022)',
-      'Nicknamed "The First Blood King"; one of the most recognisable faces in European League of Legends',
+      // 'reported' only: the 2019 honours are widely repeated but were not
+      // independently re-sourced in the 2026-08-13 audit.
+      'Worlds 2019 runner-up and MSI 2019 champion with G2 Esports (reported, not re-sourced)',
+      'Multiple-time LEC champion across five seasons with G2 (2018–2022) (reported, not re-sourced)',
+      'Nicknamed "The First Blood King"',
+      'Returned to G2 Esports as a content creator ahead of the 2026 LEC season, not as a player',
     ],
     referenceQueries: [
       'Jankos G2 Esports LEC press photo',

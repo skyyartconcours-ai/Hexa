@@ -325,8 +325,8 @@ describe('attack: preserve regions that protect nothing', () => {
 
   it('refuses an off-canvas preserve box', () => {
     expect(() =>
-      guardIdentityEdit({ image, prompt: 'relight', strength: 0.6, preserve: [{ x: 999_999, y: 999_999, w: 4, h: 4 }] }),
-    ).toThrow(/INVALID_REQUEST|off|outside|bounds|large/i);
+      guardIdentityEdit({ image, prompt: 'relight', strength: 0.6, preserve: [{ x: 999_999, y: 999_999, w: 40, h: 40 }] }),
+    ).toThrow(/off|outside|canvas|bounds/i);
   });
 
   it('refuses a sub-pixel preserve box', () => {

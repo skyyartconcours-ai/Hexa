@@ -16,6 +16,24 @@
  *     of background around them. Type that is no busier than the noise it sits
  *     on does not read as type — this is the "beautiful shot, unreadable title"
  *     failure, and no amount of contrast between two adjacent pixels fixes it.
+ *
+ * ── What a veto is reserved for ──────────────────────────────────────────────
+ * The floors above are absolute, but their *consequence* is not, because the
+ * same measurement means different things for different type. A 7px cap-height
+ * floor at sidebar size demands a line box ~11% of canvas height; applied to
+ * every role that outlaws secondary type outright, and it vetoed `versus-minimal`
+ * — an editorial layout whose whole idea is small letter-spaced micro-type in a
+ * lot of negative space — five times over in a single render. A gate that fails
+ * a good design because it is quiet is not measuring quality, it is enforcing a
+ * house style.
+ *
+ * So a veto needs both halves of a contradiction: the type is laid out as
+ * *message-bearing* (a rect that takes real estate — see PROMINENT_AREA) and it
+ * does not survive the feed. Micro-type that fails the same test is reported as
+ * a warning that says what it will look like, because "this will read as texture
+ * at sidebar size" is a choice a designer is allowed to make, and "the headline
+ * is gone" is not. When nothing in the render clears the floor, one extra
+ * finding says so plainly — the picture is carrying the whole message.
  */
 
 import type { QaFinding, QaSeverity } from '@hexa/core';
@@ -36,6 +54,13 @@ const WARN_STROKE_SEPARATION = 62;
 const BUSY_RING = 0.2;
 /** How much busier than its background the text must be to stand out. */
 const MIN_EDGE_RATIO = 1.3;
+/**
+ * Share of the canvas a text rect must occupy before failing it can veto the
+ * render. Calibrated against the two real layouts in this repo: the versus
+ * headline slots land at 2.8–3.6% of canvas area (message), the editorial
+ * micro-type of `versus-minimal` at 0.4–1.4% (texture).
+ */
+export const PROMINENT_AREA = 0.025;
 
 interface SizeVerdict {
   label: string;
@@ -109,11 +134,20 @@ export const legibilityGate: Gate = {
 
     const smallest = sizes[0]!;
     const findings: QaFinding[] = [];
+    let anyReadable = false;
 
     for (let i = 0; i < rects.length; i++) {
       const { role, rect } = rects[i]!;
       const where = toNormRect(rect, ctx.width, ctx.height);
       const capPx = (rect.h / ctx.height) * smallest.h * CAP_RATIO;
+      // Is this type laid out as the message, or as a detail? Only the former
+      // can veto — see the note at the top of the file.
+      const prominent = (rect.w / ctx.width) * (rect.h / ctx.height) >= PROMINENT_AREA;
+      const vet = (s: QaSeverity): QaSeverity => (s === 'fail' && !prominent ? 'warn' : s);
+      const aside = prominent
+        ? ''
+        : ` — flagged, not vetoed: at ${(((rect.w / ctx.width) * (rect.h / ctx.height)) * 100).toFixed(1)}% of the canvas this is a detail rather than the headline, and reading as texture at feed size may be the intent`;
+      if (capPx >= MIN_CAP_PX) anyReadable = true;
       const worstSep = verdicts[i]!.reduce((w, v) => (v.separation < w.separation ? v : w), verdicts[i]![0]!);
       const worstRatio = verdicts[i]!
         .filter((v) => v.ringEdges >= BUSY_RING)
@@ -124,8 +158,8 @@ export const legibilityGate: Gate = {
       if (capPx < MIN_CAP_PX) {
         findings.push({
           gate: 'legibility',
-          severity: sev('fail'),
-          message: `"${role}" is ${capPx.toFixed(1)}px of cap height in the ${smallest.label} box (${smallest.w}×${smallest.h}) — below the ~${MIN_CAP_PX}px where strokes stop resolving`,
+          severity: sev(vet('fail')),
+          message: `"${role}" is ${capPx.toFixed(1)}px of cap height in the ${smallest.label} box (${smallest.w}×${smallest.h}) — below the ~${MIN_CAP_PX}px where strokes stop resolving${aside}`,
           score: clamp01(ramp(capPx, 0, MIN_CAP_PX) * 0.5),
           where,
           suggestion: `Set "${role}" to at least ${Math.ceil((MIN_CAP_PX / CAP_RATIO / smallest.h) * ctx.height)}px of line height at ${ctx.width}×${ctx.height}, or cut the copy so the remaining words can be set larger.`,
@@ -136,8 +170,8 @@ export const legibilityGate: Gate = {
       if (worstSep.separation < MIN_STROKE_SEPARATION) {
         findings.push({
           gate: 'legibility',
-          severity: sev('fail'),
-          message: `"${role}" loses its stroke separation at ${worstSep.label} (${worstSep.w}×${worstSep.h}px): glyph and background populations sit only ${worstSep.separation.toFixed(0)}/255 levels apart after downsampling`,
+          severity: sev(vet('fail')),
+          message: `"${role}" loses its stroke separation at ${worstSep.label} (${worstSep.w}×${worstSep.h}px): glyph and background populations sit only ${worstSep.separation.toFixed(0)}/255 levels apart after downsampling${aside}`,
           score: clamp01(ramp(worstSep.separation, 0, MIN_STROKE_SEPARATION) * 0.5),
           where,
           suggestion: 'Add a plate or a heavier stroke behind the type, or move it onto a darker/quieter part of the plate. Thin weights are the usual culprit — go heavier before going bigger.',
@@ -158,8 +192,8 @@ export const legibilityGate: Gate = {
       if (worstRatio && worstRatio.ratio < MIN_EDGE_RATIO) {
         findings.push({
           gate: 'legibility',
-          severity: sev('fail'),
-          message: `"${role}" is camouflaged at ${worstRatio.label}: the background around it is ${(worstRatio.ringEdges * 100).toFixed(0)}% edge pixels and the type is only ${worstRatio.ratio.toFixed(2)}× busier, so it reads as more texture`,
+          severity: sev(vet('fail')),
+          message: `"${role}" is camouflaged at ${worstRatio.label}: the background around it is ${(worstRatio.ringEdges * 100).toFixed(0)}% edge pixels and the type is only ${worstRatio.ratio.toFixed(2)}× busier, so it reads as more texture${aside}`,
           score: clamp01(ramp(worstRatio.ratio, 0, MIN_EDGE_RATIO) * 0.5),
           where,
           suggestion: 'Quiet the plate behind the text — blur or darken that region, or drop a gradient scrim under the type. Busy-behind-text is the single most common thumbnail mistake.',
@@ -177,6 +211,18 @@ export const legibilityGate: Gate = {
           where,
         });
       }
+    }
+
+    // Nothing in the frame clears the floor. Said once, plainly, rather than
+    // repeated per role: the render is asking the picture to carry the message.
+    if (!anyReadable) {
+      findings.push({
+        gate: 'legibility',
+        severity: 'warn',
+        message: `No text in this render resolves in the ${smallest.label} box (${smallest.w}×${smallest.h}) — the largest is ${Math.max(...rects.map((r) => (r.rect.h / ctx.height) * smallest.h * CAP_RATIO)).toFixed(1)}px of cap height against a ~${MIN_CAP_PX}px floor. Whatever this thumbnail says at feed size, it says with the picture`,
+        score: 0.5,
+        suggestion: 'Fine for a deliberately editorial layout where the type is texture. Not fine if any of these words is the hook — in that case set one line at ≥11% of canvas height and cut the rest.',
+      });
     }
 
     return findings;

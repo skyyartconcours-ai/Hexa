@@ -13,11 +13,24 @@
  * cannot be read at 168×94 has failed regardless of how it looks at 1280.
  */
 
+import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
 
 const OUT = join(process.cwd(), 'out', 'gallery');
+
+/**
+ * Workspace packages resolve through `main` to `dist/`, so an unbuilt edit to a
+ * template or to the compiler renders the *previous* design. Judging a change
+ * against stale pixels is worse than not looking at all, so the harness builds
+ * the two packages an art-direction pass touches before it renders anything.
+ */
+function build(): void {
+  for (const pkg of ['templates', 'pipeline']) {
+    execFileSync('npx', ['tsc', '-p', `packages/${pkg}/tsconfig.json`], { stdio: 'inherit' });
+  }
+}
 
 interface Entry {
   templateId: string;
@@ -146,6 +159,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  build();
   await rm(OUT, { recursive: true, force: true });
   await mkdir(OUT, { recursive: true });
   console.log(`\nHexa gallery — ${spread.length} renders ${DIM}→ ${OUT}${RESET}\n`);

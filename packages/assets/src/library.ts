@@ -40,6 +40,7 @@ import {
   manifestPath,
   normaliseRoot,
   resolveInRoot,
+  resolveInRootReal,
   slugify,
   toRelative,
 } from './paths.js';
@@ -226,6 +227,14 @@ export class AssetLibrary {
         await handle.close();
       }
       await fs.rename(tmp, target);
+      // rename(2) is atomic, but atomic is not durable: the *directory entry*
+      // it creates can still be sitting in the page cache when the machine
+      // loses power, and the manifest reverts to its previous contents on the
+      // next boot. fsync-ing the directory is what makes the swap survive a
+      // crash rather than merely a process death. Best-effort — some
+      // filesystems refuse to open a directory for sync, and a manifest that
+      // is written but not yet durable still beats failing the whole save.
+      await syncDirectory(this.#root).catch(() => {});
       this.#dirty = false;
       this.#log.debug(`Wrote manifest (${manifest.assets.length} assets) → ${target}`);
     } catch (err) {
@@ -328,6 +337,37 @@ export class AssetLibrary {
     return resolveInRoot(this.#root, asset.path, 'path');
   }
 
+  /**
+   * {@link resolvePath} with the symlink check as well — the form to use
+   * immediately before opening the file.
+   *
+   * `resolvePath` is lexical, which is the right trade for a hot path that runs
+   * per layer during layout and for paths that do not exist yet. It cannot see
+   * a symlink, though, and a manifest arrives with the library it describes: a
+   * downloaded or shared library can carry `portrait.png → /home/you/.ssh/id_rsa`
+   * and the lexical check will pass it, because lexically that path *is* inside
+   * the root. Anything about to read bytes should ask this instead.
+   *
+   * @throws HexaError `IO_ERROR` on traversal or symlink escape,
+   * `ASSET_NOT_FOUND` for a missing cutout.
+   */
+  async resolvePathSafe(asset: ReferenceAsset | string, which: 'source' | 'cutout' = 'source'): Promise<string> {
+    if (!asset) {
+      throw new HexaError('ASSET_NOT_FOUND', 'resolvePathSafe called without an asset');
+    }
+    if (typeof asset === 'string') return resolveInRootReal(this.#root, asset, 'path');
+    if (which === 'cutout') {
+      if (!asset.cutoutPath) {
+        throw new HexaError('ASSET_NOT_FOUND', `Asset ${asset.id} has no cutout yet`, {
+          hint: 'Run the cutout pass (hexa assets cutout) or composite the source with its own alpha.',
+          details: { id: asset.id },
+        });
+      }
+      return resolveInRootReal(this.#root, asset.cutoutPath, 'cutoutPath');
+    }
+    return resolveInRootReal(this.#root, asset.path, 'path');
+  }
+
   // ── writes ─────────────────────────────────────────────────────────────────
 
   /**
@@ -383,7 +423,10 @@ export class AssetLibrary {
       ? await this.#copyIn(src, { id, kind: input.kind, playerId: input.playerId, teamId: input.teamId })
       : toRelative(this.#root, src);
 
-    const abs = resolveInRoot(this.#root, relPath, 'path');
+    // The file is about to be decoded, so the symlink check earns its syscalls
+    // here: an entry that resolves inside the root but *points* outside it must
+    // never reach sharp.
+    const abs = await resolveInRootReal(this.#root, relPath, 'path');
     const metrics = opts.metrics ?? (await computeBasicMetrics(abs));
     const phash = opts.phash ?? (await computeDHash(abs));
 
@@ -634,6 +677,16 @@ export class AssetLibrary {
       },
       tags: Array.isArray(a.tags) ? a.tags.filter((t): t is string => typeof t === 'string') : [],
     } as ReferenceAsset;
+  }
+}
+
+/** fsync a directory so a rename into it is durable across a power loss. */
+async function syncDirectory(dir: string): Promise<void> {
+  const handle = await fs.open(dir, 'r');
+  try {
+    await handle.sync();
+  } finally {
+    await handle.close();
   }
 }
 

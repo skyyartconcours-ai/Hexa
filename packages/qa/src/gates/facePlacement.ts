@@ -14,12 +14,18 @@
  *     as one muddle.
  *   • Eyes near the upper third. The single oldest portrait rule there is, and
  *     the one that most reliably makes a composite look shot rather than pasted.
+ *   • Nothing printed across the eyes or the mouth. Type over a face is a normal
+ *     device; type over the features the viewer reads the face *by* is not.
+ *   • Two subjects at identical scale and identical height are a mirror, and a
+ *     mirror is inert: nothing is happening between them. This one warns rather
+ *     than vetoes, because a symmetric layout is a legitimate house style — but
+ *     it is the difference between a fight card and a diagram.
  */
 
-import { distanceToNearest, THIRDS } from '@hexa/core';
-import type { QaFinding } from '@hexa/core';
+import { distanceToNearest, overlapRatio, THIRDS } from '@hexa/core';
+import type { QaFinding, Rect } from '@hexa/core';
 import type { Gate, GateContext } from '../types.js';
-import { clamp01, ramp, toNormRect, toPixelRect } from '../geom.js';
+import { clamp01, collectTextRects, ramp, toNormRect, toPixelRect } from '../geom.js';
 
 /** Face height as a fraction of canvas height. */
 export const MIN_FACE_HEIGHT = 0.09;
@@ -30,11 +36,21 @@ const EYE_LINE_IN_FACE = 0.4;
 const EYE_BAND = { min: 0.16, max: 0.45 };
 /** Two faces closer than this (normalised x) are stacked, not opposed. */
 const MIN_PAIR_SEPARATION = 0.22;
+/** Bands within a face box, as fractions of its height. The eye band is where
+ *  recognition happens; the mouth band is where expression does. */
+const EYE_BAND = { top: 0.25, bottom: 0.55 };
+const MOUTH_BAND = { top: 0.6, bottom: 0.85 };
+/** Share of the band a text rect must cover before it is "over the eyes". */
+const FEATURE_OVERLAP = 0.12;
+/** Relative differences below which two subjects are a dead mirror. */
+const MIRROR_SCALE = 0.04;
+const MIRROR_HEIGHT = 0.02;
+const MIRROR_AXIS = 0.03;
 
 export const facePlacementGate: Gate = {
   id: 'face-placement',
   weight: 1.2,
-  description: 'Faces are large enough, un-clipped, opposed rather than stacked, and sit with the eye line in the upper third',
+  description: 'Faces are large enough, un-clipped, unobscured by type, opposed rather than stacked (and not dead-mirrored), with the eye line in the upper third',
 
   async run(ctx: GateContext): Promise<QaFinding[]> {
     const faces = ctx.subjects
@@ -56,6 +72,7 @@ export const facePlacementGate: Gate = {
     }
 
     const findings: QaFinding[] = [];
+    const texts = collectTextRects(ctx).map((t) => ({ role: t.role, rect: toNormRect(t.rect, ctx.width, ctx.height) }));
 
     for (const { subject, rect } of faces) {
       const px = toPixelRect(subject.faceRect!, ctx.width, ctx.height);
@@ -110,6 +127,38 @@ export const facePlacementGate: Gate = {
         });
       }
 
+      // Type across the features. "Text over a face" is a device; text over the
+      // eyes is a defacement — the viewer identifies a person from the eye band
+      // above all else, and a headline through it makes the subject anonymous
+      // while still claiming to be them.
+      for (const band of [
+        { name: 'eyes', span: EYE_BAND, severity: 'fail' as const },
+        { name: 'mouth', span: MOUTH_BAND, severity: 'warn' as const },
+      ]) {
+        const feature: Rect = {
+          x: rect.x,
+          y: rect.y + rect.h * band.span.top,
+          w: rect.w,
+          h: rect.h * (band.span.bottom - band.span.top),
+        };
+        for (const text of texts) {
+          const cover = overlapRatio(feature, text.rect);
+          if (cover < FEATURE_OVERLAP) continue;
+          clean = false;
+          findings.push({
+            gate: 'face-placement',
+            severity: band.severity,
+            message: `Text "${text.role}" is printed across ${subject.handle}'s ${band.name} (covering ${(cover * 100).toFixed(0)}% of the ${band.name} band of the face)`,
+            score: band.severity === 'fail' ? clamp01(0.25 * (1 - cover)) : clamp01(0.6 - 0.3 * cover),
+            subjectId: subject.playerId,
+            where: feature,
+            suggestion: band.name === 'eyes'
+              ? `Move "${text.role}" below the chin or outside the subject's column. The eyes are the one part of a face a thumbnail cannot spare — cover them and the identity the whole render is built on stops being visible.`
+              : `Nudge "${text.role}" clear of the mouth; expression is most of what a face contributes to a thumbnail.`,
+          });
+        }
+      }
+
       const centre = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
       const thirdsDistance = distanceToNearest(centre, THIRDS);
       if (clean) {
@@ -146,6 +195,24 @@ export const facePlacementGate: Gate = {
           severity: 'pass',
           message: `Subjects are opposed across the frame (centres ${separation.toFixed(2)} apart)`,
           score: clamp01(0.6 + 0.4 * ramp(separation, MIN_PAIR_SEPARATION, 0.5)),
+        });
+      }
+
+      // Dead mirror: same size, same height, equidistant from the axis. Nothing
+      // in the picture is happening — no hero, no depth, no reason for the eye to
+      // travel. Warn, never fail: symmetry is a house style, not a defect, and a
+      // gate that vetoed it would veto half the versus templates in the library.
+      const scaleDelta = Math.abs(a.rect.h - b.rect.h) / Math.max(a.rect.h, b.rect.h, 1e-6);
+      const heightDelta = Math.abs(a.rect.y - b.rect.y);
+      const axisDelta = Math.abs(Math.abs(ax - 0.5) - Math.abs(bx - 0.5));
+      if (scaleDelta < MIRROR_SCALE && heightDelta < MIRROR_HEIGHT && axisDelta < MIRROR_AXIS) {
+        findings.push({
+          gate: 'face-placement',
+          severity: 'warn',
+          message: `${a.subject.handle} and ${b.subject.handle} are a dead mirror: same face height (${(a.rect.h * 100).toFixed(1)}% vs ${(b.rect.h * 100).toFixed(1)}%), same eye height (${(scaleDelta * 100).toFixed(1)}% and ${(heightDelta * 100).toFixed(1)}% apart) and equidistant from the centre — the composition has no hero and nothing for the eye to do`,
+          score: 0.5,
+          where: { x: Math.min(a.rect.x, b.rect.x), y: Math.min(a.rect.y, b.rect.y), w: Math.abs(ax - bx) + a.rect.w, h: Math.max(a.rect.h, b.rect.h) },
+          suggestion: 'Break the symmetry: bring one subject 8–12% larger and forward, drop the other 2–3% of canvas height, or angle the light across them. Even fight posters that look symmetric put one fighter nearer the camera.',
         });
       }
     }

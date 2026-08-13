@@ -26,7 +26,7 @@ import type {
   ProviderCapabilities,
   ProviderStatus,
 } from './types.js';
-import { assertNoPersonGeneration, guardIdentityEdit } from './guard.js';
+import { assertIdentityEditSafe, assertNegativePromptSafe, assertNoPersonGeneration } from './guard.js';
 import { cacheKey, readCache, writeCache, type AiCacheOptions } from './cache.js';
 import { PROVIDER_ENV, resolvedEnvVar } from './config.js';
 import { localProvider } from './providers/local.js';
@@ -153,6 +153,10 @@ export async function generateBackplate(req: BackplateRouteRequest): Promise<Gen
   // First line of defence. Each provider re-checks; this catch is here so the
   // refusal happens before a cache lookup or a network connection.
   assertNoPersonGeneration(req.prompt ?? '');
+  // The negative prompt is a second channel into the model — Gemini and OpenAI
+  // have no negative-prompt parameter, so Hexa folds it into the instruction.
+  // An instruction hidden there would reach the model unguarded.
+  assertNegativePromptSafe(req.negativePrompt);
 
   const provider = resolveProvider({ prefer: req.provider, need: 'backplate' });
   const key = cacheKey({
@@ -212,7 +216,9 @@ export interface IdentityEditRouteRequest extends IdentityEditRequest {
  * function deliberately does not pretend to have done it.
  */
 export async function identityGuidedEdit(req: IdentityEditRouteRequest): Promise<GeneratedImage> {
-  guardIdentityEdit(req);
+  // The async form also measures the preserve boxes against the real frame and
+  // checks that the mask is not handing the face to the model.
+  await assertIdentityEditSafe(req);
 
   const provider = resolveProvider({ prefer: req.provider, need: 'identityGuidedEdit' });
   if (typeof provider.identityGuidedEdit !== 'function' || !provider.capabilities.identityGuidedEdit) {

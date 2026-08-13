@@ -81,7 +81,28 @@ function decorationOverhang(style: TextStyle, blockH: number): Overhang {
     right += shear;
   }
 
-  if (style.italic) left += blockH * 0.06;
+  // An oblique face leans right above the baseline and left below it, so the
+  // ink escapes the advance box on *both* sides, not just one.
+  if (style.italic) {
+    const lean = blockH * 0.06;
+    left += lean;
+    right += lean;
+  }
+
+  // Jitter displaces each glyph by up to `offset` on both axes and spins it
+  // about its own centre; neither shows up in the advance width.
+  if (style.jitter && (style.jitter.offset || style.jitter.rotate)) {
+    const offset = Math.max(0, style.jitter.offset ?? 0);
+    const rotate = Math.min(45, Math.abs(style.jitter.rotate ?? 0));
+    // A glyph box no larger than (size × blockH) spun by `rotate` about its
+    // centre reaches at most half its diagonal further out.
+    const spin = rotate > 0 ? Math.sin((rotate * Math.PI) / 180) * (style.size + blockH) * 0.5 : 0;
+    const reach = offset + spin;
+    left += reach;
+    right += reach;
+    top += reach;
+    bottom += reach;
+  }
 
   return { left, right, top, bottom };
 }
@@ -302,7 +323,17 @@ export function renderText(input: LayoutTextInput): LaidOutText {
     canonical({ text: block.text, align, anchor, box, style, wrap: input.wrap, maxLines: input.maxLines }),
   );
   const inkBox: Box = { x: inkX, y: inkY, w: Math.max(1, inkW), h: Math.max(1, metrics.height) };
-  const body = paintBlock(scope, positioned, style, size, metrics, inkBox);
+  // A filter region is a hard clip on everything the filter emits, including the
+  // `SourceGraphic` it merges back in. Sizing it to the bare glyph box therefore
+  // guillotines the outline, the extrusion slab and the jitter — so filters get
+  // the decorated box, while the gradient still spans the glyphs themselves.
+  const decoratedBox: Box = {
+    x: inkBox.x - over.left,
+    y: inkBox.y - over.top,
+    w: Math.max(1, inkBox.w + over.left + over.right),
+    h: Math.max(1, inkBox.h + over.top + over.bottom),
+  };
+  const body = paintBlock(scope, positioned, style, size, metrics, inkBox, decoratedBox);
 
   const skew = style.skewX ? skewAbout(style.skewX, inkX + inkW / 2, inkY + metrics.height / 2) : '';
   const inner = skew ? `<g${attrs({ transform: skew })}>${body}</g>` : body;
@@ -339,6 +370,8 @@ function paintBlock(
   size: number,
   metrics: BlockMetrics,
   inkBox: Box,
+  /** `inkBox` grown by the decoration — the extent filters must not clip. */
+  decoratedBox: Box = inkBox,
 ): string {
   const strokeW = style.stroke ? Math.max(0, style.stroke.width) : 0;
   const fill = resolveFill(scope, style.fill, inkBox);
@@ -361,13 +394,13 @@ function paintBlock(
   // The slab + outline + face cast one shadow together.
   let lockup = extrusion + stroke + face;
   if (style.shadow) {
-    const filterId = shadowFilter(scope, style.shadow, inkBox);
+    const filterId = shadowFilter(scope, style.shadow, decoratedBox);
     lockup = `<g${attrs({ filter: `url(#${filterId})` })}>${lockup}</g>`;
   }
 
   let glow = '';
   if (style.glow && style.glow.radius > 0 && style.glow.intensity > 0) {
-    const filterId = glowFilter(scope, style.glow, inkBox);
+    const filterId = glowFilter(scope, style.glow, decoratedBox);
     // Glow source is the silhouette including the outline, so the halo hugs
     // the outer edge of the lockup rather than the bare glyphs.
     const silhouette = strokeW > 0

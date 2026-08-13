@@ -18,10 +18,25 @@ import type { AspectPreset, GradeSpec, SubjectRequest, ThumbnailRequest } from '
 import { generateThumbnail } from '@hexa/pipeline';
 import { createContext, globalsFrom, type CliContext } from '../context.js';
 import { loadRequests } from '../io/request-file.js';
+import { ensureNamedSubjects, ensureSubjectCount, ensureWritableDir, resolveTemplate } from '../preflight.js';
 import { reportJob } from './report.js';
 
 /** The template `gen` reaches for when none is named. */
 export const DEFAULT_TEMPLATE = 'versus-classic';
+
+/**
+ * …and when only one player was named.
+ *
+ * `hexa gen Faker` documents itself as a single-subject thumbnail, so it has to
+ * pick a template that takes one subject rather than failing against the versus
+ * default. The user can still name any template explicitly.
+ */
+export const DEFAULT_SOLO_TEMPLATE = 'hero-portrait';
+
+/** The template a subject count implies when the user named none. */
+export function defaultTemplateFor(subjects: number): string {
+  return subjects === 1 ? DEFAULT_SOLO_TEMPLATE : DEFAULT_TEMPLATE;
+}
 
 export function registerGen(program: Command): void {
   program
@@ -68,6 +83,8 @@ Notes:
   \`hexa assets ingest\`. Run \`hexa doctor\` if anything looks off.`)
     .action(async (left: string, right: string | undefined, options: Record<string, unknown>, command: Command) => {
       const ctx = createContext(globalsFrom(command));
+      ensureNamedSubjects(right === undefined ? [left] : [left, right]);
+
       const subjects: SubjectRequest[] = right
         ? [{ player: left, side: 'left' }, { player: right, side: 'right' }]
         : [{ player: left, side: 'center' }];
@@ -141,6 +158,7 @@ A request file may hold one request or an array of them:
           hint: 'Pass --subject <player> (repeatable), or --file with a request document. `hexa gen A B` is the short form.',
         });
       }
+      ensureNamedSubjects(players);
 
       const subjects: SubjectRequest[] = players.map((player, i) => ({
         player,
@@ -151,8 +169,19 @@ A request file may hold one request or an array of them:
     });
 }
 
-/** Run one request and report it, sharing the library for the credit line. */
+/**
+ * Run one request and report it, sharing the library for the credit line.
+ *
+ * The three checks in front of the render are the ones whose answers cannot
+ * change while it runs — the template exists, it wants this many subjects, the
+ * output directory accepts bytes — and each of them would otherwise surface
+ * thirty seconds of work later, after everything expensive had already happened.
+ */
 export async function runGeneration(ctx: CliContext, request: ThumbnailRequest): Promise<void> {
+  const template = await resolveTemplate(request.templateId, request.subjects.length);
+  await ensureSubjectCount(template, request.subjects.length);
+  await ensureWritableDir(request.output?.dir ?? './out');
+
   const deps = await ctx.deps();
   const label = request.subjects.map((s) => s.player).join(' vs ');
   const spinner = ctx.spinner(`rendering ${label}…`);
@@ -182,7 +211,9 @@ export function buildRequest(ctx: CliContext, subjects: SubjectRequest[], o: Rec
   });
 
   const request: ThumbnailRequest = {
-    templateId: (o['template'] as string | undefined) ?? DEFAULT_TEMPLATE,
+    // One player means a single-subject template, which is what `hexa gen Faker`
+    // documents itself as doing.
+    templateId: (o['template'] as string | undefined) ?? defaultTemplateFor(subjects.length),
     subjects,
     text,
     aspect: o['aspect'] as AspectPreset | undefined,

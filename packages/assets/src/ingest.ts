@@ -17,11 +17,13 @@
  */
 
 import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import sharp from 'sharp';
 import type { AssetKind, AssetMetrics, AssetProvenance, LicenseKind, PlayerId, ReferenceAsset, TeamId } from '@hexa/core';
-import { HexaError } from '@hexa/core';
+import { HexaError, MAX_INPUT_FILE_BYTES, MAX_INPUT_PIXELS } from '@hexa/core';
 import type { AssetLibrary } from './library.js';
 import { isReservedFile, isSupportedImage, slugify } from './paths.js';
 
@@ -235,13 +237,40 @@ export function findDuplicate(
   return best;
 }
 
-/** SHA-256 of the file contents, truncated — the identity half of an asset id. */
+/**
+ * SHA-256 of the file contents, truncated — the identity half of an asset id.
+ *
+ * Streamed rather than read whole: a path handed to the ingester is a file
+ * nobody has vetted yet, and `readFile` on a 3 GB "photograph" allocates 3 GB
+ * before anything gets to decide it is too big. Hashing through a stream keeps
+ * the cost at one chunk regardless, and the size ceiling below turns a hostile
+ * file into a clear `IO_ERROR` instead of an OOM kill.
+ */
 export async function contentHash(file: ImageSource, length = 10): Promise<string> {
+  const hash = createHash('sha256');
   try {
-    const buf = typeof file === 'string' ? await fs.readFile(file) : file;
-    return createHash('sha256').update(buf).digest('hex').slice(0, length);
+    if (typeof file !== 'string') {
+      assertSizeWithinLimit(file.byteLength, describe(file));
+      hash.update(file);
+      return hash.digest('hex').slice(0, length);
+    }
+    const stat = await fs.stat(file);
+    assertSizeWithinLimit(stat.size, file);
+    await pipeline(createReadStream(file), hash);
+    return hash.digest('hex').slice(0, length);
   } catch (err) {
+    if (err instanceof HexaError) throw err;
     throw new HexaError('IO_ERROR', `Cannot read file: ${describe(file)}`, { details: { file: describe(file) }, cause: err });
+  }
+}
+
+/** Refuse a file too large to hold in memory before anything tries to. */
+function assertSizeWithinLimit(bytes: number, what: string): void {
+  if (bytes > MAX_INPUT_FILE_BYTES) {
+    throw new HexaError('IO_ERROR', `File is too large to ingest: ${what} (${Math.round(bytes / 1e6)} MB)`, {
+      hint: `The ceiling is ${Math.round(MAX_INPUT_FILE_BYTES / 1e6)} MB. Re-export the photograph at a sane resolution.`,
+      details: { file: what, bytes, max: MAX_INPUT_FILE_BYTES },
+    });
   }
 }
 
@@ -476,6 +505,12 @@ export async function listImageFiles(
         opts.onSkip?.(full, 'empty-file');
         continue;
       }
+      // Reported and skipped rather than attempted: one absurd file in a
+      // folder of 400 must cost a line in the report, not the whole run.
+      if (st.size > MAX_INPUT_FILE_BYTES) {
+        opts.onSkip?.(full, `too-large:${st.size}`);
+        continue;
+      }
       out.push(full);
     }
   };
@@ -526,12 +561,26 @@ type SharpPipeline = ReturnType<typeof sharp>;
 
 async function run<T>(file: ImageSource, fn: (p: SharpPipeline) => Promise<T>): Promise<T> {
   try {
-    // failOn: 'none' keeps slightly-truncated downloads usable — a press photo
-    // with a broken last scanline is still a perfectly good reference.
-    return await fn(sharp(file as string | Buffer, { failOn: 'none' }));
+    return await fn(
+      sharp(file as string | Buffer, {
+        // failOn: 'none' keeps slightly-truncated downloads usable — a press
+        // photo with a broken last scanline is still a perfectly good
+        // reference. It does *not* disable the pixel limit below; the two are
+        // independent, and conflating them is how a decompression bomb gets in.
+        failOn: 'none',
+        // A 50 000 × 50 000 PNG is 128 bytes on disk and 10 GB decoded. sharp
+        // defaults to this same ceiling, but stating it makes the guarantee
+        // ours rather than a default we inherited and could silently lose.
+        limitInputPixels: MAX_INPUT_PIXELS,
+        // Refuse multi-frame GIF/WebP outright rather than decoding every frame
+        // into one tall strip: an animated file is not a reference photograph,
+        // and `pages: -1` semantics turn a 500-frame GIF into a 500× allocation.
+        pages: 1,
+      }),
+    );
   } catch (err) {
     throw new HexaError('IO_ERROR', `Cannot decode image: ${describe(file)}`, {
-      hint: 'Supported formats are PNG, JPEG, WebP and AVIF.',
+      hint: 'Supported formats are PNG, JPEG, WebP and AVIF, up to 268 megapixels.',
       details: { file: describe(file) },
       cause: err,
     });

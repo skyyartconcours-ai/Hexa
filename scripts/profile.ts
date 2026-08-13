@@ -16,9 +16,12 @@
  * 1 PNG decode of the same 3.7 megapixels" is slow *for a reason you can fix*.
  *
  * Usage:
- *   npx tsx scripts/profile.ts               # 2 variants, the standard case
+ *   npx tsx scripts/profile.ts                    # 2 variants, the standard case
  *   npx tsx scripts/profile.ts --variants 4
- *   npx tsx scripts/profile.ts --json        # machine-readable, for diffing
+ *   npx tsx scripts/profile.ts --json             # machine-readable, for diffing
+ *   npx tsx scripts/profile.ts --ab 1 2 --repeat 3
+ *        re-render one compiled plan at several supersample factors, best of N,
+ *        writing each result to out/profile so they can be compared by eye
  */
 
 import { mkdir } from 'node:fs/promises';
@@ -93,8 +96,84 @@ function table(title: string, rows: { label: string; ms: number; extra?: string 
   }
 }
 
+/** The request every measurement in this file is taken against. */
+const REQUEST = {
+  templateId: 'versus-classic',
+  subjects: [{ player: 'Peyz', side: 'left' as const }, { player: 'Viper', side: 'right' as const }],
+  text: { headline: 'RIVALS', kicker: 'LCK FINALS' },
+  aspect: 'youtube' as const,
+  seed: 1337,
+};
+
+/**
+ * Compile the real plan once and re-render it at several supersample factors.
+ *
+ * Re-rendering a *compiled* plan isolates the compositor from everything around
+ * it, which is what an A/B on a rendering setting needs: same layers, same
+ * seed, same buffers, one variable.
+ */
+async function abSupersample(factors: number[], repeats: number): Promise<void> {
+  const { completeDeps, resolveRequest, prepareSubjects, prepareBackplate, compilePlan, collectBuffers, resolvePalette, validateRequest } =
+    await import('@hexa/pipeline');
+  const { templates } = await import('@hexa/pipeline/integration');
+  const render = await import('@hexa/render');
+  const { writeFile } = await import('node:fs/promises');
+
+  const quiet = createLogger('error', 'hexa');
+  const deps = await completeDeps({ logger: quiet });
+  const request = validateRequest({ ...REQUEST, variants: 1, output: { dir: OUT, name: 'ab' } });
+  const { template, aspect, canvas } = await resolveRequest(request);
+  const subjects = await prepareSubjects(request.subjects, deps, { aspect, bust: true });
+  const palette = resolvePalette(subjects, request.palette);
+  const style = await templates.resolveTemplateStyle(template, {
+    subjects: subjects.map((s) => ({ player: s.player, team: s.team, side: s.side, accent: s.accent })),
+    text: request.text,
+    aspect,
+    seed: request.seed,
+    palette,
+  });
+  const backplate = await prepareBackplate({
+    template, style, palette, canvas, seed: request.seed,
+    subjectCount: subjects.length, background: request.background,
+    provider: deps.aiProvider, logger: quiet,
+  });
+  const plan = await compilePlan({
+    template, subjects, text: request.text, aspect, seed: request.seed,
+    palette, backplate: backplate.buffer, deps, grade: request.grade, background: request.background,
+  });
+  const buffers = collectBuffers(plan, { subjects, backplate: backplate.buffer });
+
+  console.log(`\n${BOLD}Supersample A/B${RESET} ${DIM}· ${plan.canvas.width}×${plan.canvas.height} · ` +
+    `${plan.layers.length} layers · best of ${repeats}${RESET}`);
+  for (const ss of factors) {
+    const scaled = { ...plan, canvas: { ...plan.canvas, supersample: ss } };
+    let best = Infinity;
+    let bytes = 0;
+    for (let i = 0; i < repeats; i++) {
+      const t0 = performance.now();
+      const out = await render.renderPlan(scaled, { buffers, logger: quiet });
+      const ms = performance.now() - t0;
+      if (ms < best) {
+        best = ms;
+        bytes = out.buffer.length;
+        await writeFile(join(OUT, `ab-ss${ss}.png`), out.buffer);
+      }
+    }
+    console.log(`  supersample ${ss}×  ${best.toFixed(0).padStart(6)}ms  ${DIM}${(bytes / 1024).toFixed(0)}KB → out/profile/ab-ss${ss}.png${RESET}`);
+  }
+}
+
 async function main(): Promise<void> {
   await mkdir(OUT, { recursive: true });
+
+  const abIndex = argv.indexOf('--ab');
+  if (abIndex >= 0) {
+    const rest = argv.slice(abIndex + 1);
+    const stop = rest.findIndex((a) => a.startsWith('--'));
+    const factors = (stop < 0 ? rest : rest.slice(0, stop)).filter((a) => /^\d+$/.test(a)).map(Number);
+    await abSupersample(factors.length ? factors : [1, 2], flag('repeat', 2));
+    return;
+  }
 
   const { generateThumbnail, completeDeps } = await import('@hexa/pipeline');
   const render = await import('@hexa/render');

@@ -76,7 +76,9 @@ describe('attack: neutralising the gate through the threshold', () => {
     );
     // `best < NaN` is false, so the original gate fell through to "verified".
     expect(findings.some((f) => f.severity === 'pass')).toBe(false);
-    expect(findings.some((f) => f.message.includes('NaN'))).toBe(false);
+    // …and no finding may report a comparison made against NaN.
+    expect(findings.some((f) => /verified.*NaN|≥ NaN/.test(f.message))).toBe(false);
+    expect(findings.some((f) => f.severity === 'fail')).toBe(true);
   });
 
   it('says out loud when a supplied threshold is unusable', async () => {

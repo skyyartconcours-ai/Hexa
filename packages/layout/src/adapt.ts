@@ -167,10 +167,17 @@ function reflowCross(
 
   // Subjects (R2a / R3).
   const subjects = spec.slots.filter((s) => s.kind === 'subject');
-  const ordered = [...subjects].sort((a, b) =>
-    mode === 'stack'
-      ? a.rect.x + a.rect.w / 2 - (b.rect.x + b.rect.w / 2)
-      : a.rect.y + a.rect.h / 2 - (b.rect.y + b.rect.h / 2),
+  // Reading order decides who lands top/left, so ties must not be settled by
+  // however the caller happened to order `spec.slots` — two subjects sharing a
+  // centre line (a symmetric versus, a vertical stack) is ordinary, and the same
+  // spec with its slots listed in a different order must reflow identically.
+  // Compared by code unit, not `localeCompare`: collation is ICU-version
+  // dependent and this ordering has to be byte-stable across machines.
+  const ordered = [...subjects].sort(
+    (a, b) =>
+      (mode === 'stack'
+        ? a.rect.x + a.rect.w / 2 - (b.rect.x + b.rect.w / 2)
+        : a.rect.y + a.rect.h / 2 - (b.rect.y + b.rect.h / 2)) || compareIds(a.id, b.id),
   );
   const n = ordered.length;
   ordered.forEach((s, i) => {
@@ -418,4 +425,9 @@ function cloneSlot(s: Slot): Slot {
 
 function fmt(aspect: number): string {
   return `${aspect.toFixed(3)}:1`;
+}
+
+/** Total, locale-independent id order — the tiebreak of last resort. */
+function compareIds(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }

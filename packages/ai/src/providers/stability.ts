@@ -35,8 +35,8 @@ import type {
   ProviderCapabilities,
   UpscaleRequest,
 } from '../types.js';
-import { assertNoPersonGeneration, guardIdentityEdit } from '../guard.js';
-import { PROVIDER_ENV, readApiKey } from '../config.js';
+import { assertIdentityEditSafe, assertNegativePromptSafe, assertNoPersonGeneration } from '../guard.js';
+import { PROVIDER_ENV, readApiKey, redactSecrets } from '../config.js';
 import { httpRequest } from '../http.js';
 import {
   clampToCapabilities,
@@ -125,6 +125,7 @@ export class StabilityProvider implements ImageProvider {
 
   async generateBackplate(req: BackplateRequest): Promise<GeneratedImage> {
     assertNoPersonGeneration(req.prompt ?? '');
+    assertNegativePromptSafe(req.negativePrompt);
     const key = readApiKey('stability', this.env) ?? notConfigured('stability', PROVIDER_ENV.stability!);
     const { width, height } = clampToCapabilities(req.width, req.height, this.capabilities, 'stability');
     const tier = this.tier();
@@ -151,7 +152,7 @@ export class StabilityProvider implements ImageProvider {
   }
 
   async identityGuidedEdit(req: IdentityEditRequest): Promise<GeneratedImage> {
-    guardIdentityEdit(req);
+    await assertIdentityEditSafe(req);
     const key = readApiKey('stability', this.env) ?? notConfigured('stability', PROVIDER_ENV.stability!);
     const size = await imageSize(req.image);
 
@@ -254,10 +255,17 @@ export class StabilityProvider implements ImageProvider {
     try {
       return JSON.parse(text) as StabilityResult;
     } catch (err) {
-      throw new HexaError('PROVIDER_ERROR', `[stability] malformed JSON response: ${text.slice(0, 200)}`, {
-        details: { provider: 'stability' },
-        cause: err,
-      });
+      // Redact before the body becomes an error message: proxies and gateways
+      // routinely quote the request — including the Authorization header — back
+      // in an HTML error page served with a 200.
+      throw new HexaError(
+        'PROVIDER_ERROR',
+        redactSecrets(`[stability] malformed JSON response: ${text.slice(0, 200)}`, [key]),
+        {
+          details: { provider: 'stability' },
+          cause: err,
+        },
+      );
     }
   }
 }

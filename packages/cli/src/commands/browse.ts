@@ -7,6 +7,7 @@
  */
 
 import { Command, Option } from 'commander';
+import { didYouMean } from '@hexa/core';
 import type { Player, Role, Team, ThumbnailTemplate } from '@hexa/core';
 import { data, templates as templatesAdapter } from '@hexa/pipeline/integration';
 import { createContext, globalsFrom, type CliContext } from '../context.js';
@@ -37,7 +38,16 @@ Examples:
         return;
       }
       if (players.length === 0) {
-        ctx.say(ctx.ui.warn(`No players matched.${query ? ` Try a shorter query than "${query}".` : ''}`));
+        ctx.say(ctx.ui.warn(`${ctx.glyph.warn} No players matched.${query ? ` Nothing in the roster looks like "${query}".` : ''}`));
+        // Filters are the usual culprit: a real handle plus `--team T1` when the
+        // player moved reads as "this player does not exist".
+        const filters = ['team', 'role', 'region'].filter((f) => o[f] !== undefined);
+        if (filters.length > 0) {
+          ctx.say(`  ${ctx.ui.cyan(ctx.glyph.arrow)} Drop the filter(s) ${filters.map((f) => `--${f}`).join(', ')} and search again.`);
+        }
+        const total = (await data.allPlayers()).length;
+        ctx.say(`  ${ctx.ui.dim(`The roster holds ${total} players — \`hexa players\` lists them all, \`hexa teams\` lists the orgs.`)}`);
+        if (o['all'] !== true) ctx.say(`  ${ctx.ui.dim('Retired and benched players are hidden; add --all to include them.')}`);
         return;
       }
 
@@ -132,8 +142,14 @@ team's colour and vice versa, which is what makes a versus composite read.`)
 
 function swatches(ctx: CliContext, team: Team): string {
   const c = team.colors;
-  const blocks = [c.primary, c.secondary, c.accent, c.dark, c.light].map((hex) => ctx.ui.swatch(hex)).join('');
-  return `${blocks} ${ctx.ui.dim(c.primary)}`;
+  const palette = [c.primary, c.secondary, c.accent, c.dark, c.light];
+
+  // A swatch is a coloured background with nothing in it, so with colour off it
+  // is literally ten blank columns. Piped or under --no-color the hex codes are
+  // the information; on a colour terminal the blocks are.
+  if (!ctx.ui.enabled) return palette.join(' ');
+
+  return `${palette.map((hex) => ctx.ui.swatch(hex)).join('')} ${ctx.ui.dim(c.primary)}`;
 }
 
 function colouredTag(ctx: CliContext, team: Team | undefined): string {
@@ -159,13 +175,40 @@ Examples:
     .action(async (query: string | undefined, o: Record<string, unknown>, command: Command) => {
       const ctx = createContext(globalsFrom(command));
       const list = await selectTemplates(query, o);
+      const all = await templatesAdapter.listTemplates();
+      const known: string[] = [...new Set(all.map((t) => String(t.category)))].sort();
+      const badCategory = typeof o['category'] === 'string' && !known.includes(o['category']);
 
       if (ctx.json) {
         ctx.emitJson(list.map(serialiseTemplate));
+        // Still valid JSON on stdout — the exit code is what tells a script that
+        // the filter itself was wrong rather than merely unproductive.
+        if (badCategory) process.exitCode = 2;
         return;
       }
       if (list.length === 0) {
-        ctx.say(ctx.ui.warn('No templates matched. Run `hexa templates` for the whole library.'));
+        // "No matches" is a dead end; the categories that *do* exist are the
+        // next thing the person needs, and there are only fourteen of them.
+        ctx.say(ctx.ui.warn(`${ctx.glyph.warn} No templates matched.`));
+
+        const category = o['category'] as string | undefined;
+        if (category && badCategory) {
+          const near = didYouMean(category, known, 3);
+          ctx.say(`  ${ctx.ui.cyan(ctx.glyph.arrow)} There is no "${category}" category.` +
+            (near.length ? ` Did you mean ${near.join(', ')}?` : ''));
+          ctx.say(`  ${ctx.ui.dim(`categories: ${known.join(', ')}`)}`);
+          // A category that does not exist is a typo, not an empty result set;
+          // a script filtering the library should be able to tell them apart.
+          process.exitCode = 2;
+        }
+
+        const subjects = o['subjects'] as number | undefined;
+        if (subjects !== undefined) {
+          const counts = [...new Set(all.map((t) => `${t.subjects.min}${t.subjects.min === t.subjects.max ? '' : `–${t.subjects.max}`}`))];
+          ctx.say(`  ${ctx.ui.dim(`subject counts in the library: ${counts.join(', ')}`)}`);
+        }
+
+        ctx.say(`  ${ctx.ui.dim(`Run \`hexa templates\` for all ${all.length}.`)}`);
         return;
       }
 

@@ -22,6 +22,7 @@
  */
 
 import { parseHex } from '@hexa/core';
+import { assertNoPersonGeneration } from './guard.js';
 import type { BackplateStyle } from './types.js';
 
 /**
@@ -382,7 +383,15 @@ export interface BackplatePromptInput {
   lightDirection?: LightDirection;
   /** How many cut-out subjects the plate has to accommodate. */
   subjectCount?: number;
-  /** Anything the caller wants appended verbatim. */
+  /**
+   * Anything the caller wants appended verbatim.
+   *
+   * Verbatim is the whole risk: this text lands after the composition contract
+   * ("no people, no faces, no characters, empty scene"), which is exactly where
+   * an injection wants to be — close to the end, contradicting what came
+   * before. It is vetted on its own before it is appended, so the refusal names
+   * the operator's text rather than the assembled paragraph they never wrote.
+   */
   extra?: string;
 }
 
@@ -428,6 +437,12 @@ export function buildBackplatePrompt(input: BackplatePromptInput): {
         : `built around ${names[0]} and ${names[1]} as opposing dominants` +
           (names.length > 2 ? `, with ${names.slice(2).join(' and ')} reserved for small accents only` : '') +
           ', the two dominants kept on separate sides of the frame rather than blended into mud';
+
+  // Caller-supplied text is vetted before it is folded in, not after: by the
+  // time it is one paragraph among fourteen, a refusal cannot say which words
+  // were the operator's.
+  if (input.extra?.trim()) assertNoPersonGeneration(input.extra.trim());
+  if (input.mood?.trim()) assertNoPersonGeneration(input.mood.trim());
 
   const moodClause = input.mood?.trim()
     ? `overall mood: ${input.mood.trim()}`

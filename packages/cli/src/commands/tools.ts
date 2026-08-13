@@ -12,9 +12,10 @@ import { Command } from 'commander';
 import { HexaError } from '@hexa/core';
 import type { RenderPlan, ThumbnailRequest } from '@hexa/core';
 import { batchGenerate, summariseBatch } from '@hexa/pipeline';
-import { ai, data, qa as qaAdapter, templates as templatesAdapter } from '@hexa/pipeline/integration';
+import { ai, data, qa as qaAdapter } from '@hexa/pipeline/integration';
 import { createContext, globalsFrom, type CliContext } from '../context.js';
 import { loadRequests } from '../io/request-file.js';
+import { ensureWritableDir, resolveTemplate } from '../preflight.js';
 import { createProgressBar } from '../ui/progress.js';
 import { displayPath, formatDuration, formatScore, renderTable } from '../ui/table.js';
 import { formatFinding, reportJob, topFindings } from './report.js';
@@ -43,7 +44,8 @@ file still renders — as schematic placeholder silhouettes. That is the point:
 you can evaluate a composition before sourcing any photography.`)
     .action(async (id: string, o: Record<string, unknown>, command: Command) => {
       const ctx = createContext(globalsFrom(command));
-      const template = await templatesAdapter.requireTemplate(id);
+      const template = await resolveTemplate(id);
+      await ensureWritableDir(String(o['out'] ?? './out'));
 
       const wanted = template.subjects.min;
       const explicit = (o['subject'] as string[] | undefined) ?? [];
@@ -134,6 +136,10 @@ the render is CPU-bound, so more is usually slower on a laptop.`)
         seed: ctx.seed,
         output: { dir: String(o['out'] ?? './out') },
       });
+
+      // A batch is the longest-running command there is; a directory it cannot
+      // write to must not be discovered on the last row.
+      await ensureWritableDir(String(o['out'] ?? './out'));
 
       ctx.say(` ${ctx.ui.dim(`${requests.length} request(s) from ${path.basename(file)}`)}\n`);
 

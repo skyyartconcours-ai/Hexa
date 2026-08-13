@@ -33,7 +33,7 @@ import type {
   ImageProvider,
   ProviderCapabilities,
 } from '../types.js';
-import { assertNoPersonGeneration, guardIdentityEdit } from '../guard.js';
+import { assertIdentityEditSafe, assertNegativePromptSafe, assertNoPersonGeneration } from '../guard.js';
 import { PROVIDER_ENV, readApiKey } from '../config.js';
 import { postJson } from '../http.js';
 import {
@@ -145,6 +145,7 @@ export class GoogleProvider implements ImageProvider {
 
   async generateBackplate(req: BackplateRequest): Promise<GeneratedImage> {
     assertNoPersonGeneration(req.prompt ?? '');
+    assertNegativePromptSafe(req.negativePrompt);
     const key = readApiKey('google', this.env) ?? notConfigured('google', PROVIDER_ENV.google!);
     const { width, height } = clampToCapabilities(req.width, req.height, this.capabilities, 'google');
     const model = this.model();
@@ -186,7 +187,7 @@ export class GoogleProvider implements ImageProvider {
   }
 
   async identityGuidedEdit(req: IdentityEditRequest): Promise<GeneratedImage> {
-    guardIdentityEdit(req);
+    await assertIdentityEditSafe(req);
     const key = readApiKey('google', this.env) ?? notConfigured('google', PROVIDER_ENV.google!);
     const model = this.model();
 

@@ -69,7 +69,9 @@ function escapeHint(occ: OccupiedRect, hit: PixelRect, zone: PixelRect): string 
     { dir: 'up', cost: up },
     { dir: 'down', cost: down },
   ].filter((o) => o.cost > 0);
-  options.sort((a, b) => a.cost - b.cost);
+  // Equal-cost escapes are common on a symmetric overlap; break the tie on the
+  // direction name so the suggested fix is the same on every run.
+  options.sort((a, b) => a.cost - b.cost || (a.dir < b.dir ? -1 : a.dir > b.dir ? 1 : 0));
   const best = options[0];
   if (!best) return `Move "${occ.id}" out of the reserved region.`;
   return `Move "${occ.id}" ~${Math.ceil(best.cost)}px ${best.dir} (or shrink it by ${Math.ceil(Math.min(hit.w, hit.h))}px) to clear the zone.`;

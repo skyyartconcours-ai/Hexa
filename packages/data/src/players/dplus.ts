@@ -2,9 +2,14 @@
  * Dplus KIA (formerly DAMWON Gaming / DWG KIA) — LCK. Roster as of the 2026
  * LCK season.
  *
- * ROSTERS CHANGE. Re-verify before a season, after any trade window, and any
- * time a render surprises you. See `../roster.ts` for the full provenance
- * block and the re-verification procedure.
+ * ROSTERS CHANGE, AND SOME OF THIS IS ONLY "REPORTED". Per-field provenance and
+ * confidence live in `../verification.ts`. See `../README.md` for how to
+ * re-verify.
+ *
+ * Audited 2026-08-13. The 2026 starting five and the Esports World Cup 2026
+ * title (3-0 over Karmine Corp, Smash named MVP) are confirmed. The older
+ * DAMWON honours attached to ShowMaker, BeryL and Bengi are widely repeated but
+ * were NOT independently re-sourced in this pass — they are marked `'reported'`.
  *
  * sourcedAt: 2026-08-13
  * sources:
@@ -12,8 +17,9 @@
  *  - https://www.sheepesports.com/us/lol/articles/lol-cvmax-promoted-dplus-kia-head-coach-for-2026/en
  *  - https://esportsworldcup.com/en/press-releases/dplus-kia-win-lol-at-ewc26
  *  - https://www.koreajoongangdaily.com/sports/dplus-kia-wins-esports-world-cup-league-of-legends-title/12780581
+ *  - https://www.gosugamers.net/lol/news/78825-dplus-kia-crowned-2026-league-of-legends-esports-world-cup-champions-after-defeating-karmine-corp
  *  - https://esports-news.co.uk/2025/11/24/dplus-kia-sign-former-t1-bot-laner/
- *  - https://liquipedia.net/leagueoflegends/Dplus
+ *  - https://www.sheepesports.com/en/all/articles/lol-career-joins-dplus-kia/en
  */
 
 import type { Player } from '@hexa/core';
@@ -99,7 +105,9 @@ export const DPLUS_PLAYERS: Player[] = [
   {
     id: 'smash',
     handle: 'Smash',
-    aliases: ['dplus-smash', 'dk-smash', 'Shin Geum-jae', 'Shin Geumjae', '신금재'],
+    // Romanisation varies: "Shin Geum-jae" (Leaguepedia, Esports News UK) vs
+    // "Sin Guem-jae" (Sheep Esports). Both kept as lookup keys.
+    aliases: ['dplus-smash', 'dk-smash', 'Shin Geum-jae', 'Shin Geumjae', 'Sin Guem-jae', '신금재'],
     fullName: 'Shin Geum-jae',
     nativeName: '신금재',
     role: 'bot',
@@ -108,7 +116,7 @@ export const DPLUS_PLAYERS: Player[] = [
     nationality: 'South Korea',
     signatureChampions: ['Jinx', "Kai'Sa", 'Ezreal', 'Varus', 'Ashe'],
     careerHighlights: [
-      'Esports World Cup 2026 champion with Dplus KIA',
+      'Esports World Cup 2026 champion with Dplus KIA — tournament MVP',
       'Five years inside the T1 organisation before joining Dplus KIA as a starter for 2026',
     ],
     referenceQueries: [
@@ -124,7 +132,10 @@ export const DPLUS_PLAYERS: Player[] = [
   {
     id: 'career',
     handle: 'Career',
-    aliases: ['dplus-career', 'dk-career', 'Oh Hyeong-seok', 'Oh Hyeongseok', '오형석'],
+    // Romanisation varies: "Oh Hyeong-seok" (bo3.gg, Esports News UK) vs
+    // "Oh Hyung-suk" (Esports Charts, Sheep Esports). One outlet also writes
+    // the handle "Caria". All kept as lookup keys.
+    aliases: ['dplus-career', 'dk-career', 'Caria', 'Oh Hyeong-seok', 'Oh Hyeongseok', 'Oh Hyung-suk', '오형석'],
     fullName: 'Oh Hyeong-seok',
     nativeName: '오형석',
     role: 'support',
@@ -159,9 +170,12 @@ export const DPLUS_PLAYERS: Player[] = [
     nationality: 'South Korea',
     signatureChampions: [],
     careerHighlights: [
-      'Head coach of Dplus KIA for 2026, promoted from within the staff',
+      'Head coach of Dplus KIA for 2026, promoted from within the staff after Bengi’s departure',
       'Esports World Cup 2026 winning head coach',
-      'Previously head coach of Griffin and DRX; known for unorthodox drafting',
+      // 'reported' only: the Griffin and DRX spells are widely repeated but were
+      // not independently re-sourced in the 2026-08-13 audit. "Known for
+      // unorthodox drafting" was deleted as editorial.
+      'Previously head coach of Griffin and DRX (reported, not re-sourced)',
     ],
     referenceQueries: [
       'cvMax Dplus KIA head coach LCK 2026 press photo',

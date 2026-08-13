@@ -21,6 +21,15 @@ import type { HexaErrorCode } from '@hexa/core';
 export const EXIT_OK = 0;
 /** Anything we did not anticipate. */
 export const EXIT_UNKNOWN = 1;
+/**
+ * A malformed command line: missing argument, unknown flag, bad choice.
+ *
+ * Deliberately the same number as `INVALID_REQUEST`. From a caller's point of
+ * view "you asked for something impossible" and "you typed the ask wrongly" are
+ * one class — fix the command and run it again — and commander's undifferentiated
+ * 1 would otherwise collide with "something unexpected went wrong".
+ */
+export const EXIT_USAGE = 2;
 /** Interrupted (SIGINT). 128 + signal, by shell convention. */
 export const EXIT_INTERRUPTED = 130;
 

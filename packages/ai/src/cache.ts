@@ -17,6 +17,7 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { log } from '@hexa/core';
 import type { GeneratedImage } from './types.js';
 
 export interface AiCacheOptions {
@@ -76,6 +77,26 @@ export function cacheKey(parts: unknown): string {
   return createHash('sha256').update(JSON.stringify(stableify(parts))).digest('hex').slice(0, 40);
 }
 
+/**
+ * A cache key is a content hash and nothing else.
+ *
+ * `paths()` builds a filename out of the key, so a key is a filesystem
+ * primitive: `readCache('xx/../../../etc/hexa')` reads outside the cache
+ * directory and `writeCache` with the same key *writes* outside it. `cacheKey`
+ * only ever produces hex, but both functions are exported and take a caller's
+ * string, so the shape is enforced here rather than assumed.
+ */
+const KEY_SHAPE = /^[0-9a-f]{8,64}$/;
+
+function usableKey(key: string, op: 'read' | 'write'): boolean {
+  if (typeof key === 'string' && KEY_SHAPE.test(key)) return true;
+  log.warn(`Refusing to ${op} an AI cache entry with a malformed key.`, {
+    hint: 'Cache keys come from cacheKey() and are lowercase hex. A key containing path separators is not a key.',
+    key: typeof key === 'string' ? key.slice(0, 32) : typeof key,
+  });
+  return false;
+}
+
 interface CacheSidecar {
   width: number;
   height: number;
@@ -105,6 +126,7 @@ export async function readCache(
 ): Promise<GeneratedImage | undefined> {
   const { dir, ttlMs, enabled } = resolveCacheOptions(opts);
   if (!enabled) return undefined;
+  if (!usableKey(key, 'read')) return undefined;
   const p = paths(dir, key);
   try {
     const meta = JSON.parse(await fs.readFile(p.meta, 'utf8')) as CacheSidecar;
@@ -136,6 +158,7 @@ export async function writeCache(
 ): Promise<void> {
   const { dir, enabled } = resolveCacheOptions(opts);
   if (!enabled || !Buffer.isBuffer(image.buffer) || image.buffer.length === 0) return;
+  if (!usableKey(key, 'write')) return;
   const ext = sniffExtension(image.buffer);
   const p = paths(dir, key);
   const sidecar: CacheSidecar = {

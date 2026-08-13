@@ -13,6 +13,108 @@ import { createNoise } from '../noise.js';
 import { num, str, bool, toRgbaPng } from './util.js';
 
 /**
+ * Sample a coherent field at the rate the field actually carries information.
+ *
+ * A value-noise fBm of `scale` cells across the frame, `octaves` deep, has its
+ * finest lattice at `scale · 2^(octaves−1)` cells — for the default fog that is
+ * 48 cells, which at 2560 px wide means one cell every 53 pixels. Evaluating
+ * `fbm()` per pixel therefore computes the *same* smoothly-interpolated cell
+ * fifty times over: it is not detail, it is arithmetic. At 150 ns a call that is
+ * ~560 ms per megapixel, and it dominates every noise generator.
+ *
+ * So the field is evaluated on a lattice with `SAMPLES_PER_CELL` samples per
+ * finest cell and bilinearly resampled. Value noise is already built by
+ * interpolating a lattice with a C² quintic, so resampling it at four points
+ * per cell reproduces it to well under one 8-bit level; the difference is not
+ * visible and is not structural — the billows land in exactly the same places.
+ *
+ * Rows are streamed rather than materialised: memory stays O(width), not
+ * O(width · height).
+ */
+const SAMPLES_PER_CELL = 4;
+
+function stepFor(width: number, scale: number, octaves: number): number {
+  const finestCells = Math.max(1e-6, Math.abs(scale) * 2 ** Math.max(0, octaves - 1));
+  const pxPerCell = width / finestCells;
+  return Math.max(1, Math.floor(pxPerCell / SAMPLES_PER_CELL));
+}
+
+/**
+ * Row-streaming bilinear resampler over a coarsely evaluated field.
+ *
+ * `fn(x, y)` is called on integer pixel coordinates of the coarse lattice only.
+ * `row(y)` returns a reused buffer of `width` values for output row `y`.
+ */
+function fieldRows(
+  width: number,
+  height: number,
+  step: number,
+  fn: (x: number, y: number) => number,
+): (y: number) => Float32Array {
+  if (step <= 1) {
+    const direct = new Float32Array(width);
+    return (y: number): Float32Array => {
+      for (let x = 0; x < width; x++) direct[x] = fn(x, y);
+      return direct;
+    };
+  }
+
+  const cw = Math.floor((width - 1) / step) + 2; // +1 for the right edge, +1 for the fence post
+  const xs = new Int32Array(cw);
+  for (let i = 0; i < cw; i++) xs[i] = Math.min(width - 1, i * step);
+
+  const evalRow = (yPix: number, dest: Float32Array): void => {
+    for (let i = 0; i < cw; i++) dest[i] = fn(xs[i]!, yPix);
+  };
+
+  let topIndex = -1;
+  let top = new Float32Array(cw);
+  let bottom = new Float32Array(cw);
+  const out = new Float32Array(width);
+
+  return (y: number): Float32Array => {
+    const j = Math.floor(y / step);
+    const y0 = Math.min(height - 1, j * step);
+    const y1 = Math.min(height - 1, y0 + step);
+    if (j !== topIndex) {
+      // Walking down one row band at a time, the previous bottom is the new top.
+      if (j === topIndex + 1) {
+        const spare = top;
+        top = bottom;
+        bottom = spare;
+        evalRow(y1, bottom);
+      } else {
+        evalRow(y0, top);
+        evalRow(y1, bottom);
+      }
+      topIndex = j;
+    }
+    const ty = y1 > y0 ? (y - y0) / (y1 - y0) : 0;
+    for (let x = 0; x < width; x++) {
+      const i = (x / step) | 0;
+      const tx = (x - i * step) / step;
+      const a = top[i]!;
+      const b = top[i + 1] ?? a;
+      const c = bottom[i]!;
+      const d = bottom[i + 1] ?? c;
+      const hi = a + (b - a) * tx;
+      const lo = c + (d - c) * tx;
+      out[x] = hi + (lo - hi) * ty;
+    }
+    return out;
+  };
+}
+
+/** `t ** exponent` for t in 0–1 as a table — see the note in atmosphere.ts. */
+const RAMP_STEPS = 4096;
+
+function rampTable(exponent: number): Float32Array {
+  const table = new Float32Array(RAMP_STEPS + 1);
+  for (let i = 0; i <= RAMP_STEPS; i++) table[i] = (i / RAMP_STEPS) ** exponent;
+  return table;
+}
+
+/**
  * Grayscale fBm field as an opaque RGBA image — also the engine behind the
  * `{ type: 'noise' }` layer source.
  *
@@ -33,11 +135,14 @@ export function noiseFieldRaw(
   const aspect = height / Math.max(1, width);
   const data = Buffer.allocUnsafe(width * height * 4);
 
+  const rows = fieldRows(width, height, stepFor(width, scale, octaves), (x, y) =>
+    noise.fbm((x / width) * scale, (y / height) * scale * aspect, octaves),
+  );
+
   for (let y = 0; y < height; y++) {
-    const ny = (y / height) * scale * aspect;
+    const field = rows(y);
     for (let x = 0; x < width; x++) {
-      const nx = (x / width) * scale;
-      const n = clamp(0.5 + (noise.fbm(nx, ny, octaves) - 0.5) * contrast, 0, 1);
+      const n = clamp(0.5 + (field[x]! - 0.5) * contrast, 0, 1);
       const p = (y * width + x) * 4;
       const v = Math.round(n * 255);
       if (opts.asAlpha) {
@@ -92,19 +197,29 @@ export const fog: Generator = async (params, size, seed) => {
 
   const data = Buffer.allocUnsafe(w * h * 4);
   const aspect = h / Math.max(1, w);
+  const step = stepFor(w, scale, octaves);
+  const densityRows = fieldRows(w, h, step, (x, y) =>
+    density.fbm((x / w) * scale + drift, (y / h) * scale * aspect * stretch, octaves),
+  );
+  // The shading field is a 3-octave fBm at 1.7× the density field's frequency,
+  // so it is sampled on its own (finer) lattice rather than the density one.
+  const shadeRows = fieldRows(w, h, stepFor(w, scale * 1.7, 3), (x, y) =>
+    shading.fbm(((x / w) * scale + drift) * 1.7 + 4.1, (y / h) * scale * aspect * stretch * 1.7 - 2.3, 3),
+  );
+  const gate = rampTable(1.25);
+
   for (let y = 0; y < h; y++) {
     const t = y / h;
     const profile = Math.exp(-(((t - center) / band) ** 2));
-    const ny = t * scale * aspect * stretch;
-    for (let x = 0; x < w; x++) {
-      const nx = (x / w) * scale + drift;
-      const n = density.fbm(nx, ny, octaves);
-      const s = shading.fbm(nx * 1.7 + 4.1, ny * 1.7 - 2.3, 3);
+    const dRow = densityRows(y);
+    const sRow = shadeRows(y);
+    let p = y * w * 4;
+    for (let x = 0; x < w; x++, p += 4) {
       // Soft gate: a little of the field survives everywhere, which is what
       // separates haze from cloud.
-      const a = clamp((n - 0.34) * 1.85, 0, 1) ** 1.25 * amount * profile;
-      const shadeMul = 0.78 + s * 0.44;
-      const p = (y * w + x) * 4;
+      const gated = clamp((dRow[x]! - 0.34) * 1.85, 0, 1);
+      const a = gate[(gated * RAMP_STEPS) | 0]! * amount * profile;
+      const shadeMul = 0.78 + sRow[x]! * 0.44;
       data[p] = Math.round(clamp(r * shadeMul, 0, 255));
       data[p + 1] = Math.round(clamp(g * shadeMul, 0, 255));
       data[p + 2] = Math.round(clamp(b * shadeMul, 0, 255));
@@ -133,16 +248,20 @@ export const smoke: Generator = async (params, size, seed) => {
 
   const data = Buffer.allocUnsafe(w * h * 4);
   const aspect = h / Math.max(1, w);
+  const rows = fieldRows(w, h, stepFor(w, scale, octaves), (x, y) => {
+    const t = y / h;
+    return field.warped((x / w) * scale + (1 - t) * rise * 0.35, t * scale * aspect, octaves, warp);
+  });
+  const gate = rampTable(1.15);
+
   for (let y = 0; y < h; y++) {
     const t = y / h;
     // Denser low, thinning as it rises and spreads.
     const profile = clamp(0.15 + smoothstep(0, 1, 1 - t) * 1.1, 0, 1.25);
-    const shear = (1 - t) * rise;
-    const ny = t * scale * aspect;
+    const nRow = rows(y);
     for (let x = 0; x < w; x++) {
-      const nx = (x / w) * scale + shear * 0.35;
-      const n = field.warped(nx, ny, octaves, warp);
-      const a = clamp((n - 0.4) * 2.6, 0, 1) ** 1.15 * amount * profile;
+      const n = nRow[x]!;
+      const a = gate[(clamp((n - 0.4) * 2.6, 0, 1) * RAMP_STEPS) | 0]! * amount * profile;
       const shadeMul = 0.7 + n * 0.6;
       const p = (y * w + x) * 4;
       data[p] = Math.round(clamp(r * shadeMul, 0, 255));

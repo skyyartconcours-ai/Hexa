@@ -445,7 +445,32 @@ function toDetectedFace(face: SidecarFace): DetectedFace {
   return out;
 }
 
-function toEmbedding(res: EmbedResponse): FaceEmbedding {
+/**
+ * Is this actually an embedding?
+ *
+ * A vector reaches three places that outlive the call: the identity gate, the
+ * disk cache, and — through ingestion — `ReferenceAsset.embedding` in the
+ * library manifest. So a sidecar that answers with zeros because its weights
+ * never downloaded, or with nulls because the model emitted NaN and JSON
+ * flattened it, does not merely give one wrong answer; it persists one that
+ * every later comparison inherits.
+ *
+ * Cosine similarity is undefined for a zero-magnitude vector and meaningless
+ * with a non-finite component, so neither is an embedding. "No usable face" is
+ * the honest answer.
+ */
+function usableVector(v: unknown): v is number[] {
+  if (!Array.isArray(v) || v.length === 0) return false;
+  let norm = 0;
+  for (const x of v) {
+    if (typeof x !== 'number' || !Number.isFinite(x)) return false;
+    norm += x * x;
+  }
+  return norm > 0;
+}
+
+function toEmbedding(res: EmbedResponse | null | undefined): FaceEmbedding | null {
+  if (!res || !usableVector(res.embedding) || typeof res.model !== 'string' || res.model === '') return null;
   const out: FaceEmbedding = { vector: res.embedding, model: res.model };
   if (res.faceBox) out.box = res.faceBox;
   return out;

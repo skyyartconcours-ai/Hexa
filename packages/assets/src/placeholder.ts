@@ -28,7 +28,7 @@
 import fsp from 'node:fs/promises';
 import nodePath from 'node:path';
 import sharp from 'sharp';
-import { HexaError, createRng, hashString, mix, parseHex, readableOn, shade, withAlpha } from '@hexa/core';
+import { HexaError, createRng, hashString, mix, parseHex, readableOn, sanitiseXmlText, shade, withAlpha } from '@hexa/core';
 import type { AssetKind, ReferenceAsset, Rng } from '@hexa/core';
 import type { AssetLibrary } from './library.js';
 import { slugify } from './paths.js';
@@ -54,6 +54,18 @@ const PLATE_ALPHA = 0.72;
 
 const MIN_DIM = 16;
 const MAX_DIM = 8192;
+
+/**
+ * Longest label drawn on the plate.
+ *
+ * The plate is one line of shrink-to-fit text on a decorative caption, so past
+ * a few dozen characters nothing is legible anyway — but the *document* still
+ * grows linearly with the string, and a 100 000-character handle means a
+ * 100 KB SVG that librsvg must parse to draw an illegible smear. Truncating is
+ * honest here in a way it would not be for a headline: the placeholder already
+ * announces itself as a stand-in.
+ */
+const MAX_LABEL_CHARS = 64;
 
 /**
  * Render a placeholder as a PNG buffer with a real alpha channel.
@@ -87,7 +99,7 @@ export function buildPlaceholderSvg(opts: PlaceholderOptions): string {
   const w = validDim(opts?.width, 'width');
   const h = validDim(opts?.height, 'height');
   const kind: AssetKind = opts?.kind ?? 'portrait';
-  const label = String(opts?.label ?? '').trim() || 'UNKNOWN';
+  const label = truncate(String(opts?.label ?? '').trim(), MAX_LABEL_CHARS) || 'UNKNOWN';
   const accent = validAccent(opts?.accent);
   const seed = Number.isFinite(opts?.seed) ? (opts!.seed as number) >>> 0 : hashString(`${label}:${kind}`);
   const rng = createRng(seed);
@@ -447,8 +459,31 @@ function f(v: number): string {
   return (Math.round(v * 100) / 100).toString();
 }
 
+/**
+ * Cut to `max` characters, counting by code point so an emoji or a surrogate
+ * pair is never split in half — half a pair is exactly the malformed input
+ * `esc` then has to repair.
+ */
+function truncate(s: string, max: number): string {
+  const chars = [...s];
+  return chars.length <= max ? s : `${chars.slice(0, max - 1).join('')}…`;
+}
+
+/**
+ * Escape for SVG *and* remove what escaping cannot fix.
+ *
+ * Escaping the five markup characters handles `</text><script>`; it does
+ * nothing for a raw U+0000 or an unpaired surrogate, which produce a document
+ * librsvg refuses to parse at all. Since the label is a player handle — roster
+ * data, a CLI flag, an HTTP body — that failure turns a stray control character
+ * into a hard `RENDER_FAILED` on the very path that exists to keep the pipeline
+ * runnable when nothing else works. Strip first, then escape.
+ */
 function esc(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!);
+  return sanitiseXmlText(s).replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]!,
+  );
 }
 
 function validDim(v: number, what: string): number {

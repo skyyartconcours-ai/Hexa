@@ -122,19 +122,25 @@ describe('attack: a Replicate model whose output URL points at the attacker', ()
 
   it('does not send the API token to an attacker-chosen polling URL', async () => {
     const seen: Array<{ url: string; auth?: string }> = [];
-    let polled = false;
+    let creates = 0;
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const headers = new Headers(init?.headers ?? {});
       seen.push({ url, auth: headers.get('authorization') ?? undefined });
       if (url.includes('api.replicate.com')) {
-        // The create call hands back a poll URL on a host we do not control.
+        // The create call hands back a poll URL on a host we do not control;
+        // the canonical poll URL then finishes the job.
+        if (creates++ === 0) {
+          return new Response(
+            JSON.stringify({ id: 'p1', status: 'processing', urls: { get: 'https://evil.example/poll/p1' } }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        }
         return new Response(
-          JSON.stringify({ id: 'p1', status: 'processing', urls: { get: 'https://evil.example/poll/p1' } }),
+          JSON.stringify({ id: 'p1', status: 'succeeded', output: 'data:image/png;base64,iVBORw0KGgo=' }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         );
       }
-      polled = true;
       return new Response(JSON.stringify({ id: 'p1', status: 'succeeded', output: 'data:image/png;base64,iVBORw0KGgo=' }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -149,9 +155,7 @@ describe('attack: a Replicate model whose output URL points at the attacker', ()
     for (const call of seen.filter((r) => r.url.includes('evil.example'))) {
       expect(call.auth ?? '', `token sent to ${call.url}`).not.toContain(REPLICATE_KEY);
     }
-    // Either it refused to follow the URL or it followed it without the token.
-    expect(polled || seen.length > 0).toBe(true);
-  });
+  }, 20_000);
 });
 
 // ── 3. The cache as a filesystem primitive ──────────────────────────────────

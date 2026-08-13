@@ -14,16 +14,32 @@
  * const lineup = rosterOf('T1');           // five starters in ROLE_ORDER
  * ```
  *
+ * ## Before you publish anything from here
+ *
+ * These are real people's legal names and real people's achievements, and none
+ * of it was read from a primary source — the wikis and lolesports are blocked
+ * by this environment's egress proxy. Everything came from web search results.
+ *
+ * ```ts
+ * import { unverifiedPlayers, verificationOf } from '@hexa/data';
+ *
+ * unverifiedPlayers();      // rows still carrying unverified/disputed fields
+ * verificationOf('ryu');    // per-field confidence + the URLs behind it
+ * ```
+ *
  * Data provenance, the accuracy policy and the re-verification procedure live
- * in `./roster.ts`. Run `validateRoster()` after editing anything.
+ * in `./roster.ts` and `./verification.ts`; the honest summary is in
+ * `../README.md`. Run `validateRoster()` after editing anything — it now fails
+ * on any player carrying career highlights with no sources.
  */
 
-export { TEAMS } from './teams.js';
+export { TEAMS, TEAM_COLOR_VERIFICATION } from './teams.js';
 
 export {
   PLAYERS,
   ROSTER_SOURCED_AT,
   ROSTER_SOURCES,
+  BLOCKED_SOURCES,
   T1_PLAYERS,
   HLE_PLAYERS,
   GENG_PLAYERS,
@@ -49,3 +65,22 @@ export {
 export type { PlayerFilter } from './lookup.js';
 
 export { validateRoster } from './validate.js';
+
+export {
+  VERIFICATION,
+  VERIFIABLE_FIELDS,
+  confidenceOf,
+  sourceCount,
+  unverifiedPlayers,
+  verificationOf,
+  verificationSources,
+  verifiedPlayers,
+} from './verification.js';
+
+export type {
+  Confidence,
+  FieldVerification,
+  PlayerVerification,
+  VerifiableField,
+  VerifiedPlayer,
+} from './verification.js';
