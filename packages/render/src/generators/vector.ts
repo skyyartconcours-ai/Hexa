@@ -18,7 +18,7 @@ import {
   rgba,
   svgDoc,
   renderSvg,
-  toRgbaPng,
+  fromRawCore,
   addLayers,
   softenLayer,
 } from './util.js';
@@ -32,7 +32,7 @@ import {
  * cue that actually sells depth. Each band is blurred independently and the
  * bands are combined additively, because glowing motes add light.
  */
-export const particles: Generator = async (params, size, seed) => {
+export const particles: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const palette = colors(params, 'colors', ['#FFD9A0', '#FF8A3D', '#FFF3E0']);
   const density = num(params, 'density', 1);
@@ -93,8 +93,8 @@ export const particles: Generator = async (params, size, seed) => {
     layers.push(await softenLayer(img, band.sigma));
   }
 
-  return toRgbaPng(await addLayers(w, h, layers));
-};
+  return await addLayers(w, h, layers);
+});
 
 /**
  * rays — volumetric light shafts.
@@ -106,7 +106,7 @@ export const particles: Generator = async (params, size, seed) => {
  * mechanically regular, then the whole layer is blurred: real shafts are the
  * integral of scattered light and have no crisp edge.
  */
-export const rays: Generator = async (params, size, seed) => {
+export const rays: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const rng = createRng(seed).fork(11);
   const origin = vec2(params, 'origin', [0.22, -0.08]);
@@ -146,8 +146,8 @@ export const rays: Generator = async (params, size, seed) => {
 
   const img = await renderSvg(svgDoc(w, h, body.join(''), defs.join('')));
   const soft = await softenLayer(img, Math.max(0.3, diag * 0.004));
-  return toRgbaPng(soft);
-};
+  return soft;
+});
 
 /**
  * speedlines — parallel motion streaks.
@@ -158,7 +158,7 @@ export const rays: Generator = async (params, size, seed) => {
  * baked in by making the streaks thin rather than by blurring, which keeps them
  * crisp along their axis.
  */
-export const speedlines: Generator = async (params, size, seed) => {
+export const speedlines: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const rng = createRng(seed).fork(23);
   const angle = num(params, 'angle', 0);
@@ -190,8 +190,8 @@ export const speedlines: Generator = async (params, size, seed) => {
   }
 
   const body = `<g transform="rotate(${f(-angle)} ${f(cx)} ${f(cy)})">${lines.join('')}</g>`;
-  return toRgbaPng(await renderSvg(svgDoc(w, h, body, defs)));
-};
+  return await renderSvg(svgDoc(w, h, body, defs));
+});
 
 /**
  * grid — tech grid, flat or in floor perspective.
@@ -201,7 +201,7 @@ export const speedlines: Generator = async (params, size, seed) => {
  * horizon rather than as graph paper. Line opacity falls off toward the
  * horizon, which is the depth cue that makes the illusion hold.
  */
-export const grid: Generator = async (params, size, seed) => {
+export const grid: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const rng = createRng(seed).fork(5);
   const color = str(params, 'color', '#5FE3FF');
@@ -259,8 +259,8 @@ export const grid: Generator = async (params, size, seed) => {
     `<stop offset="0" stop-color="${rgba(color, 0)}"/>` +
     `<stop offset="0.5" stop-color="${rgba(color, alpha * 0.7)}"/>` +
     `<stop offset="1" stop-color="${rgba(color, 0)}"/></linearGradient>`;
-  return toRgbaPng(await renderSvg(svgDoc(w, h, parts.join(''), defs)));
-};
+  return await renderSvg(svgDoc(w, h, parts.join(''), defs));
+});
 
 /**
  * shatter — fractured glass.
@@ -270,7 +270,7 @@ export const grid: Generator = async (params, size, seed) => {
  * Every shard gets a faint fill and a bright edge; a handful get a hot glint,
  * which is what makes broken glass read as glass rather than as a mosaic.
  */
-export const shatter: Generator = async (params, size, seed) => {
+export const shatter: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const rng = createRng(seed).fork(31);
   const origin = vec2(params, 'origin', [0.5, 0.46]);
@@ -322,8 +322,8 @@ export const shatter: Generator = async (params, size, seed) => {
     `<radialGradient id="impact"><stop offset="0" stop-color="${rgba(edge, 0.95)}"/>` +
     `<stop offset="1" stop-color="${rgba(edge, 0)}"/></radialGradient>`;
 
-  return toRgbaPng(await renderSvg(svgDoc(w, h, parts.join(''), defs)));
-};
+  return await renderSvg(svgDoc(w, h, parts.join(''), defs));
+});
 
 /**
  * arena — an abstract stage: floor gradient, crowd bokeh band, truss
@@ -333,7 +333,7 @@ export const shatter: Generator = async (params, size, seed) => {
  * is crisp, the crowd is a blurred bokeh field (a real long lens cannot hold
  * both the stage and row 40), and the spotlights are blurred *and* additive.
  */
-export const arena: Generator = async (params, size, seed) => {
+export const arena: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const rng = createRng(seed).fork(47);
   const key = str(params, 'color', '#2E7BFF');
@@ -438,15 +438,15 @@ export const arena: Generator = async (params, size, seed) => {
     ])
     .raw({ depth: 'uchar' })
     .toBuffer({ resolveWithObject: true });
-  return toRgbaPng({ data, width: info.width, height: info.height, channels: info.channels });
-};
+  return { data, width: info.width, height: info.height, channels: info.channels };
+});
 
 /**
  * abstract — a layered graphic backdrop: soft colour fields, angular shards and
  * hairlines. Deliberately low-frequency so it can sit behind a subject without
  * competing with it.
  */
-export const abstract: Generator = async (params, size, seed) => {
+export const abstract: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const rng = createRng(seed).fork(59);
   const palette = colors(params, 'colors', ['#1B2A4A', '#2E7BFF', '#FF3B6B']);
@@ -493,15 +493,15 @@ export const abstract: Generator = async (params, size, seed) => {
     );
   }
 
-  return toRgbaPng(await renderSvg(svgDoc(w, h, body.join(''), defs.join(''))));
-};
+  return await renderSvg(svgDoc(w, h, body.join(''), defs.join('')));
+});
 
 /**
  * bokeh — defocused highlights. The gradient is ring-weighted (brighter at the
  * rim than the centre) because a defocused point source images the aperture,
  * not a gaussian; that ring is why real bokeh looks like coins of light.
  */
-export const bokeh: Generator = async (params, size, seed) => {
+export const bokeh: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const rng = createRng(seed).fork(67);
   const palette = colors(params, 'colors', ['#7FD4FF', '#FFFFFF', '#FFB36B']);
@@ -529,15 +529,15 @@ export const bokeh: Generator = async (params, size, seed) => {
   }
 
   const img = await renderSvg(svgDoc(w, h, body.join(''), defs));
-  return toRgbaPng(await softenLayer(img, Math.max(0.3, Math.min(w, h) * 0.004)));
-};
+  return await softenLayer(img, Math.max(0.3, Math.min(w, h) * 0.004));
+});
 
 /**
  * energy-burst — radial speed streaks from a focal point plus a hot core.
  * Streak length follows a power distribution so a few reach the frame edge
  * while most stay short, which reads as motion rather than as a sunburst.
  */
-export const energyBurst: Generator = async (params, size, seed) => {
+export const energyBurst: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const rng = createRng(seed).fork(71);
   const origin = vec2(params, 'origin', [0.5, 0.5]);
@@ -577,8 +577,8 @@ export const energyBurst: Generator = async (params, size, seed) => {
   body.push(`<circle cx="${f(ox)}" cy="${f(oy)}" r="${f(diag * 0.13)}" fill="url(#core)"/>`);
 
   const img = await renderSvg(svgDoc(w, h, body.join(''), defs.join('')));
-  return toRgbaPng(await softenLayer(img, Math.max(0.3, diag * 0.0025)));
-};
+  return await softenLayer(img, Math.max(0.3, diag * 0.0025));
+});
 
 /**
  * hexgrid — the house tech grid. A honeycomb of pointy-top cells whose opacity
@@ -586,7 +586,7 @@ export const energyBurst: Generator = async (params, size, seed) => {
  * lattice buzzing at once. A radial falloff keeps it out of the centre where a
  * subject usually sits.
  */
-export const hexgrid: Generator = async (params, size, seed) => {
+export const hexgrid: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const rng = createRng(seed).fork(83);
   const noise = createNoise(seed ^ 0x5eed, 64);
@@ -626,5 +626,5 @@ export const hexgrid: Generator = async (params, size, seed) => {
     }
   }
 
-  return toRgbaPng(await renderSvg(svgDoc(w, h, body.join(''), '')));
-};
+  return await renderSvg(svgDoc(w, h, body.join(''), ''));
+});

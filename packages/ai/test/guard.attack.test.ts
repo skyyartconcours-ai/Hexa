@@ -280,6 +280,46 @@ describe('attack: inverting the negative prompt', () => {
   });
 });
 
+describe('attack: reaching the pixels through the cache instead of the provider', () => {
+  it('refuses a person prompt before the cache is consulted, so a warm entry cannot serve it', async () => {
+    // If the guard ran after the cache lookup, a prompt that was legal when it
+    // was cached (or an entry planted by hand) would be served without ever
+    // being re-checked against a tightened guard.
+    let cacheTouched = false;
+    const spy: ImageProvider = {
+      id: 'spy2',
+      capabilities: { backplate: true, identityGuidedEdit: false, inpaint: false, upscale: false, maxSize: { width: 4096, height: 4096 } },
+      isConfigured: () => true,
+      generateBackplate: async (req: BackplateRequest): Promise<GeneratedImage> => ({
+        buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]),
+        width: req.width,
+        height: req.height,
+        provider: 'spy2',
+        model: 'spy2/fake',
+        promptUsed: req.prompt,
+      }),
+    };
+    registerProvider(spy);
+
+    await expect(
+      generateBackplate({
+        prompt: 'a portrait of a player on the arena stage',
+        width: 64,
+        height: 64,
+        provider: 'spy2',
+        // A cache that is asked anything at all would set this.
+        cache: {
+          get enabled(): boolean {
+            cacheTouched = true;
+            return true;
+          },
+        } as never,
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_REQUEST' });
+    expect(cacheTouched, 'the cache was consulted before the prompt was refused').toBe(false);
+  });
+});
+
 // ── 7. The identity-edit prompt path ────────────────────────────────────────
 
 describe('attack: smuggling a new face through an identity edit', () => {

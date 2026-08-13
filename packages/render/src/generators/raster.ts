@@ -10,7 +10,7 @@ import { createRng, parseHex, clamp, smoothstep } from '@hexa/core';
 import type { Generator } from '../types.js';
 import type { RawImage } from '../raw.js';
 import { createNoise } from '../noise.js';
-import { num, str, bool, toRgbaPng } from './util.js';
+import { num, str, bool, fromRawCore } from './util.js';
 
 /**
  * Sample a coherent field at the rate the field actually carries information.
@@ -162,14 +162,13 @@ export function noiseFieldRaw(
 }
 
 /** noise — raw fBm, opaque by default or as an alpha stencil. */
-export const noise: Generator = async (params, size, seed) =>
-  toRgbaPng(
-    noiseFieldRaw(size.width, size.height, seed, num(params, 'scale', 6), Math.round(num(params, 'octaves', 5)), {
-      contrast: num(params, 'contrast', 1),
-      color: str(params, 'color', '#FFFFFF'),
-      asAlpha: bool(params, 'asAlpha', false),
-    }),
-  );
+export const noise: Generator = fromRawCore(async (params, size, seed) =>
+  noiseFieldRaw(size.width, size.height, seed, num(params, 'scale', 6), Math.round(num(params, 'octaves', 5)), {
+    contrast: num(params, 'contrast', 1),
+    color: str(params, 'color', '#FFFFFF'),
+    asAlpha: bool(params, 'asAlpha', false),
+  }),
+);
 
 /**
  * fog — layered atmospheric haze.
@@ -182,7 +181,7 @@ export const noise: Generator = async (params, size, seed) =>
  * Low contrast on purpose: haze that reads as "smoke machine" rather than
  * "cotton wool" spends most of its alpha between 0.05 and 0.4.
  */
-export const fog: Generator = async (params, size, seed) => {
+export const fog: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const density = createNoise(seed, 128);
   const shading = createNoise(seed ^ 0x9e37, 96);
@@ -226,8 +225,8 @@ export const fog: Generator = async (params, size, seed) => {
       data[p + 3] = Math.round(clamp(a, 0, 1) * 255);
     }
   }
-  return toRgbaPng({ data, width: w, height: h, channels: 4 });
-};
+  return { data, width: w, height: h, channels: 4 };
+});
 
 /**
  * smoke — fog's angrier sibling.
@@ -236,7 +235,7 @@ export const fog: Generator = async (params, size, seed) => {
  * billowing symmetrically, plus a height-dependent horizontal shear that makes
  * columns lean as they rise. Higher contrast and a rising density profile.
  */
-export const smoke: Generator = async (params, size, seed) => {
+export const smoke: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const field = createNoise(seed, 160);
   const { r, g, b } = parseHex(str(params, 'color', '#C8CDD6'));
@@ -270,8 +269,8 @@ export const smoke: Generator = async (params, size, seed) => {
       data[p + 3] = Math.round(clamp(a, 0, 1) * 255);
     }
   }
-  return toRgbaPng({ data, width: w, height: h, channels: 4 });
-};
+  return { data, width: w, height: h, channels: 4 };
+});
 
 /**
  * scanlines — CRT/broadcast texture.
@@ -280,7 +279,7 @@ export const smoke: Generator = async (params, size, seed) => {
  * horribly once the frame is downsampled), per-line brightness jitter from the
  * seeded RNG, and an optional chroma offset that mimics a mistimed shadow mask.
  */
-export const scanlines: Generator = async (params, size, seed) => {
+export const scanlines: Generator = fromRawCore(async (params, size, seed) => {
   const { width: w, height: h } = size;
   const rng = createRng(seed).fork(97);
   const spacing = Math.max(2, num(params, 'spacing', 4));
@@ -308,5 +307,5 @@ export const scanlines: Generator = async (params, size, seed) => {
       data[p + 3] = Math.round(a * 255);
     }
   }
-  return toRgbaPng({ data, width: w, height: h, channels: 4 });
-};
+  return { data, width: w, height: h, channels: 4 };
+});

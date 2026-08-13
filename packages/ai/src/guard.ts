@@ -647,12 +647,9 @@ export function assertNegativePromptSafe(negativePrompt: string | undefined): vo
     }
   }
 
-  if (CAMERA_ADDRESS.test(normalised)) {
-    // "looking at camera" as an *exclusion* is fine in principle, but only as a
-    // bare term — which the length rule above already permits. Anything longer
-    // has already been refused, so reaching here means it is a phrase.
-    return;
-  }
+  // Person terms are *expected* here — "people, person, face, portrait" is what
+  // this list is for — so no term scan runs. The shape rules above are what
+  // keep it from becoming a second prompt.
 }
 
 /**

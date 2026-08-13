@@ -252,12 +252,15 @@ export async function identityGuidedEdit(req: IdentityEditRouteRequest): Promise
   const hit = await readCache(key, req.cache);
   if (hit) {
     log.debug(`identity edit cache hit (${provider.id})`, { key });
-    return hit;
+    return { ...hit, requiresIdentityVerification: true };
   }
 
   const image = await provider.identityGuidedEdit(stripRouting(req));
   await writeCache(key, image, req.cache);
-  return image;
+  // These bytes carry a face a model has touched. The guard bounded the risk;
+  // only the identity gate can settle it, and the result says so about itself
+  // rather than leaving the caller to remember.
+  return { ...image, requiresIdentityVerification: true };
 }
 
 function stripRouting<T extends { provider?: string; cache?: AiCacheOptions }>(req: T): Omit<T, 'provider' | 'cache'> {

@@ -94,6 +94,19 @@ export interface GeneratedImage {
   promptUsed: string;
   /** Some providers rewrite the prompt before sampling; keep it for the render plan. */
   revisedPrompt?: string;
+  /**
+   * True when a generative model has touched pixels containing a face, so these
+   * bytes carry an identity claim nothing has checked yet.
+   *
+   * `guardIdentityEdit` caps `strength` and requires the face to be protected by
+   * `preserve` and by the mask, but a capped edit is a *bound on the risk*, not
+   * a guarantee about the result: no strength setting makes a diffusion model
+   * promise the jawline survived. The only thing that settles it is embedding
+   * the output and comparing it to the reference gallery — `@hexa/qa`'s
+   * identityGate. This flag exists so a caller cannot mistake "the edit was
+   * allowed" for "the person is still the person".
+   */
+  requiresIdentityVerification?: boolean;
 }
 
 export interface ImageProvider {

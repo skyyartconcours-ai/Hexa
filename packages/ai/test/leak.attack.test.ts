@@ -23,7 +23,7 @@ import sharp from 'sharp';
 import { OpenAiProvider } from '../src/providers/openai.js';
 import { StabilityProvider } from '../src/providers/stability.js';
 import { ReplicateProvider } from '../src/providers/replicate.js';
-import { readCache, writeCache } from '../src/cache.js';
+import { cacheKey, readCache, writeCache } from '../src/cache.js';
 
 const realFetch = globalThis.fetch;
 
@@ -210,6 +210,31 @@ describe('attack: cache keys that escape the cache directory', () => {
 
     const hit = await readCache(ESCAPE_KEY, { dir: cacheDir, enabled: true });
     expect(hit, 'the cache served a file from outside its directory').toBeUndefined();
+  });
+
+  it('gives structurally different requests different keys', async () => {
+    // A key collision would serve one request's pixels for another's prompt.
+    // The parts are hashed as a structure, not concatenated, so a value cannot
+    // impersonate a field boundary.
+    const base = { kind: 'backplate', provider: 'stub', width: 1280, height: 720 };
+    const keys = new Set(
+      [
+        { ...base, prompt: 'a,b', negativePrompt: 'c' },
+        { ...base, prompt: 'a', negativePrompt: 'b,c' },
+        { ...base, prompt: 'a', negativePrompt: 'b', seed: 1 },
+        { ...base, prompt: 'a', negativePrompt: 'b', seed: 2 },
+        { ...base, prompt: 'ab', negativePrompt: '' },
+        { ...base, prompt: 'a', style: 'arena' },
+        { ...base, prompt: 'a', style: 'cyber' },
+      ].map(cacheKey),
+    );
+    expect(keys.size).toBe(7);
+  });
+
+  it('produces keys that stay inside the cache directory', () => {
+    for (const parts of [{ prompt: '../../etc/passwd' }, { prompt: '\\..\\..\\x' }, { prompt: 'a/b/c' }]) {
+      expect(cacheKey(parts)).toMatch(/^[0-9a-f]{40}$/);
+    }
   });
 
   it('keeps working for well-formed keys', async () => {

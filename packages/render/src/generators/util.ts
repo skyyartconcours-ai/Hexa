@@ -14,7 +14,44 @@
 import sharp from 'sharp';
 import { parseHex, clamp } from '@hexa/core';
 import { type RawImage, toRaw, rawToSharp } from '../raw.js';
+import type { Generator } from '../types.js';
 import { timed } from '../profile.js';
+
+/**
+ * A generator's actual output, before anyone asks for a file format.
+ *
+ * `Generator` is defined as returning a PNG, which is the right public contract
+ * — a generator is a *source of an image*, and callers outside the compositor
+ * (previews, tooling, tests) want bytes they can write to disk. But the
+ * compositor immediately decodes what it is given, so a plan with nine
+ * generated layers was paying nine PNG encodes and nine PNG decodes of
+ * full-canvas RGBA for pixels that never left the process.
+ *
+ * So every built-in generator is authored as a `RawGenerator` and published
+ * through {@link fromRawCore}, which wraps it in the PNG contract *and* records
+ * the raw core in a side table. `resolveSource` looks the core up and skips the
+ * round trip; a generator registered from outside simply has no core and takes
+ * the normal path. The public surface does not change.
+ */
+export type RawGenerator = (
+  params: Record<string, unknown>,
+  size: Size,
+  seed: number,
+) => Promise<RawImage>;
+
+const RAW_CORES = new WeakMap<Generator, RawGenerator>();
+
+/** Publish a raw generator under the public PNG-returning contract. */
+export function fromRawCore(core: RawGenerator): Generator {
+  const gen: Generator = async (params, size, seed) => toRgbaPng(await core(params, size, seed));
+  RAW_CORES.set(gen, core);
+  return gen;
+}
+
+/** The raw core behind a generator, when it has one. */
+export function rawCoreFor(gen: Generator): RawGenerator | undefined {
+  return RAW_CORES.get(gen);
+}
 
 export interface Size {
   width: number;

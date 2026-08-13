@@ -393,19 +393,20 @@ const versusClash: ThumbnailTemplate = {
         z: Z.atmosphereBack + 1,
         meta: { fx: 'radial-glow', fill: 'accent' },
       }),
-      inwardBust('subject-left', { x: -0.1, y: 0.04, w: 0.62, h: 0.96 }, 'right', {
+      // The aggressor: further forward, so the collision has a direction.
+      inwardBust('subject-left', { x: -0.08, y: 0.05, w: 0.58, h: 0.95 }, 'right', {
         z: Z.subject,
         anchor: 'bottom-left',
         focal: { x: 0.7, y: 0.31 },
         constraints: { faceKeepIn: { x: 0.16, y: 0.18, w: 0.34, h: 0.32 } },
-        meta: { preferFacing: 'right', faceHeight: 0.28, rimAngle: 190, side: 'left' },
+        meta: { preferFacing: 'right', faceHeight: 0.28, rimAngle: 190, side: 'left', depth: 'front' },
       }),
-      inwardBust('subject-right', { x: 0.48, y: 0.04, w: 0.62, h: 0.96 }, 'left', {
+      inwardBust('subject-right', { x: 0.52, y: 0.11, w: 0.53, h: 0.89 }, 'left', {
         z: Z.subject + 1,
         anchor: 'bottom-right',
         focal: { x: 0.3, y: 0.31 },
-        constraints: { faceKeepIn: { x: 0.5, y: 0.18, w: 0.34, h: 0.32 } },
-        meta: { preferFacing: 'left', faceHeight: 0.28, rimAngle: 350, side: 'right' },
+        constraints: { faceKeepIn: { x: 0.52, y: 0.22, w: 0.32, h: 0.3 } },
+        meta: { preferFacing: 'left', faceHeight: 0.26, rimAngle: 350, side: 'right', depth: 'back' },
       }),
       fxSlot('impact-burst', { x: 0.16, y: 0.02, w: 0.68, h: 0.72 }, {
         z: Z.atmosphereFront,
@@ -827,19 +828,19 @@ const versusFireIce: ThumbnailTemplate = {
         z: Z.atmosphereBack + 1,
         meta: { fx: 'heat-distortion', amount: 0.35 },
       }),
-      inwardBust('subject-left', { x: -0.03, y: 0.06, w: 0.53, h: 0.94 }, 'right', {
+      inwardBust('subject-left', { x: -0.01, y: 0.09, w: 0.47, h: 0.91 }, 'right', {
         z: Z.subject,
         anchor: 'bottom-left',
         rotation: -3,
         focal: { x: 0.62, y: 0.29 },
-        meta: { preferFacing: 'right', faceHeight: 0.26, temperature: 'hot', rimAngle: 205 },
+        meta: { preferFacing: 'right', faceHeight: 0.26, temperature: 'hot', rimAngle: 205, depth: 'front' },
       }),
-      inwardBust('subject-right', { x: 0.5, y: 0.06, w: 0.53, h: 0.94 }, 'left', {
+      inwardBust('subject-right', { x: 0.55, y: 0.15, w: 0.43, h: 0.85 }, 'left', {
         z: Z.subject + 1,
         anchor: 'bottom-right',
         rotation: 3,
         focal: { x: 0.38, y: 0.29 },
-        meta: { preferFacing: 'left', faceHeight: 0.26, temperature: 'cold', rimAngle: 335 },
+        meta: { preferFacing: 'left', faceHeight: 0.24, temperature: 'cold', rimAngle: 335, depth: 'back' },
       }),
       fxSlot('embers', { x: -0.05, y: -0.05, w: 0.62, h: 1.1 }, {
         z: Z.atmosphereFront,
