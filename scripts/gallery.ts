@@ -70,11 +70,42 @@ interface Rendered {
   id: string;
   path: string;
   qa: number;
+  /** Mean of the gates that judge *craft* — see CRAFT_GATES. */
+  craft: number;
   appeal: number;
   passed: boolean;
   findings: string[];
   width: number;
   height: number;
+}
+
+/**
+ * The gates that measure design, as opposed to provenance.
+ *
+ * Hexa ships no player photography, so every render in this gallery is backed
+ * by a schematic placeholder — and `identity`, `likeness` and `license` all
+ * correctly refuse to certify a synthetic stand-in as a picture of a real
+ * person. Those verdicts are right, and they are also completely insensitive to
+ * composition: they read the same on a beautiful layout and an ugly one. Left in
+ * the headline number they swamp it, and a design pass has no signal to steer
+ * by. So they are reported separately rather than removed, and the craft mean is
+ * what this harness is actually for.
+ */
+const CRAFT_GATES = new Set([
+  'legibility',
+  'contrast',
+  'safe-zone',
+  'face-placement',
+  'clutter',
+  'color-harmony',
+  'banding',
+  'duplicate',
+]);
+
+function craftScore(gateScores: Record<string, number>): number {
+  const own = Object.entries(gateScores).filter(([id]) => CRAFT_GATES.has(id));
+  if (!own.length) return 0;
+  return (own.reduce((a, [, v]) => a + v, 0) / own.length) * 100;
 }
 
 async function renderOne(entry: Entry, index: number): Promise<Rendered | undefined> {
@@ -96,12 +127,13 @@ async function renderOne(entry: Entry, index: number): Promise<Rendered | undefi
     const best = result.variants[result.bestIndex]!;
     const meta = await sharp(best.path).metadata();
     const failed = (best.qa.findings ?? [])
-      .filter((f) => f.severity === 'fail' || f.severity === 'warn')
+      .filter((f) => (f.severity === 'fail' || f.severity === 'warn') && CRAFT_GATES.has(f.gate))
       .map((f) => `${f.gate}: ${f.message}`);
     return {
       id: name,
       path: best.path,
       qa: best.qa.score,
+      craft: craftScore(best.qa.gateScores ?? {}),
       appeal: best.appeal,
       passed: best.qa.passed,
       findings: failed,
@@ -136,11 +168,11 @@ async function contactSheet(items: Rendered[], cols: number, cellW: number): Pro
       .toBuffer();
     composites.push({ input: cell, left: x, top: y });
 
-    const tone = item.qa >= 70 ? '#6EE7A0' : item.qa >= 55 ? '#FFD166' : '#FF6B6B';
+    const tone = item.craft >= 80 ? '#6EE7A0' : item.craft >= 65 ? '#FFD166' : '#FF6B6B';
     const caption = `<svg width="${cellW}" height="${captionH}" xmlns="http://www.w3.org/2000/svg">
       <rect width="${cellW}" height="${captionH}" fill="#141418"/>
       <text x="6" y="18" font-family="monospace" font-size="13" fill="#E8E8EC">${item.id}</text>
-      <text x="${cellW - 6}" y="18" text-anchor="end" font-family="monospace" font-size="13" fill="${tone}">qa ${item.qa.toFixed(0)} · ap ${item.appeal.toFixed(0)}</text>
+      <text x="${cellW - 6}" y="18" text-anchor="end" font-family="monospace" font-size="13" fill="${tone}">craft ${item.craft.toFixed(0)} · ap ${item.appeal.toFixed(0)}</text>
     </svg>`;
     composites.push({ input: Buffer.from(caption), left: x, top: y + cellH });
   }
@@ -170,9 +202,9 @@ async function main(): Promise<void> {
     const out = await renderOne(entry, i);
     if (!out) continue;
     rendered.push(out);
-    const tone = out.qa >= 70 ? GREEN : out.qa >= 55 ? '' : RED;
+    const tone = out.craft >= 80 ? GREEN : out.craft >= 65 ? '' : RED;
     console.log(
-      `${out.passed ? GREEN + '✓' : RED + '✗'}${RESET} ${out.id.padEnd(26)} ${tone}qa ${out.qa.toFixed(0).padStart(3)}${RESET}  appeal ${out.appeal.toFixed(0).padStart(3)}  ${DIM}${((performance.now() - t0) / 1000).toFixed(1)}s${RESET}`,
+      `${out.passed ? GREEN + '✓' : RED + '✗'}${RESET} ${out.id.padEnd(26)} ${tone}craft ${out.craft.toFixed(0).padStart(3)}${RESET}  qa ${out.qa.toFixed(0).padStart(3)}  appeal ${out.appeal.toFixed(0).padStart(3)}  ${DIM}${((performance.now() - t0) / 1000).toFixed(1)}s${RESET}`,
     );
     for (const f of out.findings.slice(0, 4)) console.log(`    ${DIM}${f}${RESET}`);
   }
@@ -193,9 +225,10 @@ async function main(): Promise<void> {
   }
 
   const mean = rendered.reduce((a, b) => a + b.qa, 0) / rendered.length;
+  const meanCraft = rendered.reduce((a, b) => a + b.craft, 0) / rendered.length;
   const meanAppeal = rendered.reduce((a, b) => a + b.appeal, 0) / rendered.length;
   console.log(
-    `\n${rendered.length} renders · mean qa ${mean.toFixed(1)} · mean appeal ${meanAppeal.toFixed(1)} · ${rendered.filter((r) => r.passed).length} passing`,
+    `\n${rendered.length} renders · mean craft ${meanCraft.toFixed(1)} · mean qa ${mean.toFixed(1)} · mean appeal ${meanAppeal.toFixed(1)} · ${rendered.filter((r) => r.passed).length} passing`,
   );
   console.log(`${DIM}contact sheet → ${join(OUT, 'contact-sheet.png')}${RESET}\n`);
 }

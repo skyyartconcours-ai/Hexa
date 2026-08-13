@@ -101,8 +101,9 @@ hexa preview hero-portrait --out ./out/first   # try a template with no argument
 ```
 
 `hexa qa` exits `9` when an image does not pass, which is what a publish job
-should block on. Full exit-code table: `hexa --help` and
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+should block on. `hexa --help` prints the whole exit-code table; the short
+version is 0 done, 2 bad command, 3–7 not found, 8–9 failed quality, 10–12
+provider or sidecar, 13–15 local failure, 130 interrupted.
 
 Everything supports `--json` for scripting (stdout carries the document and
 nothing else), `--no-color`, and `NO_COLOR`.

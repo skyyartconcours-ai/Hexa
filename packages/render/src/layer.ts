@@ -52,6 +52,25 @@ export interface RenderedLayer {
   rect: PixelRect;
 }
 
+/**
+ * Does this layer's own appearance depend on what is underneath it?
+ *
+ * Only light wrap reads `ctx.backdrop`, and only two things ask for one: an
+ * explicit `lightWrap` spec, or a `rimLight` (which implies a modest automatic
+ * wrap — see `EffectsWithWrap`). Everything else is a pure function of the
+ * layer, the canvas and the seed.
+ *
+ * That distinction is what lets `renderPlan` prepare layers ahead of their turn:
+ * a layer that answers `false` here can be rendered at any time, in any order,
+ * and still produce exactly the same pixels.
+ */
+export function layerReadsBackdrop(layer: Layer): boolean {
+  const fx = layer.effects as EffectsWithWrap | undefined;
+  if (!fx) return false;
+  if (fx.lightWrap === false) return false;
+  return Boolean(fx.lightWrap || fx.rimLight);
+}
+
 async function extendRaw(img: RawImage, pad: number): Promise<RawImage> {
   const { data, info } = await rawToSharp(img)
     .extend({ top: pad, bottom: pad, left: pad, right: pad, background: { r: 0, g: 0, b: 0, alpha: 0 } })

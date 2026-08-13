@@ -7,11 +7,21 @@
  *
  * Two decisions worth calling out.
  *
- * **Progressive compositing.** Layers are composited one at a time into a
- * single raw accumulator and released immediately. Peak memory is therefore
- * `accumulator + one layer` (≈ 33 MB + layer at 1920×1080 with 2× supersample)
- * regardless of layer count, instead of the ~1.3 GB a 40-layer plan would need
- * if every layer were decoded up front.
+ * **Progressive compositing, with a small lookahead.** Layers are composited one
+ * at a time into a single raw accumulator and released immediately, so peak
+ * memory is bounded by the accumulator plus the handful of layers in flight —
+ * not by the layer count. A 40-layer plan would need ~1.3 GB if every layer were
+ * decoded up front.
+ *
+ * The lookahead is what keeps four cores busy. Compositing must stay strictly
+ * sequential in z (that is what compositing *means*), but *preparing* a layer —
+ * decoding its source, running its effect stack — is a pure function of the
+ * layer, the canvas and the seed for every layer that does not read the
+ * backdrop, which is all of them except light wrap. Those are started up to
+ * `LOOKAHEAD` positions early, so a libvips blur on one layer overlaps the
+ * JavaScript effect loop of another instead of idling behind it. Order,
+ * seeding and therefore output bytes are unchanged: the same plan renders
+ * byte-identically with the lookahead set to 1.
  *
  * **Downsample before grade.** Supersampling exists to kill *geometric*
  * aliasing — cutout edges, hairlines, rotated text — so it is resolved as soon
@@ -31,7 +41,7 @@ import {
 } from '@hexa/core';
 import type { RenderOptions, RenderContext } from './types.js';
 import { type RawImage, solidRaw, rawToSharp, scaleAlpha } from './raw.js';
-import { renderLayerRaw, layerOpacity } from './layer.js';
+import { renderLayerRaw, layerOpacity, layerReadsBackdrop } from './layer.js';
 import { compositeLayer } from './blend.js';
 import { applyGradeRaw } from './grade.js';
 import { exportRaw, debugOverlaySvg } from './export.js';

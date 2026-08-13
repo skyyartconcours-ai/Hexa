@@ -36,10 +36,14 @@ async function main(argv: string[]): Promise<number> {
     // exitOverride; they are successful outcomes, not failures.
     const commanderCode = (error as { code?: string }).code;
     if (commanderCode === 'commander.helpDisplayed' || commanderCode === 'commander.help' || commanderCode === 'commander.version') {
-      // Help and version print through `writeOut`; nothing should be waiting on
-      // the error channel, and if it is, it is the after-error hint we replace.
-      drainCommanderOutput();
-      return EXIT_OK;
+      // Asked-for help prints through `writeOut` and leaves nothing buffered.
+      // Help that commander *decided* to show — `hexa assets` with no
+      // subcommand — comes through the error channel with a non-zero code, and
+      // has to be re-emitted or the command would print nothing at all.
+      const pending = drainCommanderOutput();
+      const exitCode = (error as { exitCode?: number }).exitCode ?? 0;
+      if (pending) process.stderr.write(pending);
+      return exitCode === 0 ? EXIT_OK : EXIT_USAGE;
     }
     if (commanderCode === 'commander.executeSubCommandAsync') return EXIT_OK;
     if (typeof commanderCode === 'string' && commanderCode.startsWith('commander.')) {
