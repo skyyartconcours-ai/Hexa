@@ -15,7 +15,7 @@ export type { RenderedError } from './exit.js';
 export { createUi, glyphs } from './ui/style.js';
 export type { Ui } from './ui/style.js';
 export { createSpinner, createProgressBar } from './ui/progress.js';
-export { renderTable, formatBytes, formatDuration, formatScore, visibleLength, truncateVisible } from './ui/table.js';
+export { renderTable, formatBytes, formatDuration, formatScore, visibleLength, truncateVisible, displayPath } from './ui/table.js';
 export type { Column } from './ui/table.js';
 
 export { parseYaml, YamlError } from './io/yaml.js';

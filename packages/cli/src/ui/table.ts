@@ -6,6 +6,8 @@
  * usually come out ragged the moment anything is coloured.
  */
 
+import nodePath from 'node:path';
+
 export interface Column<T> {
   header: string;
   /** Cell text. May contain colour escapes; width is measured without them. */
@@ -81,6 +83,19 @@ export function renderTable<T>(rows: readonly T[], columns: readonly Column<T>[]
   );
 
   return [indent + styled, ...body.map((line) => indent + line)].join('\n');
+}
+
+/**
+ * The shorter of the relative and absolute forms of a path.
+ *
+ * `path.relative` alone turns an output directory outside the project into
+ * `../../../tmp/…`, which is longer than the absolute path and harder to read.
+ * Whichever is shorter is the one a person can actually use.
+ */
+export function displayPath(file: string, from = process.cwd()): string {
+  const relative = nodePath.relative(from, file);
+  if (relative === '') return '.';
+  return relative.length < file.length && !relative.startsWith(`..${nodePath.sep}..`) ? relative : file;
 }
 
 /** `1.2 MB`, `840 kB` — base-10, matching what a file manager shows. */

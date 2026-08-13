@@ -13,7 +13,7 @@ import type { QaFinding, QaReport, ThumbnailJobResult } from '@hexa/core';
 import { assets as assetsAdapter, qa as qaAdapter } from '@hexa/pipeline/integration';
 import type { AssetLibrary } from '@hexa/pipeline';
 import type { CliContext } from '../context.js';
-import { formatDuration, formatScore } from '../ui/table.js';
+import { displayPath, formatDuration, formatScore } from '../ui/table.js';
 
 export async function reportJob(ctx: CliContext, result: ThumbnailJobResult, library?: AssetLibrary): Promise<void> {
   const credit = await creditFor(result, library);
@@ -48,14 +48,14 @@ export async function reportJob(ctx: CliContext, result: ThumbnailJobResult, lib
     const axes = describeAxes(variant.plan.meta['variant']);
 
     ctx.say(
-      `  ${mark} ${ui.bold(path.relative(process.cwd(), variant.path))}${star}\n` +
+      `  ${mark} ${ui.bold(displayPath(variant.path))}${star}\n` +
         `      qa ${formatScore(variant.qa.score, ui)}   appeal ${formatScore(variant.appeal, ui)}   ` +
         `${ui.dim(`seed ${variant.seed}`)}${axes ? `   ${ui.dim(axes)}` : ''}`,
     );
   }
 
   if (result.contactSheetPath) {
-    ctx.say(`\n  ${glyph.arrow} contact sheet ${ui.bold(path.relative(process.cwd(), result.contactSheetPath))}`);
+    ctx.say(`\n  ${glyph.arrow} contact sheet ${ui.bold(displayPath(result.contactSheetPath))}`);
   }
 
   const best = result.variants[result.bestIndex];

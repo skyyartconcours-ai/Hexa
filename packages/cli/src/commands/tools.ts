@@ -16,7 +16,7 @@ import { ai, data, qa as qaAdapter, templates as templatesAdapter } from '@hexa/
 import { createContext, globalsFrom, type CliContext } from '../context.js';
 import { loadRequests } from '../io/request-file.js';
 import { createProgressBar } from '../ui/progress.js';
-import { formatDuration, formatScore, renderTable } from '../ui/table.js';
+import { displayPath, formatDuration, formatScore, renderTable } from '../ui/table.js';
 import { formatFinding, reportJob, topFindings } from './report.js';
 import { parseCount } from './gen.js';
 
@@ -171,7 +171,7 @@ the render is CPU-bound, so more is usually slower on a laptop.`)
           continue;
         }
         const mark = best.qa.passed ? ctx.ui.ok(ctx.glyph.ok) : ctx.ui.warn(ctx.glyph.warn);
-        ctx.say(` ${mark} ${ctx.ui.bold(label.padEnd(28))} ${formatScore(best.qa.score, ctx.ui)}  ${ctx.ui.dim(path.relative(process.cwd(), best.path))}`);
+        ctx.say(` ${mark} ${ctx.ui.bold(label.padEnd(28))} ${formatScore(best.qa.score, ctx.ui)}  ${ctx.ui.dim(displayPath(best.path))}`);
       }
 
       ctx.say(`\n ${ctx.ui.bold(`${summary.succeeded}/${summary.total}`)} succeeded, ` +
@@ -368,7 +368,7 @@ function printReport(
   }
 
   if (proofPath) {
-    ctx.say(`\n ${glyph.arrow} proof sheet ${ui.bold(path.relative(process.cwd(), proofPath))} ${ui.dim('— check it reads at the small sizes')}`);
+    ctx.say(`\n ${glyph.arrow} proof sheet ${ui.bold(displayPath(proofPath))} ${ui.dim('— check it reads at the small sizes')}`);
   }
 }
 
