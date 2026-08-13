@@ -79,14 +79,17 @@ rendering, so CI can gate on it.
 hexa gen Peyz Viper --title "RIVALS" --variants 2 --plan --out ./out/first
 ```
 
-About fifteen seconds later you have `out/first/thumbnail-v01.png` and
-`-v02.png` at 1280×720, each with its `RenderPlan` beside it (`--plan`), and a
-report saying which variant scored best.
+A few seconds later (the first run is slower — it warms a cache) you have
+`out/first/thumbnail-v01.png` and `-v02.png` at 1280×720, each with its
+`RenderPlan` beside it thanks to `--plan`, and a report saying which variant
+scored best.
 
-**Expect the QA gates to complain on this first run.** Both subjects rendered as
-schematic placeholder silhouettes, because you have no reference photography yet
-— the run tells you so, and says what to ingest. The picture is real; the
-likeness is not there yet.
+**Expect the report to fail this first render, and read why.** With no reference
+photography in the library, both subjects were drawn as schematic placeholder
+silhouettes, so the likeness gate refuses it: the image names two players it does
+not actually show. That is the tool working — the picture is real, the likeness
+is not there yet, and nothing that claims a face it does not have is allowed out
+quietly. Treat this one as a layout proof, and add photographs next.
 
 **5 — Look at what you got.**
 

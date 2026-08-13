@@ -18,6 +18,15 @@
  * declare the truth: mark the subject `anonymous` (a silhouette treatment the
  * caller has chosen and is not passing off as a likeness), or ingest a licensed
  * photograph. Both are honest; shipping a named placeholder is not.
+ *
+ * Overlap with the identity gate is deliberate, and so is the disagreement.
+ * Identity flags a placeholder it can see in `subject.assets`, at warning level
+ * unless the request asked for publish-grade provenance. This gate reads the
+ * *plan's* own record as well (`meta.placeholders`, which the pipeline writes
+ * whether or not the caller passes assets through), and it vetoes every time,
+ * because "publish-grade" is a property of the request and "this is not that
+ * person" is a property of the picture. A render nobody marked publish-grade
+ * still ends up in a channel by being a file on disk.
  */
 
 import type { QaFinding, ReferenceAsset } from '@hexa/core';

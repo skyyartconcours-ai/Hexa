@@ -24,7 +24,7 @@ import type { RenderContext } from './types.js';
 import { type RawImage, toRaw, solidRaw } from './raw.js';
 import { resolveGenerator, generatorIds } from './generators/index.js';
 import { noiseFieldRaw } from './generators/raster.js';
-import { f, svgDoc } from './generators/util.js';
+import { f, svgDoc, rawCoreFor } from './generators/util.js';
 import { timed } from './profile.js';
 
 function fail(layer: Layer, message: string, hint?: string, cause?: unknown): never {
@@ -191,6 +191,15 @@ export async function resolveSource(
         );
       }
       try {
+        // Built-in generators publish a raw core behind the PNG contract (see
+        // `fromRawCore`), so the compositor can take the pixels straight out
+        // instead of encoding a PNG only to decode it again on the next line.
+        const core = rawCoreFor(gen);
+        if (core) {
+          return await timed(`gen:${src.generatorId}`, width * height, () =>
+            core(src.params ?? {}, { width, height }, layerSeed(ctx, layer)),
+          );
+        }
         const png = await timed(`gen:${src.generatorId}`, width * height, () =>
           gen(src.params ?? {}, { width, height }, layerSeed(ctx, layer)),
         );

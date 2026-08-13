@@ -40,7 +40,13 @@ Get started:
   $ hexa gen Peyz Viper --title "RIVALS"         make one
 
 With no photographs on file, subjects render as schematic placeholders and
-everything still works — see \`hexa assets\` to add references.`;
+everything still works — see \`hexa assets\` to add references.
+
+Exit codes, for scripting:
+  0   done          2      the request or the command line was wrong
+  3–7 not found     8–9    made, but failed quality (identity, QA)
+  10–12 provider or sidecar problem      13–15 local failure (render, fonts, disk)
+  130 interrupted — any half-written image is removed before exit`;
 
 export function buildProgram(): Command {
   const program = new Command();

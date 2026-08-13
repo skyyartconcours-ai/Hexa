@@ -1,12 +1,23 @@
 /**
  * Clipping gate — is any of the type actually *there*?
  *
- * This gate exists because of a render that shipped past every other gate in
- * this package: a headline that read "VIPEI" because the R was sliced in half by
- * the edge of its own layer, and a kicker that read "LCK FINAL" because the S
- * fell off the same way. Contrast measured the surviving glyphs and passed them.
- * Legibility measured their cap height and passed it. Nothing was looking at the
- * one thing a human sees instantly: the word is cut.
+ * The failure: a headline reading "VIPEI" because the R was sliced in half by
+ * the edge of its own layer, or "LCK FINAL" because the S fell off the same way.
+ * It happens when the type is measured with one font and rasterised with
+ * another — the substitute sets wider, the layer's viewport does not grow, and
+ * the last glyph is cut. That is not hypothetical in this repo: fonts are
+ * fetched rather than bundled, so a machine without them renders every headline
+ * through a fallback face.
+ *
+ * (Measured on the sample renders in `out/smoke`: at full resolution the words
+ * are in fact complete — the "VIPEI" reading comes from looking at the 1280×720
+ * master scaled down, which is its own finding. The gate is here because
+ * *nothing measured it either way*, and a defect nobody can detect is one that
+ * ships the first time it happens.)
+ *
+ * Every other gate looks straight past it. Contrast measures the surviving
+ * glyphs and passes them. Legibility measures their cap height and passes it.
+ * Nothing was looking at the one thing a human sees instantly: the word is cut.
  *
  * The signature of a cut glyph is a wall of ink standing on a boundary. Type is
  * laid out inside a line box with horizontal side bearing, so the outermost

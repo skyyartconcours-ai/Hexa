@@ -98,6 +98,43 @@ describe('attack: a mask that repaints the face while `preserve` claims to prote
   });
 });
 
+describe('an edited plate says it still needs verifying', () => {
+  it('marks the result of an identity edit as unverified', async () => {
+    const { identityGuidedEdit, registerProvider, resetProviders } = await import('../src/registry.js');
+    const image = await plate();
+    registerProvider({
+      id: 'editor-test',
+      capabilities: { backplate: false, identityGuidedEdit: true, inpaint: false, upscale: false, maxSize: { width: 4096, height: 4096 } },
+      isConfigured: () => true,
+      generateBackplate: async () => {
+        throw new Error('not used');
+      },
+      identityGuidedEdit: async () => ({
+        buffer: Buffer.from([1, 2, 3]),
+        width: W,
+        height: H,
+        provider: 'editor-test',
+        model: 'editor/fake',
+        promptUsed: 'x',
+      }),
+    });
+    try {
+      const out = await identityGuidedEdit({
+        image,
+        prompt: 'cool the background',
+        strength: 0.5,
+        preserve: [FACE],
+        provider: 'editor-test',
+        cache: { enabled: false },
+      });
+      // "The edit was allowed" must never be mistaken for "the face survived".
+      expect(out.requiresIdentityVerification).toBe(true);
+    } finally {
+      resetProviders();
+    }
+  });
+});
+
 describe('attack: preserve regions measured against the real image', () => {
   it('refuses a preserve box that falls outside the image', async () => {
     const image = await plate();
