@@ -19,7 +19,7 @@
  * angles differently, `rimFor` is the one place to reconcile it.
  */
 
-import { hexToOklab, mix, rotateHue, saturate, shade, withAlpha } from '@hexa/core';
+import { mix, saturate, shade, withAlpha } from '@hexa/core';
 import type { AtmosphereSpec, GradeSpec, LightRig, StyleSpec } from '@hexa/core';
 import { rimColorFor } from './palette.js';
 import type { ResolvedPalette, VariantAxes } from './types.js';
@@ -89,48 +89,6 @@ export interface RimSpec {
  * scales with the composite instead of being a fixed number that is invisible at
  * 1280 and a stripe at 2560
  */
-/**
- * Below this hue separation (degrees, measured in OKLab) two rim lights read as
- * one colour, and the "two lights fighting across the frame" effect collapses
- * into a single warm wash.
- */
-const MIN_RIM_HUE_SEPARATION = 42;
-
-function hueOf(hex: string): number {
-  const { a, b } = hexToOklab(hex);
-  return (Math.atan2(b, a) * 180) / Math.PI;
-}
-
-/** Smallest signed rotation from `from` to `to`, in degrees. */
-function hueDelta(from: number, to: number): number {
-  return ((((to - from) % 360) + 540) % 360) - 180;
-}
-
-/**
- * Force the two rims apart when the brands are too close to oppose each other.
- *
- * The palette resolver already guarantees the two *team* colours are separable
- * as fills, but separable is not the same as opposed: an LCK final between a red
- * org and an orange one gives two warm rims, and the composite reads as one
- * light source with a wide spread rather than two players lit against each
- * other. Every real key art solves this the same way — one side is pushed cool
- * and the other warm — so that is what happens here, symmetrically, and only
- * when the brands leave no separation of their own.
- *
- * Only the *rim* moves. The fills, the colour blocking and the nameplates keep
- * the true brand colours, so the teams stay correctly branded while the light
- * on them tells the story.
- */
-function opposeRim(color: string, side: 'left' | 'right' | 'center', palette: ResolvedPalette): string {
-  if (side === 'center') return color;
-  const separation = Math.abs(hueDelta(hueOf(palette.left), hueOf(palette.right)));
-  if (separation >= MIN_RIM_HUE_SEPARATION) return color;
-
-  // Split the shortfall between the two sides so neither brand is favoured.
-  const push = (MIN_RIM_HUE_SEPARATION - separation) / 2 + 12;
-  return saturate(rotateHue(color, side === 'left' ? push : -push), 1.08);
-}
-
 export function rimFor(
   side: 'left' | 'right' | 'center',
   palette: ResolvedPalette,
@@ -139,7 +97,7 @@ export function rimFor(
   subjectWidth: number,
 ): RimSpec {
   const profile = rigProfile(rig);
-  const color = axes.rim === 'unified' ? rimColorFor(side, palette, axes.rim) : opposeRim(rimColorFor(side, palette, axes.rim), side, palette);
+  const color = rimColorFor(side, palette, axes.rim);
 
   // A rim from the opposite side of where the subject sits: light crosses the
   // frame between them, which is what makes the two subjects feel adjacent

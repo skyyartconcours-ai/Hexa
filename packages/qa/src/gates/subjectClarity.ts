@@ -32,8 +32,18 @@ import { YOUTUBE_DISPLAY_SIZES } from '../sizes.js';
 const DARK_RANK = 0.15;
 /** Luma delta (0–1) between subject and surround that reads as separation. */
 const MIN_SEPARATION = 0.06;
-/** RMS contrast inside a face at sidebar size, below which it is a smudge. */
-const MIN_SMALL_STRUCTURE = 0.055;
+/**
+ * RMS contrast inside a face at sidebar size, below which it is a smudge.
+ *
+ * Measured at 168×94 on what this repo can produce: the sample renders' faces
+ * come out at 0.185 and 0.234, a lit synthetic subject at 0.235, a *dim* but
+ * fully-featured one at 0.059, and a featureless slab at 0.021. The floor sits
+ * below the dim-but-real case on purpose — a low-key grade is a legitimate look
+ * and must not be read as a defect, so this catches the collapse rather than the
+ * darkness. It has not been calibrated against real photographic renders, which
+ * is the calibration that would matter most and which this repo cannot do yet.
+ */
+const MIN_SMALL_STRUCTURE = 0.04;
 /** Mean absolute difference between two faces at feed size, 0–255. */
 const SAME_FACE = 3;
 const TWIN_FACE = 8;

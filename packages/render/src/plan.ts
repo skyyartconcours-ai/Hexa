@@ -43,7 +43,7 @@ import {
 import type { RenderOptions, RenderContext } from './types.js';
 import { type RawImage, solidRaw, rawToSharp, scaleAlpha } from './raw.js';
 import { renderLayerRaw, layerOpacity, layerReadsBackdrop } from './layer.js';
-import { compositeLayer } from './blend.js';
+import { compositeLayers, type CompositeOp } from './blend.js';
 import { applyGradeRaw } from './grade.js';
 import { exportRaw, debugOverlaySvg } from './export.js';
 import { timed } from './profile.js';
@@ -58,6 +58,16 @@ import { timed } from './profile.js';
  * behaviour, and produces identical bytes.
  */
 const LOOKAHEAD = Math.max(1, Math.min(4, availableParallelism()));
+
+/**
+ * How many bytes of finished layers may wait to be composited in one batch.
+ *
+ * 48 MB is twelve full-frame layers at 1280×720 and three at 2560×1440 — enough
+ * that a typical plan composites in two or three libvips calls instead of
+ * thirty, while the resident cost stays in the same order as the accumulator
+ * itself.
+ */
+const QUEUE_BYTES = 48 * 1024 * 1024;
 
 export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Promise<RenderResult> {
   const started = performance.now();
@@ -144,13 +154,36 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
   // early. The window is small on purpose: it exists to keep libvips and the
   // JavaScript effect loops overlapping, and every extra slot is another decoded
   // layer held in memory.
+  const positionOf = new Map<string, number>();
+  ordered.forEach((l, i) => positionOf.set(l.id, i));
+
   const prepared = new Map<number, Promise<{ image: RawImage; rect: PixelRect } | null>>();
   const prefetch = (index: number): void => {
     const layer = ordered[index];
     if (!layer || prepared.has(index) || layerReadsBackdrop(layer)) return;
+    // Wait, if this layer is stencilled by a layer that composites *below* it:
+    // running early would ask for that mask before the layer it is made from has
+    // been rendered, and the mask would be rendered from scratch — trading a few
+    // milliseconds of overlap for a second full render of what is usually the
+    // most expensive layer in the plan.
+    const maskId = layer.maskLayerId;
+    if (maskId && !maskCache.has(maskId) && (positionOf.get(maskId) ?? Infinity) < index) return;
     const task = renderLayerRaw(layer, canvas, { ...ctx, backdrop: undefined });
     task.catch(() => {}); // failure surfaces where the layer is awaited
     prepared.set(index, task);
+  };
+
+  // Finished layers queue up and go onto the accumulator in one libvips call
+  // (see `compositeLayers`). The queue is bounded by bytes rather than by layer
+  // count so a 2560×1440 plan does not hold ten times the memory a 720p one
+  // does, and it is settled whenever a layer needs to *read* the composite.
+  const queue: CompositeOp[] = [];
+  let queuedBytes = 0;
+  const flushQueue = async (): Promise<RawImage> => {
+    if (queue.length === 0) return acc;
+    const batch = queue.splice(0, queue.length);
+    queuedBytes = 0;
+    return compositeLayers(acc, batch, logger);
   };
 
   const tLayers = performance.now();
@@ -165,6 +198,9 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
       prepared.delete(index);
       rendered = await early;
     } else {
+      // This layer looks at what is under it, so everything under it has to be
+      // there: settle the queue before handing over the accumulator.
+      acc = await flushQueue();
       ctx.backdrop = acc;
       rendered = await renderLayerRaw(layer, canvas, ctx);
     }
@@ -192,9 +228,12 @@ export async function renderPlan(plan: RenderPlan, opts: RenderOptions = {}): Pr
       continue;
     }
     const image = opacity < 1 ? scaleAlpha(rendered.image, opacity) : rendered.image;
-    acc = await compositeLayer(acc, image, rendered.rect.x, rendered.rect.y, layer.blend, logger);
+    queue.push({ image, left: rendered.rect.x, top: rendered.rect.y, mode: layer.blend });
+    queuedBytes += image.data.length;
     timings[`layer:${layer.id}`] = performance.now() - t;
+    if (queuedBytes >= QUEUE_BYTES) acc = await flushQueue();
   }
+  acc = await flushQueue();
   ctx.backdrop = undefined;
   timings.layers = performance.now() - tLayers;
 

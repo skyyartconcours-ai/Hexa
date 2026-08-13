@@ -144,6 +144,29 @@ describe('false positive: a legitimately dark, low-saturation grade', () => {
   });
 });
 
+describe('false positive: a dim but fully-featured subject', () => {
+  const FACE = { x: 0.16, y: 0.18, w: 0.2, h: 0.3 };
+
+  it('is not called a smudge at feed size just for being dark', async () => {
+    // 0.059 RMS inside the face at 168×94 — a low-key grade, not a collapse.
+    // The featureless version of the same subject measures 0.021.
+    const findings = await subjectClarityGate.run(
+      ctx(await subjectOnField({ faceRect: FACE, subjectLuma: 70, bgLuma: 30 }), {
+        subjects: [{ playerId: 'p', handle: 'Peyz', faceRect: FACE }],
+      }),
+    );
+    expect(fails(findings)).toEqual([]);
+  });
+
+  it('still catches a face with no internal structure at all', async () => {
+    const flat = await subjectOnField({ faceRect: FACE, subjectLuma: 120, bgLuma: 118, detail: false });
+    const findings = await subjectClarityGate.run(
+      ctx(flat, { subjects: [{ playerId: 'p', handle: 'Peyz', faceRect: FACE }] }),
+    );
+    expect(findings.some((f) => f.severity !== 'pass')).toBe(true);
+  });
+});
+
 describe('false positive: a single-subject hero layout', () => {
   const HERO = { x: 0.36, y: 0.14, w: 0.28, h: 0.42 };
 
