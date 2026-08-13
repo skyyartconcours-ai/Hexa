@@ -20,7 +20,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
-import type { AssetKind, AssetMetrics, AssetProvenance, PlayerId, ReferenceAsset, TeamId } from '@hexa/core';
+import type { AssetKind, AssetMetrics, AssetProvenance, LicenseKind, PlayerId, ReferenceAsset, TeamId } from '@hexa/core';
 import { HexaError } from '@hexa/core';
 import type { AssetLibrary } from './library.js';
 import { isReservedFile, isSupportedImage, slugify } from './paths.js';
@@ -42,8 +42,11 @@ export const DEFAULT_DUPLICATE_DISTANCE = 6;
 
 // ── pixel statistics ─────────────────────────────────────────────────────────
 
+/** Anything decodable: a path on disk or the bytes themselves. */
+export type ImageSource = string | Buffer | Uint8Array;
+
 /**
- * Real, ML-free metrics for an image file.
+ * Real, ML-free metrics for an image.
  *
  *  - `width`/`height` — true pixel dimensions, EXIF orientation applied (a
  *    portrait phone shot reports portrait, not the landscape sensor frame).

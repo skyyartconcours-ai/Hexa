@@ -153,7 +153,7 @@ export function isPublishable(a: ReferenceAsset): boolean {
  * an explicit `provenance.credit` was recorded — an operator who chose to
  * credit a CC0 photographer gets their wish honoured.
  */
-export function creditLine(assets: ReferenceAsset[], opts: { prefix?: string } = {}): string {
+export function creditLine(assets: readonly ReferenceAsset[], opts: { prefix?: string } = {}): string {
   const prefix = opts.prefix ?? 'Photos';
   const entries = new Map<string, string>(); // lowercased key → display form
 
@@ -218,7 +218,7 @@ export function publishBlockers(a: ReferenceAsset): string[] {
  * Extra obligations the *output* inherits from the assets used — surfaced next
  * to a finished render so the operator knows what ships with it.
  */
-export function licenceObligations(assets: ReferenceAsset[]): string[] {
+export function licenceObligations(assets: readonly ReferenceAsset[]): string[] {
   const out = new Set<string>();
   for (const a of assets ?? []) {
     const rule = licenceRule(a?.provenance?.license ?? 'unverified');
@@ -234,7 +234,7 @@ export function licenceObligations(assets: ReferenceAsset[]): string[] {
  *
  * @throws HexaError `NO_CLEARED_ASSET`
  */
-export function assertPublishable(assets: ReferenceAsset[]): void {
+export function assertPublishable(assets: readonly ReferenceAsset[]): void {
   const bad = (assets ?? []).filter((a) => !isPublishable(a));
   if (bad.length === 0) return;
   throw new HexaError(

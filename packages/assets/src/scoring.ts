@@ -347,7 +347,7 @@ export function explainScore(a: ReferenceAsset, q: AssetQuery = {}, now: number 
  * Rank best-first. Ties break on intrinsic quality, then id, so ordering is
  * total and stable — two runs of the same pipeline pick the same photo.
  */
-export function rankAssets(list: ReferenceAsset[], q: AssetQuery = {}, now: number = Date.now()): ReferenceAsset[] {
+export function rankAssets(list: readonly ReferenceAsset[], q: AssetQuery = {}, now: number = Date.now()): ReferenceAsset[] {
   const scored = (list ?? []).map((a) => ({ a, s: explainScore(a, q, now) }));
   scored.sort((x, y) => {
     if (y.s.total !== x.s.total) return y.s.total - x.s.total;

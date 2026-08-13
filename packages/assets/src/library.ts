@@ -304,13 +304,18 @@ export class AssetLibrary {
    * a hand-edited manifest must not be able to point the renderer at
    * `../../../etc/passwd`.
    *
+   * A bare library-relative string is accepted too, for callers holding a path
+   * (`asset.cutoutPath`) rather than the whole record; containment is enforced
+   * identically either way.
+   *
    * @throws HexaError `IO_ERROR` on traversal, `ASSET_NOT_FOUND` when a cutout
    * was requested but none has been generated.
    */
-  resolvePath(asset: ReferenceAsset, which: 'source' | 'cutout' = 'source'): string {
+  resolvePath(asset: ReferenceAsset | string, which: 'source' | 'cutout' = 'source'): string {
     if (!asset) {
       throw new HexaError('ASSET_NOT_FOUND', 'resolvePath called without an asset');
     }
+    if (typeof asset === 'string') return resolveInRoot(this.#root, asset, 'path');
     if (which === 'cutout') {
       if (!asset.cutoutPath) {
         throw new HexaError('ASSET_NOT_FOUND', `Asset ${asset.id} has no cutout yet`, {
@@ -506,9 +511,13 @@ export class AssetLibrary {
    *   `missing-kind:<kind>`     a template-critical kind is absent
    *   `low-quality`             best asset is below COVERAGE_MIN_QUALITY
    *   `no-cutout`               no pre-computed alpha cutout yet
+   *
+   * Called with no argument it reports on every player the library already has
+   * assets for — which is what `hexa doctor` wants.
    */
-  coverage(playerIds: string[]): CoverageReport[] {
-    return (playerIds ?? []).map((playerId) => {
+  coverage(playerIds?: string[]): CoverageReport[] {
+    const ids = playerIds ?? this.#knownPlayerIds();
+    return ids.map((playerId) => {
       const owned = [...this.#assets.values()].filter((a) => a.playerId === playerId);
       const cleared = owned.filter((a) => isPublishable(a));
       const bestQuality = owned.reduce((max, a) => Math.max(max, this.#baseQuality(a)), 0);
@@ -530,6 +539,13 @@ export class AssetLibrary {
   }
 
   // ── internals ──────────────────────────────────────────────────────────────
+
+  /** Every playerId that owns at least one asset, in stable order. */
+  #knownPlayerIds(): string[] {
+    const ids = new Set<string>();
+    for (const a of this.#assets.values()) if (a.playerId) ids.add(a.playerId);
+    return [...ids].sort((a, b) => a.localeCompare(b, 'en'));
+  }
 
   /** Recomputed rather than trusted: a stale manifest must not skew ranking. */
   #baseQuality(a: ReferenceAsset): number {
