@@ -15,7 +15,7 @@ last run unless a comparison is being drawn:
 |---|---|---|
 | 1 | pre-`fc588a5` | no design fonts installed |
 | 2 | `fc588a5` | design fonts landed in `assets/fonts/` |
-| 3 | `8ead214` | 14 QA gates (was 10), new scoring policy, faster renderer |
+| 3 | `7fa5b64` | 14 QA gates (was 10), new scoring policy, ~3× faster renderer |
 
 Run 3's scores are **not** comparable to runs 1–2: four gates were added
 (`likeness`, `clipping`, `subject-clarity`, `fx-dominance`), the weights were
@@ -45,8 +45,8 @@ one of them is about design.**
    [The identity guarantee does not run](#the-identity-guarantee-does-not-run).
 
 2. **The designs are not good enough yet.** All 33 renders fail the tool's own
-   quality gates, in every run: QA mean **34.2/100** at run 3 (49.8 under run
-   2's looser scoring), no render above 40, 291 hard failures. The gates are
+   quality gates, in every run: QA mean **33.4/100** at run 3 (49.8 under run
+   2's looser scoring), no render above 40, 296 hard failures. The gates are
    right. See [Design quality](#design-quality).
 
 The engineering underneath is genuinely strong: the render stack, the QA gates,
@@ -393,11 +393,11 @@ Full data in `out/showcase/index.json`; contact sheets in `out/showcase/sheets/`
 
 ```
 renders          33/33
-QA score         mean 34.2   median 34   range 26–40
-appeal score     mean 79.7   median 82   range 64–95
+QA score         mean 33.4   median 34   range 26–40
+appeal score     mean 79.3   median 80   range 64–92
 passed QA        0 / 33
-hard failures    291
-time per case    median 3.0s  (range 1.5–10.7s, single variant unless noted)
+hard failures    296
+time per case    median 2.5s  (range 1.6–13.6s, single variant unless noted)
 ```
 
 Per gate, run 3, across all 33:
@@ -405,17 +405,17 @@ Per gate, run 3, across all 33:
 | gate | pass | warn | fail | mean score |
 |---|---:|---:|---:|---:|
 | likeness | 0 | 0 | **112** | 0.000 |
-| legibility | 20 | 96 | **104** | 0.237 |
-| contrast | 85 | 8 | **63** | 0.217 |
-| banding | 0 | 33 | 0 | 0.014 |
+| legibility | 20 | 94 | **102** | 0.243 |
+| contrast | 86 | 6 | **64** | 0.219 |
+| banding | 0 | 33 | 0 | 0.040 |
 | identity | 0 | 79 | 0 | 0.250 |
 | safe-zone | 8 | 63 | 0 | 0.375 |
+| clipping | 121 | 21 | 14 | 0.629 |
 | face-placement | 52 | 30 | 4 | 0.637 |
-| subject-clarity | 27 | 6 | 0 | 0.738 |
-| fx-dominance | 10 | 23 | 0 | 0.742 |
-| clipping | 129 | 22 | 8 | 0.746 |
-| color-harmony | 28 | 5 | 0 | 0.851 |
-| clutter | 25 | 8 | 0 | 0.917 |
+| fx-dominance | 33 | 0 | 0 | 0.702 |
+| subject-clarity | 28 | 5 | 0 | 0.783 |
+| clutter | 26 | 7 | 0 | 0.833 |
+| color-harmony | 28 | 5 | 0 | 0.852 |
 | licence / duplicate | 33 | 0 | 0 | 1.000 |
 
 Three things to read out of that table.
@@ -429,14 +429,15 @@ from. Its message is worth quoting in full:
 > the thumbnail depicts nobody at all, while naming Peyz and Viper.
 
 That is exactly true, and it is now in the report rather than only in a warning.
-It also means 112 of the 291 hard failures are a single, correctly-diagnosed
+It also means 112 of the 296 hard failures are a single, correctly-diagnosed
 fact — no photographs — and would clear the moment real references are ingested.
 
-**Legibility improved and is still the largest real problem.** 192 → 104 hard
-failures between runs, entirely from the design fonts landing. 104 remain.
+**Legibility improved and is still the largest real problem.** 192 → 102 hard
+failures between runs, entirely from the design fonts landing. 102 remain, and
+they are the single biggest thing standing between this and a shippable set.
 
-**The appeal heuristic disagrees with every other measurement.** QA 34.2 against
-appeal 79.7 — and the three lowest-QA renders in the library score 92, 93 and 84
+**The appeal heuristic disagrees with every other measurement.** QA 33.4 against
+appeal 79.3 — and the three lowest-QA renders in the library score 82, 89 and 92
 on appeal. Anyone reading only the appeal number would conclude the product is
 working. The docstring says it is a design heuristic and not a click-through
 prediction; it is worth going further and not surfacing it beside a QA score at
@@ -488,7 +489,7 @@ real photograph would obviously change the answer, it is noted.
 These are also, independently, the five lowest QA scores in run 3 — the gates
 and the eye agree.
 
-**1. `lineup-hero-flank` — 2/10. QA 26, the lowest in the library.**
+**1. `lineup-hero-flank` — 2/10. QA 26, joint lowest in the library.**
 `out/showcase/team-versus/lineup-hero-flank-kc-g2.png`. It has the best colour
 separation in the whole set — KC cyan against G2 red is the only pairing that
 reads as an opposition at a glance — and it puts **the wrong name under each
@@ -497,23 +498,24 @@ Hans Sama, labelled BROKENBLADE. See [defect 1](#1-the-wrong-name-under-the-wron
 The six flanking subjects are 48px tall — the `face-placement` gate fails them
 outright at "roughly 6px in the sidebar". Fix the naming and this is a 6.
 
-**2. `versus-diagonal-shatter` — 1/10. QA 29.**
+**2. `versus-diagonal-shatter` — 1/10. QA 29, appeal 92.**
 `out/showcase/versus/versus-diagonal-shatter-faker-chovy.png`. The "steep
 corner-to-corner tear with shattered glass" is a single unmodulated diagonal
 line. There is no tear, no glass, no shards. "FAKER" is jammed into the top-left
 corner on top of the T1 badge; "GAME 5" and "CHOVY" fight each other along the
 bottom edge; an empty white badge plate floats top-right. The template does not
-implement its own description. Appeal scores it 92.
+implement its own description.
 
-**3. `controversy-split` — 2/10. QA 29.**
+**3. `controversy-split` — 2/10.**
 `out/showcase/drama/controversy-split-faker-chovy.png`. "THE FALLOUT" runs
 across both panels and over the left subject's head. The `left-name` text lands
 directly on the placeholder's own nameplate. A cream rectangle — another empty
 slot plate — sits over the right subject's chest, with a stray `?` glyph beside
-it. Appeal scores this 93, the highest in the library, which is the clearest
-single demonstration of how far that heuristic can be from the truth.
+it. Appeal has scored this render 88–93 across every run — at or near the top of
+the library — which is the clearest single demonstration of how far that
+heuristic can be from the truth.
 
-**4. `stat-compare` — 2/10. QA 29.**
+**4. `stat-compare` — 2/10.**
 `out/showcase/stat/stat-compare-peyz-viper.png`. Both subjects render at roughly
 15% opacity in grey-blue — T1's red and HLE's orange are gone entirely. "BY THE
 NUMBERS" and the stat "4.8 /…" collide in the middle of the frame, and the stat
@@ -522,13 +524,13 @@ present, so the eye goes to the floor. For a template whose job is "two columns
 of figures divided by a centre rule", the figures are the least visible thing in
 it.
 
-**5. `watchparty-live` — 1/10. QA 34, appeal 64 — the lowest combined.**
+**5. `watchparty-live` — 1/10. Appeal 64, the lowest in the library.**
 `out/showcase/stream/watchparty-live-caps.png`. Two empty white boxes (badge and
 date). The subject is a small salmon rectangle in a red frame in the lower left,
 at maybe 18% of frame height. The right third is three stacked pills, one of
 which is one of the empty boxes. There is no focal point anywhere in the frame.
 
-**Dishonourable mention: `lineup-5v5`.** QA 34, and structurally the band
+**Dishonourable mention: `lineup-5v5`.** QA 29, appeal 91, and structurally the band
 composition is the soundest in the library — but ten subjects across 1280px
 gives each about 120px, and at 168×94 each becomes a 12px blob. The proof sheet
 (`out/showcase/proof/lineup-5v5-t1-geng.proof.png`) shows only "THE CLASSICO"
@@ -620,10 +622,11 @@ that.
 | `tournament-preview` | Nothing reads. 35% edge density — noise. |
 | `watchparty-live` | "WATCHING LEC" survives; the right-hand pills merge into one bar. |
 
-The measured numbers say every one of these is `legible`, `holds up`. Looking at
-the sheets, that is not true for at least three of them. The image-level check
-and the text-level gate disagree by 192 findings, and the image-level one is the
-optimist.
+The measured numbers say every one of these is `legible`, `holds up` — all ten
+renders proofed, at all four sizes, with no exceptions. Looking at the sheets,
+that is not true for at least three of them. The image-level check and the
+text-level gate disagree by 102 findings on the same images, and the image-level
+one is the optimist.
 
 Where the legibility gate is right, it is very specific and worth quoting:
 
@@ -753,20 +756,25 @@ In the order I would do it:
    already exist.
 2. One constant: default the vision endpoint to 8765 and accept both variable
    names. Without this, (1) still does not fire.
-3. Wire `registerProtectedNames` to the roster and add the missing person terms.
+3. Wire `registerProtectedNames` to the roster. The function is written; give it
+   a caller.
 4. Fix the name/slot derivation in `lineup-hero-flank` and anywhere else names
-   are derived by side rather than by assignment.
-5. Raise `MIN_SIDE_SEPARATION` to ~0.30 with a hue-rotation fallback, and raise
-   minimum face height to 35% of canvas in single-subject layouts. These two
-   changes alone should move the QA mean substantially, because
-   `legibility` and `face-placement` are where the failures are.
-6. Fix badge text colour, then delete or rebuild the five worst templates.
-7. Fix the safe-zone gate's subject/text confusion so the reports are readable
-   again.
+   are derived by side rather than by slot assignment.
+5. Two one-line typography fixes worth more than they look: make `autoFit` shrink
+   before it ellipsises, and raise `stat-record`'s `stat: maxChars` above 4. That
+   alone removes visible truncation from about a third of the library.
+6. Choose badge/kicker/stat/rank colour by contrast against the plate. Removes an
+   empty white box from twelve templates.
+7. Raise `MIN_SIDE_SEPARATION` from 0.14 to ~0.30 with a hue-rotation fallback,
+   and raise minimum face height to 35% of canvas in single-subject layouts.
+   `legibility` and `face-placement` are where the failures live.
+8. Fix the safe-zone gate's subject/text confusion so 76% of its findings stop
+   being noise, then delete or rebuild the five worst templates.
 
-Steps 1–4 are seams between working components — each is small, and each closes
-a gap between what the documentation says and what the code does. Step 5 onward
-is design work, and it is the larger of the two jobs.
+Steps 1–6 are seams and single-line calibrations between components that already
+work — a day's work between them, and each closes a gap between what the
+documentation says and what the code does. Steps 7–8 are design work, and that
+is the larger of the two jobs.
 
 ---
 

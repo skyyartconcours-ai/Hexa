@@ -172,6 +172,23 @@ describe('lightWrap', () => {
     }
   });
 
+  it('leaves alpha exactly as it found it', async () => {
+    // The compositor reuses a layer's finished render as the mask other layers
+    // stencil against, which is only sound because light wrap — the one effect
+    // that reads the backdrop — adds light *inside* the silhouette and never
+    // reshapes it. If that ever stops being true, the mask reuse in plan.ts is
+    // no longer equivalent and this test is where it will show up first.
+    const src = await subject(40);
+    const before = await toRaw(src);
+    const after = await toRaw(await lightWrap(src, await plate({ r: 255, g: 210, b: 90 }), { radius: 12, intensity: 1 }));
+    let changed = 0;
+    for (let i = 0; i < W * H; i++) {
+      expect(after.data[i * 4 + 3]).toBe(before.data[i * 4 + 3]);
+      if (after.data[i * 4] !== before.data[i * 4]) changed++;
+    }
+    expect(changed).toBeGreaterThan(0); // …and it did do something
+  });
+
   it('resizes a mismatched backdrop instead of failing', async () => {
     const src = await subject(40);
     const bg = await sharp({ create: { width: 40, height: 500, channels: 4, background: { r: 0, g: 0, b: 255, alpha: 1 } } })

@@ -201,6 +201,8 @@ export async function subjectOnField(opts: {
   subjectLuma2?: number;
   /** Internal detail inside the face box, so it is not a flat slab. */
   detail?: boolean;
+  /** Saturated accent block, so the frame is not a greyscale study. */
+  accent?: string;
   w?: number;
   h?: number;
 }): Promise<Buffer> {
@@ -219,10 +221,44 @@ export async function subjectOnField(opts: {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
     <rect width="${w}" height="${h}" fill="${grey(opts.bgLuma)}"/>
     <rect x="0" y="0" width="${w}" height="${h * 0.55}" fill="${grey(opts.bgLuma * 1.08)}"/>
+    ${opts.accent ? `<rect x="${w * 0.52}" y="0" width="${w * 0.48}" height="${h}" fill="${opts.accent}" opacity="0.85"/>` : ''}
     ${face(opts.faceRect, opts.subjectLuma)}
     ${opts.faceRect2 ? face(opts.faceRect2, opts.subjectLuma2 ?? opts.subjectLuma) : ''}
   </svg>`;
   return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+/** The headline slot used by {@link goodRender}. */
+export const GOOD_HEADLINE = { x: 640, y: 470, w: 560, h: 120 };
+/** The face rect used by {@link goodRender}. */
+export const GOOD_FACE = { x: 0.16, y: 0.18, w: 0.2, h: 0.3 };
+
+/**
+ * A render with nothing wrong with it: lit subject against a dark plate, a
+ * saturated accent, and a short headline sitting comfortably inside its box.
+ *
+ * Exists so "one defect tanks the score" can be measured as a *difference*. It
+ * scores in the nineties and passes every gate, which is the only baseline
+ * against which a veto's effect on the total means anything.
+ */
+export async function goodRender(): Promise<Buffer> {
+  const base = await subjectOnField({
+    faceRect: GOOD_FACE,
+    subjectLuma: 195,
+    bgLuma: 38,
+    accent: '#E4002B',
+  });
+  return textInBox(base, { text: 'FINAL', rect: GOOD_HEADLINE, inset: 14, color: '#FFFFFF' });
+}
+
+/** GateContext for {@link goodRender}, with the plan records the compiler writes. */
+export function goodContext(image: Buffer, overrides: Partial<GateContext> = {}): GateContext {
+  return ctx(image, {
+    plan: planWithText([{ role: 'headline', rect: GOOD_HEADLINE, color: '#FFFFFF', text: 'FINAL' }]),
+    textRects: [{ role: 'headline', rect: GOOD_HEADLINE }],
+    subjects: [{ playerId: 'peyz', handle: 'Peyz', faceRect: GOOD_FACE }],
+    ...overrides,
+  });
 }
 
 /** Deterministic unit-length embedding. */

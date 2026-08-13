@@ -647,6 +647,15 @@ const routes: Record<string, (req: IncomingMessage, res: ServerResponse, url: UR
   },
 };
 
+/** Percent-decode, or return the raw text when the escape is malformed. */
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 /** Namespaced so a proof sheet can never be mistaken for a render, or chained. */
 const PROOF_SUFFIX = '-proof';
 const proofKeyFor = (key: string): string => `${key}${PROOF_SUFFIX}`;
@@ -669,7 +678,9 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
 
     if (url.pathname.startsWith('/api/image/')) {
-      const key = decodeURIComponent(url.pathname.slice('/api/image/'.length));
+      // `decodeURIComponent` throws URIError on a malformed escape like `%zz`,
+      // which would otherwise surface as a 500 for what is plainly a 404.
+      const key = safeDecode(url.pathname.slice('/api/image/'.length));
       // Map lookup only — the key indexes an in-memory store and is never
       // joined onto a filesystem path, so there is nothing here to traverse.
       const buf = images.get(key);

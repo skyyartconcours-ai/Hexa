@@ -131,21 +131,21 @@ const versusClassic: ThumbnailTemplate = {
       // it looks like it needs to be at 100%, and the plate is wider than the
       // type so the glyphs always have a clean dark field around them instead
       // of sitting half on the subject's shoulder.
-      shapeSlot('plate-left', { x: 0.045, y: 0.685, w: 0.35, h: 0.145 }, {
+      shapeSlot('plate-left', { x: 0.04, y: 0.672, w: 0.36, h: 0.168 }, {
         z: Z.shape + 1,
-        opacity: 0.88,
+        opacity: 0.95,
         meta: { shape: 'bar', fill: 'dark', skew: 0.03 },
       }),
-      shapeSlot('plate-right', { x: 0.605, y: 0.685, w: 0.35, h: 0.145 }, {
+      shapeSlot('plate-right', { x: 0.6, y: 0.672, w: 0.36, h: 0.168 }, {
         z: Z.shape + 2,
-        opacity: 0.88,
+        opacity: 0.95,
         meta: { shape: 'bar', fill: 'dark', skew: -0.03 },
       }),
-      shapeSlot('plate-rule-left', { x: 0.045, y: 0.677, w: 0.35, h: 0.009 }, {
+      shapeSlot('plate-rule-left', { x: 0.04, y: 0.664, w: 0.36, h: 0.009 }, {
         z: Z.shape + 3,
         meta: { shape: 'rule', fill: 'left' },
       }),
-      shapeSlot('plate-rule-right', { x: 0.605, y: 0.677, w: 0.35, h: 0.009 }, {
+      shapeSlot('plate-rule-right', { x: 0.6, y: 0.664, w: 0.36, h: 0.009 }, {
         z: Z.shape + 4,
         meta: { shape: 'rule', fill: 'right' },
       }),

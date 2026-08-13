@@ -218,6 +218,15 @@ describe('/api/image — an in-memory key, not a filesystem path', () => {
     }
   });
 
+  it('answers a malformed percent-escape with 404, not 500', async () => {
+    // `decodeURIComponent('%zz')` throws URIError; an unguarded decode turns a
+    // plainly-absent key into an internal error.
+    for (const key of ['%zz', '%', '%e0%a4%a', 'a%2']) {
+      const raw = await rawRequest(`GET /api/image/${key} HTTP/1.1`, { host: '127.0.0.1' });
+      expect(statusOf(raw)).toBe(404);
+    }
+  });
+
   it('serves stored bytes with nosniff, so a PNG cannot be read as HTML', async () => {
     images.set('test-key', Buffer.from('\x89PNG\r\n\x1a\nfake'));
     const r = await fetch(`${base}/api/image/test-key`);

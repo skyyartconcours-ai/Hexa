@@ -14,16 +14,12 @@ import type { QaFinding } from '@hexa/core';
 import { FAIL_CEILING, GATES, UNCHECKED_CEILING, aggregate, registerGate, runGates } from '../src/registry.js';
 import { FAILED_CAP, scoreAppeal } from '../src/appeal.js';
 import type { Gate } from '../src/types.js';
-import { cleanComposition, ctx, flatBackground, withText } from './helpers.js';
+import { cleanComposition, flatBackground, goodContext, goodRender, withText } from './helpers.js';
 
 const HEADLINE = { x: 200, y: 300, w: 560, h: 110 };
 
 async function scene() {
-  const image = await withText(await cleanComposition(), { text: 'GRAND FINAL', color: '#FFFFFF', rect: HEADLINE });
-  return ctx(image, {
-    textRects: [{ role: 'headline', rect: HEADLINE }],
-    subjects: [{ playerId: 'peyz', handle: 'Peyz', faceRect: { x: 0.28, y: 0.2, w: 0.16, h: 0.24 } }],
-  });
+  return goodContext(await goodRender());
 }
 
 function stub(id: string, findings: QaFinding[], weight = 1): Gate {
