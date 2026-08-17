@@ -75,6 +75,15 @@ export interface UiState extends ObsSettings {
   guides: boolean
   /** numéroteur : relier automatiquement la pastille N à N+1 */
   linkBadges: boolean
+  /**
+   * Menu radial : afficher les DOUZE outils au lieu des sept essentiels.
+   *
+   * COUPÉ par défaut. Une roue à douze secteurs demande de viser ; à sept,
+   * chaque secteur est large et se prend sans regarder — ce qui est tout
+   * l'intérêt du geste quand on annote en plein direct. Les cinq autres
+   * restent accessibles au clavier et depuis la barre.
+   */
+  radialAllTools: boolean
   /** numéroteur : poursuivre la numérotation d'une couleur à l'autre
    *  (coupé = chaque couleur repart de 1, ce qui est le cas d'usage courant) */
   badgeContinuous: boolean
@@ -113,6 +122,8 @@ export interface UiState extends ObsSettings {
   spotlightRadius: number
   /** sons génératifs : COUPÉS par défaut (§16.7) */
   sound: boolean
+  /** true dès que l'utilisateur a lui-même actionné l'interrupteur des sons */
+  soundChosen: boolean
   /** volume des sons génératifs (0 → 1) */
   soundVolume: number
   settingsOpen: boolean
@@ -192,6 +203,7 @@ export interface UiState extends ObsSettings {
   toggleGuides: () => void
   toggleLinkBadges: () => void
   toggleBadgeContinuous: () => void
+  toggleRadialAllTools: () => void
   toggleHandwriting: () => void
   toggleLexicon: () => void
   toggleLexiconCategory: (id: CategorieId) => void
@@ -250,6 +262,7 @@ export const useUiStore = create<UiState>()(
       guides: true,
       linkBadges: true,
       badgeContinuous: false,
+      radialAllTools: false,
       handwriting: false,
       lexicon: true,
       lexiconCategories: [...CATEGORIES_DEFAUT],
@@ -261,6 +274,7 @@ export const useUiStore = create<UiState>()(
       spotlightRadius: 180,
       // §16.7 : aucun son par défaut, c'est une option qu'on choisit d'allumer
       sound: false,
+      soundChosen: false,
       soundVolume: 0.6,
       settingsOpen: false,
       cheatsheetOpen: false,
@@ -299,6 +313,7 @@ export const useUiStore = create<UiState>()(
       toggleGuides: () => set((s) => ({ guides: !s.guides })),
       toggleLinkBadges: () => set((s) => ({ linkBadges: !s.linkBadges })),
       toggleBadgeContinuous: () => set((s) => ({ badgeContinuous: !s.badgeContinuous })),
+      toggleRadialAllTools: () => set((s) => ({ radialAllTools: !s.radialAllTools })),
       toggleHandwriting: () => set((s) => ({ handwriting: !s.handwriting })),
       toggleLexicon: () => set((s) => ({ lexicon: !s.lexicon })),
       toggleLexiconCategory: (id) =>
@@ -314,7 +329,7 @@ export const useUiStore = create<UiState>()(
         set({ effectIntensity: Math.min(1.4, Math.max(0.4, Math.round(value * 20) / 20)) }),
       toggleArrowPulse: () => set((s) => ({ arrowPulse: !s.arrowPulse })),
       setSpotlightRadius: (r) => set({ spotlightRadius: Math.min(500, Math.max(80, Math.round(r))) }),
-      toggleSound: () => set((s) => ({ sound: !s.sound })),
+      toggleSound: () => set((s) => ({ sound: !s.sound, soundChosen: true })),
       setSoundVolume: (v) => set({ soundVolume: Math.min(1, Math.max(0, v)) }),
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
       setCheatsheetOpen: (cheatsheetOpen) => set({ cheatsheetOpen }),
@@ -418,6 +433,7 @@ export const useUiStore = create<UiState>()(
         guides: s.guides,
         linkBadges: s.linkBadges,
         badgeContinuous: s.badgeContinuous,
+        radialAllTools: s.radialAllTools,
         handwriting: s.handwriting,
         lexicon: s.lexicon,
         lexiconCategories: s.lexiconCategories,
@@ -428,6 +444,7 @@ export const useUiStore = create<UiState>()(
         arrowPulse: s.arrowPulse,
         spotlightRadius: s.spotlightRadius,
         sound: s.sound,
+        soundChosen: s.soundChosen,
         soundVolume: s.soundVolume,
         toolbarVisible: s.toolbarVisible,
         toolbarEdge: s.toolbarEdge,
@@ -494,8 +511,17 @@ export const useUiStore = create<UiState>()(
         // vraiment YouTube et VLC — Ctrl+E et Ctrl+H rendus au système — vit
         // désormais dans NEVER_GLOBAL (src/keymap.ts), donc quel que soit l'état
         // de cet interrupteur.
-        const p = (persisted ?? {}) as Partial<UiState> & { globalShortcutsChosen?: boolean }
+        const p = (persisted ?? {}) as Partial<UiState> & {
+          globalShortcutsChosen?: boolean
+          soundChosen?: boolean
+        }
         if (p.globalShortcutsChosen !== true) merged.globalShortcutsOn = true
+        // Sons : coupés, sauf si l'utilisateur les a lui-même allumés. Le défaut
+        // du code l'a toujours été (§16.7), mais une configuration écrite par une
+        // version antérieure pouvait porter « activé » sans que personne ne l'ait
+        // demandé — et un outil qui fait du bruit en plein direct est
+        // insupportable. On rend donc le silence une bonne fois.
+        if (p.soundChosen !== true) merged.sound = false
         // Placement de la barre : un état écrit par une version antérieure (ou
         // trafiqué à la main) ne doit JAMAIS pouvoir envoyer la barre hors champ.
         // Le bornage à l'écran réel est fait au rendu ; ici on garantit juste

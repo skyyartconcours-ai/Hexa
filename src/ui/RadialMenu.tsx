@@ -50,20 +50,31 @@ const DEAD_R = 31
 const SPLIT_R = 76
 const TAU = Math.PI * 2
 
-const TOOLS: { id: ToolId; icon: ReactElement; label: string }[] = [
-  { id: 'pen', icon: <IconPen />, label: 'Pinceau' },
+/**
+ * Tous les outils atteignables à la roue, dans l'ordre du cadran.
+ *
+ * `essentiel` marque ceux qui s'affichent PAR DÉFAUT. Une roue à douze
+ * secteurs demande de viser ; à sept, chaque secteur est large et se prend
+ * sans regarder — et c'est tout l'intérêt du geste en plein direct. Les
+ * autres restent accessibles au clavier, et l'option « tous les outils »
+ * des réglages les remet dans la roue.
+ */
+const TOOLS: { id: ToolId; icon: ReactElement; label: string; essentiel?: true }[] = [
+  { id: 'pen', icon: <IconPen />, label: 'Pinceau', essentiel: true },
+  { id: 'line', icon: <IconLine />, label: 'Ligne', essentiel: true },
+  { id: 'rect', icon: <IconRect />, label: 'Rectangle', essentiel: true },
+  { id: 'ellipse', icon: <IconEllipse />, label: 'Ellipse', essentiel: true },
+  { id: 'text', icon: <IconText />, label: 'Texte', essentiel: true },
+  { id: 'badge', icon: <IconBadge />, label: 'Numéroteur', essentiel: true },
+  { id: 'eraser', icon: <IconEraser />, label: 'Gomme', essentiel: true },
   { id: 'highlight', icon: <IconHighlight />, label: 'Surligneur' },
-  { id: 'line', icon: <IconLine />, label: 'Ligne' },
   { id: 'arrow', icon: <IconArrow />, label: 'Flèche' },
-  { id: 'rect', icon: <IconRect />, label: 'Rectangle' },
-  { id: 'ellipse', icon: <IconEllipse />, label: 'Ellipse' },
-  { id: 'text', icon: <IconText />, label: 'Texte' },
-  { id: 'badge', icon: <IconBadge />, label: 'Numéroteur' },
   { id: 'laser', icon: <IconLaser />, label: 'Laser' },
   { id: 'ping', icon: <IconPing />, label: 'Ping' },
   { id: 'spotlight', icon: <IconSpotlight />, label: 'Spotlight' },
-  { id: 'eraser', icon: <IconEraser />, label: 'Gomme' },
 ]
+
+const TOOLS_ESSENTIELS = TOOLS.filter((t) => t.essentiel)
 
 const COLOR_NAMES = ['Cyan', 'Magenta', 'Violet', 'Vert', 'Jaune', 'Orange', 'Blanc']
 
@@ -105,6 +116,10 @@ export interface RadialMenuProps {
 export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
   const tool = useUiStore((s) => s.tool)
   const color = useUiStore((s) => s.color)
+  const radialAllTools = useUiStore((s) => s.radialAllTools)
+  // La roue affiche les sept essentiels, ou les douze si l'utilisateur l'a
+  // demandé dans les réglages. Le nombre de secteurs en découle partout.
+  const OUTILS = radialAllTools ? TOOLS : TOOLS_ESSENTIELS
   const [hover, setHover] = useState<Hover | null>(null)
   const [picked, setPicked] = useState<Hover | null>(null)
   const hoverRef = useRef<Hover | null>(null)
@@ -119,8 +134,8 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
   const cy = vh < BOX + m * 2 ? vh / 2 : Math.min(Math.max(y, half + m), vh - half - m)
 
   const toolPaths = useMemo(() => {
-    const slice = TAU / TOOLS.length
-    return TOOLS.map((_, i) => {
+    const slice = TAU / OUTILS.length
+    return OUTILS.map((_, i) => {
       const a0 = -Math.PI / 2 - slice / 2 + i * slice
       return ringSector(OUT_0, OUT_1, a0, a0 + slice)
     })
@@ -135,9 +150,9 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
   }, [])
 
   const iconPos = useMemo(() => {
-    const slice = TAU / TOOLS.length
+    const slice = TAU / OUTILS.length
     const rm = (OUT_0 + OUT_1) / 2
-    return TOOLS.map((_, i) => {
+    return OUTILS.map((_, i) => {
       const a = -Math.PI / 2 + i * slice
       return { left: C + Math.cos(a) * rm, top: C + Math.sin(a) * rm }
     })
@@ -165,7 +180,7 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
       }
       const a = Math.atan2(dy, dx)
       if (r < SPLIT_R) pick({ ring: 'color', index: sectorIndex(a, COLORS.length) })
-      else pick({ ring: 'tool', index: sectorIndex(a, TOOLS.length) })
+      else pick({ ring: 'tool', index: sectorIndex(a, OUTILS.length) })
     }
 
     const finish = (h: Hover | null) => {
@@ -173,7 +188,7 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
       closingRef.current = true
       const st = useUiStore.getState()
       if (h?.ring === 'tool') {
-        st.setTool(TOOLS[h.index].id)
+        st.setTool(OUTILS[h.index].id)
         sfx.tool(h.index)
       } else if (h?.ring === 'color') {
         st.setColor(COLORS[h.index])
@@ -215,7 +230,7 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
   const shown = picked ?? hover
   const label =
     shown?.ring === 'tool'
-      ? TOOLS[shown.index].label
+      ? OUTILS[shown.index].label
       : shown?.ring === 'color'
         ? COLOR_NAMES[shown.index]
         : null
@@ -251,11 +266,11 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
             const on = hover?.ring === 'tool' && hover.index === i
             const flash = picked?.ring === 'tool' && picked.index === i
             return (
-              <g className="blade" key={TOOLS[i].id} style={{ '--i': i } as CSSProperties}>
+              <g className="blade" key={OUTILS[i].id} style={{ '--i': i } as CSSProperties}>
                 <path
                   d={d}
                   className={`sect sect-tool${on ? ' is-on' : ''}${flash ? ' is-flash' : ''}${
-                    TOOLS[i].id === tool ? ' is-current' : ''
+                    OUTILS[i].id === tool ? ' is-current' : ''
                   }`}
                 />
               </g>
@@ -265,7 +280,7 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
           {/* voile de lumière posé sur l'anneau d'outils */}
           <g className="sheen">
             {toolPaths.map((d, i) => (
-              <path key={TOOLS[i].id} d={d} fill="url(#radial-sheen)" />
+              <path key={OUTILS[i].id} d={d} fill="url(#radial-sheen)" />
             ))}
           </g>
 
@@ -292,7 +307,7 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
 
         {/* icônes : HTML au-dessus du SVG, jamais cliquables (le geste suffit) */}
         <div className="radial-icons">
-          {TOOLS.map((t, i) => {
+          {OUTILS.map((t, i) => {
             const on = hover?.ring === 'tool' && hover.index === i
             return (
               <span
@@ -312,7 +327,7 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
           })}
           <span className="radial-hub-mark">
             {shown?.ring === 'tool' ? (
-              TOOLS[shown.index].icon
+              OUTILS[shown.index].icon
             ) : shown?.ring === 'color' ? (
               <span className="hub-color" style={{ '--c': COLORS[shown.index] } as CSSProperties} />
             ) : (

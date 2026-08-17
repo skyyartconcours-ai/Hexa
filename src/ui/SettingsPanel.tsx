@@ -147,6 +147,8 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
   const guides = useUiStore((s) => s.guides)
   const toggleGuides = useUiStore((s) => s.toggleGuides)
   const linkBadges = useUiStore((s) => s.linkBadges)
+  const radialAllTools = useUiStore((s) => s.radialAllTools)
+  const toggleRadialAllTools = useUiStore((s) => s.toggleRadialAllTools)
   const toggleLinkBadges = useUiStore((s) => s.toggleLinkBadges)
   const effectIntensity = useUiStore((s) => s.effectIntensity)
   const setEffectIntensity = useUiStore((s) => s.setEffectIntensity)
@@ -471,6 +473,12 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
                 hint="Le numéroteur trace 1 → 2 → 3."
                 on={linkBadges}
                 onChange={toggleLinkBadges}
+              />
+              <Switch
+                label="Tous les outils dans la roue"
+                hint="Coupé, la roue n’affiche que les 7 essentiels — pinceau, ligne, rectangle, ellipse, texte, numéroteur, gomme — en secteurs larges, qu’on vise sans regarder. Activé, elle en affiche 12."
+                on={radialAllTools}
+                onChange={toggleRadialAllTools}
               />
               <Switch
                 label="Flèches pulsantes"
