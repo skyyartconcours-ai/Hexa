@@ -154,6 +154,13 @@ export interface HexaBridgeApi {
   log(scope: string, message: string): void
   /** emplacement du journal, à montrer à l'utilisateur ('' en démo navigateur) */
   logPath(): Promise<string>
+  /**
+   * Dessine-t-on en ce moment sur cet écran ? (null en démo navigateur)
+   * À demander au DÉMARRAGE de la couche : le mode n'est diffusé qu'à ses
+   * changements, et une fenêtre relancée après une panne repartait sinon en
+   * croyant qu'on dessinait, alors que l'utilisateur jouait.
+   */
+  modeDessin(): Promise<boolean | null>
 
   /* ---- séparation en deux couches (§S11) ---- */
   /** diffuse un patch d'état d'interface à l'autre fenêtre */
@@ -210,6 +217,7 @@ export const bridge: HexaBridgeApi = {
     window.hexa?.setShortcuts ? window.hexa.setShortcuts(map) : Promise.resolve(null),
   log: (scope, message) => window.hexa?.log?.(scope, message),
   logPath: async () => (window.hexa?.logPath ? window.hexa.logPath() : ''),
+  modeDessin: async () => (window.hexa?.modeDessin ? window.hexa.modeDessin() : null),
   pousserSynchro: (patch) => window.hexa?.pousserSynchro?.(patch),
   envoyerCommande: (commande) => window.hexa?.envoyerCommande?.(commande),
   annoncerEtatEncre: (message) => window.hexa?.annoncerEtatEncre?.(message),

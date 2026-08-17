@@ -428,7 +428,18 @@ export default function App() {
     if (porteEncre) return
     const stopSet = bridge.on('set-draw', (drawing) => setPassthrough(!drawing))
     const stopToggle = bridge.on('toggle-draw', () => setPassthrough((p) => !p))
+    // ⚠️ ET ON DEMANDE L'ÉTAT COURANT, une fois, au démarrage. Le mode n'est
+    // annoncé qu'à ses CHANGEMENTS : une couche interface relancée après une
+    // panne (ou simplement rechargée) repartait en croyant qu'on dessinait —
+    // alors que l'utilisateur jouait. Sa fenêtre reprenait alors l'écran entier
+    // au lieu de se réduire à la barre (§S12), et le calque plein écran qui
+    // fait saccader le jeu revenait sans que personne ne l'ait demandé.
+    let vivant = true
+    void bridge.modeDessin().then((dessin) => {
+      if (vivant && typeof dessin === 'boolean') setPassthrough(!dessin)
+    })
     return () => {
+      vivant = false
       stopSet()
       stopToggle()
     }
@@ -472,20 +483,20 @@ export default function App() {
     // fenêtre est réduite au rectangle de la barre — 117 × 671 au lieu de
     // 1920 × 1080, soit moins de 4 % de la surface composée. Voir
     // src/ui/fenetre-compacte.ts.
+    // ⚠️ `toolbarVisible` SEUL, et plus « toolbarVisible && !passthrough » :
+    // c'est cette conjonction qui privait l'utilisateur de sa barre pendant
+    // qu'il jouait. La barre reste là ; c'est sa FENÊTRE qui rétrécit.
+    // Masquée au clavier (Ctrl+H) et sans panneau ouvert, la fenêtre se retire
+    // toujours complètement : le coût retombe alors à zéro absolu (§2.5).
     const panneau = settingsOpen || cheatsheetOpen || replayOpen || radial !== null || !onboarded
-    // La pastille d'état (§9.6) remplace la barre quand elle est masquée : elle
-    // devient alors la seule chose qui dise l'outil courant. Sans elle dans le
-    // calcul, masquer la barre en mode dessin retirait la fenêtre… donc la
-    // pastille avec.
-    const pastille = !passthrough && !toolbarVisible
-    const contenu = isHost && (toolbarVisible || panneau || pastille)
+    const contenu = isHost && (toolbarVisible || panneau)
     bridge.notifyActivity(contenu)
     // PLEIN ÉCRAN OBLIGATOIRE dès qu'il y a autre chose que la barre à afficher.
     // ⚠️ ET EN MODE DESSIN, TOUJOURS : le curseur personnalisé (§9.5) vit dans
     // CETTE fenêtre et doit suivre la souris sur tout l'écran. Une fenêtre à la
     // taille de la barre le ferait disparaître dès qu'on s'en éloigne — la
     // régression la plus visible qui soit pendant qu'on dessine.
-    exigerPleinEcran('contenu', !passthrough || panneau || pastille || !isHost)
+    exigerPleinEcran('contenu', !passthrough || panneau || !isHost)
   }, [
     isHost,
     toolbarVisible,

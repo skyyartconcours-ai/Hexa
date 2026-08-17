@@ -12,7 +12,13 @@
  *   5. la fenêtre d'interface ne devient cliquable qu'au survol de ses boutons,
  *      et redevient traversante en repartant (jamais un clic volé au jeu) ;
  *   6. elle prend le focus quand un panneau s'ouvre, et le rend ensuite ;
- *   7. elle disparaît quand elle n'a plus rien à montrer (règle §2.5).
+ *   7. elle disparaît quand elle n'a plus rien à montrer (règle §2.5) ;
+ *   8. §S12 — PENDANT LE JEU, elle se réduit au rectangle de la barre d'outils
+ *      au lieu de rester un calque plein écran. C'est LA mesure de performance :
+ *      un calque transparent de 1920 × 1080 posé sur le jeu coûte au
+ *      compositeur à chaque image, même à 0 % de processeur — c'est ce qui
+ *      faisait saccader tout l'ordinateur. Réduit à 141 × 730, il ne coûte plus
+ *      rien, et l'utilisateur garde ses outils sous les yeux.
  *
  * Utilisation (depuis la racine, application construite) :
  *   npm run build && npm run build:main
@@ -59,10 +65,17 @@ app.process().stderr?.on('data', () => {})
 /* --- espion posé dans le processus principal : on veut des PREUVES ------ */
 await app.evaluate(({ ipcMain, BrowserWindow, app: electronApp }) => {
   const g = globalThis
-  g.__hexaTrace = { cliquable: [], modale: [], protection: [] }
+  g.__hexaTrace = { cliquable: [], modale: [], protection: [], bounds: [] }
   ipcMain.on('hexa:interface-cliquable', (_e, v) => g.__hexaTrace.cliquable.push(v === true))
   ipcMain.on('hexa:interface-modale', (_e, v) => g.__hexaTrace.modale.push(v === true))
   const instrumenter = (w) => {
+    // §S12 : on compte les poses de bounds. Un setBounds par image coûterait
+    // plus cher que le calque plein écran qu'on cherche à supprimer.
+    const poser = w.setBounds.bind(w)
+    w.setBounds = (b, ...reste) => {
+      g.__hexaTrace.bounds.push(`${w.getTitle()} ${b.width}×${b.height}@${b.x},${b.y}`)
+      return poser(b, ...reste)
+    }
     const original = w.setContentProtection.bind(w)
     w.setContentProtection = (on) => {
       // L'adresse, et pas le titre : le bandeau d'accueil s'appelle « Hexa »
@@ -375,7 +388,229 @@ const trace = () => app.evaluate(() => globalThis.__hexaTrace)
   await pause(400)
 }
 
-/* --- 8. le bandeau d'accueil non plus ne part pas dans le direct -------- */
+/* ====================================================================== *
+ * 8. §S12 — LA FENÊTRE D'INTERFACE À LA TAILLE DE LA BARRE
+ *
+ * Le symptôme vécu : tout l'ordinateur saccadait, jeu compris, alors que le
+ * gestionnaire des tâches affichait Hexa à 0 % de processeur et 198 Mo. Ce
+ * n'était pas du calcul mais de la COMPOSITION — deux fenêtres transparentes
+ * plein écran, toujours au-dessus, que Windows devait empiler à chaque image.
+ * La couche encre se retire déjà quand elle est vide ; l'interface, elle, doit
+ * rester visible pour la barre d'outils — mais dans une fenêtre À SA TAILLE.
+ * ====================================================================== */
+{
+  /** Bounds de la fenêtre d'interface + celles de l'écran, à l'instant. */
+  const bornesUi = () =>
+    app.evaluate(({ BrowserWindow, screen }) => {
+      const w = BrowserWindow.getAllWindows().find((x) => x.getTitle().includes('interface'))
+      return w
+        ? { ecran: screen.getPrimaryDisplay().bounds, visible: w.isVisible(), b: w.getBounds() }
+        : null
+    })
+  const surface = (e) => (100 * e.b.width * e.b.height) / (e.ecran.width * e.ecran.height)
+  /** Position de la barre en coordonnées ÉCRAN : bounds de sa fenêtre + son rect. */
+  const barreEcran = async (e) => {
+    const r = await inter.w.evaluate(() => {
+      const tb = document.querySelector('.toolbar')
+      if (!tb) return null
+      const b = tb.getBoundingClientRect()
+      return {
+        x: Math.round(b.x),
+        y: Math.round(b.y),
+        w: Math.round(b.width),
+        h: Math.round(b.height),
+        opacite: Number(getComputedStyle(tb).opacity),
+        fenetre: { w: window.innerWidth, h: window.innerHeight },
+      }
+    })
+    return r ? { ...r, ecranX: e.b.x + r.x, ecranY: e.b.y + r.y } : null
+  }
+  /** Amène l'application dans le mode voulu, quel que soit son état actuel. */
+  const modeDessin = async (voulu) => {
+    for (let essai = 0; essai < 3; essai++) {
+      const e = await bornesUi()
+      const plein = e && e.b.width >= e.ecran.width && e.b.height >= e.ecran.height
+      if (plein === voulu) return e
+      await encre.w.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F8' })))
+      await pause(1400)
+    }
+    return bornesUi()
+  }
+
+  // État de départ propre : barre visible, aucun panneau, découverte finie.
+  for (const w of [encre.w, inter.w]) {
+    await w.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('hexa-ui') ?? '{}')
+      s.state = {
+        ...(s.state ?? {}),
+        onboarded: true,
+        toolbarVisible: true,
+        settingsOpen: false,
+        cheatsheetOpen: false,
+        replayOpen: false,
+        toolbarEdge: 'left',
+        toolbarOffset: 0.5,
+        toolbarOrientation: 'auto',
+      }
+      localStorage.setItem('hexa-ui', JSON.stringify(s))
+    })
+    await w.reload()
+  }
+  await encre.w.waitForSelector('.stage canvas', { timeout: 20000 })
+  await inter.w.waitForSelector('.toolbar', { timeout: 20000 })
+  await pause(1500)
+
+  /* --- référence : le mode DESSIN, où tout reste plein écran ------------ */
+  const eDessin = await modeDessin(true)
+  const bDessin = await barreEcran(eDessin)
+
+  // Le curseur personnalisé vit dans cette fenêtre : il doit suivre la souris
+  // AU MILIEU DE L'ÉCRAN, très loin de la barre. C'est le piège du mode
+  // compact — une fenêtre à la taille de la barre le ferait disparaître.
+  await inter.w.mouse.move(800, 450)
+  await pause(300)
+  const curseur = await inter.w.evaluate(() => {
+    const el = document.querySelector('.cursor-dot')
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    return {
+      x: Math.round(r.x + r.width / 2),
+      y: Math.round(r.y + r.height / 2),
+      opacite: Number(getComputedStyle(el).opacity),
+    }
+  })
+  verdict(
+    eDessin.b.width === eDessin.ecran.width &&
+      eDessin.b.height === eDessin.ecran.height &&
+      !!curseur &&
+      Math.abs(curseur.x - 800) <= 2 &&
+      Math.abs(curseur.y - 450) <= 2 &&
+      curseur.opacite > 0,
+    's12-18-dessin-plein-ecran',
+    'En MODE DESSIN la fenêtre reste plein écran, et le curseur suit la souris partout',
+    `fenêtre ${eDessin.b.width}×${eDessin.b.height} · curseur demandé (800,450), peint ${
+      curseur ? `(${curseur.x},${curseur.y}) opacité ${curseur.opacite}` : 'ABSENT'
+    }`,
+  )
+
+  /* --- le vrai cas d'usage : l'utilisateur JOUE ------------------------- */
+  const eJeu = await modeDessin(false)
+  const bJeu = await barreEcran(eJeu)
+  const part = surface(eJeu)
+  verdict(
+    eJeu.visible && part < 15,
+    's12-19-fenetre-a-la-taille-de-la-barre',
+    'Pendant le jeu, la fenêtre d’interface se réduit au rectangle de la barre',
+    `${eJeu.b.width}×${eJeu.b.height}@${eJeu.b.x},${eJeu.b.y} — ${part.toFixed(
+      1,
+    )} % de l’écran ${eJeu.ecran.width}×${eJeu.ecran.height} (plein écran = 100 %) · visible : ${
+      eJeu.visible
+    }`,
+  )
+  verdict(
+    !!bJeu &&
+      bJeu.opacite === 1 &&
+      bJeu.ecranX === bDessin.ecranX &&
+      bJeu.ecranY === bDessin.ecranY &&
+      bJeu.x + bJeu.w <= bJeu.fenetre.w &&
+      bJeu.y + bJeu.h <= bJeu.fenetre.h,
+    's12-20-barre-au-meme-pixel',
+    'La barre est peinte dedans, et EXACTEMENT là où elle était en plein écran',
+    bJeu
+      ? `écran (${bDessin.ecranX},${bDessin.ecranY}) → (${bJeu.ecranX},${bJeu.ecranY}) · barre ${bJeu.w}×${bJeu.h} dans une fenêtre ${bJeu.fenetre.w}×${bJeu.fenetre.h} · opacité ${bJeu.opacite}`
+      : 'aucune barre dans la fenêtre',
+  )
+  await inter.w.screenshot({ path: join(SORTIE, 's12-19-fenetre-compacte.png') })
+
+  /* --- elle reste PILOTABLE : un clic change l'outil du moteur ---------- */
+  {
+    const avant = await encre.w.evaluate(() => document.querySelector('.stage')?.dataset.tool)
+    const cible = await inter.w.evaluate(() => {
+      const b = [...document.querySelectorAll('.toolbar button')].find((x) =>
+        (x.getAttribute('title') ?? '').startsWith('Ellipse'),
+      )
+      const r = b.getBoundingClientRect()
+      return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }
+    })
+    await inter.w.mouse.move(cible.x, cible.y, { steps: 3 })
+    await pause(250)
+    await inter.w.mouse.down()
+    await inter.w.mouse.up()
+    await pause(600)
+    const apres = await encre.w.evaluate(() => document.querySelector('.stage')?.dataset.tool)
+    const encoreCompacte = surface(await bornesUi()) < 15
+    verdict(
+      avant !== 'ellipse' && apres === 'ellipse' && encoreCompacte,
+      's12-21-clic-dans-la-fenetre-compacte',
+      'Un vrai clic de souris dans la fenêtre compacte change l’outil du moteur',
+      `outil de la couche encre : ${avant} → ${apres} · la fenêtre reste compacte : ${encoreCompacte}`,
+    )
+  }
+
+  /* --- un panneau réclame l'écran entier, et le rend ensuite ------------ */
+  {
+    await inter.w.evaluate(() => {
+      const b = [...document.querySelectorAll('.toolbar button')].find((x) =>
+        (x.getAttribute('title') ?? '').toLowerCase().includes('réglage'),
+      )
+      b?.click()
+    })
+    await pause(1100)
+    const ouvert = await bornesUi()
+    const panneau = await inter.w.evaluate(() => {
+      const p = document.querySelector('.hx-sec')?.closest('div[class]')?.parentElement
+      const el = p ?? document.querySelector('.hx-sec')
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return {
+        w: Math.round(r.width),
+        h: Math.round(r.height),
+        entier:
+          r.x >= -1 &&
+          r.y >= -1 &&
+          r.right <= window.innerWidth + 1 &&
+          r.bottom <= window.innerHeight + 1,
+      }
+    })
+    verdict(
+      ouvert.b.width === ouvert.ecran.width &&
+        ouvert.b.height === ouvert.ecran.height &&
+        !!panneau &&
+        panneau.entier,
+      's12-22-panneau-reprend-l-ecran',
+      'Ouvrir les réglages pendant le jeu rend l’écran entier à la fenêtre',
+      `fenêtre ${ouvert.b.width}×${ouvert.b.height} · panneau ${
+        panneau ? `${panneau.w}×${panneau.h}, entièrement visible : ${panneau.entier}` : 'ABSENT'
+      }`,
+    )
+    await inter.w.keyboard.press('Escape')
+    await pause(1000)
+    const referme = await bornesUi()
+    verdict(
+      surface(referme) < 15,
+      's12-23-retour-compact',
+      'Le panneau refermé, la fenêtre redevient minuscule',
+      `${referme.b.width}×${referme.b.height} — ${surface(referme).toFixed(1)} % de l’écran`,
+    )
+  }
+
+  /* --- AUCUNE BOUCLE : au repos, plus une seule pose de bounds ---------- */
+  {
+    await app.evaluate(() => globalThis.__hexaTrace.bounds.splice(0))
+    await pause(5000)
+    const poses = await app.evaluate(() => globalThis.__hexaTrace.bounds)
+    verdict(
+      poses.length === 0,
+      's12-24-aucune-boucle',
+      'Cinq secondes d’immobilité : pas une seule pose de fenêtre',
+      poses.length === 0
+        ? '0 setBounds en 5 s — la barre ne se replace pas d’après sa propre fenêtre'
+        : `${poses.length} setBounds : ${poses.slice(0, 6).join(' · ')}`,
+    )
+  }
+}
+
+/* --- 9. le bandeau d'accueil non plus ne part pas dans le direct -------- */
 {
   // C'est LUI que l'utilisateur voyait s'afficher en plein direct : « Hexa se
   // met en retrait — tes clics repartent dans ton jeu ». Il vit dans sa propre

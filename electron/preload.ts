@@ -207,6 +207,16 @@ const api = {
     return ipcRenderer.invoke('hexa:log-path').catch(() => '')
   },
 
+  /**
+   * Dessine-t-on en ce moment sur CET écran ? À demander au démarrage d'une
+   * couche : le mode n'est annoncé qu'à ses changements, si bien qu'une fenêtre
+   * relancée après une panne repartait en croyant qu'on dessinait — alors que
+   * l'utilisateur jouait.
+   */
+  modeDessin(): Promise<boolean | null> {
+    return ipcRenderer.invoke('hexa:mode-dessin').catch(() => null)
+  },
+
   /* ---- §S11 : les deux couches se parlent ---------------------------- *
    * Le processus principal sert de concentrateur : il relaie aux AUTRES
    * fenêtres, jamais à l'émetteur — c'est ce qui interdit la boucle infinie

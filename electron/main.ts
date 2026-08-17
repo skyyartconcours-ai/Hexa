@@ -2058,6 +2058,22 @@ function registerIpc(): void {
   ipcMain.handle('hexa:log-path', () => logFilePath())
 
   /**
+   * MODE DESSIN COURANT — demandé par une couche qui vient de (re)démarrer.
+   *
+   * Le mode vit dans le processus principal, et n'est annoncé qu'au MOMENT où
+   * il change ('set-draw'). Une fenêtre relancée après une panne — ou
+   * simplement rechargée — repartait donc avec sa valeur par défaut : « on
+   * dessine ». Pour la couche interface, c'était doublement faux pendant que
+   * l'utilisateur jouait : sa barre s'affichait comme en mode dessin, et sa
+   * fenêtre reprenait l'écran entier au lieu de se réduire à la barre (§S12) —
+   * le calque plein écran revenait sans que personne ne l'ait demandé.
+   */
+  ipcMain.handle('hexa:mode-dessin', (e) => {
+    const o = overlayFromEvent(e)
+    return o ? !o.passthrough : null
+  })
+
+  /**
    * Écran porteur, ACTUALISÉ. Le preload en garde un instantané pris à la
    * création de la fenêtre ; après un changement de résolution ou un passage à
    * 125 %, cet instantané ment. Le renderer peut donc redemander la vérité —
