@@ -422,13 +422,19 @@ export function Toolbar({
     // Perdre le focus la touche enfoncée laisserait la barre gonflée pour
     // toujours : le relâché n'arriverait jamais.
     const off = () => setHints(false)
+    // ⚠️ EN MODE DEUX FENÊTRES, LA FRAPPE N'ARRIVE JAMAIS ICI : cette fenêtre
+    // n'a pas le focus clavier (§12.2). La couche encre nous relaie l'appui et
+    // le relâché par cet événement — sans lui, la touche Fin ne ferait rien.
+    const relais = (e: Event) => setHints((e as CustomEvent<boolean>).detail === true)
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
     window.addEventListener('blur', off)
+    window.addEventListener('hexa:hints', relais)
     return () => {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
       window.removeEventListener('blur', off)
+      window.removeEventListener('hexa:hints', relais)
     }
   }, [hintCombos])
 

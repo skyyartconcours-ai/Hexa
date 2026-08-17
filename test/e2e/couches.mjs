@@ -330,16 +330,37 @@ const trace = () => app.evaluate(() => globalThis.__hexaTrace)
         .filter((w) => w.getTitle().includes('interface'))
         .map((w) => w.isVisible()),
     )
+  // La règle a DEUX faces, et c'est volontaire.
+  //
+  //  · En MODE DESSIN, masquer la barre ne doit PAS retirer la fenêtre : elle
+  //    porte le curseur personnalisé et la pastille d'état, c'est-à-dire les
+  //    deux seules choses qui restent pour dessiner et pour savoir comment
+  //    ramener la barre. La retirer laissait l'utilisateur sans pointeur.
+  //  · En MODE TRAVERSANT, elle doit disparaître complètement : là, il n'y a
+  //    ni curseur ni pastille à montrer, et le coût compositeur doit retomber
+  //    à zéro pendant que l'utilisateur joue (§2.5).
   const avant = await visible()
   await encre.w.keyboard.press('Control+h') // masquer la barre (preset Epic Pen)
   await pause(900)
+  const dessinMasque = await visible()
+  verdict(
+    avant.some(Boolean) && dessinMasque.some(Boolean),
+    's11-14a-curseur-preserve',
+    'Barre masquée EN DESSIN : la fenêtre reste (elle porte le curseur et la pastille)',
+    `visible avant : ${JSON.stringify(avant)} → après : ${JSON.stringify(dessinMasque)}`,
+  )
+  // même situation, mais en jeu : là, plus rien ne doit être composé
+  await encre.w.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F8' })))
+  await pause(1100)
   const apres = await visible()
   verdict(
-    avant.some(Boolean) && apres.every((v) => v === false),
+    apres.every((v) => v === false),
     's11-14-fenetre-cachee',
-    'Barre masquée : la fenêtre d’interface se retire (coût compositeur nul, §2.5)',
-    `visible avant : ${JSON.stringify(avant)} → après : ${JSON.stringify(apres)}`,
+    'Barre masquée EN JEU : la fenêtre d’interface se retire (coût compositeur nul, §2.5)',
+    `visible : ${JSON.stringify(apres)}`,
   )
+  await encre.w.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F8' })))
+  await pause(800)
   await encre.w.keyboard.press('Control+h')
   await pause(700)
   const retour = await visible()

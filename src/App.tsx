@@ -22,6 +22,7 @@ import { themeFromQuery } from './themes'
 import { bridge, isElectron, type CommandeEncre, type EtatEncre } from './bridge'
 import {
   buildLookup,
+  eventCombos,
   isKeyCaptureActive,
   matchAction,
   resolveKeymap,
@@ -401,6 +402,8 @@ export default function App() {
         // On rejoue donc l'événement ici, à l'identique.
         window.dispatchEvent(new PointerEvent('pointermove', { clientX: m.x, clientY: m.y }))
       else if (m.quoi === 'radial-up') window.dispatchEvent(new PointerEvent('pointerup'))
+      else if (m.quoi === 'hints')
+        window.dispatchEvent(new CustomEvent('hexa:hints', { detail: m.on }))
       else if (m.quoi === 'tour') signalTour(m.signal as TourSignal)
       else if (m.quoi === 'session') sessionRef.current = m.session as SessionExport
     })
@@ -489,10 +492,17 @@ export default function App() {
     // Masquée au clavier (Ctrl+H) et sans panneau ouvert, la fenêtre se retire
     // toujours complètement : le coût retombe alors à zéro absolu (§2.5).
     const panneau = settingsOpen || cheatsheetOpen || replayOpen || radial !== null || !onboarded
+    // ⚠️ LA PASTILLE D'ÉTAT COMPTE COMME DU CONTENU, et l'oublier coûte cher :
+    // en mode dessin avec la barre masquée (Ctrl+H), cette fenêtre porte le
+    // CURSEUR PERSONNALISÉ et la pastille qui rappelle l'outil actif. La cacher
+    // laissait l'utilisateur dessiner sans aucun pointeur à l'écran et sans rien
+    // qui lui dise comment ramener la barre — la couche encre, elle, a
+    // `cursor: none` et son propre curseur éteint.
+    const pastille = !passthrough && !toolbarVisible
     // La roue s'ouvre sur l'écran du clic, porteur de la barre ou non : cette
     // fenêtre-là doit donc s'afficher le temps du geste, même si elle n'a
     // d'ordinaire rien à montrer (§8.2).
-    const contenu = (isHost && (toolbarVisible || panneau)) || radial !== null
+    const contenu = (isHost && (toolbarVisible || panneau || pastille)) || radial !== null
     bridge.notifyActivity(contenu)
     // PLEIN ÉCRAN OBLIGATOIRE dès qu'il y a autre chose que la barre à afficher.
     // ⚠️ ET EN MODE DESSIN, TOUJOURS : le curseur personnalisé (§9.5) vit dans
@@ -717,6 +727,8 @@ export default function App() {
     if (!porteEncre) return
     const bindings = resolveKeymap(keymapPreset, keymapOverrides)
     const lookup = buildLookup(bindings)
+    /** combinaisons de la touche « afficher les raccourcis » (Fin par défaut) */
+    const hintsCombos = new Set(bindings['ui.hints'] ?? [])
     const st = () => useUiStore.getState()
 
     /** outils momentanés : action → outil pris tant que la touche est tenue (§8.5) */
@@ -766,6 +778,12 @@ export default function App() {
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
       if (target?.isContentEditable) return
       if (isKeyCaptureActive()) return
+
+      // Touche Fin MAINTENUE : la barre vit dans l'autre fenêtre, qui n'a jamais
+      // le focus. On lui relaie l'appui, sinon la touche ne fait rien.
+      if (hintsCombos.size > 0 && !e.repeat && eventCombos(e).some((c) => hintsCombos.has(c))) {
+        annoncerEtatEncre({ quoi: 'hints', on: true })
+      }
 
       const eng = engineRef.current
       if (!eng) return
@@ -969,6 +987,9 @@ export default function App() {
     }
 
     const onKeyUp = (e: KeyboardEvent) => {
+      if (hintsCombos.size > 0 && eventCombos(e).some((c) => hintsCombos.has(c))) {
+        annoncerEtatEncre({ quoi: 'hints', on: false })
+      }
       const held = heldKeyRef.current
       if (!held || heldToolRef.current == null) return
       if (e.key.toLowerCase() !== held.key && e.code !== held.code) return
@@ -977,11 +998,17 @@ export default function App() {
       heldKeyRef.current = null
     }
 
+    // Perdre le focus la touche enfoncée laisserait la barre gonflée : on
+    // annonce le relâché comme si la touche était rendue.
+    const onBlurHints = () => annoncerEtatEncre({ quoi: 'hints', on: false })
+
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', onBlurHints)
     return () => {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', onBlurHints)
     }
   }, [keymapPreset, keymapOverrides])
 

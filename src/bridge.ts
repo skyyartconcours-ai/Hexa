@@ -82,6 +82,15 @@ export type EtatEncre =
   | { quoi: 'radial-up' }
   /** un geste vient d'avoir lieu : la découverte guidée valide son étape */
   | { quoi: 'tour'; signal: string }
+  /**
+   * Touche Fin MAINTENUE : la barre affiche le raccourci de chaque outil.
+   *
+   * La barre vit dans la couche interface, qui n'a JAMAIS le focus clavier
+   * (§12.2 : un overlay focusable entre dans l'Alt+Tab et fait perdre des
+   * parties). La frappe arrive donc dans la couche encre, et il faut la lui
+   * relayer — sans quoi la touche ne fait rien du tout en mode deux fenêtres.
+   */
+  | { quoi: 'hints'; on: boolean }
   /** instantané de session, en réponse à { nom: 'session-get' } */
   | { quoi: 'session'; session: unknown }
 
