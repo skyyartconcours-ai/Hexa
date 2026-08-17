@@ -671,6 +671,59 @@ body.hexa-encre.barre-hote .cursor-dot {
   opacity: 0.7;
 }
 
+/* Réglage visible de la taille du texte, accroché sous le champ de saisie. */
+.hexa-text-size {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 5px;
+  border-radius: 999px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--shadow-ui);
+  white-space: nowrap;
+}
+
+.hexa-text-size-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-2);
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.hexa-text-size-btn.is-big {
+  font-size: 16px;
+}
+
+.hexa-text-size-btn:hover {
+  color: var(--text-1);
+  background: var(--hover-bg, rgba(255, 255, 255, 0.08));
+}
+
+.hexa-text-size-val {
+  min-width: 26px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+  opacity: 0.85;
+}
+
 /* Jumeau invisible : il porte le même texte dans la même fonte et sert
    uniquement à mesurer la largeur exacte à donner au champ. */
 .hexa-text-ghost {

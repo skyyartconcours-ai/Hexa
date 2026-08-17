@@ -442,19 +442,57 @@ export function openTextInput(
   }
   input.addEventListener('input', fit)
 
+  /* ---- réglage VISIBLE de la taille -------------------------------------
+   * La molette suffisait techniquement, mais rien ne l'annonçait : personne
+   * ne devine un geste invisible. Deux boutons et la valeur en clair, posés
+   * contre le champ, rendent le réglage évident — et apprennent la molette
+   * au passage grâce à leur info-bulle. */
+  const jauge = document.createElement('div')
+  jauge.className = 'hexa-text-size'
+  const moins = document.createElement('button')
+  moins.type = 'button'
+  moins.className = 'hexa-text-size-btn'
+  moins.textContent = 'A'
+  moins.title = 'Réduire le texte (molette vers le bas)'
+  const plus = document.createElement('button')
+  plus.type = 'button'
+  plus.className = 'hexa-text-size-btn is-big'
+  plus.textContent = 'A'
+  plus.title = 'Agrandir le texte (molette vers le haut)'
+  const valeur = document.createElement('span')
+  valeur.className = 'hexa-text-size-val'
+  jauge.append(moins, valeur, plus)
+  wrap.appendChild(jauge)
+
   // MOLETTE = TAILLE DU TEXTE, en direct pendant la frappe. C'est le geste
   // qu'on tente naturellement, et l'aperçu immédiat évite d'écrire, valider,
   // juger trop petit, annuler et recommencer.
   let taille = o.fontSize
-  const molette = (e: WheelEvent) => {
-    e.preventDefault()
-    taille = clamp(taille * (e.deltaY < 0 ? 1.12 : 1 / 1.12), 14, 96)
+  const applique = (t: number) => {
+    taille = clamp(t, 14, 96)
     input.style.fontSize = `${taille}px`
     ghost.style.fontSize = `${taille}px`
+    valeur.textContent = `${Math.round(taille)}`
     fit()
     o.onSize?.(taille)
   }
+  const molette = (e: WheelEvent) => {
+    e.preventDefault()
+    applique(taille * (e.deltaY < 0 ? 1.12 : 1 / 1.12))
+  }
   wrap.addEventListener('wheel', molette, { passive: false })
+  // `mousedown` plutôt que `click` : le champ perdrait le focus avant le clic,
+  // ce qui validerait le texte et fermerait la saisie sous les doigts.
+  const boutonTaille = (b: HTMLButtonElement, facteur: number) =>
+    b.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      applique(taille * facteur)
+      input.focus()
+    })
+  boutonTaille(moins, 1 / 1.18)
+  boutonTaille(plus, 1.18)
+  valeur.textContent = `${Math.round(taille)}`
 
   stage.appendChild(wrap)
   fit()

@@ -479,6 +479,20 @@ function applyPassthrough(o: Overlay, on: boolean): void {
     // utilisateur : on veut la trace dans le journal.
     logError('fenêtre', `bascule du mode dessin impossible (écran ${o.displayId})`, err)
   }
+  // ⚠️ PRÉVENIR LA COUCHE INTERFACE, sans quoi elle ignore le mode courant.
+  //
+  // Elle vit dans un autre processus de rendu : le F8 traité par la couche
+  // encre ne la touche pas. Son `body` ne recevait donc JAMAIS la classe
+  // `passthrough`, et toutes les règles qui en dépendent restaient mortes chez
+  // elle — la barre d'outils restait à l'opacité 1 pendant le jeu, et le
+  // curseur personnalisé continuait de suivre la souris alors que l'écran
+  // devait être absolument net. C'est aussi ce qui empêchait sa fenêtre plein
+  // écran de se retirer quand elle n'a plus rien à montrer.
+  try {
+    if (o.ui && !o.ui.isDestroyed()) o.ui.webContents.send('hexa:set-draw', !on)
+  } catch {
+    /* fenêtre en cours de destruction */
+  }
   refreshVisibility(o)
   // L'icône près de l'horloge doit TOUJOURS dire la vérité sur l'état courant.
   refreshTray()

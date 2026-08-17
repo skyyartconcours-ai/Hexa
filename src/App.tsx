@@ -452,11 +452,36 @@ export default function App() {
    */
   useEffect(() => {
     if (!porteInterface || !coucheSeparee) return
+    // ⚠️ LE POSTE DE CONSOMMATION LE PLUS COÛTEUX, ET LE PLUS INUTILE.
+    //
+    // En mode traversant — c'est-à-dire pendant que l'utilisateur JOUE — la
+    // barre d'outils est déjà invisible : `body.passthrough .toolbar` la met à
+    // l'opacité 0. Mais sa fenêtre, elle, restait affichée : un calque PLEIN
+    // ÉCRAN, transparent et toujours au-dessus, que Windows composait à chaque
+    // image par-dessus le jeu… pour n'afficher rigoureusement RIEN.
+    //
+    // Ça ne coûte pas un cycle de processeur (rien ne s'anime), donc aucune
+    // mesure de CPU ne le révèle — mais ça coûte au compositeur et à la carte
+    // graphique, et ça se paie en images par seconde dans le jeu.
+    //
+    // La cacher ne change donc STRICTEMENT RIEN à l'écran : on retire un calque
+    // qui ne montrait rien. Un panneau ouvert, la roue ou la découverte guidée
+    // continuent bien sûr de la faire revenir, même en traversant.
+    const barreVisible = toolbarVisible && !passthrough
     const contenu =
       isHost &&
-      (toolbarVisible || settingsOpen || cheatsheetOpen || replayOpen || radial !== null || !onboarded)
+      (barreVisible || settingsOpen || cheatsheetOpen || replayOpen || radial !== null || !onboarded)
     bridge.notifyActivity(contenu)
-  }, [isHost, toolbarVisible, settingsOpen, cheatsheetOpen, replayOpen, radial, onboarded])
+  }, [
+    isHost,
+    toolbarVisible,
+    passthrough,
+    settingsOpen,
+    cheatsheetOpen,
+    replayOpen,
+    radial,
+    onboarded,
+  ])
 
   /**
    * Le curseur personnalisé est repris par la couche interface (il renseigne le
