@@ -14,8 +14,14 @@ import type { Pt, ShapeState } from './shapes'
 
 const FONT_STACK = 'ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif'
 
-/** taille de police dérivée de l'épaisseur du pinceau */
-export const textSizeOf = (size: number): number => clamp(size * 3.2, 15, 62)
+/**
+ * Taille du texte, dérivée de l'épaisseur du trait (curseur de la barre ou
+ * molette) : un seul réglage à comprendre, et il agit en direct pendant la
+ * saisie. La plage était plafonnée à 62 px — trop courte pour un titre posé
+ * sur une carte. De 14 à 96 px, l'épaisseur 2 → 18 couvre enfin du sous-titre
+ * discret au gros mot-clé.
+ */
+export const textSizeOf = (size: number): number => clamp(size * 5.2, 14, 96)
 
 /* ------------------------------------------------------------------ */
 /*  Étiquette en verre dépoli (mesure, guides, angles)                 */
@@ -396,6 +402,8 @@ export interface TextInputOpts {
   y: number
   color: string
   fontSize: number
+  /** la molette a changé la taille pendant la saisie : l'app suit (épaisseur) */
+  onSize?: (fontSize: number) => void
 }
 
 /**
@@ -433,6 +441,20 @@ export function openTextInput(
     input.style.width = `${Math.ceil(ghost.getBoundingClientRect().width) + 2}px`
   }
   input.addEventListener('input', fit)
+
+  // MOLETTE = TAILLE DU TEXTE, en direct pendant la frappe. C'est le geste
+  // qu'on tente naturellement, et l'aperçu immédiat évite d'écrire, valider,
+  // juger trop petit, annuler et recommencer.
+  let taille = o.fontSize
+  const molette = (e: WheelEvent) => {
+    e.preventDefault()
+    taille = clamp(taille * (e.deltaY < 0 ? 1.12 : 1 / 1.12), 14, 96)
+    input.style.fontSize = `${taille}px`
+    ghost.style.fontSize = `${taille}px`
+    fit()
+    o.onSize?.(taille)
+  }
+  wrap.addEventListener('wheel', molette, { passive: false })
 
   stage.appendChild(wrap)
   fit()

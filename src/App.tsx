@@ -105,6 +105,7 @@ export default function App() {
   const smartShapes = useUiStore((s) => s.smartShapes)
   const guides = useUiStore((s) => s.guides)
   const linkBadges = useUiStore((s) => s.linkBadges)
+  const badgeContinuous = useUiStore((s) => s.badgeContinuous)
   const handwriting = useUiStore((s) => s.handwriting)
   const lexicon = useUiStore((s) => s.lexicon)
   const lexiconCategories = useUiStore((s) => s.lexiconCategories)
@@ -185,6 +186,9 @@ export default function App() {
     }
     // collage d'une image (§4.10) : le moteur demande le passage au tampon
     engine.onRequestTool = (t) => useUiStore.getState().setTool(t)
+    // la molette sur le champ texte a choisi une taille : le curseur d'épaisseur
+    // de la barre doit la refléter, sinon le texte suivant repartirait de l'ancienne
+    engine.onRequestSize = (size) => useUiStore.getState().setSize(size)
     engine.onWheelCb = (e) => {
       e.preventDefault()
       const st = useUiStore.getState()
@@ -531,6 +535,7 @@ export default function App() {
       smartShapes,
       guides,
       linkBadges,
+      badgeContinuous,
       handwriting,
       effects: effectIntensity,
     })
@@ -543,6 +548,7 @@ export default function App() {
     smartShapes,
     guides,
     linkBadges,
+    badgeContinuous,
     handwriting,
     effectIntensity,
   ])

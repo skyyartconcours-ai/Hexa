@@ -101,6 +101,15 @@ export interface EngineOptions {
   guides: boolean
   /** numéroteur : relier automatiquement la pastille N à N+1 */
   linkBadges: boolean
+  /**
+   * Numéroteur : poursuivre la numérotation d'une couleur à l'autre.
+   *
+   * COUPÉ par défaut, donc chaque couleur repart de 1. C'est la façon dont on
+   * annote une carte : un parcours cyan 1→7 pour une équipe, un parcours rose
+   * 1→6 pour l'autre. Activé, les pastilles s'enchaînent sans se soucier de la
+   * couleur, pour numéroter une longue séquence en changeant de teinte.
+   */
+  badgeContinuous: boolean
   /** intensité globale des halos néon (1 = normal, réglable 0,4 → 1,4).
    *  Optionnel : un moteur qui l'ignore reste correct. */
   effects?: number

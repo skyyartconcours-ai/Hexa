@@ -171,6 +171,7 @@ export class HexaEngine {
     smartShapes: true,
     guides: true,
     linkBadges: true,
+    badgeContinuous: false,
   }
 
   private strokes: Stroke[] = []
@@ -355,6 +356,9 @@ export class HexaEngine {
   /** le moteur demande un changement d'outil (collage d'image → tampon) */
   onRequestTool?: (tool: ToolId) => void
 
+  /** le moteur demande un changement d'épaisseur (molette sur le champ texte) */
+  onRequestSize?: (size: number) => void
+
   /** clic droit maintenu 220 ms dans le vide : l'interface ouvre la roue (§8.2) */
   onRadial?: (x: number, y: number) => void
 
@@ -382,6 +386,7 @@ export class HexaEngine {
   setOptions(patch: Partial<EngineOptions>): void {
     const prevFade = this.opts.fadeDelay
     const prevTool = this.opts.tool
+    const prevColor = this.opts.color
     const prevFx = this.opts.effects
     this.opts = { ...this.opts, ...patch }
     // ---- calque consolidé (S4) ----------------------------------------
@@ -393,6 +398,15 @@ export class HexaEngine {
       this.wake()
     }
     // ---- fin ----------------------------------------------------------
+    // NUMÉROTEUR : changer de couleur ouvre une NOUVELLE série, qui repart de 1.
+    // C'est ainsi qu'on annote une carte — un parcours cyan pour une équipe, un
+    // parcours rose pour l'autre — et la liaison automatique ne doit surtout pas
+    // relier la dernière pastille d'une série à la première de la suivante.
+    // L'option « poursuivre » rend l'ancien comportement continu.
+    if (patch.color !== undefined && patch.color !== prevColor && !this.opts.badgeContinuous) {
+      this.badgeSeq = 1
+      this.lastBadgeId = null
+    }
     if (this.opts.tool !== prevTool && prevTool === 'text') this.closeText?.()
     // le spotlight vit tant que son outil est sélectionné (§8.5 : maintien de
     // touche = il s'ouvre à l'appui et se referme au relâchement)
@@ -940,10 +954,22 @@ export class HexaEngine {
   private openText(pt: StrokePoint): void {
     this.closeText?.()
     const color = this.opts.color
-    const size = this.opts.size
+    // La molette peut changer la taille PENDANT la saisie : on retient la
+    // dernière valeur choisie, et on la retraduit en épaisseur pour que le
+    // texte posé fasse exactement la taille aperçue.
+    let size = this.opts.size
     this.closeText = openTextInput(
       this.stage,
-      { x: pt.x, y: pt.y, color, fontSize: textSizeOf(size) },
+      {
+        x: pt.x,
+        y: pt.y,
+        color,
+        fontSize: textSizeOf(size),
+        onSize: (fs) => {
+          size = clamp(fs / 5.2, 2, 18)
+          this.onRequestSize?.(size)
+        },
+      },
       (value) => {
         const now = performance.now()
         const s: Stroke = {

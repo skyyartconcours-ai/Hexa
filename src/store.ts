@@ -75,6 +75,9 @@ export interface UiState extends ObsSettings {
   guides: boolean
   /** numéroteur : relier automatiquement la pastille N à N+1 */
   linkBadges: boolean
+  /** numéroteur : poursuivre la numérotation d'une couleur à l'autre
+   *  (coupé = chaque couleur repart de 1, ce qui est le cas d'usage courant) */
+  badgeContinuous: boolean
   /**
    * Mode écriture : chaque CAPITALE tracée à la main est reconnue et
    * retracée en typographie ~400 ms après avoir été finie, pendant qu'on
@@ -188,6 +191,7 @@ export interface UiState extends ObsSettings {
   toggleSmartShapes: () => void
   toggleGuides: () => void
   toggleLinkBadges: () => void
+  toggleBadgeContinuous: () => void
   toggleHandwriting: () => void
   toggleLexicon: () => void
   toggleLexiconCategory: (id: CategorieId) => void
@@ -245,6 +249,7 @@ export const useUiStore = create<UiState>()(
       smartShapes: true,
       guides: true,
       linkBadges: true,
+      badgeContinuous: false,
       handwriting: false,
       lexicon: true,
       lexiconCategories: [...CATEGORIES_DEFAUT],
@@ -293,6 +298,7 @@ export const useUiStore = create<UiState>()(
       toggleSmartShapes: () => set((s) => ({ smartShapes: !s.smartShapes })),
       toggleGuides: () => set((s) => ({ guides: !s.guides })),
       toggleLinkBadges: () => set((s) => ({ linkBadges: !s.linkBadges })),
+      toggleBadgeContinuous: () => set((s) => ({ badgeContinuous: !s.badgeContinuous })),
       toggleHandwriting: () => set((s) => ({ handwriting: !s.handwriting })),
       toggleLexicon: () => set((s) => ({ lexicon: !s.lexicon })),
       toggleLexiconCategory: (id) =>
@@ -411,6 +417,7 @@ export const useUiStore = create<UiState>()(
         smartShapes: s.smartShapes,
         guides: s.guides,
         linkBadges: s.linkBadges,
+        badgeContinuous: s.badgeContinuous,
         handwriting: s.handwriting,
         lexicon: s.lexicon,
         lexiconCategories: s.lexiconCategories,

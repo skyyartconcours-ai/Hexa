@@ -309,6 +309,8 @@ export function Toolbar({
   const setColor = useUiStore((s) => s.setColor)
   const setSize = useUiStore((s) => s.setSize)
   const cycleFade = useUiStore((s) => s.cycleFade)
+  const badgeContinuous = useUiStore((s) => s.badgeContinuous)
+  const toggleBadgeContinuous = useUiStore((s) => s.toggleBadgeContinuous)
   const gridMode = useUiStore((s) => s.gridMode)
   const gridOpacity = useUiStore((s) => s.gridOpacity)
   const cycleGrid = useUiStore((s) => s.cycleGrid)
@@ -642,6 +644,19 @@ export function Toolbar({
           {fadeDelay == null ? <IconInfinity /> : <IconTimer />}
           <span className="chip-label">{fadeDelay == null ? '∞' : `${fadeDelay / 1000}s`}</span>
           {rappel('Durée du fondu', 'fade.cycle', 'D')}
+        </button>
+        <button
+          className={`tbtn chip ${badgeContinuous ? 'active' : ''}`}
+          title={
+            badgeContinuous
+              ? 'Numérotation continue : les pastilles s’enchaînent d’une couleur à l’autre. Clique pour que chaque couleur reparte de 1.'
+              : 'Numérotation par couleur : chaque couleur repart de 1. Clique pour poursuivre la même série d’une couleur à l’autre.'
+          }
+          onClick={toggleBadgeContinuous}
+        >
+          <IconBadge />
+          <span className="chip-label">{badgeContinuous ? '1→n' : '1|1'}</span>
+          {rappel('Numérotation', 'toggle.linkBadges')}
         </button>
         <button
           className={`tbtn ${sparkles ? 'active' : ''}`}
