@@ -52,6 +52,8 @@ import {
   IconClear,
   IconCompare,
   IconEllipse,
+  IconEye,
+  IconEyeOff,
   IconFreeze,
   IconHelp,
   IconMagnifier,
@@ -361,6 +363,8 @@ export function Toolbar({
   const setSize = useUiStore((s) => s.setSize)
   const cycleFade = useUiStore((s) => s.cycleFade)
   const badgeContinuous = useUiStore((s) => s.badgeContinuous)
+  const annotationsHidden = useUiStore((s) => s.annotationsHidden)
+  const toggleAnnotationsHidden = useUiStore((s) => s.toggleAnnotationsHidden)
   const toggleBadgeContinuous = useUiStore((s) => s.toggleBadgeContinuous)
   const gridMode = useUiStore((s) => s.gridMode)
   const gridOpacity = useUiStore((s) => s.gridOpacity)
@@ -934,6 +938,19 @@ export function Toolbar({
         <button className="tbtn" title={bulle('Rétablir', 'edit.redo')} onClick={onRedo}>
           <IconRedo />
           {rappel('Rétablir', 'edit.redo')}
+        </button>
+        <button
+          className={`tbtn ${annotationsHidden ? 'active' : ''}`}
+          title={bulle(
+            annotationsHidden
+              ? 'Annotations masquées — rien n’est perdu, le fondu est suspendu. Clique pour les remontrer.'
+              : 'Masquer les annotations sans les effacer (le fondu se met en pause)',
+            'ui.hideInk',
+          )}
+          onClick={toggleAnnotationsHidden}
+        >
+          {annotationsHidden ? <IconEyeOff /> : <IconEye />}
+          {rappel(annotationsHidden ? 'Remontrer' : 'Masquer', 'ui.hideInk')}
         </button>
         <button
           className="tbtn danger"

@@ -107,6 +107,7 @@ export default function App() {
   const smartShapes = useUiStore((s) => s.smartShapes)
   const guides = useUiStore((s) => s.guides)
   const linkBadges = useUiStore((s) => s.linkBadges)
+  const annotationsHidden = useUiStore((s) => s.annotationsHidden)
   const badgeContinuous = useUiStore((s) => s.badgeContinuous)
   const handwriting = useUiStore((s) => s.handwriting)
   const lexicon = useUiStore((s) => s.lexicon)
@@ -199,9 +200,39 @@ export default function App() {
     // §11 + §10.2 : l'enregistreur de session et le miroir OBS regardent le
     // moteur travailler. Appelé uniquement pendant une image active, donc
     // strictement rien au repos.
+    const __dbg = ((window as unknown as Record<string, unknown>).__hexaDbg = {
+      recMs: 0,
+      obsMs: 0,
+      appels: 0,
+      recCount: 0,
+      obsSent: 0,
+      vivants: 0,
+      points: 0,
+      archPoints: 0,
+    } as Record<string, number>)
     engine.onMirror = (strokes, current) => {
+      const a = performance.now()
       recorder.observe(strokes, current)
+      const b = performance.now()
       obsLink.publish(strokes, current)
+      const c = performance.now()
+      __dbg.recMs += b - a
+      __dbg.obsMs += c - b
+      __dbg.appels++
+      __dbg.recCount = (recorder as unknown as { entries: Map<number, unknown> }).entries.size
+      __dbg.obsSent = (obsLink as unknown as { sent: Map<number, unknown> }).sent.size
+      __dbg.vivants = strokes.length
+      if (__dbg.appels % 60 === 0) {
+        let p = 0
+        for (const s of strokes) p += s.points.length
+        __dbg.points = p
+        let ap = 0
+        for (const e of (
+          recorder as unknown as { entries: Map<number, { s: { points: unknown[] } }> }
+        ).entries.values())
+          ap += e.s.points.length
+        __dbg.archPoints = ap
+      }
     }
     /** coupe le relais du geste de la roue (posé plus bas, le temps du geste) */
     let detacherRoue: () => void = () => undefined
@@ -599,6 +630,7 @@ export default function App() {
       guides,
       linkBadges,
       badgeContinuous,
+      annotationsHidden,
       handwriting,
       effects: effectIntensity,
     })
@@ -612,6 +644,7 @@ export default function App() {
     guides,
     linkBadges,
     badgeContinuous,
+    annotationsHidden,
     handwriting,
     effectIntensity,
   ])
@@ -912,6 +945,10 @@ export default function App() {
         case 'stage.note':
           e.preventDefault()
           spawnNote()
+          break
+        case 'ui.hideInk':
+          e.preventDefault()
+          st().toggleAnnotationsHidden()
           break
         case 'ui.toolbar':
           e.preventDefault()

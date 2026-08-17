@@ -140,7 +140,15 @@ let current: ObsServerOptions | null = null
 let livePort = 0
 let lastError: string | undefined
 
-/** Dernier état complet, renvoyé à chaque nouvelle vue qui se connecte. */
+/**
+ * Dernier état complet, renvoyé à chaque nouvelle vue qui se connecte.
+ *
+ * Il n'existe QUE tant qu'une vue est connectée : le renderer ne publie plus
+ * rien quand personne ne regarde (voir src/obs/link.ts). On le relâche donc dès
+ * la dernière déconnexion — sur une longue session de tableau blanc, ce sont
+ * plusieurs mégaoctets de JSON qui restaient sinon accrochés au processus
+ * principal jusqu'à la fermeture d'Hexa.
+ */
 let lastFullState: string | null = null
 
 function makeUrl(port: number): string {
@@ -249,6 +257,7 @@ function dropClient(c: Client, code?: number): void {
   } catch {
     /* ignore */
   }
+  if (clients.size === 0) lastFullState = null
   current?.onClients?.(clients.size)
 }
 
@@ -601,6 +610,7 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
 
     const drop = (): void => {
       if (clients.delete(client)) {
+        if (clients.size === 0) lastFullState = null
         current?.onClients?.(clients.size)
         log(`vue OBS déconnectée (${clients.size})`)
       }
@@ -625,6 +635,13 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
       } catch {
         drop()
       }
+    } else {
+      // Rien en réserve — c'est le cas NORMAL de la première connexion, puisque
+      // le renderer se tait tant que personne ne regarde. On réclame l'état
+      // tout de suite, sans attendre le « obs:hello » de la vue : une source
+      // navigateur mal réglée (ou un simple client de diagnostic) reçoit ainsi
+      // les annotations déjà à l'écran.
+      current?.onHello?.()
     }
   })
 

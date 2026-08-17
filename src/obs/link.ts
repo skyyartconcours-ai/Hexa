@@ -11,6 +11,23 @@
  * Budget : un balayage toutes les 33 ms au maximum (~30 Hz), jamais un message
  * par point (§13). Quand rien ne bouge, le moteur n'appelle pas ce module :
  * coût nul au repos.
+ *
+ * ⚠️ ET SURTOUT : ON NE TRAVAILLE QUE SI QUELQU'UN REGARDE.
+ *
+ * Le serveur local est allumé d'usine (voir OBS_DEFAULTS) pour que coller
+ * l'adresse dans OBS suffise. Mais l'immense majorité des sessions se déroule
+ * SANS source navigateur : le streamer a OBS ouvert, il capture son écran, et
+ * il n'a jamais ajouté la vue d'Hexa. Le miroir balayait quand même TOUS les
+ * traits toutes les 33 ms, en clonait, en sérialisait le JSON et l'envoyait par
+ * IPC au processus principal — qui le jetait, faute de destinataire. Mesuré sur
+ * une session de 400 traits : 3 761 messages, 877 Kio, cent pour cent perdus, et
+ * un coût par image qui grimpe avec le nombre d'annotations puisque le balayage
+ * est proportionnel à la scène. C'est exactement la dégradation progressive que
+ * décrivent les utilisateurs.
+ *
+ * `viewers` porte donc le nombre de vues RÉELLEMENT connectées, poussé par le
+ * processus principal. À zéro, ce module ne fait plus rien du tout ; à la
+ * première connexion, l'état complet part immédiatement (voir ObsBridge).
  */
 import type { Stroke } from '../engine/types'
 import { OBS_CHANNEL, type ObsMessage, type ObsMode } from './protocol'
@@ -58,6 +75,12 @@ function signature(s: Stroke): string {
 export class ObsLink {
   private enabled = true
   private mode: ObsMode = 'screen'
+  /**
+   * Nombre de vues OBS connectées au serveur local. `-1` = on ne sait pas
+   * encore (le processus principal n'a pas répondu) : on se tait, ce qui est
+   * le bon défaut — une vue qui arrive réclame de toute façon l'état complet.
+   */
+  private viewers = -1
   private channel: BroadcastChannel | null = null
   private sent = new Map<number, SentInfo>()
   private lastScan = 0
@@ -101,6 +124,31 @@ export class ObsLink {
     else this.sent.clear()
   }
 
+  /**
+   * Nombre de sources navigateur connectées, poussé par le processus principal
+   * (canal `obs-clients`). C'est l'interrupteur général du miroir : à zéro, plus
+   * un balayage, plus un clone, plus un message.
+   */
+  setViewers(count: number): void {
+    const n = Number.isFinite(count) ? Math.max(0, Math.round(count)) : 0
+    if (n === this.viewers) return
+    const avant = this.viewers
+    this.viewers = n
+    // Plus personne : on lâche l'index des traits déjà envoyés. Il est périmé
+    // de toute façon, et il pesait un descripteur par annotation de la session.
+    if (n === 0) this.sent.clear()
+    // Première vue de la salve : elle doit voir l'écran tel qu'il est MAINTENANT.
+    else if (avant <= 0) this.requestFull()
+  }
+
+  /** Quelqu'un attend-il vraiment nos messages ? */
+  private audience(): boolean {
+    // Démo navigateur : le BroadcastChannel n'a pas de compteur d'abonnés, et
+    // il ne coûte rien (même processus, pas d'IPC). On publie comme avant.
+    if (!host()?.obsPublish) return true
+    return this.viewers > 0
+  }
+
   setMode(mode: ObsMode): void {
     if (this.mode === mode) return
     this.mode = mode
@@ -109,9 +157,11 @@ export class ObsLink {
 
   /** Appelé par le moteur à chaque image active. Doit rester très bon marché. */
   publish(strokes: readonly Stroke[], current: Stroke | null): void {
+    // Deux affectations, jamais davantage tant que personne ne regarde : c'est
+    // ce qu'il faut pour pouvoir servir l'état complet à la première connexion.
     this.lastStrokes = strokes
     this.lastCurrent = current
-    if (!this.enabled) return
+    if (!this.enabled || !this.audience()) return
     const now = performance.now()
     if (now - this.lastScan < SAMPLE_MS) return
     this.lastScan = now
@@ -133,7 +183,7 @@ export class ObsLink {
 
   /** Renvoie tout l'état : à la connexion d'une vue, ou au réveil du miroir. */
   sendFull(): void {
-    if (!this.enabled) return
+    if (!this.enabled || !this.audience()) return
     const strokes = this.lastCurrent
       ? [...this.lastStrokes, this.lastCurrent]
       : [...this.lastStrokes]
@@ -213,6 +263,10 @@ export class ObsLink {
   }
 
   private send(msg: ObsMessage): void {
+    // Dernier filtre, celui qui garantit qu'AUCUN octet ne part dans le vide.
+    // Les rares messages ponctuels perdus ici (mode, taille d'écran, effacement)
+    // sont tous reportés dans le prochain `state:full`, envoyé à la connexion.
+    if (!this.audience()) return
     const h = host()
     if (h?.obsPublish) {
       try {

@@ -411,9 +411,13 @@ function refreshVisibiliteInterface(o: Overlay): void {
       o.uiHideTimer = null
     }
     try {
-      if (!ui.isVisible()) ui.showInactive()
-      // L'interface doit rester AU-DESSUS de l'encre : entre deux fenêtres
-      // « toujours au-dessus », c'est la dernière qui l'a réclamé qui gagne.
+      // Même règle qu'en encre : on ne repose le niveau que si la fenêtre vient
+      // de reparaître. Une interface DÉJÀ visible est déjà au-dessus — et la
+      // couche encre la fait remonter d'elle-même quand elle repasse devant
+      // (showOverlay). Reposer à chaque signal d'activité faisait recomposer
+      // DWM pour rien, sous le nez d'OBS qui capture l'écran.
+      if (ui.isVisible()) return
+      ui.showInactive()
       reassertTopmost(ui)
     } catch (err) {
       logError('fenêtre', `interface non affichable (écran ${o.displayId})`, err)
@@ -505,15 +509,32 @@ function appliquerBoundsInterface(o: Overlay): void {
   )
 }
 
+/**
+ * Affiche la couche encre, et ne réaffirme le niveau « toujours au-dessus » que
+ * si elle vient RÉELLEMENT de reparaître.
+ *
+ * ⚠️ POURQUOI CETTE CONDITION EST UNE QUESTION DE PERFORMANCE, pas de style.
+ *
+ * `setAlwaysOnTop` se traduit sous Windows par un `SetWindowPos(HWND_TOPMOST)` :
+ * le gestionnaire de fenêtres réordonne la pile et DWM recompose. Quand OBS
+ * capture l'écran en continu, chaque réordonnancement invalide sa capture et lui
+ * coûte une image complète. Or `showOverlay` est appelé à CHAQUE signal
+ * d'activité de la couche encre — c'est-à-dire à chaque fois que la couche passe
+ * de vide à non-vide et retour, donc plusieurs fois par annotation. Mesuré sur
+ * douze cycles d'usage normal : 119 `setAlwaysOnTop` et 119
+ * `setVisibleOnAllWorkspaces`, dont la quasi-totalité reposaient une valeur
+ * déjà en place sur une fenêtre déjà visible.
+ *
+ * Le besoin réel — reprendre le dessus sur Discord ou GeForce Experience, qui se
+ * réinsèrent au-dessus de nous en cours de session — est entièrement couvert par
+ * les deux seuls moments qui comptent : la réapparition de la fenêtre, et
+ * l'entrée délibérée en mode dessin (voir applyPassthrough).
+ */
 function showOverlay(o: Overlay): void {
   try {
     if (o.win.isDestroyed() || eclipsed) return
-    if (!o.win.isVisible()) o.win.showInactive()
-    // Certains overlays de jeu (Discord, GeForce Experience) et les infobulles
-    // de Windows se réinsèrent au-dessus de nous en cours de session : entre
-    // deux fenêtres « topmost », c'est la DERNIÈRE qui l'a demandé qui gagne.
-    // On réaffirme donc le niveau à chaque réapparition (détail dans
-    // windows-guard.ts, reassertTopmost).
+    if (o.win.isVisible()) return
+    o.win.showInactive()
     reassertTopmost(o.win)
     // L'encre vient de repasser devant : on remet l'interface par-dessus, sinon
     // la barre d'outils se retrouverait DERRIÈRE les annotations (et derrière
@@ -555,6 +576,10 @@ function applyPassthrough(o: Overlay, on: boolean): void {
       o.win.setIgnoreMouseEvents(false)
       o.win.setFocusable(true)
       showOverlay(o)
+      // Entrée DÉLIBÉRÉE en mode dessin : c'est le seul moment où l'utilisateur
+      // exige de voir Hexa devant tout le reste. On réaffirme donc ici, une
+      // fois par bascule — et plus à chaque signal d'activité (voir showOverlay).
+      reassertTopmost(o.win)
       o.win.focus()
       // On vient de RÉCLAMER le premier plan à Windows. Si on ne l'obtient pas,
       // c'est presque toujours un jeu en plein écran exclusif : le seul cas où

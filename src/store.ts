@@ -75,6 +75,9 @@ export interface UiState extends ObsSettings {
   guides: boolean
   /** numéroteur : relier automatiquement la pastille N à N+1 */
   linkBadges: boolean
+  /** annotations masquées : rien n'est perdu, le fondu est suspendu, et la
+   *  couche redevenue vide laisse la fenêtre se retirer (coût nul) */
+  annotationsHidden: boolean
   /**
    * Menu radial : afficher les DOUZE outils au lieu des sept essentiels.
    *
@@ -202,6 +205,7 @@ export interface UiState extends ObsSettings {
   toggleSmartShapes: () => void
   toggleGuides: () => void
   toggleLinkBadges: () => void
+  toggleAnnotationsHidden: () => void
   toggleBadgeContinuous: () => void
   toggleRadialAllTools: () => void
   toggleHandwriting: () => void
@@ -261,6 +265,7 @@ export const useUiStore = create<UiState>()(
       smartShapes: true,
       guides: true,
       linkBadges: true,
+      annotationsHidden: false,
       badgeContinuous: false,
       radialAllTools: false,
       handwriting: false,
@@ -312,6 +317,8 @@ export const useUiStore = create<UiState>()(
       toggleSmartShapes: () => set((s) => ({ smartShapes: !s.smartShapes })),
       toggleGuides: () => set((s) => ({ guides: !s.guides })),
       toggleLinkBadges: () => set((s) => ({ linkBadges: !s.linkBadges })),
+      toggleAnnotationsHidden: () =>
+        set((s) => ({ annotationsHidden: !s.annotationsHidden })),
       toggleBadgeContinuous: () => set((s) => ({ badgeContinuous: !s.badgeContinuous })),
       toggleRadialAllTools: () => set((s) => ({ radialAllTools: !s.radialAllTools })),
       toggleHandwriting: () => set((s) => ({ handwriting: !s.handwriting })),

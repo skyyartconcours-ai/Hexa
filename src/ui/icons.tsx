@@ -113,6 +113,24 @@ export const IconEraser = () => (
   </Svg>
 )
 
+/** Œil : les annotations sont à l'écran. */
+export const IconEye = () => (
+  <Svg>
+    <path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12z" />
+    <circle cx="12" cy="12" r="3.1" />
+  </Svg>
+)
+
+/** Œil barré : les annotations sont masquées (rien n'est perdu). */
+export const IconEyeOff = () => (
+  <Svg>
+    <path d="M4.2 8.4C3 9.9 2.5 12 2.5 12s3.5 5.5 9.5 5.5c1.5 0 2.8-.35 3.9-.87" />
+    <path d="M9.3 7c.85-.32 1.75-.5 2.7-.5 6 0 9.5 5.5 9.5 5.5s-1 1.6-2.8 3.1" opacity="0.75" />
+    <path d="M9.9 9.9a3.1 3.1 0 0 0 4.3 4.3" />
+    <path d="M4 4l16 16" />
+  </Svg>
+)
+
 export const IconUndo = () => (
   <Svg>
     <path d="M8 7 4 11l4 4" />

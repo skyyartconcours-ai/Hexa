@@ -36,6 +36,14 @@ function host(): ObsServerHost | undefined {
   return (window as unknown as { hexa?: ObsServerHost }).hexa
 }
 
+/** Vues connectées d'après un état de serveur brut (0 si le serveur est éteint). */
+function nombreDeVues(info: unknown): number {
+  if (typeof info !== 'object' || info === null) return 0
+  const r = info as { running?: unknown; clients?: unknown }
+  if (r.running !== true) return 0
+  return typeof r.clients === 'number' && r.clients > 0 ? Math.round(r.clients) : 0
+}
+
 export interface ObsBridgeProps {
   /** appelé au changement de scène OBS : l'app efface la couche */
   onSceneChange: () => void
@@ -83,14 +91,23 @@ export function ObsBridge({ onSceneChange }: ObsBridgeProps) {
   useEffect(() => {
     const h = host()
     if (!h?.obsServer) return
-    void h.obsServer({ enabled: serverOn, port }).then((info) => setObsServerInfo(info))
+    void h.obsServer({ enabled: serverOn, port }).then((info) => {
+      setObsServerInfo(info)
+      // Serveur éteint = plus aucune vue possible : le miroir se tait.
+      obsLink.setViewers(nombreDeVues(info))
+    })
   }, [serverOn, port])
 
   // État réel du serveur au montage (l'application a pu être rechargée).
   useEffect(() => {
     const h = host()
     if (!h?.obsStatus) return
-    void h.obsStatus().then((info) => setObsServerInfo(info))
+    void h.obsStatus().then((info) => {
+      setObsServerInfo(info)
+      const n = nombreDeVues(info)
+      setClients(n)
+      obsLink.setViewers(n)
+    })
   }, [])
 
   // 3. canaux poussés par le processus principal
@@ -102,8 +119,12 @@ export function ObsBridge({ onSceneChange }: ObsBridgeProps) {
       const count = typeof n === 'number' ? n : 0
       setClients(count)
       setObsClients(count)
-      // Une vue vient d'arriver : qu'elle reçoive TOUT de suite ce qui est déjà
-      // à l'écran. Ceinture et bretelles avec le « obs:hello » de la vue.
+      // C'EST L'INTERRUPTEUR GÉNÉRAL DU MIROIR. Tant qu'il est à zéro, le
+      // miroir ne balaie rien, ne clone rien, n'envoie rien. Passer au-dessus
+      // de zéro déclenche l'envoi de l'état complet : une vue ajoutée en pleine
+      // session voit l'écran tel qu'il est, sans attendre le trait suivant.
+      obsLink.setViewers(count)
+      // Ceinture et bretelles avec le « obs:hello » de la vue.
       if (count > 0) obsLink.requestFull()
     })
     const offFull = h.on('obs-full-request', () => obsLink.requestFull())

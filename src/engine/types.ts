@@ -102,6 +102,16 @@ export interface EngineOptions {
   /** numéroteur : relier automatiquement la pastille N à N+1 */
   linkBadges: boolean
   /**
+   * Masquer TOUTES les annotations sans les perdre.
+   *
+   * Le geste « je montre, je cache, je remontre » : rien n'est effacé, le
+   * fondu automatique est SUSPENDU pendant la coupure (sinon les annotations
+   * mourraient en douce pendant qu'on ne les voit pas, et l'on retrouverait
+   * un écran vide en les rallumant), et la couche redevenue vide laisse la
+   * fenêtre se retirer — donc coût nul pendant la coupure.
+   */
+  annotationsHidden: boolean
+  /**
    * Numéroteur : poursuivre la numérotation d'une couleur à l'autre.
    *
    * COUPÉ par défaut, donc chaque couleur repart de 1. C'est la façon dont on

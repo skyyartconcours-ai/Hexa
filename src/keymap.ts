@@ -61,6 +61,7 @@ export type KeymapAction =
   | 'stage.clock'
   | 'stage.note'
   // interface
+  | 'ui.hideInk'
   | 'ui.toolbar'
   | 'ui.toolbar.orient'
   | 'ui.hints'
@@ -266,6 +267,12 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
     hint: 'Elle reste à l’écran, même après un « tout effacer »',
   },
 
+  {
+    action: 'ui.hideInk',
+    label: 'Masquer / remontrer les annotations',
+    category: 'interface',
+    global: true,
+  },
   { action: 'ui.toolbar', label: 'Afficher/masquer la barre', category: 'interface', global: true },
   {
     action: 'ui.toolbar.orient',
@@ -383,6 +390,8 @@ const HEXA_BINDINGS: Bindings = {
   'stage.clock': 'ctrl+shift+y',
   'stage.note': 'ctrl+shift+b',
 
+  // Masquer / remontrer TOUTES les annotations sans rien perdre.
+  'ui.hideInk': 'ctrl+shift+m',
   'ui.toolbar': 'h',
   'ui.toolbar.orient': 'ctrl+shift+h',
   // « Fin » : touche isolée, à l'écart de tout ce qu'un jeu utilise, et que

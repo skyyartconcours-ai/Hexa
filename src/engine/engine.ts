@@ -172,6 +172,7 @@ export class HexaEngine {
     guides: true,
     linkBadges: true,
     badgeContinuous: false,
+    annotationsHidden: false,
   }
 
   private strokes: Stroke[] = []
@@ -387,6 +388,7 @@ export class HexaEngine {
     const prevFade = this.opts.fadeDelay
     const prevTool = this.opts.tool
     const prevColor = this.opts.color
+    const prevHidden = this.opts.annotationsHidden
     const prevFx = this.opts.effects
     this.opts = { ...this.opts, ...patch }
     // ---- calque consolidé (S4) ----------------------------------------
@@ -398,6 +400,23 @@ export class HexaEngine {
       this.wake()
     }
     // ---- fin ----------------------------------------------------------
+    // RALLUMAGE des annotations : le fondu a été suspendu pendant la coupure,
+    // on lui rend un compte à rebours complet — sinon tout ce qui était « presque
+    // mort » disparaîtrait dans la seconde qui suit le retour à l'écran.
+    if (
+      patch.annotationsHidden === false &&
+      prevHidden === true &&
+      this.opts.fadeDelay != null
+    ) {
+      const t = performance.now()
+      for (const s of this.strokes) if (!s.dying) s.dieAt = t + this.opts.fadeDelay
+    }
+    if (patch.annotationsHidden !== undefined && patch.annotationsHidden !== prevHidden) {
+      this.staticDirty = true
+      this.emitActivity()
+      this.wake()
+    }
+
     // NUMÉROTEUR : changer de couleur ouvre une NOUVELLE série, qui repart de 1.
     // C'est ainsi qu'on annote une carte — un parcours cyan pour une équipe, un
     // parcours rose pour l'autre — et la liaison automatique ne doit surtout pas
@@ -730,6 +749,10 @@ export class HexaEngine {
   }
 
   get hasContent(): boolean {
+    // Masquées, les annotations ne sont plus « du contenu » au sens de §2.5 :
+    // il n'y a rien à l'écran, donc la fenêtre peut se retirer et le coût
+    // compositeur retombe à zéro pendant toute la coupure.
+    if (this.opts.annotationsHidden) return this.current != null
     return this.strokes.length > 0 || this.current != null
   }
 
@@ -1626,8 +1649,11 @@ export class HexaEngine {
     const dt = clamp(now - this.lastFrame, 0, 48) / 1000
     this.lastFrame = now
 
-    // déclencher les dissolutions programmées (fondu auto)
+    // Déclencher les dissolutions programmées (fondu auto). SUSPENDU tant que
+    // les annotations sont masquées : sans ça, elles mourraient en douce
+    // pendant qu'on ne les voit pas, et l'on rallumerait sur un écran vide.
     for (const s of this.strokes) {
+      if (this.opts.annotationsHidden) break
       if (!s.dying && s.dieAt != null && now >= s.dieAt) {
         s.dying = { start: now, duration: dissolveDuration(s), mode: 'dissolve', cause: 'fade' }
       }
@@ -1804,6 +1830,9 @@ export class HexaEngine {
   private renderStatic(now: number): void {
     const ctx = this.sCtx
     ctx.clearRect(0, 0, this.w, this.h)
+    // Annotations masquées : on efface et on s'arrête là. Rien n'est détruit —
+    // la liste des traits est intacte, seul l'affichage est coupé.
+    if (this.opts.annotationsHidden) return
     // ---- calque consolidé (src/engine/ink-fx.ts) --------------------------
     // Les traits POSÉS (terminés, immobiles, sans animation) sont peints une
     // seule fois hors écran puis restitués en un appel : 200 annotations ne
