@@ -202,13 +202,22 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
   const [crop, setCrop] = useState(false)
   const [source, setSource] = useState<'live' | 'all'>('live')
   const [archived, setArchived] = useState(recorder.count)
+  /** traits sortis de l'archive faute de place : on le dit, on ne le cache pas */
+  const [forgotten, setForgotten] = useState(recorder.oublies)
   const [flash, setFlash] = useState<string | null>(null)
   const [wsStatus, setWsStatus] = useState<ObsWsStatus>(obsWsClient.status)
   const [showPassword, setShowPassword] = useState(false)
   const isElectron = typeof window !== 'undefined' && !!(window as { hexa?: unknown }).hexa
 
   // compteur de traits archivés — poussé par l'enregistreur, jamais sondé
-  useEffect(() => recorder.subscribe(() => setArchived(recorder.count)), [])
+  useEffect(
+    () =>
+      recorder.subscribe(() => {
+        setArchived(recorder.count)
+        setForgotten(recorder.oublies)
+      }),
+    [],
+  )
 
   // état RÉEL du serveur de la vue OBS (port écouté, vues connectées, erreur) :
   // poussé par le processus principal, jamais deviné.
@@ -657,8 +666,11 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
                 <b>Contenu à traiter</b>
                 <i>
                   À l'écran = ce qui est visible maintenant. Toute la session = {archived} trait
-                  {archived > 1 ? 's' : ''} archivé{archived > 1 ? 's' : ''} depuis le lancement,
-                  fondus compris.
+                  {archived > 1 ? 's' : ''} archivé{archived > 1 ? 's' : ''}
+                  {forgotten > 0 ? '' : ' depuis le lancement'}, fondus compris.
+                  {forgotten > 0
+                    ? ` L'archive est pleine : les ${forgotten} plus anciens en sont sortis pour que le direct reste fluide.`
+                    : ''}
                 </i>
               </div>
               <Segmented

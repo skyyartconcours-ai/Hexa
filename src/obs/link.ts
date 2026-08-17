@@ -45,31 +45,120 @@ function host(): ObsHost | undefined {
   return (window as unknown as { hexa?: ObsHost }).hexa
 }
 
+/**
+ * Empreinte d'un trait déjà envoyé : tout ce qui peut changer SANS ajouter de
+ * point (déplacement, redressement, fondu programmé, édition d'un texte…).
+ *
+ * ⚠️ C'EST UN ENREGISTREMENT DE CHAMPS, PAS UNE CHAÎNE. La version précédente
+ * assemblait un tableau de quatorze cases et le joignait en une chaîne — pour
+ * CHAQUE trait de la scène, trente fois par seconde. À trois cents annotations
+ * à l'écran, cela faisait neuf mille chaînes jetables par seconde, uniquement
+ * pour découvrir que rien n'avait bougé : de la pression sur le ramasse-miettes
+ * proportionnelle à la scène, donc une saccade qui s'aggrave à mesure que le
+ * tableau se remplit. Comparer les champs un à un donne le MÊME résultat, au
+ * bit près, sans allouer quoi que ce soit.
+ */
 interface SentInfo {
   len: number
-  sig: string
+  tool: string
+  color: string
+  size: number
+  done: boolean
+  filled: boolean
+  /** -1 quand le champ est absent : jamais de undefined dans la comparaison */
+  dieAt: number
+  dyingAt: number
+  dyingMode: string
+  animAt: number
+  x0: number
+  y0: number
+  xn: number
+  yn: number
+  text: string
+  badge: number
+  linkFrom: number
+  w: number
 }
 
-/** Signature compacte : tout ce qui peut changer SANS ajouter de point. */
-function signature(s: Stroke): string {
+/** Arrondi tolérant l'absence, pour comparer des nombres et jamais `undefined`. */
+function num(v: number | undefined): number {
+  return v == null ? -1 : Math.round(v)
+}
+
+/** Le trait est-il exactement tel qu'on l'a envoyé ? Aucune allocation. */
+function identique(prev: SentInfo, s: Stroke): boolean {
   const p0 = s.points[0]
   const pn = s.points[s.points.length - 1]
-  return [
-    s.tool,
-    s.color,
-    s.size,
-    s.done ? 1 : 0,
-    s.filled ? 1 : 0,
-    s.dieAt == null ? '' : Math.round(s.dieAt),
-    s.dying ? `${Math.round(s.dying.start)}${s.dying.mode}` : '',
-    s.anim ? Math.round(s.anim.start) : '',
-    p0 ? `${p0.x | 0},${p0.y | 0}` : '',
-    pn ? `${pn.x | 0},${pn.y | 0}` : '',
-    s.text ?? '',
-    s.badge ?? '',
-    s.linkFrom ?? '',
-    s.w ?? '',
-  ].join('|')
+  return (
+    prev.len === s.points.length &&
+    prev.tool === s.tool &&
+    prev.color === s.color &&
+    prev.size === s.size &&
+    prev.done === s.done &&
+    prev.filled === (s.filled === true) &&
+    prev.dieAt === num(s.dieAt) &&
+    prev.dyingAt === num(s.dying?.start) &&
+    prev.dyingMode === (s.dying?.mode ?? '') &&
+    prev.animAt === num(s.anim?.start) &&
+    prev.x0 === (p0 ? p0.x | 0 : 0) &&
+    prev.y0 === (p0 ? p0.y | 0 : 0) &&
+    prev.xn === (pn ? pn.x | 0 : 0) &&
+    prev.yn === (pn ? pn.y | 0 : 0) &&
+    prev.text === (s.text ?? '') &&
+    prev.badge === (s.badge ?? -1) &&
+    prev.linkFrom === (s.linkFrom ?? -1) &&
+    prev.w === (s.w ?? -1)
+  )
+}
+
+/** Recopie l'état du trait dans l'enregistrement, en place. */
+function noter(prev: SentInfo, s: Stroke): void {
+  const p0 = s.points[0]
+  const pn = s.points[s.points.length - 1]
+  prev.len = s.points.length
+  prev.tool = s.tool
+  prev.color = s.color
+  prev.size = s.size
+  prev.done = s.done
+  prev.filled = s.filled === true
+  prev.dieAt = num(s.dieAt)
+  prev.dyingAt = num(s.dying?.start)
+  prev.dyingMode = s.dying?.mode ?? ''
+  prev.animAt = num(s.anim?.start)
+  prev.x0 = p0 ? p0.x | 0 : 0
+  prev.y0 = p0 ? p0.y | 0 : 0
+  prev.xn = pn ? pn.x | 0 : 0
+  prev.yn = pn ? pn.y | 0 : 0
+  prev.text = s.text ?? ''
+  prev.badge = s.badge ?? -1
+  prev.linkFrom = s.linkFrom ?? -1
+  prev.w = s.w ?? -1
+}
+
+/** Enregistrement neuf pour un trait envoyé pour la première fois. */
+function empreinte(s: Stroke): SentInfo {
+  const info = {
+    len: 0,
+    tool: '',
+    color: '',
+    size: 0,
+    done: false,
+    filled: false,
+    dieAt: -1,
+    dyingAt: -1,
+    dyingMode: '',
+    animAt: -1,
+    x0: 0,
+    y0: 0,
+    xn: 0,
+    yn: 0,
+    text: '',
+    badge: -1,
+    linkFrom: -1,
+    w: -1,
+  } as SentInfo
+  noter(info, s)
+  return info
 }
 
 export class ObsLink {
@@ -83,6 +172,8 @@ export class ObsLink {
   private viewers = -1
   private channel: BroadcastChannel | null = null
   private sent = new Map<number, SentInfo>()
+  /** ensemble de travail du balayage, réutilisé : zéro allocation par image */
+  private vus = new Set<number>()
   private lastScan = 0
   private lastStrokes: readonly Stroke[] = []
   private lastCurrent: Stroke | null = null
@@ -188,7 +279,7 @@ export class ObsLink {
       ? [...this.lastStrokes, this.lastCurrent]
       : [...this.lastStrokes]
     this.sent.clear()
-    for (const s of strokes) this.sent.set(s.id, { len: s.points.length, sig: signature(s) })
+    for (const s of strokes) this.sent.set(s.id, empreinte(s))
     const { w, h } = this.viewport()
     this.send({
       t: 'state:full',
@@ -220,16 +311,22 @@ export class ObsLink {
   }
 
   private scan(now: number): void {
-    const seen = new Set<number>()
+    // Ensemble de travail réutilisé d'un balayage à l'autre : trente fois par
+    // seconde, un Set jetable de la taille de la scène, c'est encore de la
+    // pression sur le ramasse-miettes proportionnelle au nombre d'annotations.
+    const seen = this.vus
+    seen.clear()
     const visit = (s: Stroke) => {
       seen.add(s.id)
       const prev = this.sent.get(s.id)
-      const sig = signature(s)
       if (!prev) {
         this.send({ t: 'stroke:add', now, stroke: structuredClone(s) })
-        this.sent.set(s.id, { len: s.points.length, sig })
+        this.sent.set(s.id, empreinte(s))
         return
       }
+      // Le cas de très loin le plus fréquent : rien n'a bougé sur ce trait-là.
+      // Il se règle en quelques comparaisons de champs, sans rien allouer.
+      if (identique(prev, s)) return
       if (s.points.length > prev.len) {
         // lot de points : seulement la queue depuis le dernier envoi
         this.send({
@@ -239,16 +336,12 @@ export class ObsLink {
           points: s.points.slice(prev.len).map((p) => ({ ...p })),
           done: s.done,
         })
-        prev.len = s.points.length
-        prev.sig = sig
+        noter(prev, s)
         return
       }
-      if (prev.sig !== sig) {
-        // déplacement, redressement, fondu programmé… : on renvoie le trait
-        this.send({ t: 'stroke:update', now, stroke: structuredClone(s) })
-        prev.len = s.points.length
-        prev.sig = sig
-      }
+      // déplacement, redressement, fondu programmé… : on renvoie le trait
+      this.send({ t: 'stroke:update', now, stroke: structuredClone(s) })
+      noter(prev, s)
     }
 
     for (const s of this.lastStrokes) visit(s)
