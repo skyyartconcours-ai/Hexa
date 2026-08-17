@@ -93,11 +93,25 @@ export default function App() {
   /** premier rendu : pas de son de sélection au démarrage */
   const mountedRef = useRef(false)
   /**
-   * Dernier instantané de session reçu de la couche encre (§S11). Le panneau de
-   * réglages le lit de façon synchrone : il est rafraîchi à chaque ouverture du
-   * panneau — moment où l'on ne dessine pas, par construction.
+   * Dernier instantané de session reçu de la couche encre (§S11).
+   *
+   * ⚠️ IL NE SE DEMANDE PLUS À L'OUVERTURE DU PANNEAU, mais au CLIC sur un
+   * bouton qui en a besoin (« Exporter », « Rejouer »). L'instantané, c'est
+   * `engine.exportSession()` : un `structuredClone` de TOUTE la scène, puis une
+   * traversée IPC vers cette fenêtre. Mesuré dans la couche encre — celle qui
+   * est à l'antenne — 1 163 points coûtaient 1 ms, 36 818 points 47,7 ms (jusqu'à
+   * 87), 82 824 points 94,7 ms (jusqu'à 139) : autant d'images perdues EN DIRECT,
+   * à chaque fois que le streamer ouvre ses réglages pour changer une couleur.
+   * Deux cents ouvertures faisaient passer le total des processus de 993 à
+   * 1 092 Mo, non rendus après trente secondes de repos.
+   *
+   * Il ne sert donc plus que de filet : si la couche encre ne répond pas (fenêtre
+   * en train de se fermer), on rend le dernier instantané connu plutôt que de
+   * laisser un bouton sans effet.
    */
   const sessionRef = useRef<SessionExport | null>(null)
+  /** Demandes de session en cours d'aller-retour, résolues à la réponse. */
+  const sessionAttente = useRef<((s: SessionExport | null) => void)[]>([])
 
   const tool = useUiStore((s) => s.tool)
   const color = useUiStore((s) => s.color)
@@ -436,7 +450,15 @@ export default function App() {
       else if (m.quoi === 'hints')
         window.dispatchEvent(new CustomEvent('hexa:hints', { detail: m.on }))
       else if (m.quoi === 'tour') signalTour(m.signal as TourSignal)
-      else if (m.quoi === 'session') sessionRef.current = m.session as SessionExport
+      else if (m.quoi === 'session') {
+        const s = m.session as SessionExport
+        sessionRef.current = s
+        // On sert TOUTES les demandes en attente d'un coup : deux clics coup sur
+        // coup ne provoquent qu'un seul clone dans la couche encre.
+        const attentes = sessionAttente.current
+        sessionAttente.current = []
+        for (const rendre of attentes) rendre(s)
+      }
     })
   }, [])
 
@@ -563,13 +585,6 @@ export default function App() {
     if (!porteEncre || !coucheSeparee) return
     document.body.classList.toggle('barre-hote', isHost)
   }, [isHost])
-
-  // Le panneau de réglages exporte la session VIVE, qui vit dans l'autre
-  // fenêtre : on en redemande un instantané à chaque ouverture.
-  useEffect(() => {
-    if (!porteInterface || !coucheSeparee || !settingsOpen) return
-    envoyerCommande({ nom: 'session-get' })
-  }, [settingsOpen])
 
   /**
    * Clavier de la couche interface. Quand un panneau est ouvert, c'est CETTE
@@ -1056,6 +1071,37 @@ export default function App() {
    */
   const exportSession = () => envoyerCommande({ nom: 'export' })
 
+  /**
+   * Instantané de la scène vive, RÉCLAMÉ SEULEMENT QUAND ON EN A BESOIN.
+   *
+   * Un aller-retour avec la couche encre, déclenché par un clic sur « Exporter »
+   * ou « Rejouer » — plus jamais par la simple ouverture du panneau. Ouvrir les
+   * réglages pour changer une couleur ne coûte donc plus rien à l'antenne.
+   */
+  const demanderSession = (): Promise<SessionExport | null> => {
+    if (!coucheSeparee) return Promise.resolve(engineRef.current?.exportSession() ?? null)
+    return new Promise((resolve) => {
+      let minuteur: ReturnType<typeof setTimeout> | null = null
+      let fini = false
+      const rendre = (s: SessionExport | null) => {
+        if (fini) return
+        fini = true
+        if (minuteur != null) clearTimeout(minuteur)
+        resolve(s)
+      }
+      sessionAttente.current.push(rendre)
+      // Filet : si la couche encre ne répond pas (fenêtre en train de se
+      // fermer), on rend le dernier instantané connu au lieu de laisser le
+      // bouton sans effet. Une seule minuterie, armée au clic, jamais un
+      // intervalle.
+      minuteur = setTimeout(() => {
+        sessionAttente.current = sessionAttente.current.filter((f) => f !== rendre)
+        rendre(sessionRef.current)
+      }, 2000)
+      envoyerCommande({ nom: 'session-get' })
+    })
+  }
+
   return (
     <div className={isElectron ? 'app' : 'app demo'}>
       {!isElectron && (
@@ -1210,9 +1256,7 @@ export default function App() {
               KeymapEditor, qui sont autonomes. */}
           {settingsOpen && (
             <SettingsPanel
-              getSession={() =>
-                coucheSeparee ? sessionRef.current : (engineRef.current?.exportSession() ?? null)
-              }
+              getSession={demanderSession}
               loadSession={(s) => envoyerCommande({ nom: 'session-load', session: s })}
               onClose={() => useUiStore.getState().setSettingsOpen(false)}
             />

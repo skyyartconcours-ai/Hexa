@@ -20,7 +20,9 @@ import { clamp, hexToRgb, lerp, rgba, whiteMix } from './geometry'
  *     lumineux ; c'est elle qui empêche le cœur blanchi du néon de délaver le
  *     trait sur un thème Glacier ou sur un jeu très clair.
  *  6. CALQUE CONSOLIDÉ — les traits posés et immobiles sont peints UNE fois
- *     dans une image hors écran, puis blittés en un seul appel.
+ *     dans une image hors écran, puis blittés en un seul appel. La classe est
+ *     exportée : la vue OBS (src/obs/mirror.ts) en tient sa PROPRE instance,
+ *     parce qu'elle a son canevas, sa matrice et son cycle de vie à elle.
  *
  * Règles tenues ici :
  *  - AUCUN état par trait : les particules de dissolution sont déterministes
@@ -581,6 +583,9 @@ export const fxStats = {
   reprises: 0,
   /** durée de la dernière consolidation, en ms */
   composeMs: 0,
+  /** cause de la dernière reconstruction — une reconstruction coûte cher, on
+   *  doit pouvoir dire POURQUOI elle a eu lieu sans relire le code */
+  raison: '',
 }
 
 /** ?inklayer=0 : désactive le calque. Sert UNIQUEMENT à mesurer son gain. */
@@ -596,7 +601,8 @@ const CHECKPOINT = 32
 const EMPTY: ReadonlySet<number> = new Set<number>()
 
 export interface ComposeOptions {
-  /** taille de la scène en pixels CSS */
+  /** taille de la scène en pixels CSS (sert de garde-fou et de détecteur de
+   *  changement ; la taille réelle du calque est celle du canevas de l'appelant) */
   w: number
   h: number
   now: number
@@ -623,17 +629,25 @@ export interface ComposeOptions {
  *
  * Le rendu est identique au pixel près : le canevas statique est vide au
  * moment du blit, et l'ordre de peinture est conservé.
+ *
+ * Le calque prend la taille EXACTE du canevas de l'appelant et recopie sa
+ * matrice : la restitution est alors un blit un pour un, même quand l'appelant
+ * dessine avec une mise à l'échelle et un décalage (la vue OBS fait entrer un
+ * écran 1440p dans une scène 1080p).
  */
-class InkLayer {
+export class InkLayer {
   private cv: HTMLCanvasElement | null = null
   private ctx: CanvasRenderingContext2D | null = null
   private ids: number[] = []
   private w = 0
   private h = 0
-  private dpr = 0
+  /** signature de la matrice de l'appelant (échelle, décalage, densité) */
+  private matrice = ''
   private glow = -1
   private theme = ' '
   private set = new Set<number>()
+  /** un trait déjà consolidé a changé de contenu : il faut tout refaire */
+  private refonte = false
   /** point de reprise : image du calque après ses `ckIds` premiers traits */
   private ckCv: HTMLCanvasElement | null = null
   private ckIds: number[] = []
@@ -648,8 +662,25 @@ class InkLayer {
     }
     this.cv = null
     this.ctx = null
-    this.dpr = 0
+    this.matrice = ''
+    this.refonte = false
     this.oublierCheckpoint()
+  }
+
+  /**
+   * Le CONTENU d'un trait déjà consolidé vient de changer sous nos pieds.
+   *
+   * Le moteur n'en a pas besoin : chez lui, un trait qu'on déplace est « chaud »
+   * (`hot`) et n'entre jamais dans le calque. La vue OBS, elle, reçoit des
+   * `stroke:update` sur des traits qui, vus du miroir, ont l'air parfaitement
+   * posés : sans ce signal, le calque garderait la peinture d'AVANT le
+   * déplacement et l'annotation resterait figée à l'antenne.
+   */
+  invalider(id: number): void {
+    if (!this.ids.includes(id)) return
+    this.refonte = true
+    // le point de reprise contient peut-être ce trait : il serait périmé lui aussi
+    if (this.ckIds.includes(id)) this.oublierCheckpoint()
   }
 
   /** le point de reprise ne survit ni au changement de peau ni de taille */
@@ -665,6 +696,11 @@ class InkLayer {
   /** `ckIds` est-il exactement le début de ce qu'on veut peindre ? */
   private checkpointUtilisable(want: readonly Stroke[]): boolean {
     if (!this.ckCv || this.ckIds.length === 0 || this.ckIds.length > want.length) return false
+    // une photographie prise à une autre taille se reposerait décalée : la
+    // source navigateur d'OBS, elle, peut être redimensionnée à la souris
+    if (this.cv && (this.ckCv.width !== this.cv.width || this.ckCv.height !== this.cv.height)) {
+      return false
+    }
     for (let i = 0; i < this.ckIds.length; i++) if (this.ckIds[i] !== want[i].id) return false
     return true
   }
@@ -712,9 +748,12 @@ class InkLayer {
     fxStats.direct = strokes.length
     if (LAYER_OFF || o.w <= 0 || o.h <= 0) return EMPTY
     const t0 = performance.now()
-    const dpr = ctx.getTransform().a || 1
-    const devW = Math.round(o.w * dpr)
-    const devH = Math.round(o.h * dpr)
+    const m = ctx.getTransform()
+    // Le calque a EXACTEMENT les pixels du canevas de destination, et sa
+    // matrice : ni la mise à l'échelle ni le centrage de la vue OBS ne peuvent
+    // décaler le blit d'un demi-pixel.
+    const devW = ctx.canvas.width || Math.round(o.w * (m.a || 1))
+    const devH = ctx.canvas.height || Math.round(o.h * (m.d || 1))
     if (devW * devH > MAX_LAYER_PX) {
       this.reset()
       return EMPTY
@@ -722,12 +761,15 @@ class InkLayer {
     const theme =
       typeof document !== 'undefined' ? (document.documentElement.dataset.theme ?? '') : ''
     // tout ce qui change l'apparence d'un trait posé invalide le calque
-    if (this.w !== o.w || this.h !== o.h || this.dpr !== dpr) {
+    const sig = `${m.a},${m.b},${m.c},${m.d},${m.e},${m.f}`
+    if (this.w !== o.w || this.h !== o.h || this.matrice !== sig) {
       this.reset()
       this.w = o.w
       this.h = o.h
-      this.dpr = dpr
+      this.matrice = sig
     }
+    const refonte = this.refonte
+    this.refonte = false
     // INVARIANT : le contenu du calque correspond TOUJOURS exactement à
     // `this.ids`. Vider la liste sans effacer l'image repeindrait par-dessus
     // l'ancienne, en additif — le genre de bavure qu'on ne voit qu'en direct.
@@ -744,11 +786,17 @@ class InkLayer {
 
     // 2. le calque est-il un préfixe de ce qu'on veut ? (cas normal : on a
     //    seulement ajouté des traits par la fin)
-    let keep = !force && this.ids.length <= want.length
+    let keep = !force && !refonte && this.ids.length <= want.length
+    // index du premier désaccord, -1 s'il n'y en a pas. La RAISON n'est
+    // fabriquée que le jour où une reconstruction a vraiment lieu : pas une
+    // chaîne jetable par image, c'est la règle de ce fichier.
+    let ecart = -1
+    const avant = this.ids.length
     if (keep) {
       for (let i = 0; i < this.ids.length; i++) {
         if (this.ids[i] !== want[i].id) {
           keep = false
+          ecart = i
           break
         }
       }
@@ -761,7 +809,7 @@ class InkLayer {
       return EMPTY
     }
 
-    const lctx = this.ensure(devW, devH, dpr)
+    const lctx = this.ensure(devW, devH, m)
     if (!lctx) {
       fxStats.composeMs = performance.now() - t0
       return EMPTY
@@ -769,6 +817,13 @@ class InkLayer {
     if (!keep) {
       this.clearLayer()
       fxStats.rebuilds++
+      fxStats.raison = force
+        ? 'apparence'
+        : refonte
+          ? 'retouche'
+          : ecart >= 0
+            ? `ordre@${ecart}/${avant}→${want.length}`
+            : `retrait ${avant}→${want.length}`
       // Reconstruction : on ne repart de la page blanche que si le point de
       // reprise ne colle pas non plus (thème changé, tableau vidé, tout début
       // de session). Sinon on le REPOSE en une image et on ne repeint que la
@@ -812,7 +867,14 @@ class InkLayer {
   /** vide le calque ET la liste des identifiants : les deux vont ensemble */
   private clearLayer(): void {
     this.ids = []
-    if (this.ctx) this.ctx.clearRect(0, 0, this.w, this.h)
+    const c = this.ctx
+    if (!c) return
+    // en pixels périphériques : avec un décalage dans la matrice (vue OBS), un
+    // clearRect en coordonnées de scène laisserait une bande non effacée
+    c.save()
+    c.setTransform(1, 0, 0, 1, 0, 0)
+    c.clearRect(0, 0, c.canvas.width, c.canvas.height)
+    c.restore()
   }
 
   /** diagnostic : nombre de traits repeints à la dernière reconstruction */
@@ -830,14 +892,14 @@ class InkLayer {
     return !o.hot(s)
   }
 
-  private ensure(devW: number, devH: number, dpr: number): CanvasRenderingContext2D | null {
+  private ensure(devW: number, devH: number, m: DOMMatrix): CanvasRenderingContext2D | null {
     if (this.ctx && this.cv && this.cv.width === devW && this.cv.height === devH) return this.ctx
     const cv = this.cv ?? document.createElement('canvas')
     cv.width = devW
     cv.height = devH
     const ctx = cv.getContext('2d')
     if (!ctx) return null
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f)
     this.cv = cv
     this.ctx = ctx
     this.ids = []

@@ -45,6 +45,9 @@ import { createHexaTray, destroyTray, notifyAlreadyRunning, refreshTray } from '
 // partagée avec la page. Module pur — esbuild l'inline dans le bundle du
 // processus principal, il n'entraîne ni React ni DOM avec lui.
 import { pickToolbarHost } from '../src/ui/toolbar-dock'
+// Limite du relais du miroir OBS : UNE seule source de vérité, partagée avec
+// l'émetteur qui découpe l'état complet pour rester dessous (§10.2).
+import { OBS_MAX_MESSAGE } from '../src/obs/protocol'
 // Bandeau d'accueil natif : la preuve visuelle que Hexa tourne — et qui, lui
 // non plus, n'a rien à faire dans le direct (§S11).
 import { closeToast, setToastProtection, showToast } from './welcome'
@@ -225,6 +228,9 @@ let trayReady = false
  * n'a encore publié.
  */
 let obsSender: number | null = null
+
+/** Dernier refus de message OBS journalisé : au plus une ligne par seconde. */
+let obsRefusLog = 0
 
 /** Minuterie unique du retour au mode traversant après l'accueil (jamais un intervalle). */
 let welcomeTimer: NodeJS.Timeout | null = null
@@ -2254,7 +2260,36 @@ function registerIpc(): void {
    * état complet, ce qui remplace proprement le contenu de la vue.
    */
   ipcMain.on('hexa:obs-publish', (e, payload: unknown) => {
-    if (typeof payload !== 'string' || payload.length > 4_000_000) return
+    if (typeof payload !== 'string') return
+    /**
+     * ⚠️ UN REFUS NE DOIT JAMAIS ÊTRE MUET.
+     *
+     * La limite elle-même est saine : recopier un message géant entre deux
+     * processus gèle la boucle du principal, donc les raccourcis globaux et
+     * l'icône près de l'horloge. Ce qui ne l'était pas, c'était le `return`
+     * silencieux : passé 4 Mo — environ 51 000 points, deux mille annotations,
+     * une heure de fondu infini — l'état complet disparaissait ici sans une
+     * ligne de journal, pendant que l'émetteur notait la scène comme envoyée.
+     * La source navigateur du streamer restait vide POUR LE RESTE DE LA
+     * SESSION. Désormais le refus est journalisé et renvoyé à l'émetteur, qui
+     * resserre son découpage et retente (voir src/obs/link.ts, `refus`).
+     */
+    if (payload.length > OBS_MAX_MESSAGE) {
+      const ko = Math.round(payload.length / 1024)
+      // Journal limité à une ligne par seconde : un émetteur emballé ne doit
+      // pas noyer le fichier que l'utilisateur nous envoie pour se faire aider.
+      const t = Date.now()
+      if (t - obsRefusLog > 1000) {
+        obsRefusLog = t
+        log('obs', `message de ${ko} Ko refusé (limite ${Math.round(OBS_MAX_MESSAGE / 1024)} Ko)`)
+      }
+      try {
+        e.sender.send('obs-refus', payload.length)
+      } catch {
+        /* la fenêtre est peut-être en train de se fermer */
+      }
+      return
+    }
     const id = e.sender.id
     if (obsSender !== id) {
       const nouveauTrait = payload.includes('"stroke:add"')

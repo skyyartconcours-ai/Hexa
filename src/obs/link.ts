@@ -30,10 +30,42 @@
  * première connexion, l'état complet part immédiatement (voir ObsBridge).
  */
 import type { Stroke } from '../engine/types'
-import { OBS_CHANNEL, type ObsMessage, type ObsMode } from './protocol'
+import {
+  OBS_BATCH_CHARS,
+  OBS_CHANNEL,
+  OBS_MAX_MESSAGE,
+  type ObsMessage,
+  type ObsMode,
+} from './protocol'
 
 /** Fenêtre d'échantillonnage des lots de points. */
 const SAMPLE_MS = 33
+
+/**
+ * En dessous, on ne découpe plus : un lot minuscule ne réglerait rien et
+ * multiplierait les messages. Sert de plancher au repli automatique (voir
+ * `refus`).
+ */
+const LOT_MIN = 50_000
+
+/**
+ * Coût JSON ESTIMÉ d'un trait, en caractères. Volontairement PESSIMISTE : mieux
+ * vaut un lot deux fois trop petit qu'un message refusé.
+ *
+ * On estime au lieu de sérialiser : mesurer pour de vrai voudrait dire
+ * `JSON.stringify` chaque trait puis re-sérialiser le lot entier — le double du
+ * travail, sur le chemin même qu'on est en train d'alléger. Un point s'écrit
+ * `{"x":1234.5678,"y":567.1234,"p":0.5123,"t":123456.789}`, soit une
+ * cinquantaine de caractères au pire : compter 64 laisse de la marge.
+ */
+function coutJson(s: Stroke): number {
+  let n = 200 + s.points.length * 64
+  if (s.text) n += s.text.length + 16
+  if (s.image) n += s.image.length + 16
+  if (s.raw) n += s.raw.length * 64
+  if (s.ink) for (const k of s.ink) n += 200 + k.points.length * 64
+  return n
+}
 
 /** Surface Electron ajoutée par le preload — typée ici pour ne pas toucher bridge.ts. */
 interface ObsHost {
@@ -181,6 +213,8 @@ export class ObsLink {
   private fullTimer: ReturnType<typeof setTimeout> | null = null
   /** regroupement des changements de résolution */
   private sizeTimer: ReturnType<typeof setTimeout> | null = null
+  /** taille visée d'un lot d'état complet — resserrée si le relais refuse */
+  private lotMax = OBS_BATCH_CHARS
 
   constructor() {
     // La taille de l'écran annoté suit les changements de résolution (le
@@ -272,7 +306,19 @@ export class ObsLink {
     }, 40)
   }
 
-  /** Renvoie tout l'état : à la connexion d'une vue, ou au réveil du miroir. */
+  /**
+   * Renvoie tout l'état : à la connexion d'une vue, ou au réveil du miroir.
+   *
+   * ⚠️ EN LOTS, ET C'EST VITAL. Un `state:full` unique dépassait 4 Mo à partir
+   * d'environ 51 000 points — deux mille annotations, soit une heure de fondu
+   * infini. Le relais IPC du processus principal jetait alors le message SANS
+   * UN MOT, pendant que ce module notait tranquillement dans `sent` que toute la
+   * scène était partie : plus rien n'était jamais renvoyé, et la source
+   * navigateur du streamer restait vide pour le reste de la session. Découpée,
+   * la même scène passe en une poignée de messages dont aucun n'approche la
+   * limite. En dessous d'un lot — la quasi-totalité des sessions — le message
+   * envoyé est exactement celui d'avant.
+   */
   sendFull(): void {
     if (!this.enabled || !this.audience()) return
     const strokes = this.lastCurrent
@@ -281,14 +327,65 @@ export class ObsLink {
     this.sent.clear()
     for (const s of strokes) this.sent.set(s.id, empreinte(s))
     const { w, h } = this.viewport()
-    this.send({
-      t: 'state:full',
-      now: performance.now(),
-      strokes: structuredClone(strokes),
-      mode: this.mode,
-      w,
-      h,
-    })
+    const now = performance.now()
+    let i = 0
+    let premier = true
+    // `premier` garantit qu'un `state:full` part TOUJOURS, même sur une scène
+    // vide : c'est lui qui remet la vue à zéro.
+    while (premier || i < strokes.length) {
+      const lot: Stroke[] = []
+      let poids = 0
+      while (i < strokes.length) {
+        const cout = coutJson(strokes[i])
+        // Un trait seul plus gros que le lot part quand même : le découpage se
+        // fait par trait, jamais au milieu de l'un d'eux.
+        if (lot.length > 0 && poids + cout > this.lotMax) break
+        lot.push(strokes[i])
+        poids += cout
+        i++
+      }
+      const reste = i < strokes.length
+      if (premier) {
+        premier = false
+        this.send({
+          t: 'state:full',
+          now,
+          strokes: structuredClone(lot),
+          mode: this.mode,
+          w,
+          h,
+          more: reste,
+        })
+      } else {
+        this.send({ t: 'state:more', now, strokes: structuredClone(lot), more: reste })
+      }
+    }
+  }
+
+  /**
+   * Le processus principal a REFUSÉ un message (trop gros pour le relais IPC).
+   *
+   * Autrefois ce refus était muet et définitif. Maintenant il remonte jusqu'ici :
+   * on resserre le découpage et on renvoie tout. Le repli est borné par
+   * `LOT_MIN` — sans quoi un trait unique et monstrueux ferait tourner la
+   * boucle indéfiniment — et il ne relance rien quand il n'y a plus de marge :
+   * mieux vaut une vue incomplète qu'un flot de messages perdus.
+   */
+  refus(taille: number): void {
+    if (this.lotMax <= LOT_MIN) {
+      // Plus de marge : on le DIT, au lieu de laisser la vue vide sans raison.
+      console.warn(
+        `[hexa] miroir OBS : message de ${Math.round(taille / 1024)} Ko refusé et ` +
+          'indécoupable (un seul trait démesuré) — la vue OBS restera partielle',
+      )
+      return
+    }
+    this.lotMax = Math.max(LOT_MIN, Math.floor(this.lotMax / 2))
+    console.warn(
+      `[hexa] miroir OBS : message de ${Math.round(taille / 1024)} Ko refusé, ` +
+        `découpage resserré à ${Math.round(this.lotMax / 1024)} Ko par lot`,
+    )
+    this.requestFull()
   }
 
   /** Taille de l'écran annoté, en pixels logiques. */
@@ -363,7 +460,15 @@ export class ObsLink {
     const h = host()
     if (h?.obsPublish) {
       try {
-        h.obsPublish(JSON.stringify(msg))
+        const charge = JSON.stringify(msg)
+        // Ceinture et bretelles : le relais du processus principal refusera de
+        // toute façon, mais on préfère l'apprendre ICI, où l'on sait quoi faire
+        // (resserrer le découpage) plutôt que de laisser tomber un message.
+        if (charge.length > OBS_MAX_MESSAGE) {
+          this.refus(charge.length)
+          return
+        }
+        h.obsPublish(charge)
       } catch {
         /* un miroir qui tombe ne doit jamais gêner le dessin */
       }

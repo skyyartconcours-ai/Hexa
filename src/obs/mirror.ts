@@ -9,11 +9,34 @@
  * dissolution, animation) et s'éteint dès que l'image est stable. Une browser
  * source OBS qui ne consomme rien au repos, c'est la moindre des politesses
  * envers le jeu qui tourne à côté.
+ *
+ * Perf, la vraie : CALQUE CONSOLIDÉ (src/engine/ink-fx.ts). Cette page-ci
+ * tourne DANS OBS, sur le processeur du streamer, à côté du jeu et de
+ * l'encodeur. Repeindre les 800 traits d'une longue session à chaque image —
+ * contour perfect-freehand et passes de halo comprises — coûtait 33 ms par
+ * image : la source navigateur tombait à 5 images par seconde et tirait toute
+ * la machine avec elle, de plus en plus fort à mesure que la scène se
+ * remplissait. Les traits POSÉS sont donc peints UNE fois hors écran et
+ * restitués en un seul `drawImage` ; par image, on ne repeint plus que ce qui
+ * bouge vraiment (trait en cours, dissolutions, trait qu'on déplace).
  */
 import type { Stroke } from '../engine/types'
 import { dissolveDuration, panicDying } from '../engine/dissolve'
-import { paintStrokes } from '../replay/paint'
+import { InkLayer } from '../engine/ink-fx'
+import { getFxIntensity, paintSettled, paintStrokes } from '../replay/paint'
 import type { ObsMessage, ObsMode } from './protocol'
+
+/**
+ * Un trait retouché reste hors du calque pendant ce délai.
+ *
+ * Vu du miroir, une annotation qu'on est en train de DÉPLACER chez le streamer
+ * a l'air parfaitement posée : terminée, immobile, sans animation. Elle entre
+ * donc dans le calque… et en ressort à l'`update` suivant, trente fois par
+ * seconde, chaque fois au prix d'une reconstruction. On la garde « chaude »
+ * quelques dixièmes de seconde après sa dernière retouche : pendant le geste
+ * elle est peinte à la main (un trait), et elle se consolide une fois posée.
+ */
+const HOT_MS = 400
 
 export class ObsMirror {
   private canvas: HTMLCanvasElement
@@ -29,6 +52,12 @@ export class ObsMirror {
   private srcH = 0
   private raf = 0
   private wakeTimer: ReturnType<typeof setTimeout> | null = null
+  /** calque consolidé des traits posés — l'instance est À NOUS (voir ink-fx) */
+  private layer = new InkLayer()
+  /** dernière retouche reçue par trait : id → instant local */
+  private touched = new Map<number, number>()
+  /** instant où la dernière retouche cesse d'être « chaude » (0 = aucune) */
+  private hotUntil = 0
 
   mode: ObsMode = 'screen'
   /** notifié à la première image reçue (masquer le voile d'attente) */
@@ -46,6 +75,11 @@ export class ObsMirror {
     if (this.wakeTimer) clearTimeout(this.wakeTimer)
     this.raf = 0
     this.wakeTimer = null
+    // rend les deux canevas hors écran du calque : une source navigateur
+    // détruite ne doit pas laisser ses mégaoctets dans le processus d'OBS
+    this.layer.reset()
+    this.touched.clear()
+    this.hotUntil = 0
   }
 
   resize(): void {
@@ -72,11 +106,28 @@ export class ObsMirror {
       case 'state:full': {
         this.order = []
         this.map.clear()
+        // On repart d'une liste neuve : les traits portent les mêmes
+        // identifiants mais rien ne dit qu'ils ont le même contenu (une
+        // annotation a pu être déplacée pendant la coupure). Le calque doit
+        // donc être jeté, sinon il resservirait une peinture périmée.
+        this.layer.reset()
+        this.touched.clear()
+        this.hotUntil = 0
         this.mode = msg.mode
         if (msg.w && msg.h) this.setSource(msg.w, msg.h)
-        for (const s of msg.strokes) this.put(s)
+        // `frais = false` : un état complet décrit une scène DÉJÀ stable. La
+        // garder chaude condamnerait la source à repeindre toute la session à
+        // la main pendant une demi-seconde à chaque changement de scène OBS.
+        for (const s of msg.strokes) this.put(s, false)
         break
       }
+      // Suite d'un état complet DÉCOUPÉ EN LOTS : on AJOUTE, on n'efface rien.
+      // Une scène de plusieurs mégaoctets ne passe pas dans un seul message —
+      // le relais IPC la refuse — elle arrive donc en plusieurs fois. Mêmes
+      // règles que ci-dessus : ces traits-là sont déjà stables.
+      case 'state:more':
+        for (const s of msg.strokes) this.put(s, false)
+        break
       case 'viewport':
         this.setSource(msg.w, msg.h)
         break
@@ -86,6 +137,7 @@ export class ObsMirror {
       case 'stroke:points': {
         const s = this.map.get(msg.id)
         if (!s) break
+        this.retoucher(s.id)
         for (const p of msg.points) s.points.push(p)
         s.done = msg.done
         break
@@ -160,13 +212,38 @@ export class ObsMirror {
     if (s.dieAt != null) s.dieAt += off
     if (s.dying) s.dying = { ...s.dying, start: s.dying.start + off }
     if (s.anim) s.anim = { ...s.anim, start: s.anim.start + off }
+    // `endedAt` DOIT être traduit lui aussi : c'est lui qui déclenche l'onde
+    // d'allumage (src/engine/ink-fx.ts, igniteAt). Laissé dans l'horloge de
+    // l'émetteur, il faisait courir une vague de rallumages fantômes le long
+    // de la session, dans l'ordre de création et avec le retard exact séparant
+    // les deux pages — des annotations vieilles de dix minutes qui se
+    // rallumaient à l'antenne, et un calque à reconstruire à chaque fois.
+    if (s.endedAt != null) s.endedAt += off
     return s
   }
 
-  private put(s: Stroke): void {
+  private put(s: Stroke, frais = true): void {
     const stroke = this.localize(s)
     if (!this.map.has(stroke.id)) this.order.push(stroke.id)
     this.map.set(stroke.id, stroke)
+    if (frais) this.retoucher(stroke.id)
+  }
+
+  /**
+   * Un trait vient d'être touché par un message : on le sort du calque et on le
+   * garde chaud (voir HOT_MS).
+   *
+   * La règle est volontairement uniforme — ajout, lot de points, mise à jour :
+   * un trait n'entre au calque qu'après un court silence. C'est ce qui évite le
+   * pire des cas : un trait consolidé À PEINE POSÉ, puis aussitôt corrigé par
+   * l'émetteur (le moteur simplifie le tracé au relâché), donc sorti du calque
+   * et remis, chaque aller-retour coûtant une reconstruction complète.
+   */
+  private retoucher(id: number): void {
+    const now = performance.now()
+    this.layer.invalider(id)
+    this.touched.set(id, now)
+    this.hotUntil = now + HOT_MS
   }
 
   private drop(id: number): void {
@@ -187,6 +264,12 @@ export class ObsMirror {
   private loop = (): void => {
     this.raf = 0
     const now = performance.now()
+    // fin de la période chaude : les traits retouchés peuvent rejoindre le
+    // calque. On vide la table d'un bloc — elle ne sert plus à rien.
+    if (this.hotUntil !== 0 && now >= this.hotUntil) {
+      this.touched.clear()
+      this.hotUntil = 0
+    }
 
     // fondu automatique : dieAt → dissolution (au cas où le message d'update
     // se perdrait, le miroir reste juste tout seul)
@@ -215,6 +298,9 @@ export class ObsMirror {
 
     const busy =
       purged ||
+      // une retouche vient d'arriver : on reste éveillé jusqu'à la remise au
+      // calque, sinon le trait déplacé resterait peint à la main pour toujours
+      this.hotUntil > now ||
       this.order.some((id) => {
         const s = this.map.get(id)
         if (!s) return false
@@ -258,7 +344,26 @@ export class ObsMirror {
     if (scale !== 1 || dx !== 0 || dy !== 0) {
       ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * dx, dpr * dy)
     }
-    paintStrokes(ctx, list, now)
+    // ---- calque consolidé -------------------------------------------------
+    // Les traits posés sortent d'une image hors écran en un seul appel. Le
+    // calque se refait tout seul dès que la liste change autrement que par la
+    // fin : annulation, dissolution, effacement, retouche, redimensionnement
+    // de la source, nouvel état complet. Le vectoriel reste la source de
+    // vérité — le calque n'est qu'un cache reconstructible.
+    const glow = getFxIntensity()
+    const settled = this.layer.compose(ctx, list, {
+      w: this.w,
+      h: this.h,
+      now,
+      glow,
+      hot: (s) => {
+        const t = this.touched.get(s.id)
+        return t != null && now - t < HOT_MS
+      },
+      paint: (c, s) => paintSettled(c, s, now),
+    })
+    // ---- fin du calque ----------------------------------------------------
+    paintStrokes(ctx, list, now, { skip: settled })
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   }
 }

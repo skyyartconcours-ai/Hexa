@@ -34,6 +34,14 @@
  * 3. L'ARCHIVE EST BORNÉE EN MÉMOIRE, PAS SEULEMENT EN NOMBRE. Un plafond en
  *    nombre de traits ne borne rien : un trait, c'est cinq points ou cinq
  *    cents. Le plafond qui compte est celui des POINTS — voir MAX_POINTS.
+ *
+ *    Et un plafond ne vaut que par deux choses, toutes deux corrigées après
+ *    mesure : il doit COMPTER CE QU'IL RETIENT (le tracé brut d'une forme
+ *    redressée et l'encre manuscrite d'un mot pèsent souvent plus lourd que le
+ *    trait lui-même — voir `peser`), et il doit MORDRE (sauter les traits encore
+ *    à l'écran au lieu d'abandonner devant le premier — voir `borner`). Sans
+ *    l'un ou l'autre, il ne se déclenche jamais et la mémoire monte toute la
+ *    session : c'est exactement ce qui a été observé.
  */
 import type { SessionExport, Stroke } from '../engine/types'
 import { coucheSeparee, envoyerCommande, porteEncre, porteInterface } from '../couches'
@@ -77,6 +85,29 @@ interface Entry {
    * exactement le genre de fuite lente qu'on est en train de corriger.
    */
   pts?: number
+}
+
+/**
+ * POIDS RÉEL d'un trait archivé, en points.
+ *
+ * ⚠️ NE PAS SE CONTENTER DE `points`. Un budget qui ne compte pas ce qu'il
+ * retient ne borne rien du tout :
+ *
+ *  - une forme intelligente garde le tracé BRUT dans `raw` pour que le premier
+ *    Ctrl+Z le restitue (§4.1.5) : trois points affichés, soixante retenus ;
+ *  - un mot du mode écriture garde toute l'encre manuscrite d'origine dans
+ *    `ink` pour rejouer le morph à l'envers : un point affiché, des centaines
+ *    retenus.
+ *
+ * Mesuré avant correction : une forme redressée et un mot manuscrit étaient
+ * facturés 4 points à eux deux alors que 424 étaient réellement gardés en
+ * mémoire — un facteur cent six. Le plafond mordait donc cent fois trop tard,
+ * c'est-à-dire jamais.
+ */
+function peser(s: Stroke): number {
+  let n = s.points.length + (s.raw?.length ?? 0)
+  if (s.ink) for (const k of s.ink) n += k.points.length
+  return n
 }
 
 export class SessionRecorder {
@@ -140,12 +171,20 @@ export class SessionRecorder {
     for (const id of this.vivants) {
       if (present.has(id)) continue
       const e = this.entries.get(id)
-      if (!e || e.gone != null || e.s.dying) continue
+      if (!e) continue
+      // Dissous tout seul, puis purgé par le moteur : plus rien ne peut le
+      // ramener, donc plus rien ne peut réclamer son tracé brut.
+      if (e.s.dying?.cause === 'fade') this.purgerRaw(e)
+      if (e.gone != null || e.s.dying) continue
       if (now === 0) now = performance.now()
       e.gone = now
     }
     this.tampon = this.vivants
     this.vivants = present
+    // Le budget vient peut-être de se libérer, et surtout : des traits jusque-là
+    // vivants ne le sont plus, donc oubliables. C'est ICI que le plafond mord
+    // vraiment sur une session en fondu infini.
+    this.borner()
 
     // L'archive pleine se stabilise en nombre tout en continuant d'oublier :
     // sans ce second témoin, le compteur des réglages figerait sur un chiffre
@@ -174,28 +213,47 @@ export class SessionRecorder {
     this.borner()
   }
 
-  /** Fige la taille du dernier trait archivé dans le budget. */
+  /** Fige le poids du dernier trait archivé dans le budget. */
   private solder(): void {
     const e = this.enCours
     if (!e) return
     this.enCours = null
-    e.pts = e.s.points.length
+    e.pts = peser(e.s)
     this.points += e.pts
   }
 
-  /** Fait sortir les plus anciens tant que l'archive dépasse ses bornes. */
+  /** L'archive dépasse-t-elle l'une de ses bornes ? */
+  private deborde(): boolean {
+    return this.entries.size > MAX_STROKES || this.points > MAX_POINTS
+  }
+
+  /**
+   * Fait sortir les plus anciens tant que l'archive dépasse ses bornes.
+   *
+   * ⚠️ ON SAUTE LES VIVANTS, ON N'ABANDONNE PAS DEVANT EUX. La version
+   * précédente sortait de la fonction dès que le plus ancien trait était encore
+   * à l'écran — un seul suffisait, et en fondu infini c'est systématique : le
+   * plafond ne mordait alors PLUS JAMAIS de toute la session. Mesuré : trois
+   * mille entrées pour trois cent mille points, plafond à deux cent mille, zéro
+   * trait oublié ; puis trois mille six cents entrées, toujours zéro.
+   *
+   * On n'évince toujours aucun trait vivant — le moteur le retient de toute
+   * façon, l'oublier ne libérerait pas un octet et le balayage suivant le
+   * ré-archiverait aussitôt — mais on continue simplement vers le suivant. Un
+   * parcours, du plus ancien au plus récent, qui s'arrête quand le budget est
+   * revenu sous ses bornes ou qu'il n'y a plus rien à oublier (scène entièrement
+   * vivante : c'est le moteur qui la porte, pas nous).
+   */
   private borner(): void {
-    while (this.entries.size > MAX_STROKES || this.points > MAX_POINTS) {
-      const plusVieux = this.entries.keys().next()
-      if (plusVieux.done) return
-      // On n'évince JAMAIS un trait encore à l'écran. Le moteur le retient de
-      // toute façon — l'oublier ne libérerait pas un octet, et le balayage
-      // suivant le ré-archiverait aussitôt, en évinçant son voisin : l'archive
-      // se mettrait à tourner en rond au lieu de se borner. En fondu infini,
-      // l'enregistreur ne retient donc rien de plus que la scène elle-même.
-      if (this.vivants.has(plusVieux.value)) return
-      const partant = this.entries.get(plusVieux.value)
-      this.entries.delete(plusVieux.value)
+    if (!this.deborde()) return
+    const parcours = this.entries.keys()
+    while (this.deborde()) {
+      const suivant = parcours.next()
+      if (suivant.done) return
+      const id = suivant.value
+      if (this.vivants.has(id)) continue
+      const partant = this.entries.get(id)
+      this.entries.delete(id)
       if (partant) {
         this.points -= partant.pts ?? 0
         if (partant === this.enCours) this.enCours = null
@@ -203,6 +261,30 @@ export class SessionRecorder {
       if (this.points < 0) this.points = 0
       this.oubliesCount++
     }
+  }
+
+  /**
+   * Le tracé brut d'une forme redressée, quand plus personne ne peut le rendre.
+   *
+   * `raw` n'existe que pour un usage : le premier Ctrl+Z après un redressement
+   * restitue le geste d'origine (§4.1.5). Or l'annulation ne parcourt que les
+   * traits ENCORE DANS LE MOTEUR, et le rattrapage du fondu non plus. Un trait
+   * qui s'est dissous tout seul et que le moteur a purgé ne reviendra donc
+   * jamais : son tracé brut ne sert plus à rien, et il pèse souvent plus lourd
+   * que la forme elle-même. L'archive le lâche, et rend les points au budget.
+   *
+   * On ne touche à RIEN d'autre : un trait emporté par la gomme ou par la touche
+   * panique reste restituable (le moteur en garde les derniers lots), et un
+   * trait annulé revient tel quel au Ctrl+Y.
+   */
+  private purgerRaw(e: Entry): void {
+    const raw = e.s.raw
+    if (!raw) return
+    e.s.raw = undefined
+    if (e.pts == null) return
+    e.pts -= raw.length
+    this.points -= raw.length
+    if (this.points < 0) this.points = 0
   }
 
   /** Nombre de traits archivés (affiché dans les réglages). */

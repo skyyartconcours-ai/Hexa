@@ -20,6 +20,12 @@ const INBOUND = [
   'obs-clients',
   /** une source navigateur vient d'ouvrir : elle réclame l'état complet */
   'obs-full-request',
+  /**
+   * Un message du miroir a été REFUSÉ par le relais (trop gros). Sans ce
+   * retour, l'émetteur croyait la scène partie et la source navigateur restait
+   * vide jusqu'à la fin de la session.
+   */
+  'obs-refus',
   /** état du serveur local (port réellement écouté, erreur éventuelle) */
   'obs-status',
   /** « Réglages… » demandé depuis l'icône de la barre des tâches */

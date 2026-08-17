@@ -128,10 +128,17 @@ export function ObsBridge({ onSceneChange }: ObsBridgeProps) {
       if (count > 0) obsLink.requestFull()
     })
     const offFull = h.on('obs-full-request', () => obsLink.requestFull())
+    // Un message refusé par le relais (trop gros) revient ICI au lieu de
+    // disparaître : l'émetteur resserre son découpage et renvoie tout.
+    const offRefus = h.on('obs-refus', (...args: unknown[]) => {
+      const n = args[0]
+      obsLink.refus(typeof n === 'number' ? n : 0)
+    })
     const offStatus = h.on('obs-status', (...args: unknown[]) => setObsServerInfo(args[0]))
     return () => {
       offClients()
       offFull()
+      offRefus()
       offStatus()
     }
   }, [])

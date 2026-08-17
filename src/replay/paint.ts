@@ -43,6 +43,25 @@ export interface PaintOptions {
   glow?: number
   /** braise incandescente au bord de dissolution (coûte une passe de plus) */
   ember?: boolean
+  /** traits déjà restitués par un calque consolidé : on les saute ici */
+  skip?: ReadonlySet<number>
+}
+
+/**
+ * Peinture d'un trait POSÉ — exactement celle que `paintStrokes` produit quand
+ * plus rien ne l'anime (pas de dissolution, donc `alpha` plein et `from` nul).
+ *
+ * C'est CE point d'entrée que le calque consolidé appelle. Les deux chemins
+ * doivent rester au pixel près : un trait qui entre dans le calque ne doit pas
+ * changer d'un cheveu à l'image où il y entre.
+ */
+export function paintSettled(
+  ctx: CanvasRenderingContext2D,
+  s: Stroke,
+  now: number,
+  opts: PaintOptions = {},
+): void {
+  renderStroke(ctx, s, { alpha: 1, from: 0, glowBoost: (opts.glow ?? 1) * fxIntensity, now })
 }
 
 /** Centre de la pastille précédente, pour la flèche de liaison du numéroteur. */
@@ -65,8 +84,11 @@ export function paintStrokes(
   opts: PaintOptions = {},
 ): void {
   const glowBoost = (opts.glow ?? 1) * fxIntensity
+  const skip = opts.skip
   for (const s of strokes) {
     if (s.points.length === 0) continue
+    // déjà peint une fois pour toutes dans le calque consolidé de l'appelant
+    if (skip && skip.has(s.id)) continue
     let alpha = 1
     let from = 0
     const comet = COMET_TOOLS.has(s.tool)

@@ -36,6 +36,30 @@ export interface ObsHello {
   mode: ObsMode
 }
 
+/**
+ * TAILLE MAXIMALE D'UN MESSAGE, en caractères.
+ *
+ * Le relais IPC du processus principal (electron/main.ts, `hexa:obs-publish`)
+ * refuse tout ce qui dépasse : un message géant recopié entre deux processus
+ * gèle la boucle du principal, donc les raccourcis globaux et l'icône près de
+ * l'horloge. La limite est donc SAINE — ce qui ne l'était pas, c'est de jeter
+ * le message sans un mot : passé 4 Mo (~51 000 points, une heure de fondu
+ * infini), la source navigateur restait vide POUR TOUJOURS, puisque l'émetteur
+ * avait déjà noté la scène comme envoyée. D'où les deux règles d'aujourd'hui :
+ * l'état complet part DÉCOUPÉ EN LOTS (voir OBS_BATCH_CHARS), et tout refus
+ * remonte à l'émetteur au lieu de disparaître.
+ */
+export const OBS_MAX_MESSAGE = 4_000_000
+
+/**
+ * Taille visée d'un lot d'état complet, en caractères estimés.
+ *
+ * Assez gros pour qu'une scène ordinaire tienne en UN message (aucun changement
+ * de comportement pour l'immense majorité des sessions), assez petit pour rester
+ * très loin de OBS_MAX_MESSAGE même si l'estimation se trompe d'un facteur deux.
+ */
+export const OBS_BATCH_CHARS = 600_000
+
 export interface ObsStateFull {
   t: 'state:full'
   now: number
@@ -44,6 +68,24 @@ export interface ObsStateFull {
   /** taille de l'écran annoté, en pixels logiques (voir ObsViewport) */
   w?: number
   h?: number
+  /** vrai quand la scène est trop grosse pour un message : des `state:more` suivent */
+  more?: boolean
+}
+
+/**
+ * Suite d'un `state:full` découpé en lots.
+ *
+ * Le premier message remet la vue à zéro et pose le début de la scène ; chacun
+ * de ceux-ci AJOUTE la suite, sans jamais rien effacer. Une très longue session
+ * de tableau blanc (des dizaines de milliers de points) arrive ainsi entière,
+ * là où le message unique se faisait refuser en silence par le relais IPC.
+ */
+export interface ObsStateMore {
+  t: 'state:more'
+  now: number
+  strokes: Stroke[]
+  /** vrai tant qu'un autre lot suit */
+  more?: boolean
 }
 
 /**
@@ -101,6 +143,7 @@ export interface ObsModeMsg {
 export type ObsMessage =
   | ObsHello
   | ObsStateFull
+  | ObsStateMore
   | ObsStrokeAdd
   | ObsStrokePoints
   | ObsStrokeUpdate
@@ -112,6 +155,7 @@ export type ObsMessage =
 const KINDS = new Set([
   'hello',
   'state:full',
+  'state:more',
   'stroke:add',
   'stroke:points',
   'stroke:update',

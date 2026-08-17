@@ -143,13 +143,32 @@ let lastError: string | undefined
 /**
  * Dernier état complet, renvoyé à chaque nouvelle vue qui se connecte.
  *
- * Il n'existe QUE tant qu'une vue est connectée : le renderer ne publie plus
- * rien quand personne ne regarde (voir src/obs/link.ts). On le relâche donc dès
- * la dernière déconnexion — sur une longue session de tableau blanc, ce sont
+ * C'est une SUITE de messages, pas un seul : au-delà d'environ 51 000 points,
+ * la scène ne tient plus dans un message (le relais IPC la refuserait) et part
+ * découpée en `state:full` + `state:more` (voir src/obs/protocol.ts). Ne garder
+ * que le premier lot, c'était servir un début de scène à toute vue qui se
+ * reconnecte — et un streamer qui coche « éteindre la source quand elle n'est
+ * pas visible » se reconnecte à chaque changement de scène.
+ *
+ * La suite n'existe QUE tant qu'une vue est connectée : le renderer ne publie
+ * plus rien quand personne ne regarde (voir src/obs/link.ts). On la relâche donc
+ * dès la dernière déconnexion — sur une longue session de tableau blanc, ce sont
  * plusieurs mégaoctets de JSON qui restaient sinon accrochés au processus
  * principal jusqu'à la fermeture d'Hexa.
  */
-let lastFullState: string | null = null
+let lastFullState: string[] = []
+
+/** Sert l'état complet mémorisé à une vue qui arrive. Faux si la socket a lâché. */
+function writeFullState(socket: Duplex): boolean {
+  for (const frame of lastFullState) {
+    try {
+      socket.write(encodeText(frame))
+    } catch {
+      return false
+    }
+  }
+  return true
+}
 
 function makeUrl(port: number): string {
   return `http://127.0.0.1:${port}/obs.html?k=${SESSION_KEY}`
@@ -257,7 +276,7 @@ function dropClient(c: Client, code?: number): void {
   } catch {
     /* ignore */
   }
-  if (clients.size === 0) lastFullState = null
+  if (clients.size === 0) lastFullState = []
   current?.onClients?.(clients.size)
 }
 
@@ -280,13 +299,9 @@ function handleText(c: Client, text: string): void {
   // état connu tout de suite (une vue ouverte en pleine session est à jour),
   // puis on demande au renderer un état FRAIS : le dernier état complet mémorisé
   // peut dater de plusieurs traits.
-  if (lastFullState) {
-    try {
-      c.socket.write(encodeText(lastFullState))
-    } catch {
-      dropClient(c)
-      return
-    }
+  if (lastFullState.length > 0 && !writeFullState(c.socket)) {
+    dropClient(c)
+    return
   }
   current?.onHello?.()
 }
@@ -610,7 +625,7 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
 
     const drop = (): void => {
       if (clients.delete(client)) {
-        if (clients.size === 0) lastFullState = null
+        if (clients.size === 0) lastFullState = []
         current?.onClients?.(clients.size)
         log(`vue OBS déconnectée (${clients.size})`)
       }
@@ -629,12 +644,8 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
     // État complet immédiat : une vue qui s'ouvre en pleine session est à jour
     // sans attendre le prochain trait. La vue redemande ensuite un état FRAIS
     // avec « obs:hello » (voir handleText).
-    if (lastFullState) {
-      try {
-        socket.write(encodeText(lastFullState))
-      } catch {
-        drop()
-      }
+    if (lastFullState.length > 0) {
+      if (!writeFullState(socket)) drop()
     } else {
       // Rien en réserve — c'est le cas NORMAL de la première connexion, puisque
       // le renderer se tait tant que personne ne regarde. On réclame l'état
@@ -686,7 +697,7 @@ export function stopObsServer(): void {
     }
   }
   clients = new Set()
-  lastFullState = null
+  lastFullState = []
   if (server) {
     try {
       server.close()
@@ -701,7 +712,13 @@ export function stopObsServer(): void {
 
 /** Diffuse un message déjà sérialisé à toutes les vues connectées. */
 export function broadcastObs(payload: string): void {
-  if (payload.includes('"state:full"')) lastFullState = payload
+  // Un `state:full` ouvre une nouvelle suite, chaque `state:more` la complète.
+  // Un `state:more` orphelin (la vue s'est connectée au milieu d'un envoi) est
+  // ignoré : elle recevra de toute façon un état frais grâce à son « hello ».
+  if (payload.includes('"state:full"')) lastFullState = [payload]
+  else if (payload.includes('"state:more"') && lastFullState.length > 0) {
+    lastFullState.push(payload)
+  }
   if (clients.size === 0) return
   const frame = encodeText(payload)
   for (const c of [...clients]) {

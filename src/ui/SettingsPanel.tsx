@@ -37,8 +37,16 @@ import { obsServerInfo, subscribeObsServer } from '../obs/status'
 import './settings.css'
 
 export interface SettingsPanelProps {
-  /** session VIVE du moteur (ce qui est à l'écran maintenant) */
-  getSession: () => SessionExport | null
+  /**
+   * Session VIVE du moteur (ce qui est à l'écran maintenant).
+   *
+   * ⚠️ ASYNCHRONE, ET DEMANDÉE AU CLIC SEULEMENT. La scène vit dans l'autre
+   * fenêtre : la lire, c'est un `structuredClone` complet suivi d'une traversée
+   * IPC — jusqu'à 139 ms sur une longue session, prélevées sur la couche qui est
+   * à l'antenne. Le panneau ne la réclame donc qu'au moment où un bouton en a
+   * réellement besoin, jamais à son ouverture.
+   */
+  getSession: () => Promise<SessionExport | null>
   /** recharge une session dans le moteur (import JSON) */
   loadSession: (session: SessionExport) => void
   onClose: () => void
@@ -303,13 +311,14 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
           ? 'connected'
           : 'connecting'
 
-  const pickSession = (): SessionExport => {
+  const pickSession = async (): Promise<SessionExport> => {
+    // « Toute la session » se lit dans l'archive locale : aucun aller-retour.
     if (source === 'all') return recorder.flatSession()
-    return getSession() ?? { app: 'hexa', version: 1, exportedAt: '', strokes: [] }
+    return (await getSession()) ?? { app: 'hexa', version: 1, exportedAt: '', strokes: [] }
   }
 
-  const doExportJson = () => {
-    const s = source === 'all' ? recorder.session() : (getSession() ?? null)
+  const doExportJson = async () => {
+    const s = source === 'all' ? recorder.session() : await getSession()
     if (!s || s.strokes.length === 0) {
       setFlash('Rien à exporter : la couche est vide.')
       return
@@ -319,7 +328,7 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
   }
 
   const doExportPng = async () => {
-    const blob = await exportSessionPng(pickSession(), { scale, crop })
+    const blob = await exportSessionPng(await pickSession(), { scale, crop })
     if (!blob) {
       setFlash('Rien à exporter : la couche est vide.')
       return
@@ -701,7 +710,7 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
               <button className="hx-btn hx-btn-primary" onClick={() => void doExportPng()}>
                 Exporter le PNG
               </button>
-              <button className="hx-btn" onClick={doExportJson}>
+              <button className="hx-btn" onClick={() => void doExportJson()}>
                 Exporter le JSON
               </button>
               <button className="hx-btn" onClick={() => void doImport()}>
