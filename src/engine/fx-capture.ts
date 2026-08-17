@@ -438,6 +438,8 @@ export class FxLayer {
 
   /* ---- masques flous ---- */
   private masks: FxMask[] = []
+  /** les canvas sont-ils actuellement dimensionnés en plein écran ? */
+  private alloue = false
   private maskSeq = 1
   private drawingMask: FxMask | null = null
   private movingMask: { mask: FxMask; dx: number; dy: number } | null = null
@@ -943,6 +945,8 @@ export class FxLayer {
     const need = this.tool === 'magnifier' || this.tool === 'blur' || this.masks.length > 0
     if (need) this.feed.keepAlive()
     else this.feed.release()
+    // les canvas suivent exactement le même cycle de vie que le flux
+    this.syncAllocation()
   }
 
   private flash(message: string): void {
@@ -957,20 +961,63 @@ export class FxLayer {
 
   /* --------------------------------------------------------------- rendu */
 
+  /**
+   * Cette couche sert-elle à quelque chose EN CE MOMENT ?
+   *
+   * Loupe, gel, flou et avant/après sont des outils occasionnels : la plupart
+   * des sessions n'en ouvrent aucun. Tant que c'est le cas, ses deux canvas
+   * n'ont aucune raison d'exister en plein écran.
+   */
+  private besoinCouche(): boolean {
+    return (
+      this.tool === 'magnifier' ||
+      this.tool === 'blur' ||
+      this.masks.length > 0 ||
+      this.frozen != null ||
+      this.freezeOut !== 0
+    )
+  }
+
+  /**
+   * Dimensionne les deux canvas — ou les REND À ZÉRO quand aucun outil de
+   * capture n'est en service.
+   *
+   * ⚠️ POSTE MÉMOIRE LE PLUS LOURD DU PROJET. Un canvas plein écran coûte
+   * largeur × hauteur × devicePixelRatio² × 4 octets. Sur un 1440p à 125 %,
+   * c'est 23 Mo pièce ; sur un 4K à 150 %, une centaine. Les allouer au
+   * démarrage « au cas où » réservait donc des dizaines à des centaines de
+   * mégaoctets de mémoire graphique à quelqu'un qui n'ouvrira jamais la loupe.
+   * Un canvas de 0×0 ne coûte rien, et le retour à la taille réelle est
+   * instantané : c'est un simple `cv.width = …` au premier usage.
+   */
   private resize(): void {
     this.dpr = Math.min(window.devicePixelRatio || 1, 2.5)
     this.w = this.stage.clientWidth || window.innerWidth
     this.h = this.stage.clientHeight || window.innerHeight
+    const utile = this.besoinCouche()
     for (const [cv, ctx] of [
       [this.underCv, this.uCtx],
       [this.overCv, this.oCtx],
     ] as [HTMLCanvasElement, CanvasRenderingContext2D][]) {
-      cv.width = Math.round(this.w * this.dpr)
-      cv.height = Math.round(this.h * this.dpr)
-      ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
+      const w = utile ? Math.round(this.w * this.dpr) : 0
+      const h = utile ? Math.round(this.h * this.dpr) : 0
+      if (cv.width !== w || cv.height !== h) {
+        cv.width = w
+        cv.height = h
+      }
+      if (utile) ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
     }
+    this.alloue = utile
     this.painted = true
     this.wake()
+  }
+
+  /**
+   * À appeler chaque fois qu'un outil de capture s'ouvre ou se ferme : c'est
+   * ce qui rend leurs canvas à la mémoire dès qu'ils ne servent plus.
+   */
+  private syncAllocation(): void {
+    if (this.besoinCouche() !== this.alloue) this.resize()
   }
 
   private wake(): void {

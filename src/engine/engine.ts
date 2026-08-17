@@ -1594,8 +1594,10 @@ export class HexaEngine {
     this.dpr = dpr
     this.w = w
     this.h = h
+    // Le voile du spotlight n'est PAS dans cette liste : il gère sa propre
+    // taille dans renderVeil() et reste à 0×0 tant que le spotlight est
+    // éteint. Le redimensionner ici lui rendrait un plein écran permanent.
     for (const [cv, ctx] of [
-      [this.veilCv, this.vCtx],
       [this.staticCv, this.sCtx],
       [this.liveCv, this.lCtx],
     ] as const) {
@@ -2033,7 +2035,24 @@ export class HexaEngine {
         ctx.clearRect(0, 0, this.w, this.h)
         this.veilPainted = false
       }
+      // MÉMOIRE : le voile ne sert qu'au spotlight, un outil qu'on ouvre
+      // quelques secondes par session. Un canvas plein écran gardé « au cas
+      // où » coûte largeur × hauteur × dpr² × 4 octets en permanence — une
+      // centaine de mégaoctets sur un 4K. On le rend à zéro, il repart à sa
+      // taille réelle dès que le spotlight se rallume.
+      if (this.veilCv.width !== 0) {
+        this.veilCv.width = 0
+        this.veilCv.height = 0
+      }
       return
+    }
+    // le spotlight s'allume : le voile reprend sa taille réelle
+    const vw = Math.round(this.w * this.dpr)
+    const vh = Math.round(this.h * this.dpr)
+    if (this.veilCv.width !== vw || this.veilCv.height !== vh) {
+      this.veilCv.width = vw
+      this.veilCv.height = vh
+      ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
     }
     // Trois variantes, un seul voile (src/engine/stream-fx.ts) : disque
     // suiveur quand aucune zone n'est tracée, sinon le rectangle ou le lasso

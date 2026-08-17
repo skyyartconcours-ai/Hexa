@@ -176,7 +176,10 @@ const trace = () => app.evaluate(() => globalThis.__hexaTrace)
     let total = 0
     for (const c of document.querySelectorAll('canvas')) {
       const ctx = c.getContext('2d')
-      if (!ctx) continue
+      // Un canvas à 0×0 est un canvas volontairement RENDU À LA MÉMOIRE : les
+      // couches loupe/gel/flou et le voile du spotlight ne sont dimensionnées
+      // que pendant leur usage. getImageData y lèverait une IndexSizeError.
+      if (!ctx || c.width === 0 || c.height === 0) continue
       const d = ctx.getImageData(0, 0, c.width, c.height).data
       for (let i = 3; i < d.length; i += 4 * 53) if (d[i] > 8) total++
     }
@@ -229,6 +232,7 @@ const trace = () => app.evaluate(() => globalThis.__hexaTrace)
       for (const c of document.querySelectorAll('canvas')) {
         const x = c.getContext('2d')
         if (!x) continue
+        if (c.width === 0 || c.height === 0) continue
         const d = x.getImageData(0, 0, c.width, c.height).data
         for (let i = 3; i < d.length; i += 4 * 53) if (d[i] > 8) n++
       }

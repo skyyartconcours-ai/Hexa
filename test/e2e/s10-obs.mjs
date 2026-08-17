@@ -211,6 +211,7 @@ const rendu = await app.evaluate(async ({ BrowserWindow }, url) => {
     const c = document.querySelector('canvas')
     let n = -1
     if (c) {
+      if (c.width === 0 || c.height === 0) continue
       const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
       n = 0
       for (let i = 3; i < d.length; i += 4) if (d[i] > 8) n++
