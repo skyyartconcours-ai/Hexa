@@ -1937,6 +1937,21 @@ function registerIpc(): void {
   /** État du moteur (gel, avant/après, roue, session) → couches interface. */
   ipcMain.on('hexa:etat-encre', (e, message: unknown) => {
     if (!message || typeof message !== 'object') return
+    const quoi = (message as { quoi?: unknown }).quoi
+    // ⚠️ LA ROUE VA SUR L'ÉCRAN OÙ LE CLIC A EU LIEU, ET NULLE PART AILLEURS.
+    //
+    // Tous les autres messages sont diffusés à toutes les couches interface :
+    // l'état du gel ou la session concernent l'interface entière. La roue, non :
+    // elle s'ouvre SOUS LE CURSEUR, à des coordonnées relatives à la fenêtre qui
+    // a reçu le clic. Diffusée à tout le monde, elle s'affichait dans la seule
+    // fenêtre d'interface visible — celle de l'écran porteur de la barre — donc
+    // au bon endroit… sur le mauvais écran. C'est exactement ce que l'utilisateur
+    // a constaté : « le clic droit apparaît sur l'écran de droite ».
+    if (quoi === 'radial' || quoi === 'radial-move' || quoi === 'radial-up') {
+      const o = overlayFromEvent(e)
+      if (o?.ui && !o.ui.isDestroyed()) sendTo(o.ui, 'etat-encre', message)
+      return
+    }
     for (const o of overlays.values()) {
       if (!o.ui || o.ui.isDestroyed() || o.ui.webContents.id === e.sender.id) continue
       sendTo(o.ui, 'etat-encre', message)

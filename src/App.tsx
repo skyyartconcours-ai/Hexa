@@ -489,7 +489,10 @@ export default function App() {
     // Masquée au clavier (Ctrl+H) et sans panneau ouvert, la fenêtre se retire
     // toujours complètement : le coût retombe alors à zéro absolu (§2.5).
     const panneau = settingsOpen || cheatsheetOpen || replayOpen || radial !== null || !onboarded
-    const contenu = isHost && (toolbarVisible || panneau)
+    // La roue s'ouvre sur l'écran du clic, porteur de la barre ou non : cette
+    // fenêtre-là doit donc s'afficher le temps du geste, même si elle n'a
+    // d'ordinaire rien à montrer (§8.2).
+    const contenu = (isHost && (toolbarVisible || panneau)) || radial !== null
     bridge.notifyActivity(contenu)
     // PLEIN ÉCRAN OBLIGATOIRE dès qu'il y a autre chose que la barre à afficher.
     // ⚠️ ET EN MODE DESSIN, TOUJOURS : le curseur personnalisé (§9.5) vit dans
