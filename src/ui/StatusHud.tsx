@@ -21,6 +21,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { COLORS, useUiStore } from '../store'
 import { formatCombo, resolveKeymap, type KeymapAction } from '../keymap'
+import { exigerPleinEcran } from './fenetre-compacte'
 import './status-hud.css'
 
 /** libellés d'outils — les mêmes mots que la barre et le menu radial */
@@ -122,10 +123,18 @@ export function StatusHud({ passthrough }: StatusHudProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [passthrough, toolbarVisible, fadeDelay])
 
+  // Un message éphémère s'affiche au MILIEU de l'écran, très loin de la barre :
+  // tant qu'il est là, la fenêtre d'interface doit couvrir l'écran entier,
+  // sinon il serait rogné par la fenêtre compacte (§S12).
+  useEffect(() => {
+    exigerPleinEcran('message', toast !== null)
+  }, [toast])
+
   // le dernier minuteur part avec le composant
   useEffect(
     () => () => {
       if (timer.current) window.clearTimeout(timer.current)
+      exigerPleinEcran('message', false)
     },
     [],
   )

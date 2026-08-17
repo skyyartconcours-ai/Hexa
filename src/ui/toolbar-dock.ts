@@ -51,6 +51,20 @@ export const DEFAULT_DOCK: ToolbarDock = { edge: 'left', offset: 0.5 }
 /** Marge entre la barre et le bord de l'écran, en pixels CSS. */
 export const EDGE_MARGIN = 12
 
+/**
+ * Marge laissée autour de la barre quand sa FENÊTRE est réduite à sa taille
+ * (§S12 — mode compact). Elle sert aux ombres portées : une fenêtre coupée au
+ * ras du rectangle de la barre trancherait net le halo de `--shadow-ui`.
+ *
+ * ⚠️ ELLE VAUT EXACTEMENT `EDGE_MARGIN`, ET CE N'EST PAS UN HASARD. La barre est
+ * posée à `EDGE_MARGIN` du bord de l'écran ; en lui ajoutant la même marge, la
+ * fenêtre compacte affleure PILE le bord de l'écran — jamais au-delà. Sans cette
+ * égalité, le processus principal devrait borner le rectangle, la fenêtre se
+ * décalerait de la différence… et la barre avec elle. Une marge d'ombre plus
+ * grande que la marge d'ancrage déplacerait donc visiblement la barre.
+ */
+export const MARGE_OMBRE = EDGE_MARGIN
+
 export const EDGE_LABELS: Record<ToolbarEdge, string> = {
   left: 'à gauche',
   right: 'à droite',
@@ -208,6 +222,56 @@ export function placeDock(
     default:
       return { left: long(view.width, w), right: 'auto', top: 'auto', bottom: margin }
   }
+}
+
+/** Rectangle absolu, en pixels CSS, dans le repère de l'ÉCRAN. */
+export interface RectEcran {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/**
+ * Le même placement, mais en coordonnées ABSOLUES.
+ *
+ * `placeDock` exprime volontairement le côté ancré par sa propre propriété
+ * (`right: 12px` plutôt que `left: largeur-mesurée`) : c'est le navigateur qui
+ * connaît la largeur réelle de la barre. Pour POSER UNE FENÊTRE autour d'elle,
+ * il faut au contraire un coin haut-gauche : on refait ici le calcul que le
+ * navigateur ferait, à partir de la taille déjà mesurée.
+ */
+export function dockRect(
+  p: DockPlacement,
+  size: { width: number; height: number },
+  view: { width: number; height: number },
+): RectEcran {
+  const width = Math.round(size.width)
+  const height = Math.round(size.height)
+  const x = p.left === 'auto' ? view.width - (p.right === 'auto' ? 0 : p.right) - width : p.left
+  const y = p.top === 'auto' ? view.height - (p.bottom === 'auto' ? 0 : p.bottom) - height : p.top
+  return { x: Math.round(x), y: Math.round(y), width, height }
+}
+
+/** Le rectangle de la FENÊTRE compacte : celui de la barre, plus l'ombre. */
+export function rectFenetreBarre(barre: RectEcran, marge = MARGE_OMBRE): RectEcran {
+  return {
+    x: Math.round(barre.x - marge),
+    y: Math.round(barre.y - marge),
+    width: Math.round(barre.width + marge * 2),
+    height: Math.round(barre.height + marge * 2),
+  }
+}
+
+/** Deux rectangles identiques au pixel près (null compris). */
+export function memeRect(a: RectEcran | null, b: RectEcran | null): boolean {
+  if (a === null || b === null) return a === b
+  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
+}
+
+/** Deux placements identiques : évite de rendre la barre pour rien. */
+export function memePlacement(a: DockPlacement, b: DockPlacement): boolean {
+  return a.left === b.left && a.right === b.right && a.top === b.top && a.bottom === b.bottom
 }
 
 /** Traduction en style CSS : les `auto` doivent être écrits, pas omis. */

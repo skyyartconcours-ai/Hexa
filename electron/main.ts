@@ -111,6 +111,21 @@ interface Overlay {
    * dessin.
    */
   uiModale: boolean
+  /**
+   * §S12 — RECTANGLE VOULU POUR LA FENÊTRE D'INTERFACE, réclamé par la page en
+   * pixels LOGIQUES relatifs à l'écran. `null` = écran entier.
+   *
+   * C'est le cadre de la BARRE D'OUTILS quand elle est seule à montrer : la
+   * fenêtre transparente qui coûtait 1920 × 1080 au compositeur à chaque image
+   * tombe alors à 141 × 695, sans que l'utilisateur perde ses outils.
+   */
+  uiRect: { x: number; y: number; width: number; height: number } | null
+  /**
+   * Dernières bounds RÉELLEMENT posées sur la fenêtre d'interface. Sans cette
+   * mémoire, chaque message de la page reposerait la fenêtre : un `setBounds`
+   * par image coûterait plus cher que le calque qu'on cherche à supprimer.
+   */
+  uiBounds: { x: number; y: number; width: number; height: number } | null
   /** true = clics traversants (mode jeu) ; false = mode dessin */
   passthrough: boolean
   /** horodatage de la dernière entrée en mode dessin (anti blur parasite) */
@@ -415,6 +430,79 @@ function refreshVisibiliteInterface(o: Overlay): void {
       /* ignore */
     }
   }, HIDE_GRACE_MS)
+}
+
+/* ------------------------------------------------------------------ *
+ * §S12 — la fenêtre d'interface À LA TAILLE DE LA BARRE
+ * ------------------------------------------------------------------ */
+
+/**
+ * Rectangle reçu de la page, validé. Tout ce qui n'est pas un rectangle de
+ * dimensions positives et finies est refusé : un `NaN` posé sur une fenêtre la
+ * ferait disparaître sans laisser de trace dans le journal.
+ */
+function lireRect(
+  valeur: unknown,
+): { x: number; y: number; width: number; height: number } | null {
+  if (!valeur || typeof valeur !== 'object') return null
+  const r = valeur as Record<string, unknown>
+  const nombre = (v: unknown): number | null =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : null
+  const x = nombre(r.x)
+  const y = nombre(r.y)
+  const width = nombre(r.width)
+  const height = nombre(r.height)
+  if (x === null || y === null || width === null || height === null) return null
+  if (width < 1 || height < 1) return null
+  return { x, y, width, height }
+}
+
+/** Écran de cet overlay, relu à l'instant (il a pu changer de résolution). */
+function ecranDe(o: Overlay): Display {
+  return screen.getAllDisplays().find((d) => d.id === o.displayId) ?? screen.getPrimaryDisplay()
+}
+
+/**
+ * Pose les bounds de la fenêtre d'INTERFACE : le cadre de la barre d'outils
+ * quand elle est seule à l'écran (§S12), l'écran entier sinon.
+ *
+ * La page raisonne en coordonnées ÉCRAN (0,0 = coin de SON écran) : c'est ici
+ * qu'on ajoute l'origine de l'écran, seule connue du processus principal. Le
+ * rectangle est BORNÉ à l'écran, sans jamais le déplacer inutilement : la barre
+ * est posée à 12 px du bord et la marge d'ombre vaut exactement 12 px, si bien
+ * que la fenêtre compacte affleure le bord sans jamais le dépasser — le bornage
+ * n'est qu'un filet pour les cas tordus (barre plus large que l'écran).
+ *
+ * ⚠️ ON NE POSE QUE SI ÇA CHANGE. Un `setBounds` par image coûterait bien plus
+ * cher que le calque plein écran qu'on cherche à supprimer, et ferait clignoter
+ * la barre. Au repos : zéro appel.
+ */
+function appliquerBoundsInterface(o: Overlay): void {
+  const ui = o.ui
+  if (!ui || ui.isDestroyed()) return
+  const ecran = ecranDe(o)
+  const plein = ecran.bounds
+  let cible = { ...plein }
+  if (o.uiRect) {
+    const width = Math.max(1, Math.min(o.uiRect.width, plein.width))
+    const height = Math.max(1, Math.min(o.uiRect.height, plein.height))
+    cible = {
+      x: plein.x + Math.min(Math.max(o.uiRect.x, 0), plein.width - width),
+      y: plein.y + Math.min(Math.max(o.uiRect.y, 0), plein.height - height),
+      width,
+      height,
+    }
+  }
+  if (o.uiBounds && sameBounds(o.uiBounds, cible)) return
+  o.uiBounds = cible
+  applyBounds(ui, cible, `interface écran ${o.displayId}`)
+  log(
+    'interface',
+    o.uiRect
+      ? `fenêtre réduite à la barre : ${cible.width}×${cible.height} @${cible.x},${cible.y} ` +
+          `(${Math.round((100 * cible.width * cible.height) / (plein.width * plein.height))} % de l’écran)`
+      : `fenêtre d’interface en plein écran (${cible.width}×${cible.height})`,
+  )
 }
 
 function showOverlay(o: Overlay): void {
@@ -1115,6 +1203,11 @@ function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindo
       overlay.uiCliquable = false
       overlay.uiModale = false
       overlay.uiHasContent = false
+      // Une fenêtre morte figée à la taille de la barre (§S12) ne pourrait plus
+      // rien afficher au retour : la page relancée dessinerait ses panneaux dans
+      // un cadre de 141 px. On lui rend l'écran entier avant même la relance.
+      overlay.uiRect = null
+      appliquerBoundsInterface(overlay)
       libererLaSouris(ui, `interface perdue (écran ${display.id})`)
       if (quitting || details.reason === 'clean-exit' || overlay.uiRelanceTimer) return
       overlay.uiRelanceTimer = setTimeout(() => {
@@ -1282,6 +1375,8 @@ function createOverlay(display: Display): Overlay | null {
       uiHideTimer: null,
       uiCliquable: false,
       uiModale: false,
+      uiRect: null,
+      uiBounds: { ...bounds },
       passthrough: true,
       drawEnteredAt: 0,
       hideTimer: null,
@@ -1505,12 +1600,13 @@ function rebuildOverlays(raison = 'démarrage'): void {
       if (boundsChangees) {
         existing.wantedBounds = { ...d.bounds }
         existing.boundsRefusees = !applyBounds(existing.win, d.bounds, `écran ${d.id}`)
-        // La couche interface couvre exactement le même écran : elle suit la
-        // même pose, sinon la barre d'outils se retrouverait hors champ après
-        // un changement de résolution.
-        if (existing.ui && !existing.ui.isDestroyed()) {
-          applyBounds(existing.ui, d.bounds, `interface écran ${d.id}`)
-        }
+        // La couche interface suit le même écran, sinon la barre d'outils se
+        // retrouverait hors champ après un changement de résolution. Elle passe
+        // par sa propre pose : réduite à la barre (§S12), elle doit le rester —
+        // et son rectangle est reborné au nouvel écran. La page renverra de
+        // toute façon le sien dès qu'elle aura reçu 'display-changed'.
+        existing.uiBounds = null
+        appliquerBoundsInterface(existing)
         repose++
       }
       if (echelleChangee || boundsChangees) {
@@ -1868,6 +1964,27 @@ function registerIpc(): void {
     } catch (err) {
       logError('interface', 'bascule du clic sur la couche interface impossible', err)
     }
+  })
+
+  /**
+   * §S12 — LA FENÊTRE D'INTERFACE À LA TAILLE DE LA BARRE.
+   *
+   * La page envoie le rectangle qu'elle veut occuper (coordonnées ÉCRAN, pixels
+   * logiques) quand la barre d'outils est la seule chose à montrer, ou `null`
+   * pour reprendre l'écran entier — mode dessin, panneau ouvert, roue, glisser
+   * d'ancrage, message éphémère.
+   *
+   * C'est LA correction de performance de la vague : le gestionnaire des tâches
+   * affichait Hexa à 0 % de processeur pendant que tout l'ordinateur saccadait,
+   * parce que le coût n'était pas du calcul mais de la COMPOSITION — deux
+   * calques plein écran, transparents et toujours au-dessus, empilés par
+   * Windows à chaque image par-dessus le jeu.
+   */
+  ipcMain.on('hexa:interface-rect', (e, rect: unknown) => {
+    const o = overlayFromEvent(e)
+    if (!o || !o.ui || o.ui.isDestroyed() || !vientDeInterface(o, e)) return
+    o.uiRect = lireRect(rect)
+    appliquerBoundsInterface(o)
   })
 
   /**

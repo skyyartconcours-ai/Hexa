@@ -92,12 +92,24 @@ export function useInterfaceCliquable(modale: boolean): void {
      * `mouseleave` — alors que le pointeur est bel et bien posé sur le bouton.
      * Le croire sur parole rendrait la fenêtre traversante dans la même
      * milliseconde, et le clic partirait dans le jeu au lieu d'atteindre le
-     * bouton visé. On revérifie donc la dernière position connue au lieu de
-     * conclure aveuglément.
+     * bouton visé. On revérifie donc au lieu de conclure aveuglément.
+     *
+     * ⚠️ ON REVÉRIFIE AUX COORDONNÉES DE L'ÉVÉNEMENT, pas à la dernière position
+     * connue. Tant que la fenêtre couvrait tout l'écran, la souris ne pouvait
+     * pas en sortir et les deux revenaient au même. Depuis qu'elle se réduit à
+     * la taille de la barre (§S12), un `mouseleave` est le plus souvent une
+     * VRAIE sortie : la dernière position connue est alors restée sur un bouton
+     * et la fenêtre resterait cliquable — donc capable d'avaler un clic destiné
+     * au jeu, à l'endroit précis où l'utilisateur ne voit rien. Les coordonnées
+     * de l'événement, elles, sont hors du cadre : `elementFromPoint` n'y trouve
+     * rien, et la souris repart au jeu. La position mémorisée reste le repli
+     * pour le `mouseleave` parasite décrit plus haut.
      */
-    const sortir = () => {
+    const sortir = (e: MouseEvent) => {
       if (enfonce.current || modaleRef.current) return
-      appliquer(dernierX >= 0 && surInterface(dernierX, dernierY))
+      const x = Number.isFinite(e.clientX) ? e.clientX : dernierX
+      const y = Number.isFinite(e.clientY) ? e.clientY : dernierY
+      appliquer(x >= 0 && surInterface(x, y))
     }
 
     window.addEventListener('mousemove', bouge, { passive: true })

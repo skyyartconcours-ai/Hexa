@@ -592,10 +592,36 @@ body.over-ui .cursor-dot {
    reste affichée même quand la souris est rendue au jeu. Elle ne part plus dans
    le direct, donc plus rien n'oblige à la faire disparaître — et le streamer
    garde en permanence sous les yeux l'outil, la couleur et le mode actifs.
-   (Elle n'est cliquable qu'au survol : ui/interactivite.ts.) */
+   (Elle n'est cliquable qu'au survol : ui/interactivite.ts.)
+
+   ⚠️ Cette règle ANNULE `body.passthrough .toolbar { opacity: 0 }` : sans elle,
+   la fenêtre compacte (§S12) serait à la bonne taille… et vide. */
 body.hexa-interface.passthrough .toolbar {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* ============================================================
+   §S12 — FENÊTRE D'INTERFACE RÉDUITE À LA BARRE.
+   Voir src/ui/fenetre-compacte.ts. La classe est posée sur <body>
+   quand la fenêtre ne fait plus que la taille de la barre.
+   ============================================================ */
+
+/* ⚠️ LE PIÈGE DE LA BOUCLE DE RÉTRÉCISSEMENT. La barre se replie d'après
+   `100vw` / `100vh` — c'est ce qui lui évite de sortir de l'écran sur un
+   portable. Mais en fenêtre compacte, ces unités valent la taille de LA BARRE :
+   `max-width: calc(100vw - 28px)` la rognerait de 4 px, la fenêtre suivrait, la
+   règle rognerait encore… jusqu'à la faire disparaître. Le repli doit donc se
+   décider d'après l'ÉCRAN, dont la barre publie la taille (--hexa-ecran-w/h,
+   src/ui/Toolbar.tsx). Le calcul redevient alors IDEMPOTENT : réduire la
+   fenêtre ne change plus rien à la barre, donc ne relance rien. */
+body.fenetre-compacte .toolbar {
+  max-width: calc(var(--hexa-ecran-w, 100vw) - 28px);
+}
+
+body.fenetre-compacte .toolbar.vertical {
+  max-width: none;
+  max-height: calc(var(--hexa-ecran-h, 100vh) - 24px);
 }
 
 /* Le curseur personnalisé est repris par la fenêtre d'interface : celui du
@@ -1184,32 +1210,38 @@ body.passthrough .fx-toast {
 }
 
 /* Écran court (portable 900 px, thème aux gros boutons) : on resserre plutôt
-   que de faire défiler. Le défilement interne reste le dernier recours. */
-@media (max-height: 900px) {
-  .toolbar {
-    --tb-size: 31px;
-    --tb-icon: 17px;
-  }
+   que de faire défiler. Le défilement interne reste le dernier recours.
 
-  .toolbar.vertical {
-    row-gap: 5px;
-    padding: 7px;
-  }
-
-  .toolbar.vertical .swatch {
-    transform: scale(0.88);
-  }
+   ⚠️ CE FURENT DEUX `@media (max-height: …)`, ET C'ÉTAIT UN PIÈGE (§S12). Une
+   media query mesure la FENÊTRE. Depuis que la fenêtre d'interface se réduit à
+   la taille de la barre, la barre se resserrait parce que SA PROPRE fenêtre
+   était courte, la fenêtre rétrécissait d'autant, ce qui la resserrait encore :
+   la barre perdait 10 % de sa taille à chaque passage en mode traversant et se
+   décalait de 35 px. Ces deux classes sont posées par src/ui/Toolbar.tsx
+   d'après la hauteur de l'ÉCRAN — la seule mesure qui ne dépende pas de ce
+   qu'on est en train de calculer. En démo navigateur, l'écran de référence
+   reste la fenêtre : le comportement est identique à celui des media queries. */
+:root.ecran-court .toolbar {
+  --tb-size: 31px;
+  --tb-icon: 17px;
 }
 
-@media (max-height: 760px) {
-  .toolbar {
-    --tb-size: 27px;
-    --tb-icon: 15px;
-  }
+:root.ecran-court .toolbar.vertical {
+  row-gap: 5px;
+  padding: 7px;
+}
 
-  .toolbar.vertical {
-    row-gap: 4px;
-  }
+:root.ecran-court .toolbar.vertical .swatch {
+  transform: scale(0.88);
+}
+
+:root.ecran-tres-court .toolbar {
+  --tb-size: 27px;
+  --tb-icon: 15px;
+}
+
+:root.ecran-tres-court .toolbar.vertical {
+  row-gap: 4px;
 }
 
 /* ---- rappel des raccourcis, touche Fin maintenue ---- */

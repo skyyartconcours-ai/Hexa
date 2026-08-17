@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { HexaEngine } from './engine/engine'
 import { setInkTuning } from './engine/ink-fx'
 import { FxLayer } from './engine/fx-capture'
@@ -41,6 +41,7 @@ import {
   porteInterface,
 } from './couches'
 import { useInterfaceCliquable } from './ui/interactivite'
+import { exigerPleinEcran } from './ui/fenetre-compacte'
 import { CurseurHexa } from './ui/CurseurHexa'
 
 const TOOL_LABELS: Record<string, string> = {
@@ -450,28 +451,41 @@ export default function App() {
    * écrans qui ne portent pas la barre. Une fenêtre cachée ne coûte rien au
    * compositeur — c'est la règle de performance numéro un du projet.
    */
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!porteInterface || !coucheSeparee) return
     // ⚠️ LE POSTE DE CONSOMMATION LE PLUS COÛTEUX, ET LE PLUS INUTILE.
     //
-    // En mode traversant — c'est-à-dire pendant que l'utilisateur JOUE — la
-    // barre d'outils est déjà invisible : `body.passthrough .toolbar` la met à
-    // l'opacité 0. Mais sa fenêtre, elle, restait affichée : un calque PLEIN
-    // ÉCRAN, transparent et toujours au-dessus, que Windows composait à chaque
-    // image par-dessus le jeu… pour n'afficher rigoureusement RIEN.
+    // Une fenêtre transparente PLEIN ÉCRAN et toujours au-dessus force le
+    // compositeur de Windows à empiler un calque de 1920 × 1080 À CHAQUE IMAGE
+    // par-dessus le jeu. Ça ne coûte pas un cycle de processeur (rien ne
+    // s'anime) : aucune mesure de CPU ne le révèle — le gestionnaire des tâches
+    // affichait 0 % pendant que TOUT l'ordinateur saccadait. Mais ça coûte au
+    // compositeur et à la carte graphique, et ça se paie en images par seconde
+    // dans le jeu.
     //
-    // Ça ne coûte pas un cycle de processeur (rien ne s'anime), donc aucune
-    // mesure de CPU ne le révèle — mais ça coûte au compositeur et à la carte
-    // graphique, et ça se paie en images par seconde dans le jeu.
+    // PREMIÈRE PARADE, TROP BRUTALE : cacher cette fenêtre pendant le jeu. Les
+    // saccades disparaissaient… et la barre d'outils avec (« je n'ai plus la
+    // liste des outils, comment faire ? »). La barre RESTE donc affichée en
+    // mode traversant.
     //
-    // La cacher ne change donc STRICTEMENT RIEN à l'écran : on retire un calque
-    // qui ne montrait rien. Un panneau ouvert, la roue ou la découverte guidée
-    // continuent bien sûr de la faire revenir, même en traversant.
-    const barreVisible = toolbarVisible && !passthrough
-    const contenu =
-      isHost &&
-      (barreVisible || settingsOpen || cheatsheetOpen || replayOpen || radial !== null || !onboarded)
+    // PARADE JUSTE (§S12) : quand la barre est la SEULE chose à montrer, sa
+    // fenêtre est réduite au rectangle de la barre — 117 × 671 au lieu de
+    // 1920 × 1080, soit moins de 4 % de la surface composée. Voir
+    // src/ui/fenetre-compacte.ts.
+    const panneau = settingsOpen || cheatsheetOpen || replayOpen || radial !== null || !onboarded
+    // La pastille d'état (§9.6) remplace la barre quand elle est masquée : elle
+    // devient alors la seule chose qui dise l'outil courant. Sans elle dans le
+    // calcul, masquer la barre en mode dessin retirait la fenêtre… donc la
+    // pastille avec.
+    const pastille = !passthrough && !toolbarVisible
+    const contenu = isHost && (toolbarVisible || panneau || pastille)
     bridge.notifyActivity(contenu)
+    // PLEIN ÉCRAN OBLIGATOIRE dès qu'il y a autre chose que la barre à afficher.
+    // ⚠️ ET EN MODE DESSIN, TOUJOURS : le curseur personnalisé (§9.5) vit dans
+    // CETTE fenêtre et doit suivre la souris sur tout l'écran. Une fenêtre à la
+    // taille de la barre le ferait disparaître dès qu'on s'en éloigne — la
+    // régression la plus visible qui soit pendant qu'on dessine.
+    exigerPleinEcran('contenu', !passthrough || panneau || pastille || !isHost)
   }, [
     isHost,
     toolbarVisible,

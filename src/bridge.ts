@@ -170,6 +170,18 @@ export interface HexaBridgeApi {
   /** un panneau est ouvert : la fenêtre interface accepte la frappe clavier */
   setInterfaceModale(value: boolean): void
   /**
+   * Taille voulue pour la FENÊTRE d'interface (§S12).
+   *
+   * Un rectangle en pixels LOGIQUES, relatif à l'écran de la fenêtre : « réduis
+   * ma fenêtre à ce cadre-là », le cadre de la barre d'outils quand elle est
+   * seule à l'écran. `null` = « remets-moi en plein écran ».
+   *
+   * C'est LA mesure de performance de la vague : un calque transparent plein
+   * écran coûte au compositeur à chaque image, même vide et à 0 % de processeur.
+   * Réduit à la barre, il ne coûte plus rien — et l'utilisateur garde ses outils.
+   */
+  setInterfaceRect(rect: { x: number; y: number; width: number; height: number } | null): void
+  /**
    * Masquer l'interface de Hexa dans les captures (OBS, Discord, impressions
    * d'écran). Renvoie ce qui a RÉELLEMENT été appliqué.
    */
@@ -203,6 +215,7 @@ export const bridge: HexaBridgeApi = {
   annoncerEtatEncre: (message) => window.hexa?.annoncerEtatEncre?.(message),
   setInterfaceCliquable: (value) => window.hexa?.setInterfaceCliquable?.(value),
   setInterfaceModale: (value) => window.hexa?.setInterfaceModale?.(value),
+  setInterfaceRect: (rect) => window.hexa?.setInterfaceRect?.(rect),
   setProtectionCapture: async (on) =>
     window.hexa?.setProtectionCapture ? window.hexa.setProtectionCapture(on) : null,
 }

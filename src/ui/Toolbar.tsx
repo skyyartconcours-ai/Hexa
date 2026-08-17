@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactElement, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { COLORS, useUiStore } from '../store'
@@ -12,17 +20,28 @@ import {
   type KeymapAction,
 } from '../keymap'
 import {
+  dockRect,
   EDGE_LABELS,
   EDGE_MARGIN,
   edgePreviewStyle,
+  MARGE_OMBRE,
+  memePlacement,
   nearestEdge,
   offsetAlongEdge,
   placeDock,
   placementStyle,
+  rectFenetreBarre,
   resolveOrientation,
   type DockPlacement,
   type ToolbarEdge,
 } from './toolbar-dock'
+import {
+  abonnerCompacte,
+  compactPossible,
+  estCompacte,
+  exigerPleinEcran,
+  publierRectBarre,
+} from './fenetre-compacte'
 import { bridge } from '../bridge'
 import { spawnClock, spawnNote } from './StageWidgets'
 import {
@@ -261,8 +280,40 @@ export function useToolbarHost(): boolean {
   return host
 }
 
-/** Taille de la zone de travail, en pixels CSS. */
-function viewport(): { width: number; height: number } {
+/**
+ * Taille de la zone de placement, en pixels CSS — c'est-à-dire L'ÉCRAN.
+ *
+ * ⚠️⚠️ LE PIÈGE CENTRAL DU MODE COMPACT (§S12), ET LA RAISON DE CETTE FONCTION.
+ *
+ * La barre calculait sa position par rapport à SA FENÊTRE (`window.innerWidth`).
+ * C'était exact tant que cette fenêtre couvrait l'écran entier. Dès qu'on la
+ * réduit à la taille de la barre, `window.innerWidth` vaut la largeur de LA
+ * BARRE : `placeDock` replacerait alors la barre par rapport à un cadre de
+ * 141 px, donc dans le coin, donc la fenêtre se reposerait ailleurs, donc le
+ * cadre changerait encore… La barre partirait en vrille dans un coin de l'écran
+ * en se redimensionnant sans fin — la boucle de composition qu'on cherche
+ * précisément à éteindre.
+ *
+ * LA RÈGLE, DONC : la barre raisonne TOUJOURS en coordonnées ÉCRAN. Sa position
+ * ne dépend jamais de la taille de sa propre fenêtre, ce qui rend le calcul
+ * IDEMPOTENT : réduire la fenêtre ne change pas le résultat, donc ne provoque
+ * aucun replacement, donc aucune boucle. En mode compact, la barre est rendue
+ * dans le coin de sa fenêtre (à la marge d'ombre près) pendant que le processus
+ * principal pose cette fenêtre aux coordonnées écran calculées ici.
+ *
+ * Hors fenêtre d'interface séparée (démo navigateur, mode fusionné), la fenêtre
+ * EST la zone de travail : on garde `innerWidth`/`innerHeight`, sans quoi la
+ * barre se placerait hors du cadre du navigateur.
+ */
+function ecranParDefaut(): { width: number; height: number } {
+  if (!compactPossible) return { width: window.innerWidth, height: window.innerHeight }
+  const b = bridge.display?.bounds
+  if (b && b.width > 0 && b.height > 0) return { width: b.width, height: b.height }
+  // Repli : `window.screen` est déjà en pixels CSS (logiques), comme les bounds
+  // d'Electron. Dernier repli, la fenêtre elle-même — juste au démarrage, où
+  // elle couvre encore tout l'écran.
+  const s = typeof window.screen === 'object' ? window.screen : null
+  if (s && s.width > 0 && s.height > 0) return { width: s.width, height: s.height }
   return { width: window.innerWidth, height: window.innerHeight }
 }
 
@@ -417,6 +468,19 @@ export function Toolbar({
   const barRef = useRef<HTMLDivElement | null>(null)
   const [place, setPlace] = useState<DockPlacement | null>(null)
   const [drag, setDrag] = useState<{ left: number; top: number; edge: ToolbarEdge } | null>(null)
+  /** La fenêtre est-elle réduite au rectangle de la barre en ce moment ? (§S12) */
+  const compacte = useSyncExternalStore(abonnerCompacte, estCompacte, estCompacte)
+
+  /**
+   * Taille de l'écran porteur, tenue à jour. L'instantané du preload devient
+   * faux dès qu'on change de résolution ou passe de 100 % à 125 % : sans cette
+   * mise à jour, la barre se placerait d'après un écran qui n'existe plus.
+   */
+  const ecranRef = useRef(ecranParDefaut())
+  const zone = useCallback((): { width: number; height: number } => {
+    if (!compactPossible) return { width: window.innerWidth, height: window.innerHeight }
+    return ecranRef.current
+  }, [])
 
   /**
    * Recalcule la position à partir du bord, de la proportion mémorisée et de la
@@ -428,6 +492,24 @@ export function Toolbar({
   const replacer = useCallback(() => {
     const el = barRef.current
     if (!el) return
+    const vue = zone()
+    // ⚠️ AVANT DE MESURER : la barre se replie d'après `100vw`/`100vh`
+    // (`max-width: calc(100vw - 28px)` en horizontal, `max-height` en vertical).
+    // En fenêtre compacte, ces unités valent la taille de la BARRE : la règle la
+    // rognerait de quelques pixels, ce qui rétrécirait la fenêtre, ce qui la
+    // rognerait encore — la boucle de rétrécissement. On publie donc la taille
+    // de l'ÉCRAN, dont la feuille de style se sert en mode compact (§S12).
+    const racine = document.documentElement
+    racine.style.setProperty('--hexa-ecran-w', `${vue.width}px`)
+    racine.style.setProperty('--hexa-ecran-h', `${vue.height}px`)
+    // Même raison pour la DENSITÉ de la barre, qui se resserre sur un écran
+    // court. C'étaient deux media queries `max-height` — donc mesurées sur la
+    // FENÊTRE : en fenêtre compacte, la barre se resserrait parce qu'elle était
+    // seule dans un cadre à sa taille, ce qui rétrécissait le cadre, ce qui la
+    // resserrait encore. Mesurée sur l'ÉCRAN, la densité est constante et la
+    // barre ne bouge plus d'un pixel entre mode dessin et mode traversant.
+    racine.classList.toggle('ecran-court', vue.height <= 900)
+    racine.classList.toggle('ecran-tres-court', vue.height <= 760)
     // offsetWidth/Height et NON getBoundingClientRect : le rectangle client est
     // le rectangle TRANSFORMÉ. Pendant l'animation d'entrée (scale 0.97) il
     // annonce une barre 3 % plus petite qu'elle ne sera, et la barre se posait
@@ -436,7 +518,15 @@ export function Toolbar({
     const width = el.offsetWidth
     const height = el.offsetHeight
     if (width === 0 && height === 0) return
-    setPlace(placeDock({ edge: toolbarEdge, offset: toolbarOffset }, { width, height }, viewport()))
+    const p = placeDock({ edge: toolbarEdge, offset: toolbarOffset }, { width, height }, vue)
+    // Même placement = même objet : un rendu de plus par mouvement de souris ne
+    // servirait à rien, et ferait clignoter les mesures des tests.
+    setPlace((avant) => (avant && memePlacement(avant, p) ? avant : p))
+    // La fenêtre voulue quand la barre est seule à l'écran : son rectangle en
+    // coordonnées ÉCRAN, ombre comprise. L'arbitre (fenetre-compacte.ts) décide
+    // s'il faut réellement s'y réduire, et n'en parle au processus principal que
+    // si la cible a bougé.
+    publierRectBarre(rectFenetreBarre(dockRect(p, { width, height }, vue)))
     // Place réellement occupée EN BAS de l'écran, publiée pour le reste de
     // l'interface (indicateur d'outil, messages de la loupe). Elle valait
     // 92 px en dur dans styles.css, calés sur une barre d'un seul rang : dès
@@ -446,13 +536,15 @@ export function Toolbar({
       '--hexa-tb-bas',
       toolbarEdge === 'bottom' ? `${Math.round(height) + EDGE_MARGIN}px` : '0px',
     )
-  }, [toolbarEdge, toolbarOffset])
+  }, [toolbarEdge, toolbarOffset, zone])
 
   useLayoutEffect(() => {
     replacer()
     const el = barRef.current
     // ResizeObserver plutôt qu'une boucle : il ne se réveille QUE si la barre
     // change de taille, et se rendort aussitôt. Zéro processeur au repos.
+    // C'est aussi lui qui met la FENÊTRE à jour quand la touche Fin élargit la
+    // barre pour afficher les raccourcis (§S12).
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(replacer)
     if (el && ro) ro.observe(el)
     window.addEventListener('resize', replacer)
@@ -461,30 +553,63 @@ export function Toolbar({
       window.removeEventListener('resize', replacer)
       // barre masquée (Ctrl+H) : plus rien n'est réservé en bas de l'écran
       document.documentElement.style.removeProperty('--hexa-tb-bas')
+      // …et plus aucune barre à loger : la fenêtre reprend l'écran entier
+      // (avant, le plus souvent, de se retirer complètement).
+      publierRectBarre(null)
     }
   }, [replacer, orient, hints])
+
+  // Filet : la barre démontée en plein glisser (masquée au clavier, écran
+  // débranché, panne de la couche) laisserait sa fenêtre bloquée en plein écran.
+  useEffect(() => () => exigerPleinEcran('glisser', false), [])
+
+  // Un écran redimensionné, pivoté ou passé à 125 % déplace la barre : elle se
+  // replace d'après le NOUVEL écran, jamais d'après l'instantané du démarrage.
+  useEffect(
+    () =>
+      bridge.on('display-changed', (info) => {
+        const b = info?.bounds
+        if (!b || !(b.width > 0) || !(b.height > 0)) return
+        ecranRef.current = { width: b.width, height: b.height }
+        replacer()
+      }),
+    [replacer],
+  )
 
   const onGripDown = (e: ReactPointerEvent<HTMLElement>) => {
     const el = barRef.current
     if (!el || e.button !== 0) return
     e.preventDefault()
+    // ⚠️ PLEIN ÉCRAN OBLIGATOIRE PENDANT LE GESTE, et réclamé TOUT DE SUITE
+    // (pas dans un effet) : l'aperçu d'ancrage est un liseré qui court le long
+    // des bords de l'ÉCRAN, et la barre doit pouvoir se promener partout. Dans
+    // une fenêtre à sa taille, on ne pourrait pas la sortir de son coin.
+    exigerPleinEcran('glisser', true)
     const r = el.getBoundingClientRect()
+    // dx/dy sont pris DANS la barre : ils restent justes quelle que soit la
+    // taille de la fenêtre, y compris pendant qu'elle repasse en plein écran.
     const dx = e.clientX - r.left
     const dy = e.clientY - r.top
     hover(true)
-    setDrag({ left: r.left, top: r.top, edge: toolbarEdge })
+    // Point de départ en coordonnées ÉCRAN : en compact, `r.left` vaut la marge
+    // d'ombre, et la barre sauterait dans le coin le temps d'une image.
+    const depart =
+      compacte && place
+        ? dockRect(place, { width: r.width, height: r.height }, zone())
+        : { x: r.left, y: r.top }
+    setDrag({ left: depart.x, top: depart.y, edge: toolbarEdge })
     const suivre = (ev: PointerEvent) => {
       const rr = el.getBoundingClientRect()
       const left = ev.clientX - dx
       const top = ev.clientY - dy
-      setDrag({ left, top, edge: nearestEdge(left + rr.width / 2, top + rr.height / 2, viewport()) })
+      setDrag({ left, top, edge: nearestEdge(left + rr.width / 2, top + rr.height / 2, zone()) })
     }
     const lacher = (ev: PointerEvent) => {
       window.removeEventListener('pointermove', suivre)
       const rr = el.getBoundingClientRect()
       const left = ev.clientX - dx
       const top = ev.clientY - dy
-      const view = viewport()
+      const view = zone()
       const cx = left + rr.width / 2
       const cy = top + rr.height / 2
       const edge = nearestEdge(cx, cy, view)
@@ -494,6 +619,7 @@ export function Toolbar({
       // haut/bas). Un ancrage à gauche qui resterait horizontal serait absurde.
       setToolbarOrientation('auto')
       setDrag(null)
+      exigerPleinEcran('glisser', false)
     }
     window.addEventListener('pointermove', suivre)
     window.addEventListener('pointerup', lacher, { once: true })
@@ -505,11 +631,16 @@ export function Toolbar({
 
   const pose: CSSProperties = drag
     ? { left: drag.left, top: drag.top, right: 'auto', bottom: 'auto' }
-    : place
-      ? (placementStyle(place) as CSSProperties)
-      : // Avant la toute première mesure, mieux vaut invisible qu'au mauvais
-        // endroit : personne ne doit voir la barre sauter à l'ouverture.
-        { visibility: 'hidden' }
+    : compacte
+      ? // FENÊTRE À LA TAILLE DE LA BARRE (§S12) : la barre se pose dans le coin
+        // de sa fenêtre — c'est la FENÊTRE qui est aux coordonnées calculées,
+        // posée par le processus principal. La marge d'ombre est le seul décalage.
+        { left: MARGE_OMBRE, top: MARGE_OMBRE, right: 'auto', bottom: 'auto' }
+      : place
+        ? (placementStyle(place) as CSSProperties)
+        : // Avant la toute première mesure, mieux vaut invisible qu'au mauvais
+          // endroit : personne ne doit voir la barre sauter à l'ouverture.
+          { visibility: 'hidden' }
 
   return (
     <div

@@ -261,6 +261,23 @@ const api = {
   },
 
   /**
+   * Taille voulue pour la FENÊTRE d'interface (§S12) : le rectangle de la barre
+   * d'outils quand elle est seule à l'écran, `null` pour reprendre l'écran
+   * entier. Coordonnées en pixels LOGIQUES, relatives à l'écran de la fenêtre.
+   *
+   * C'est la parade au vrai coût d'Hexa : un calque transparent plein écran que
+   * le compositeur empile à chaque image par-dessus le jeu, pour n'afficher
+   * qu'une barre de 117 × 671.
+   */
+  setInterfaceRect(rect: { x: number; y: number; width: number; height: number } | null): void {
+    try {
+      ipcRenderer.send('hexa:interface-rect', rect ?? null)
+    } catch {
+      /* ignore */
+    }
+  },
+
+  /**
    * Masquer l'interface de Hexa dans les captures (OBS, Discord, impressions
    * d'écran). Renvoie ce qui a été RÉELLEMENT appliqué : la page doit pouvoir
    * dire la vérité à l'utilisateur, jamais promettre une protection absente.
