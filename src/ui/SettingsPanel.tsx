@@ -22,7 +22,13 @@ import { tailleLexique } from '../engine/handwriting/lexique'
 import { KeymapEditor } from './KeymapEditor'
 import { ProfilesPanel } from './ProfilesPanel'
 import { EDGE_LABELS } from './toolbar-dock'
-import { recorder, queueReplay } from '../replay/recorder'
+import {
+  demanderSessionArchivee,
+  etatArchive,
+  queueReplay,
+  rafraichirArchive,
+  souscrireArchive,
+} from '../replay/recorder'
 import {
   download,
   downloadSessionJson,
@@ -209,23 +215,31 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
   const [scale, setScale] = useState<PngScale>(2)
   const [crop, setCrop] = useState(false)
   const [source, setSource] = useState<'live' | 'all'>('live')
-  const [archived, setArchived] = useState(recorder.count)
+  /**
+   * ⚠️ CE COMPTEUR NE VIENT PAS DU `recorder` LOCAL.
+   *
+   * En deux fenêtres, l'enregistreur vit avec le moteur, dans l'AUTRE fenêtre :
+   * celui d'ici est vide pour toujours, et le panneau affichait « 0 trait
+   * archivé » toute la session. Il vient donc de la couche encre, par le canal
+   * d'état (voir src/replay/recorder.ts).
+   */
+  const [archive, setArchive] = useState(etatArchive)
+  const archived = archive.traits
   /** traits sortis de l'archive faute de place : on le dit, on ne le cache pas */
-  const [forgotten, setForgotten] = useState(recorder.oublies)
+  const forgotten = archive.oublies
   const [flash, setFlash] = useState<string | null>(null)
   const [wsStatus, setWsStatus] = useState<ObsWsStatus>(obsWsClient.status)
   const [showPassword, setShowPassword] = useState(false)
   const isElectron = typeof window !== 'undefined' && !!(window as { hexa?: unknown }).hexa
 
-  // compteur de traits archivés — poussé par l'enregistreur, jamais sondé
-  useEffect(
-    () =>
-      recorder.subscribe(() => {
-        setArchived(recorder.count)
-        setForgotten(recorder.oublies)
-      }),
-    [],
-  )
+  // compteur de traits archivés — poussé par la couche encre, jamais sondé.
+  // Une seule demande à l'ouverture : le reste arrive tout seul, à chaque
+  // changement, et rien du tout quand l'archive ne bouge pas.
+  useEffect(() => {
+    const stop = souscrireArchive(() => setArchive(etatArchive()))
+    rafraichirArchive()
+    return stop
+  }, [])
 
   // état RÉEL du serveur de la vue OBS (port écouté, vues connectées, erreur) :
   // poussé par le processus principal, jamais deviné.
@@ -311,14 +325,17 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
           ? 'connected'
           : 'connecting'
 
+  const VIDE: SessionExport = { app: 'hexa', version: 1, exportedAt: '', strokes: [] }
+
   const pickSession = async (): Promise<SessionExport> => {
-    // « Toute la session » se lit dans l'archive locale : aucun aller-retour.
-    if (source === 'all') return recorder.flatSession()
-    return (await getSession()) ?? { app: 'hexa', version: 1, exportedAt: '', strokes: [] }
+    // « Toute la session » vit dans la couche encre : un aller-retour, mais
+    // seulement ici, au clic sur un bouton d'export.
+    if (source === 'all') return (await demanderSessionArchivee(true)) ?? VIDE
+    return (await getSession()) ?? VIDE
   }
 
   const doExportJson = async () => {
-    const s = source === 'all' ? recorder.session() : await getSession()
+    const s = source === 'all' ? await demanderSessionArchivee(false) : await getSession()
     if (!s || s.strokes.length === 0) {
       setFlash('Rien à exporter : la couche est vide.')
       return
@@ -689,6 +706,19 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
                 render={(v) => (v === 'live' ? 'À l’écran' : 'Toute la session')}
               />
             </div>
+
+            {/* L'archive évince pour de vrai : le dire, et le dire EN CLAIR.
+                Un streamer qui croit tout garder et qui découvre après coup
+                qu'il manque la première heure, c'est un enregistrement perdu. */}
+            {forgotten > 0 && (
+              <p className="hx-note hx-note-alerte">
+                ⚠ L'archive a atteint son plafond : {forgotten} trait
+                {forgotten > 1 ? 's' : ''} parmi les plus anciens en {forgotten > 1 ? 'sont' : 'est'}{' '}
+                sorti{forgotten > 1 ? 's' : ''} pour que le direct reste fluide. « Toute la session »
+                repart donc du plus ancien trait encore gardé. Exporte le JSON dès maintenant si tu
+                veux conserver la suite.
+              </p>
+            )}
 
             <div className="hx-field">
               <div className="hx-field-text">

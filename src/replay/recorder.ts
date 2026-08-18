@@ -44,7 +44,15 @@
  *    session : c'est exactement ce qui a été observé.
  */
 import type { SessionExport, Stroke } from '../engine/types'
-import { coucheSeparee, envoyerCommande, porteEncre, porteInterface } from '../couches'
+import { bridge } from '../bridge'
+import {
+  annoncerEtatEncre,
+  coucheSeparee,
+  ecouterEtatEncre,
+  envoyerCommande,
+  porteEncre,
+  porteInterface,
+} from '../couches'
 import { dissolveDuration } from './paint'
 
 /** Au-delà, on oublie les plus vieux traits : une session de stream reste bornée. */
@@ -391,6 +399,166 @@ export class SessionRecorder {
 
 /** Instance unique : l'app n'a qu'un moteur. */
 export const recorder = new SessionRecorder()
+
+/* ------------------------------------------------------------------ *
+ * L'ARCHIVE VUE DEPUIS L'AUTRE FENÊTRE (§S11)
+ *
+ * ⚠️ LE PANNEAU DE RÉGLAGES N'EST PAS DANS LA MÊME FENÊTRE QUE L'ENREGISTREUR.
+ *
+ * En deux couches — le mode normal — le moteur et son enregistreur vivent dans
+ * la fenêtre ENCRE, le panneau dans la fenêtre INTERFACE. Chaque fenêtre a donc
+ * son propre `recorder`, et celui de l'interface n'est JAMAIS nourri : il est
+ * vide, pour toujours. Conséquences mesurées sur une session de 700 traits :
+ * le panneau annonçait « 0 trait archivé », l'export « Toute la session » ne
+ * produisait AUCUN fichier (« Rien à exporter : la couche est vide »), et
+ * l'avertissement « l'archive est pleine » ne pouvait pas s'afficher — alors
+ * que le plafond, lui, évince bel et bien des traits. Le streamer perdait son
+ * enregistrement sans qu'on le lui dise.
+ *
+ * On fait donc voyager le strict nécessaire par le canal qui existe déjà :
+ *  - le COMPTEUR et le nombre d'évincés, poussés par la couche encre à chaque
+ *    changement (message minuscule, au plus un tous les ANNONCE_MS) ;
+ *  - la SESSION ARCHIVÉE elle-même, uniquement à la demande, au moment d'un
+ *    export réel — c'est un clone complet, il n'a rien à faire à l'ouverture
+ *    d'un panneau.
+ * ------------------------------------------------------------------ */
+
+export interface EtatArchive {
+  /** traits actuellement dans l'archive */
+  traits: number
+  /** traits sortis de l'archive faute de place depuis le lancement */
+  oublies: number
+}
+
+/** Au plus une annonce tous les 200 ms : l'éviction peut bouger à chaque image. */
+const ANNONCE_MS = 200
+
+let etat: EtatArchive = { traits: 0, oublies: 0 }
+const abonnesArchive = new Set<() => void>()
+
+/** Instantané stable : la même référence tant que rien n'a changé. */
+export function etatArchive(): EtatArchive {
+  return etat
+}
+
+/** Abonnement pour l'interface. Aucun sondage : tout part d'un message. */
+export function souscrireArchive(cb: () => void): () => void {
+  abonnesArchive.add(cb)
+  return () => {
+    abonnesArchive.delete(cb)
+  }
+}
+
+function poserEtatArchive(traits: number, oublies: number): void {
+  if (etat.traits === traits && etat.oublies === oublies) return
+  etat = { traits, oublies }
+  for (const cb of abonnesArchive) cb()
+}
+
+/** Demande à la couche encre de redire où en est son archive. */
+export function rafraichirArchive(): void {
+  if (!coucheSeparee || porteEncre) {
+    poserEtatArchive(recorder.count, recorder.oublies)
+    return
+  }
+  envoyerCommande({ nom: 'archive-etat' })
+}
+
+/* --- côté ENCRE : on annonce, et on répond aux demandes ----------------- */
+
+let envoiTimer: ReturnType<typeof setTimeout> | null = null
+let dernierEnvoi = 0
+
+function annoncerArchive(force: boolean): void {
+  const traits = recorder.count
+  const oublies = recorder.oublies
+  poserEtatArchive(traits, oublies)
+  if (!coucheSeparee) return
+  const t = Date.now()
+  if (force || t - dernierEnvoi >= ANNONCE_MS) {
+    if (envoiTimer != null) {
+      clearTimeout(envoiTimer)
+      envoiTimer = null
+    }
+    dernierEnvoi = t
+    annoncerEtatEncre({ quoi: 'archive', traits, oublies })
+    return
+  }
+  // Une seule minuterie de traîne, jamais un intervalle : le dernier chiffre
+  // part quoi qu'il arrive, sans inonder l'IPC pendant une salve d'évictions.
+  if (envoiTimer != null) return
+  envoiTimer = setTimeout(() => {
+    envoiTimer = null
+    dernierEnvoi = Date.now()
+    poserEtatArchive(recorder.count, recorder.oublies)
+    annoncerEtatEncre({ quoi: 'archive', traits: recorder.count, oublies: recorder.oublies })
+  }, ANNONCE_MS)
+}
+
+if (porteEncre) {
+  recorder.subscribe(() => annoncerArchive(false))
+  if (coucheSeparee) {
+    bridge.on('commande', (c) => {
+      if (c.nom === 'archive-etat') {
+        annoncerArchive(true)
+      } else if (c.nom === 'archive-session') {
+        // Clone complet : coûteux, et c'est voulu — on ne le fait qu'au clic
+        // sur un bouton d'export, jamais à l'ouverture du panneau.
+        annoncerEtatEncre({
+          quoi: 'archive-session',
+          session: c.plat ? recorder.flatSession() : recorder.session(),
+        })
+      }
+    })
+  }
+}
+
+/* --- côté INTERFACE : on écoute, et on sait réclamer -------------------- */
+
+const attentesSession: ((s: SessionExport | null) => void)[] = []
+
+if (porteInterface && coucheSeparee) {
+  ecouterEtatEncre((m) => {
+    if (m.quoi === 'archive') {
+      poserEtatArchive(m.traits, m.oublies)
+    } else if (m.quoi === 'archive-session') {
+      const s = (m.session as SessionExport | null) ?? null
+      const attentes = attentesSession.splice(0, attentesSession.length)
+      for (const rendre of attentes) rendre(s)
+    }
+  })
+}
+
+/**
+ * La session ARCHIVÉE, où qu'elle vive.
+ *
+ * Dans la couche encre (ou en démo navigateur), c'est un appel direct. Dans la
+ * fenêtre d'interface, c'est un aller-retour : on le fait au clic sur un
+ * bouton d'export, et jamais ailleurs. Un filet de quatre secondes évite qu'un
+ * bouton reste sans effet si la couche encre est en train de se recharger.
+ */
+export function demanderSessionArchivee(plat: boolean): Promise<SessionExport | null> {
+  if (!coucheSeparee || porteEncre) {
+    return Promise.resolve(plat ? recorder.flatSession() : recorder.session())
+  }
+  return new Promise((resoudre) => {
+    let fini = false
+    let minuteur: ReturnType<typeof setTimeout> | null = null
+    const rendre = (s: SessionExport | null): void => {
+      if (fini) return
+      fini = true
+      if (minuteur != null) clearTimeout(minuteur)
+      resoudre(s)
+    }
+    attentesSession.push(rendre)
+    minuteur = setTimeout(() => {
+      const i = attentesSession.indexOf(rendre)
+      if (i >= 0) attentesSession.splice(i, 1)
+      rendre(null)
+    }, 4000)
+    envoyerCommande({ nom: 'archive-session', plat })
+  })
+}
 
 /* ------------------------------------------------------------------ *
  * Session mise en file d'attente pour le rejeu.

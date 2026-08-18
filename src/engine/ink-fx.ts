@@ -651,6 +651,8 @@ export class InkLayer {
   /** point de reprise : image du calque après ses `ckIds` premiers traits */
   private ckCv: HTMLCanvasElement | null = null
   private ckIds: number[] = []
+  /** même contenu que `ckIds`, pour répondre en temps constant (voir invalider) */
+  private ckSet = new Set<number>()
 
   /** libère le calque (destruction du moteur, ou repli en rendu direct) */
   reset(): void {
@@ -677,10 +679,16 @@ export class InkLayer {
    * déplacement et l'annotation resterait figée à l'antenne.
    */
   invalider(id: number): void {
-    if (!this.ids.includes(id)) return
+    // ⚠️ DEUX ENSEMBLES, PAS DEUX PARCOURS. Cette méthode est appelée par la vue
+    // OBS pour CHAQUE message reçu — et un seul geste du streamer (touche
+    // panique, bouton « masquer ») en produit autant qu'il y a d'annotations.
+    // Avec deux recherches linéaires, ce geste coûtait le carré de la taille du
+    // tableau, dans le processus d'OBS lui-même. `set` reflète exactement `ids`
+    // entre deux compositions, `ckSet` exactement `ckIds`.
+    if (!this.set.has(id)) return
     this.refonte = true
     // le point de reprise contient peut-être ce trait : il serait périmé lui aussi
-    if (this.ckIds.includes(id)) this.oublierCheckpoint()
+    if (this.ckSet.has(id)) this.oublierCheckpoint()
   }
 
   /** le point de reprise ne survit ni au changement de peau ni de taille */
@@ -691,6 +699,7 @@ export class InkLayer {
     }
     this.ckCv = null
     this.ckIds = []
+    this.ckSet.clear()
   }
 
   /** `ckIds` est-il exactement le début de ce qu'on veut peindre ? */
@@ -733,6 +742,8 @@ export class InkLayer {
     c.drawImage(this.cv, 0, 0)
     this.ckCv = cv
     this.ckIds = [...this.ids]
+    this.ckSet.clear()
+    for (const id of this.ckIds) this.ckSet.add(id)
   }
 
   /**

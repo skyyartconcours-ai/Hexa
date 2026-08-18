@@ -220,21 +220,27 @@ export default function App() {
       appels: 0,
       recCount: 0,
       obsSent: 0,
+      obsRepare: 0,
       vivants: 0,
       points: 0,
       archPoints: 0,
     } as Record<string, number>)
-    engine.onMirror = (strokes, current) => {
+    engine.onMirror = (delta) => {
       const a = performance.now()
-      recorder.observe(strokes, current)
+      recorder.observe(delta.strokes, delta.current)
       const b = performance.now()
-      obsLink.publish(strokes, current)
+      obsLink.publish(delta)
       const c = performance.now()
+      const strokes = delta.strokes
       __dbg.recMs += b - a
       __dbg.obsMs += c - b
       __dbg.appels++
       __dbg.recCount = (recorder as unknown as { entries: Map<number, unknown> }).entries.size
       __dbg.obsSent = (obsLink as unknown as { sent: Map<number, unknown> }).sent.size
+      // Divergences rattrapées par le filet de sécurité du miroir : DOIT rester
+      // à zéro. Le contrôler, c'est vérifier que le journal du moteur n'oublie
+      // aucun chemin de mutation.
+      __dbg.obsRepare = obsLink.reparations
       __dbg.vivants = strokes.length
       if (__dbg.appels % 60 === 0) {
         let p = 0

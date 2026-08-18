@@ -46,8 +46,96 @@ const PORT_TRIES = 5
 /** Une vue OBS n'a rien à nous envoyer de gros : 8 Kio par trame suffisent. */
 const MAX_CLIENT_FRAME = 8192
 
-/** Au-delà, la vue ne suit plus (onglet gelé) : on la lâche au lieu d'enfler. */
-const MAX_BACKLOG = 4 * 1024 * 1024
+/**
+ * POLITIQUE DU CLIENT LENT — mesurée, explicite, et documentée ici une fois
+ * pour toutes.
+ *
+ * Une source navigateur peut cesser de consommer : OBS encode une vidéo, la
+ * machine rame, l'onglet est gelé. Le serveur, lui, continue d'écrire. Ce qui
+ * n'entre pas dans la socket s'empile DANS LE PROCESSUS PRINCIPAL, et c'est de
+ * la mémoire qui ne redescend jamais toute seule.
+ *
+ * L'ancienne politique était « au-delà de 4 Mo d'attente, on lâche la vue » —
+ * sauf qu'elle la lâchait avec `end()`, c'est-à-dire en mettant la trame de
+ * fermeture À LA SUITE des 4 Mo que le client ne lit plus. Mesuré : 4 105 Ko
+ * bloqués dans le principal, une socket fantôme de plus, et le client jamais
+ * prévenu — donc jamais reconnecté. La vue restait noire pour le reste du
+ * direct et la mémoire perdue pour de bon.
+ *
+ * Nouvelle politique, en trois temps :
+ *
+ *  1. ELLE DÉCROCHE — plus d'un mégaoctet en attente, ou une seconde entière
+ *     sans que la socket se soit vidée une seule fois. On CESSE alors de lui
+ *     envoyer les images intermédiaires : un différentiel appliqué sur un état
+ *     en retard serait de toute façon faux, et la mémoire cesse net de monter.
+ *  2. ELLE RATTRAPE — la socket est vide (ou l'événement `drain` tombe). On ne
+ *     rejoue PAS les différentiels sautés : on réclame UN état complet frais, et
+ *     la vue repart juste, d'un seul coup. RATTRAPAGE_MS interdit d'en réclamer
+ *     plus d'un toutes les cinq secondes, quoi qu'il arrive.
+ *  3. ELLE NE REVIENT PAS — dix secondes de retard ininterrompu. Ce n'est plus
+ *     une vue en direct : on coupe SÈCHEMENT (`destroy`), la mémoire et le
+ *     descripteur reviennent tout de suite, et la source navigateur se
+ *     reconnecte d'elle-même (src/obs/ObsView.tsx) sur un état frais.
+ *
+ * ⚠️ ON SAUTE AVANT DE COUPER. La version qui coupait dès le premier
+ * dépassement d'octets tuait des vues parfaitement saines : un état complet de
+ * 2,8 Mo écrit d'un bloc remplit n'importe quel seuil pendant quelques
+ * millisecondes. Et le TEMPS seul ne suffit pas non plus : une salve écrite en
+ * moins d'une seconde peut faire enfler le tampon avant que le chronomètre ne
+ * parle. Les deux conditions ensemble donnent le bon comportement, mesuré : une
+ * vue sourde est gardée, plafonnée, jamais nourrie pour rien, puis lâchée.
+ *
+ * Conséquence voulue : le coût d'une vue lente est BORNÉ (RETARD_OCTETS plus un
+ * message), il ne dépend ni de la durée du direct ni du nombre d'annotations.
+ */
+const RETARD_OCTETS = 1024 * 1024
+const RETARD_MS = 1000
+const ABANDON_MS = 10_000
+const RATTRAPAGE_MS = 5000
+
+/**
+ * Le dernier état complet mémorisé est gardé QUELQUES SECONDES après le départ
+ * de la dernière vue.
+ *
+ * C'est tout l'intérêt : « désactiver la source quand elle n'est pas visible »
+ * ferme et rouvre la source à CHAQUE changement de scène. Sans réserve, chaque
+ * transition repartait d'une vue noire en attendant que la couche encre
+ * re-sérialise toute la scène. Avec, la vue est repeinte instantanément depuis
+ * la mémoire du processus principal, et l'état frais qui suit ne fait que la
+ * corriger.
+ *
+ * ⚠️ ET SERVIE SEULEMENT SI ELLE EST FRAÎCHE. La réserve est le dernier état
+ * COMPLET ; entre deux, la scène n'avance que par différentiels. Servir une
+ * réserve d'il y a une heure à une source qu'on vient d'ajouter, ce serait faire
+ * clignoter à l'antenne des annotations effacées depuis longtemps. Au-delà de
+ * RESERVE_MS on ne sert donc rien : la vue reste vide le temps que l'état frais
+ * arrive, ce qui est infiniment préférable à un faux.
+ *
+ * Bornée dans le temps (une seule minuterie, armée au départ de la dernière vue,
+ * désarmée au retour de la première : aucune boucle, rien au repos) et bornée en
+ * taille (voir CACHE_MAX).
+ */
+const RESERVE_MS = 12_000
+
+/**
+ * Délai avant de servir la réserve à une vue qui vient d'arriver.
+ *
+ * ⚠️ ON NE LA SERT PAS D'EMBLÉE. La couche encre renvoie de toute façon un état
+ * complet dès qu'une vue se connecte (le nombre de vues lui est poussé, voir
+ * src/obs/ObsBridge.tsx) : servir la réserve EN PLUS, c'était envoyer deux fois
+ * la même scène à chaque changement de scène OBS. Mesuré à 1 600 traits : 46
+ * messages et 5,7 Mo par reconnexion au lieu de 23 et 2,9 Mo, et cent mégaoctets
+ * de plus dans le processus principal.
+ *
+ * La réserve est donc un FILET, pas un doublon : elle ne part que si la couche
+ * encre n'a rien envoyé au bout de ce délai — fenêtre en train de se recharger,
+ * machine saturée. Une minuterie unique par connexion, désarmée dès que l'état
+ * frais arrive. Rien au repos.
+ */
+const SECOURS_MS = 200
+
+/** Au-delà, on ne garde pas l'état complet en réserve : trop cher pour ce qu'il rend. */
+const CACHE_MAX = 8 * 1024 * 1024
 
 /** Hôtes considérés comme locaux (Host et Origin). */
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]', '0.0.0.0'])
@@ -132,6 +220,16 @@ interface Client {
   fragOp: number
   fragParts: Buffer[]
   fragLen: number
+  /** instant depuis lequel la socket ne s'est plus vidée (0 = elle suit) */
+  engorgeeDepuis: number
+  /** messages réellement sautés faute de place : il faudra un état complet */
+  sautes: number
+  /** pas de nouvel état complet de rattrapage avant cet instant */
+  prochainRattrapage: number
+  /** cette vue a un état complet (réserve servie, ou état frais reçu) */
+  servi: boolean
+  /** minuterie de secours : sert la réserve si la couche encre reste muette */
+  secours: ReturnType<typeof setTimeout> | null
 }
 
 let server: Server | null = null
@@ -139,6 +237,19 @@ let clients = new Set<Client>()
 let current: ObsServerOptions | null = null
 let livePort = 0
 let lastError: string | undefined
+
+/** Minuterie UNIQUE de relâchement de la réserve (voir GRACE_MS). Jamais un intervalle. */
+let graceTimer: ReturnType<typeof setTimeout> | null = null
+
+/** Instant de la dernière demande d'état frais à la couche encre. */
+let demandeAt = 0
+/** Une demande est partie et l'état complet n'est pas encore revenu. */
+let demandeEnCours = false
+
+/* --- compteurs de diagnostic, lus par /health et par les campagnes ------- */
+let totalConnexions = 0
+let totalRetards = 0
+let totalCoupures = 0
 
 /**
  * Dernier état complet, renvoyé à chaque nouvelle vue qui se connecte.
@@ -157,12 +268,98 @@ let lastError: string | undefined
  * principal jusqu'à la fermeture d'Hexa.
  */
 let lastFullState: string[] = []
+/** Poids de la réserve, pour ne jamais la laisser dépasser CACHE_MAX. */
+let lastFullOctets = 0
+/** Instant de capture de la réserve : au-delà de RESERVE_MS, on ne la sert plus. */
+let reserveAt = 0
 
-/** Sert l'état complet mémorisé à une vue qui arrive. Faux si la socket a lâché. */
-function writeFullState(socket: Duplex): boolean {
+/** Oublie la réserve et désarme la minuterie qui devait le faire. */
+function viderReserve(): void {
+  lastFullState = []
+  lastFullOctets = 0
+  reserveAt = 0
+  if (graceTimer != null) {
+    clearTimeout(graceTimer)
+    graceTimer = null
+  }
+}
+
+/**
+ * Plus personne ne regarde : on garde la réserve encore GRACE_MS, le temps
+ * qu'OBS finisse son changement de scène, puis on la relâche.
+ *
+ * UNE minuterie, armée une fois, désarmée dès qu'une vue revient. Pas de
+ * sondage, pas de boucle, rien au repos une fois qu'elle a tiré.
+ */
+function armerGrace(): void {
+  if (graceTimer != null || lastFullState.length === 0) return
+  graceTimer = setTimeout(() => {
+    graceTimer = null
+    lastFullState = []
+    lastFullOctets = 0
+    reserveAt = 0
+  }, RESERVE_MS)
+  graceTimer.unref?.()
+}
+
+/**
+ * Réclame un état complet FRAIS à la couche encre — au plus une demande à la
+ * fois.
+ *
+ * Sans ce garde-fou, quatre sources qui s'ouvrent ensemble (une scène OBS en
+ * contient souvent plusieurs) déclenchaient QUATRE sérialisations complètes de
+ * la scène, donc quatre gels de la couche qui est à l'antenne, pour un résultat
+ * strictement identique : l'état complet est de toute façon diffusé à TOUT LE
+ * MONDE. Mesuré à 1 600 traits : 46 Mo de JSON envoyés au lieu de 11.
+ *
+ * La demande se périme au bout de trois secondes : si la couche encre ne répond
+ * pas (fenêtre en train de se recharger), on doit pouvoir redemander.
+ */
+function reclamerEtatFrais(): void {
+  const t = Date.now()
+  if (demandeEnCours && t - demandeAt < 3000) return
+  demandeEnCours = true
+  demandeAt = t
+  current?.onHello?.()
+}
+
+/**
+ * Sert l'état complet mémorisé à une vue qui arrive. Faux si la socket a lâché.
+ *
+ * Une vue ne le reçoit QU'UNE FOIS (`servi`) : elle le réclamait ensuite avec
+ * son « obs:hello », et les mêmes mégaoctets repartaient une seconde fois dans
+ * la même socket, pour rien.
+ */
+function desarmerSecours(c: Client): void {
+  if (c.secours == null) return
+  clearTimeout(c.secours)
+  c.secours = null
+}
+
+/**
+ * Arme le filet de secours : si la couche encre n'a rien envoyé d'ici
+ * SECOURS_MS, la vue reçoit la réserve plutôt que de rester noire à l'antenne.
+ */
+function armerSecours(c: Client): void {
+  if (c.secours != null || c.servi || lastFullState.length === 0) return
+  c.secours = setTimeout(() => {
+    c.secours = null
+    if (!clients.has(c)) return
+    if (!writeFullState(c)) dropClient(c)
+  }, SECOURS_MS)
+  c.secours.unref?.()
+}
+
+function writeFullState(c: Client): boolean {
+  desarmerSecours(c)
+  if (c.servi || lastFullState.length === 0) return true
+  // Trop vieille : mieux vaut une vue vide une fraction de seconde qu'une vue
+  // qui affiche brièvement des annotations effacées depuis longtemps.
+  if (Date.now() - reserveAt > RESERVE_MS) return true
+  c.servi = true
   for (const frame of lastFullState) {
     try {
-      socket.write(encodeText(frame))
+      c.socket.write(encodeText(frame))
     } catch {
       return false
     }
@@ -268,15 +465,47 @@ function encodePong(payload: Buffer): Buffer {
  * Trames WebSocket — décodage (client → serveur)
  * ------------------------------------------------------------------ */
 
-function dropClient(c: Client, code?: number): void {
-  if (!clients.delete(c)) return
+/**
+ * Ferme une socket POUR DE BON.
+ *
+ * ⚠️ LE DÉFAUT LE PLUS COÛTEUX DE TOUT CE FICHIER, ET LE PLUS INVISIBLE.
+ *
+ * L'ancien code faisait `socket.end()`. Un `end()` n'envoie qu'un FIN : il
+ * ferme le sens écriture et laisse la socket À MOITIÉ OUVERTE. Or le serveur
+ * HTTP de Node est créé avec `allowHalfOpen: true` (il doit pouvoir finir
+ * d'écrire une réponse après le FIN du client) : personne ne referme donc
+ * jamais l'autre moitié, et la socket reste dans la boucle d'événements du
+ * processus principal JUSQU'À LA FERMETURE D'HEXA — avec son descripteur, son
+ * tampon, son objet Client et ses quatre écouteurs.
+ *
+ * Mesuré : 200 changements de scène OBS → 202 sockets fantômes, zéro relâchée.
+ * C'est le mécanisme exact décrit par l'utilisateur : « ça se dégrade plus le
+ * temps passe ». Un streamer qui change de scène toutes les trente secondes en
+ * accumule quatre cents en trois heures.
+ *
+ * On écrit donc la trame de fermeture (au mieux : sur la boucle locale elle
+ * part immédiatement) PUIS on détruit. La vue, elle, voit sa socket coupée et
+ * se reconnecte toute seule — c'est déjà son comportement (src/obs/ObsView.tsx).
+ */
+function fermerSocket(socket: Duplex, code?: number): void {
   try {
-    if (code != null) c.socket.end(encodeClose(code))
-    else c.socket.end()
+    if (code != null && socket.writable) socket.write(encodeClose(code))
+  } catch {
+    /* la socket est déjà partie : rien à dire de plus */
+  }
+  try {
+    socket.destroy()
   } catch {
     /* ignore */
   }
-  if (clients.size === 0) lastFullState = []
+}
+
+function dropClient(c: Client, code?: number): void {
+  if (!clients.delete(c)) return
+  desarmerSecours(c)
+  totalCoupures++
+  fermerSocket(c.socket, code)
+  if (clients.size === 0) armerGrace()
   current?.onClients?.(clients.size)
 }
 
@@ -296,14 +525,11 @@ function handleText(c: Client, text: string): void {
   if (typeof data !== 'object' || data === null) return
   const t = (data as { t?: unknown }).t
   if (t !== 'obs:hello') return
-  // état connu tout de suite (une vue ouverte en pleine session est à jour),
-  // puis on demande au renderer un état FRAIS : le dernier état complet mémorisé
-  // peut dater de plusieurs traits.
-  if (lastFullState.length > 0 && !writeFullState(c.socket)) {
-    dropClient(c)
-    return
-  }
-  current?.onHello?.()
+  // « Je viens d'ouvrir, envoie-moi tout. » On ne lui sert PAS la réserve tout
+  // de suite : la demande d'état frais part vers la couche encre, et le filet
+  // de secours ne se déclenche que si elle reste muette (voir SECOURS_MS).
+  reclamerEtatFrais()
+  armerSecours(c)
 }
 
 /** Décodage incrémental : démasquage, fragmentation, trames de contrôle. */
@@ -568,7 +794,27 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
       }
       if ((req.url ?? '').startsWith('/health')) {
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
-        res.end(JSON.stringify({ app: 'hexa', port: livePort, clients: clients.size }))
+        // Compteurs de diagnostic : aucun contenu d'annotation, uniquement de
+        // quoi vérifier qu'une longue session n'accumule rien.
+        let enRetard = 0
+        let attente = 0
+        for (const c of clients) {
+          if (c.sautes > 0) enRetard++
+          attente += c.socket.writableLength
+        }
+        res.end(
+          JSON.stringify({
+            app: 'hexa',
+            port: livePort,
+            clients: clients.size,
+            connexions: totalConnexions,
+            coupures: totalCoupures,
+            retards: totalRetards,
+            enRetard,
+            attenteKo: Math.round(attente / 1024),
+            reserveKo: Math.round(lastFullOctets / 1024),
+          }),
+        )
         return
       }
       serveStatic(req, res, opts.root, livePort || opts.port)
@@ -618,17 +864,42 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
     const tcp = socket as Duplex & { setNoDelay?: (on: boolean) => void }
     tcp.setNoDelay?.(true)
 
-    const client: Client = { socket, buffer: Buffer.alloc(0), fragOp: 0, fragParts: [], fragLen: 0 }
+    const client: Client = {
+      socket,
+      buffer: Buffer.alloc(0),
+      fragOp: 0,
+      fragParts: [],
+      fragLen: 0,
+      engorgeeDepuis: 0,
+      sautes: 0,
+      prochainRattrapage: 0,
+      servi: false,
+      secours: null,
+    }
     clients.add(client)
+    totalConnexions++
+    // Une vue revient : la réserve reste, la minuterie de relâchement est
+    // désarmée. C'est ce qui rend un changement de scène instantané.
+    if (graceTimer != null) {
+      clearTimeout(graceTimer)
+      graceTimer = null
+    }
     current?.onClients?.(clients.size)
-    log(`vue OBS connectée (${clients.size})`)
+    // Le journal ne doit PAS grossir avec le nombre de changements de scène :
+    // les dix premières connexions, puis une sur cinquante, suffisent à
+    // diagnostiquer, et le fichier reste lisible après trois heures de direct.
+    if (totalConnexions <= 10 || totalConnexions % 50 === 0) {
+      log(`vue OBS connectée (${clients.size} connectée(s), ${totalConnexions} depuis le départ)`)
+    }
 
     const drop = (): void => {
-      if (clients.delete(client)) {
-        if (clients.size === 0) lastFullState = []
-        current?.onClients?.(clients.size)
-        log(`vue OBS déconnectée (${clients.size})`)
-      }
+      if (!clients.delete(client)) return
+      desarmerSecours(client)
+      // On DÉTRUIT : recevoir le FIN du client ne referme pas notre moitié
+      // (voir fermerSocket). Sans ça, une socket fantôme par changement de scène.
+      fermerSocket(socket)
+      if (clients.size === 0) armerGrace()
+      current?.onClients?.(clients.size)
     }
     socket.on('data', (chunk: Buffer) => {
       try {
@@ -640,20 +911,23 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
     socket.on('close', drop)
     socket.on('error', drop)
     socket.on('end', drop)
+    // La vue avait décroché et vient de tout avaler : elle repart sur un état
+    // complet frais plutôt que sur les différentiels qu'on lui a sautés.
+    socket.on('drain', () => {
+      client.engorgeeDepuis = 0
+      if (client.sautes === 0) return
+      client.sautes = 0
+      reclamerEtatFrais()
+    })
 
-    // État complet immédiat : une vue qui s'ouvre en pleine session est à jour
-    // sans attendre le prochain trait. La vue redemande ensuite un état FRAIS
-    // avec « obs:hello » (voir handleText).
-    if (lastFullState.length > 0) {
-      if (!writeFullState(socket)) drop()
-    } else {
-      // Rien en réserve — c'est le cas NORMAL de la première connexion, puisque
-      // le renderer se tait tant que personne ne regarde. On réclame l'état
-      // tout de suite, sans attendre le « obs:hello » de la vue : une source
-      // navigateur mal réglée (ou un simple client de diagnostic) reçoit ainsi
-      // les annotations déjà à l'écran.
-      current?.onHello?.()
-    }
+    // On réclame l'état frais tout de suite, sans attendre le « obs:hello » de
+    // la vue : une source navigateur mal réglée (ou un simple client de
+    // diagnostic) reçoit ainsi les annotations déjà à l'écran. La demande est
+    // dédoublonnée : N sources qui s'ouvrent ensemble ne coûtent qu'UNE
+    // sérialisation à la couche encre.
+    reclamerEtatFrais()
+    // Filet : si rien n'arrive, la réserve prend le relais (voir SECOURS_MS).
+    armerSecours(client)
   })
 
   try {
@@ -690,14 +964,12 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
 
 export function stopObsServer(): void {
   for (const c of [...clients]) {
-    try {
-      c.socket.end(encodeClose(1001))
-    } catch {
-      /* ignore */
-    }
+    desarmerSecours(c)
+    fermerSocket(c.socket, 1001)
   }
   clients = new Set()
-  lastFullState = []
+  viderReserve()
+  demandeEnCours = false
   if (server) {
     try {
       server.close()
@@ -710,24 +982,85 @@ export function stopObsServer(): void {
   current = null
 }
 
+/**
+ * Type d'un message, lu SANS parcourir toute la charge.
+ *
+ * `payload.includes(...)` balayait le message entier — jusqu'à sept cent mille
+ * caractères pour un lot d'état complet, deux fois. Le nom du message est
+ * toujours la première clé du JSON : soixante-quatre caractères suffisent.
+ */
+function estType(payload: string, type: string): boolean {
+  const tete = payload.length > 64 ? payload.slice(0, 64) : payload
+  return tete.includes(`"${type}"`)
+}
+
 /** Diffuse un message déjà sérialisé à toutes les vues connectées. */
 export function broadcastObs(payload: string): void {
   // Un `state:full` ouvre une nouvelle suite, chaque `state:more` la complète.
   // Un `state:more` orphelin (la vue s'est connectée au milieu d'un envoi) est
   // ignoré : elle recevra de toute façon un état frais grâce à son « hello ».
-  if (payload.includes('"state:full"')) lastFullState = [payload]
-  else if (payload.includes('"state:more"') && lastFullState.length > 0) {
+  if (estType(payload, 'state:full')) {
+    // L'état frais est arrivé : la demande en cours est honorée, et toutes les
+    // vues connectées vont le recevoir — inutile de leur servir la réserve.
+    demandeEnCours = false
+    lastFullState = [payload]
+    lastFullOctets = payload.length
+    reserveAt = Date.now()
+    // Toutes les vues connectées reçoivent cet état : plus aucune n'a besoin
+    // de la réserve, et leur filet de secours n'a plus lieu d'être.
+    for (const c of clients) {
+      c.servi = true
+      desarmerSecours(c)
+    }
+  } else if (estType(payload, 'state:more') && lastFullState.length > 0) {
     lastFullState.push(payload)
+    lastFullOctets += payload.length
+  }
+  // Une scène démesurée ne doit pas rester épinglée dans le processus
+  // principal : au-delà de CACHE_MAX on préfère une reconnexion un peu plus
+  // lente à un overlay qui pèse plus lourd que ce qu'il annote.
+  if (lastFullOctets > CACHE_MAX) {
+    lastFullState = []
+    lastFullOctets = 0
   }
   if (clients.size === 0) return
   const frame = encodeText(payload)
+  const maintenant = Date.now()
+  let rattrapage = false
   for (const c of [...clients]) {
-    // Une vue qui ne consomme plus (onglet gelé, OBS en train de mourir) ne doit
-    // pas faire enfler la mémoire du processus principal : on la lâche.
-    if (c.socket.writableLength > MAX_BACKLOG) {
-      log('vue OBS trop lente, déconnectée')
-      dropClient(c, 1013)
-      continue
+    const attente = c.socket.writableLength
+    if (attente === 0) {
+      // Elle suit. Si on lui avait sauté des messages, elle ne peut pas
+      // reprendre sur un différentiel : un seul état complet la remet d'aplomb.
+      c.engorgeeDepuis = 0
+      if (c.sautes > 0) {
+        c.sautes = 0
+        if (maintenant >= c.prochainRattrapage) {
+          c.prochainRattrapage = maintenant + RATTRAPAGE_MS
+          rattrapage = true
+          continue
+        }
+      }
+    } else {
+      // Première fois qu'on la trouve non vide : c'est le cas NORMAL juste
+      // après un gros envoi. On note l'heure et on continue de l'alimenter.
+      if (c.engorgeeDepuis === 0) c.engorgeeDepuis = maintenant
+      const depuis = maintenant - c.engorgeeDepuis
+      // 3. dix secondes de retard ininterrompu : ce n'est plus une vue en direct.
+      if (depuis > ABANDON_MS) {
+        log(`vue OBS injoignable (${Math.round(attente / 1024)} Ko en attente), déconnectée`)
+        dropClient(c, 1013)
+        continue
+      }
+      // 1. elle a décroché : on cesse de la nourrir, la mémoire cesse de monter.
+      if (attente > RETARD_OCTETS || depuis > RETARD_MS) {
+        if (c.sautes === 0) {
+          totalRetards++
+          log(`vue OBS en retard (${Math.round(attente / 1024)} Ko en attente), images sautées`)
+        }
+        c.sautes++
+        continue
+      }
     }
     try {
       c.socket.write(frame)
@@ -735,4 +1068,5 @@ export function broadcastObs(payload: string): void {
       dropClient(c)
     }
   }
+  if (rattrapage) reclamerEtatFrais()
 }

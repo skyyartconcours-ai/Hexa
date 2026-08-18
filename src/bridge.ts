@@ -65,6 +65,24 @@ export type CommandeEncre =
   | { nom: 'session-get' }
   | { nom: 'session-load'; session: unknown }
   /**
+   * L'interface réclame l'état de l'ARCHIVE de session (§11).
+   *
+   * L'enregistreur vit avec le moteur, donc dans la couche encre ; le panneau
+   * de réglages, lui, est dans la fenêtre d'interface. Sans ce couple de
+   * messages, le panneau affichait « 0 trait archivé » toute la session — et
+   * l'avertissement « l'archive est pleine » ne s'affichait JAMAIS, alors que le
+   * plafond évince réellement des traits.
+   */
+  | { nom: 'archive-etat' }
+  /**
+   * L'interface réclame la SESSION ARCHIVÉE elle-même, pour un export réel.
+   *
+   * Coûteux (un clone complet + une traversée IPC) : à n'envoyer qu'au clic sur
+   * un bouton d'export, jamais à l'ouverture du panneau. `plat` demande la
+   * variante « tout est vivant et terminé » utilisée par l'export PNG.
+   */
+  | { nom: 'archive-session'; plat: boolean }
+  /**
    * « Rejouer CE fichier » : la session choisie dans les réglages est mise en
    * file d'attente du côté du moteur, qui est aussi celui de l'enregistreur et
    * de la barre de rejeu (§11).
@@ -93,6 +111,10 @@ export type EtatEncre =
   | { quoi: 'hints'; on: boolean }
   /** instantané de session, en réponse à { nom: 'session-get' } */
   | { quoi: 'session'; session: unknown }
+  /** état de l'archive de session : compteur et traits évincés faute de place */
+  | { quoi: 'archive'; traits: number; oublies: number }
+  /** session archivée, en réponse à { nom: 'archive-session' } */
+  | { quoi: 'archive-session'; session: unknown }
 
 /**
  * Résultat de la demande de protection de contenu, pour le dire HONNÊTEMENT

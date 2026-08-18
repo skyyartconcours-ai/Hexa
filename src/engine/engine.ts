@@ -1,6 +1,7 @@
 import type {
   EngineOptions,
   LaserPoint,
+  MirrorDelta,
   Particle,
   SessionExport,
   Stroke,
@@ -272,8 +273,44 @@ export class HexaEngine {
    * boucle étant dormante). Sert à l'enregistreur de session (§11) et au miroir
    * OBS (§10.2). Les tableaux fournis appartiennent au moteur : les lire, ne
    * jamais les modifier. Les consommateurs s'échantillonnent eux-mêmes.
+   *
+   * ⚠️ LE MOTEUR DIT CE QU'IL A TOUCHÉ (voir MirrorDelta). Sans ça, le miroir
+   * OBS n'a d'autre choix que de relire toute la scène à chaque image, et le
+   * coût par image se met à suivre le remplissage du tableau — donc la durée
+   * du direct.
    */
-  onMirror?: (strokes: readonly Stroke[], current: Stroke | null) => void
+  onMirror?: (delta: MirrorDelta) => void
+
+  /* --- journal des changements, remis à zéro à chaque image -------------- */
+  /** traits apparus ou modifiés depuis l'image précédente */
+  private sales = new Set<Stroke>()
+  /** identifiants sortis de la scène depuis l'image précédente */
+  private partis = new Set<number>()
+  /** objet remis au miroir, RÉUTILISÉ : zéro allocation par image */
+  private delta: MirrorDelta = {
+    strokes: [],
+    current: null,
+    changed: this.sales,
+    gone: this.partis,
+  }
+
+  /**
+   * Ce trait vient de changer (ou d'arriver) : le miroir devra le relire.
+   *
+   * Coût : une entrée dans un ensemble. À appeler partout où l'on touche un
+   * champ d'un trait — c'est le prix, minuscule, de ne plus jamais relire les
+   * traits qui, eux, n'ont pas bougé.
+   */
+  private salir(s: Stroke): void {
+    this.partis.delete(s.id)
+    this.sales.add(s)
+  }
+
+  /** Ce trait quitte la scène (annulé, dissous, geste avorté). */
+  private sortir(s: Stroke): void {
+    this.sales.delete(s)
+    this.partis.add(s.id)
+  }
 
   constructor(stage: HTMLElement, staticCv: HTMLCanvasElement, liveCv: HTMLCanvasElement) {
     this.stage = stage
@@ -409,7 +446,11 @@ export class HexaEngine {
       this.opts.fadeDelay != null
     ) {
       const t = performance.now()
-      for (const s of this.strokes) if (!s.dying) s.dieAt = t + this.opts.fadeDelay
+      for (const s of this.strokes) {
+        if (s.dying) continue
+        s.dieAt = t + this.opts.fadeDelay
+        this.salir(s)
+      }
     }
     if (patch.annotationsHidden !== undefined && patch.annotationsHidden !== prevHidden) {
       this.staticDirty = true
@@ -449,6 +490,7 @@ export class HexaEngine {
           this.staticDirty = true
         }
         s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
+        this.salir(s)
       }
       this.wake()
     }
@@ -519,6 +561,7 @@ export class HexaEngine {
       if (s.tool === 'glyph' && s.ink) {
         if (this.hw.demorph(s, performance.now())) {
           s.anim = { start: performance.now(), duration: DEMORPH_MS }
+          this.salir(s)
           this.hwUndoing = s
           this.staticDirty = true
           this.wake()
@@ -538,6 +581,7 @@ export class HexaEngine {
         s.filled = undefined
         s.anim = undefined
         s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
+        this.salir(s)
         this.redoStack.push({ kind: 'reshape', id: s.id })
         this.anchorsDirty = true
         this.staticDirty = true
@@ -545,6 +589,7 @@ export class HexaEngine {
         return
       }
       this.strokes.splice(i, 1)
+      this.sortir(s)
       this.redoStack.push({ kind: 'stroke', stroke: s })
       if (s.tool === 'badge') this.syncBadgeSeq()
       this.anchorsDirty = true
@@ -583,6 +628,7 @@ export class HexaEngine {
       e.s.dying = undefined
       e.s.anim = undefined
       e.s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
+      this.salir(e.s)
       liste.splice(Math.min(e.i, liste.length), 0, e.s)
     }
     this.strokes = liste
@@ -607,6 +653,7 @@ export class HexaEngine {
         this.hwUndoing = null
         const t = performance.now()
         if (this.hw.remorph(g, t)) g.anim = { start: t, duration: DEMORPH_MS }
+        this.salir(g)
         this.staticDirty = true
         this.wake()
         return
@@ -626,6 +673,7 @@ export class HexaEngine {
         const i = this.strokes.indexOf(s)
         if (i < 0 || s.dying) continue
         s.dying = { start: now, duration: 160, mode: 'pop', cause: 'erase' }
+        this.salir(s)
         lot.strokes.push({ s, i })
       }
       if (lot.strokes.length > 0) this.pousserLot(lot)
@@ -649,7 +697,11 @@ export class HexaEngine {
     }
     if (e.kind === 'swap') {
       const partis = new Set(e.remove)
-      this.strokes = this.strokes.filter((s) => !partis.has(s))
+      this.strokes = this.strokes.filter((s) => {
+        if (!partis.has(s)) return true
+        this.sortir(s)
+        return false
+      })
       for (const s of e.add) {
         s.dying = undefined
         s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
@@ -660,6 +712,7 @@ export class HexaEngine {
           s.anim = { start: now, duration: DEMORPH_MS }
         }
         this.strokes.push(s)
+        this.salir(s)
       }
       this.anchorsDirty = true
       this.staticDirty = true
@@ -670,6 +723,7 @@ export class HexaEngine {
     const s = e.stroke
     s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
     this.strokes.push(s)
+    this.salir(s)
     if (s.tool === 'badge') this.syncBadgeSeq()
     this.anchorsDirty = true
     this.staticDirty = true
@@ -712,6 +766,7 @@ export class HexaEngine {
       const s = this.strokes[i]
       if (s.dying) continue
       s.dying = panicDying(n, now)
+      this.salir(s)
       efface.push({ s, i })
       n++
     }
@@ -777,6 +832,7 @@ export class HexaEngine {
     for (const s of loaded) {
       if (s.linkFrom != null) s.linkFrom = remap.get(s.linkFrom)
       this.strokes.push(s)
+      this.salir(s)
     }
     this.syncBadgeSeq()
     this.anchorsDirty = true
@@ -871,6 +927,7 @@ export class HexaEngine {
         this.grabbed = s
         this.grabLast = { x: pt.x, y: pt.y }
         s.dieAt = undefined // le compte à rebours est suspendu pendant le drag
+        this.salir(s)
         this.grabAnim = { id: s.id, start: performance.now(), from: 1, back: false }
         this.cursor.classList.add('is-grab')
         this.staticDirty = true
@@ -967,6 +1024,7 @@ export class HexaEngine {
         this.gesture = [{ ...first }]
         this.current.points.push({ ...first })
       }
+      this.salir(this.current)
       this.emitActivity()
       this.wake()
     }
@@ -1010,6 +1068,7 @@ export class HexaEngine {
         }
         if (this.opts.fadeDelay != null) s.dieAt = now + this.opts.fadeDelay + 260
         this.strokes.push(s)
+        this.salir(s)
         this.anchorsDirty = true
         this.staticDirty = true
         this.emitActivity()
@@ -1037,6 +1096,7 @@ export class HexaEngine {
     if (link != null) s.linkFrom = link
     if (this.opts.fadeDelay != null) s.dieAt = now + this.opts.fadeDelay + (s.anim?.duration ?? 0)
     this.strokes.push(s)
+    this.salir(s)
     this.badgeSeq++
     this.lastBadgeId = s.id
     this.anchorsDirty = true
@@ -1066,6 +1126,7 @@ export class HexaEngine {
     }
     if (this.opts.fadeDelay != null) s.dieAt = now + this.opts.fadeDelay + 260
     this.strokes.push(s)
+    this.salir(s)
     this.anchorsDirty = true
     this.staticDirty = true
     this.emitActivity()
@@ -1100,6 +1161,7 @@ export class HexaEngine {
         const w = clamp(s.w * k, 48, 1600)
         s.h = (s.h / s.w) * w
         s.w = w
+        this.salir(s)
         this.staticDirty = true
         this.wake()
         return
@@ -1126,10 +1188,12 @@ export class HexaEngine {
           p.x += dx
           p.y += dy
         }
+        this.salir(this.grabbed)
         this.anchorsDirty = true
         this.staticDirty = true
       } else if (this.current) {
         const c = this.current
+        this.salir(c)
         if (GESTURE_TOOLS.has(c.tool)) {
           this.pushGesture(c, pt)
         } else if (TWO_POINT_TOOLS.has(c.tool)) {
@@ -1231,6 +1295,7 @@ export class HexaEngine {
       p: 0.5,
       t: origin.t + (t1 - origin.t) * (cum[i] / total),
     }))
+    this.salir(c)
   }
 
   /** accroche d'un outil posé au clic + affichage des guides correspondants */
@@ -1307,6 +1372,7 @@ export class HexaEngine {
       if (this.opts.fadeDelay != null) {
         this.grabbed.dieAt = now + this.opts.fadeDelay
       }
+      this.salir(this.grabbed)
       // retour élastique du grossissement (effet de rendu uniquement)
       this.grabAnim = {
         id: this.grabbed.id,
@@ -1334,12 +1400,14 @@ export class HexaEngine {
     this.overlay.clear(now)
     c.done = true
     c.endedAt = now
+    this.salir(c)
     if (GESTURE_TOOLS.has(c.tool)) {
       const gesture = this.gesture
       this.gesture = []
       // geste trop court : on n'ajoute rien (mesuré sur la LONGUEUR PARCOURUE,
       // une flèche peut légitimement revenir près de son point de départ)
       if (gesture.length < 2 || pathLen(gesture) < 14) {
+        this.sortir(c)
         this.emitActivity()
         this.wake()
         return
@@ -1348,6 +1416,7 @@ export class HexaEngine {
       this.refreshGesture(c)
       this.overlay.clear(now)
       if (c.points.length < 2) {
+        this.sortir(c)
         this.emitActivity()
         this.wake()
         return
@@ -1367,6 +1436,7 @@ export class HexaEngine {
       const a = c.points[0]
       const b = c.points[c.points.length - 1]
       if (dist(a.x, a.y, b.x, b.y) < 8) {
+        this.sortir(c)
         this.emitActivity()
         this.wake()
         return // geste trop court : on n'ajoute rien
@@ -1414,6 +1484,7 @@ export class HexaEngine {
     // la pointe de la flèche éclot juste après l'atterrissage du morph
     c.anim =
       rec.kind === 'arrow' ? { start: now + MORPH_MS, duration: 260, kind: 'head' } : undefined
+    this.salir(c)
   }
 
   /**
@@ -1425,6 +1496,7 @@ export class HexaEngine {
     const s = this.strokeAt(pt.x, pt.y)
     if (!s) return
     s.dying = { start: performance.now(), duration: 160, mode: 'pop', cause: 'erase' }
+    this.salir(s)
     const i = this.strokes.indexOf(s)
     if (!this.eraseLot) {
       this.eraseLot = { strokes: [], seq: this.idSeq, mode: 'erase' }
@@ -1656,6 +1728,7 @@ export class HexaEngine {
       if (this.opts.annotationsHidden) break
       if (!s.dying && s.dieAt != null && now >= s.dieAt) {
         s.dying = { start: now, duration: dissolveDuration(s), mode: 'dissolve', cause: 'fade' }
+        this.salir(s)
       }
     }
     // purger les traits entièrement dissous
@@ -1668,6 +1741,7 @@ export class HexaEngine {
         this.morphs.delete(st.id)
         if (st.tool === 'badge') purgedBadge = true
         this.strokes.splice(i, 1)
+        this.sortir(st)
         purged = true
       }
     }
@@ -1740,7 +1814,16 @@ export class HexaEngine {
     }
     // miroir : enregistreur de session (§11) et vue OBS (§10.2). Uniquement
     // pendant que la boucle tourne, donc jamais au repos.
-    this.onMirror?.(this.strokes, this.current)
+    //
+    // Le journal des changements accompagne l'état : le miroir n'a plus à
+    // deviner ce qui a bougé, donc plus à relire toute la scène. Il est vidé
+    // JUSTE APRÈS — un consommateur qui s'échantillonne plus lentement doit
+    // accumuler de son côté (voir MirrorDelta).
+    this.delta.strokes = this.strokes
+    this.delta.current = this.current
+    this.onMirror?.(this.delta)
+    this.sales.clear()
+    this.partis.clear()
 
     const busy =
       this.current != null ||
@@ -1798,6 +1881,7 @@ export class HexaEngine {
       for (const s of swap.remove) {
         const i = this.strokes.indexOf(s)
         if (i >= 0) this.strokes.splice(i, 1)
+        this.sortir(s)
       }
       for (const s of swap.add) {
         s.dying = undefined
@@ -1806,6 +1890,7 @@ export class HexaEngine {
             ? undefined
             : now + this.opts.fadeDelay + (s.anim?.duration ?? 0)
         this.strokes.push(s)
+        this.salir(s)
       }
       // tant qu'un mot s'écrit, ses lettres déjà posées ne doivent pas
       // s'effacer sous le nez de l'utilisateur : leur fondu est repoussé
@@ -1813,6 +1898,7 @@ export class HexaEngine {
         for (const s of swap.keep) {
           if (s.dying) continue
           s.dieAt = now + this.opts.fadeDelay + (s.anim?.duration ?? 0)
+          this.salir(s)
         }
       }
       // marche avant du Ctrl+Z qui vient d'atterrir : refaire l'échange dans

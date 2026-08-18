@@ -145,6 +145,22 @@ export class ObsMirror {
       case 'stroke:update':
         this.put(msg.stroke)
         break
+      // Seules les ÉCHÉANCES ont bougé : le trait garde sa géométrie, on ne
+      // remplace donc rien. C'est ce qui rend gratuite la touche panique (et le
+      // bouton « masquer ») sur un tableau plein — voir ObsStrokePhase.
+      case 'stroke:phase': {
+        const off = this.offset ?? 0
+        if (!Array.isArray(msg.items)) break
+        for (const it of msg.items) {
+          const s = this.map.get(it.id)
+          if (!s) continue
+          s.dieAt = it.dieAt == null ? undefined : it.dieAt + off
+          s.dying = it.dying ? { ...it.dying, start: it.dying.start + off } : undefined
+          s.anim = it.anim ? { ...it.anim, start: it.anim.start + off } : undefined
+          this.retoucher(s.id)
+        }
+        break
+      }
       case 'stroke:remove':
         for (const id of msg.ids) this.drop(id)
         break

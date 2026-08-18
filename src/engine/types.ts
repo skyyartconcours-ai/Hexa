@@ -88,6 +88,38 @@ export interface Stroke {
   anim?: { start: number; duration: number; kind?: 'draw' | 'head' }
 }
 
+/**
+ * CE QUE LE MOTEUR REMET AU MIROIR À CHAQUE IMAGE ACTIVE.
+ *
+ * ⚠️ C'EST LA PIÈCE QUI REND LE COÛT PAR IMAGE INDÉPENDANT DE LA SESSION.
+ *
+ * Avant, le miroir recevait la scène entière et devait DEVINER ce qui avait
+ * changé : il relisait les dix-huit champs de chaque trait, trente fois par
+ * seconde. Un tableau blanc de deux mille annotations coûtait donc trente-six
+ * mille comparaisons par seconde pour découvrir que rien n'avait bougé — et ce
+ * coût grimpait avec le remplissage de la scène, c'est-à-dire avec la durée du
+ * direct. C'est exactement la dégradation que décrivent les streamers.
+ *
+ * Le moteur sait, lui, ce qu'il vient de toucher : il le DIT. Le miroir ne
+ * regarde plus que ça. Un trait terminé, immobile et déjà envoyé n'est plus
+ * jamais relu — jamais.
+ *
+ * Les deux ensembles ne valent que pour L'IMAGE EN COURS : le moteur les vide
+ * juste après l'appel. Un consommateur qui s'échantillonne plus lentement (le
+ * miroir OBS ne balaie qu'à 30 Hz) doit donc les ACCUMULER de son côté, ce qui
+ * ne coûte que le changement lui-même.
+ */
+export interface MirrorDelta {
+  /** traits vivants, propriété du moteur : à lire, jamais à modifier */
+  strokes: readonly Stroke[]
+  /** trait en cours de tracé, hors de `strokes` tant qu'il n'est pas fini */
+  current: Stroke | null
+  /** traits apparus ou modifiés depuis l'image précédente */
+  changed: ReadonlySet<Stroke>
+  /** identifiants sortis de la scène depuis l'image précédente */
+  gone: ReadonlySet<number>
+}
+
 export interface EngineOptions {
   tool: ToolId
   color: string

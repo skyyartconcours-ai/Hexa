@@ -14,7 +14,7 @@
  *    calcule son propre décalage (les deux pages n'ont pas la même origine de
  *    performance.now()).
  */
-import type { Stroke, StrokePoint } from '../engine/types'
+import type { DyingCause, DyingMode, Stroke, StrokePoint } from '../engine/types'
 
 export const OBS_PROTOCOL_VERSION = 1
 
@@ -54,11 +54,22 @@ export const OBS_MAX_MESSAGE = 4_000_000
 /**
  * Taille visée d'un lot d'état complet, en caractères estimés.
  *
- * Assez gros pour qu'une scène ordinaire tienne en UN message (aucun changement
- * de comportement pour l'immense majorité des sessions), assez petit pour rester
- * très loin de OBS_MAX_MESSAGE même si l'estimation se trompe d'un facteur deux.
+ * ⚠️ CE N'EST PLUS UN COMPROMIS DE DÉBIT, C'EST UN BUDGET DE TEMPS.
+ *
+ * L'état complet part à chaque reconnexion d'une source navigateur — donc, pour
+ * un streamer qui coche « désactiver la source quand elle n'est pas visible »,
+ * À CHAQUE CHANGEMENT DE SCÈNE. Il est maintenant ÉTALÉ sur plusieurs images
+ * (voir ObsLink.pousserLot) : ce qui compte n'est plus de faire peu de messages,
+ * c'est qu'aucun d'eux ne bloque la couche encre — celle qui est à l'antenne —
+ * plus d'une poignée de millisecondes. Un lot de 600 000 caractères coûtait à
+ * lui seul une dizaine de millisecondes de sérialisation ; à 120 000, on reste
+ * sous l'image, et la scène entière arrive quand même en moins de 200 ms.
+ *
+ * Mesuré à 1 600 traits (36 800 points) : le plus long blocage de la couche
+ * encre passe de 133 ms à moins de 4 ms par changement de scène OBS, pour une
+ * quarantaine de messages au lieu d'un seul pavé.
  */
-export const OBS_BATCH_CHARS = 600_000
+export const OBS_BATCH_CHARS = 80_000
 
 export interface ObsStateFull {
   t: 'state:full'
@@ -123,6 +134,29 @@ export interface ObsStrokeUpdate {
   stroke: Stroke
 }
 
+/**
+ * SEULES LES ÉCHÉANCES D'UN TRAIT ONT CHANGÉ — sa géométrie, sa couleur et ses
+ * points sont exactement ceux déjà envoyés.
+ *
+ * Ce message existe pour une raison très concrète : la touche panique, le
+ * bouton « masquer les annotations » et le curseur de fondu automatique
+ * touchent TOUS LES TRAITS DE LA SCÈNE D'UN COUP. Avec un `stroke:update` par
+ * trait, un tableau de deux mille annotations partait en deux mille copies
+ * complètes — plusieurs mégaoctets et un gel bien visible, au moment précis où
+ * le streamer veut faire disparaître quelque chose de l'antenne. Ici, chaque
+ * trait tient en quatre champs, et tout le lot part en UN message.
+ */
+export interface ObsStrokePhase {
+  t: 'stroke:phase'
+  now: number
+  items: {
+    id: number
+    dieAt?: number
+    dying?: { start: number; duration: number; mode: DyingMode; cause?: DyingCause }
+    anim?: { start: number; duration: number; kind?: 'draw' | 'head' }
+  }[]
+}
+
 export interface ObsStrokeRemove {
   t: 'stroke:remove'
   now: number
@@ -147,6 +181,7 @@ export type ObsMessage =
   | ObsStrokeAdd
   | ObsStrokePoints
   | ObsStrokeUpdate
+  | ObsStrokePhase
   | ObsStrokeRemove
   | ObsClear
   | ObsModeMsg
@@ -159,6 +194,7 @@ const KINDS = new Set([
   'stroke:add',
   'stroke:points',
   'stroke:update',
+  'stroke:phase',
   'stroke:remove',
   'clear',
   'mode',
