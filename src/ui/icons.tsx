@@ -84,6 +84,21 @@ export const IconBadge = () => (
   </Svg>
 )
 
+/**
+ * JALONS — trois hexagones, aucun fil entre eux.
+ *
+ * C'est le contraire exact de l'icône du numéroteur, qui montre justement deux
+ * pastilles RELIÉES par un pointillé : l'œil comprend la différence entre les
+ * deux outils sans lire une seule étiquette.
+ */
+export const IconJalon = () => (
+  <Svg>
+    <path d="M8 3.6 11.4 5.6v4L8 11.6 4.6 9.6v-4z" />
+    <path d="M17 7.6 20.4 9.6v4L17 15.6 13.6 13.6v-4z" opacity="0.85" />
+    <path d="M9.5 15 12.9 17v4L9.5 23 6.1 21v-4z" opacity="0.7" />
+  </Svg>
+)
+
 export const IconMeasure = () => (
   <Svg>
     <path d="M4.5 19.5 19.5 4.5" />

@@ -9,6 +9,7 @@ export type ToolId =
   | 'ellipse'
   | 'text'
   | 'badge'
+  | 'marker'
   | 'measure'
   | 'stamp'
   | 'laser'
@@ -28,6 +29,16 @@ export type StrokeTool =
   | 'ellipse'
   | 'text'
   | 'badge'
+  /**
+   * JALONS (§4.8 bis) — la même idée que le numéroteur, mais SANS le fil.
+   *
+   * Le numéroteur raconte un PARCOURS : 1 → 2 → 3, reliés par des flèches,
+   * « il va là, puis là ». Les jalons désignent des ENDROITS : trois positions
+   * à tenir, quatre wards à poser. Les relier n'aurait aucun sens et salirait
+   * la carte. D'où un outil à part, un symbole à part (hexagone, pas disque) et
+   * SON compteur à lui — les deux séries ne se marchent jamais dessus.
+   */
+  | 'marker'
   | 'measure'
   | 'stamp'
   /** mot typographié issu du mode écriture — jamais sélectionnable à la main */

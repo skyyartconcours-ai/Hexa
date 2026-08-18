@@ -807,6 +807,7 @@ export default function App() {
       'tool.ellipse': 'ellipse',
       'tool.text': 'text',
       'tool.badge': 'badge',
+      'tool.marker': 'marker',
       'tool.measure': 'measure',
       'tool.stamp': 'stamp',
       'tool.eraser': 'eraser',
@@ -917,6 +918,12 @@ export default function App() {
           e.preventDefault()
           eng.clear()
           signalTour('erase')
+          break
+        case 'edit.deleteHovered':
+          e.preventDefault()
+          // Rien sous le curseur : rien ne part, et c'est silencieux — comme
+          // la gomme passée sur une zone vide.
+          if (eng.supprimerSousLeCurseur()) signalTour('erase')
           break
         case 'size.dec':
           e.preventDefault()

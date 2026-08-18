@@ -201,8 +201,9 @@ export function renderStroke(ctx: CanvasRenderingContext2D, s: Stroke, st: Rende
     renderText(ctx, s, st)
     return
   }
-  if (s.tool === 'badge') {
-    renderBadge(ctx, s, st, st.link ?? null)
+  if (s.tool === 'badge' || s.tool === 'marker') {
+    // Un jalon n'a JAMAIS de lien : c'est ce qui le distingue du numéroteur.
+    renderBadge(ctx, s, st, s.tool === 'marker' ? null : (st.link ?? null))
     return
   }
   if (s.tool === 'measure') {

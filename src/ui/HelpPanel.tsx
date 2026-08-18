@@ -246,8 +246,9 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
           qu’il est à l’écran, il se déplace.
         </p>
         <p>
-          Sur une pastille du numéroteur, un clic droit <b>bref</b> (sans bouger) fait autre chose :
-          la numérotation repart de cette pastille. Dès que la main bouge, c’est un déplacement.
+          Sur une pastille du numéroteur — ou sur un jalon —, un clic droit <b>bref</b> (sans
+          bouger) fait autre chose : la numérotation repart de ce numéro-là. Dès que la main bouge,
+          c’est un déplacement.
         </p>
         <p className="hlp-keys">
           <span className="hlp-gesture">Clic droit maintenu sur le trait</span>
@@ -303,6 +304,12 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
           </li>
           <li>
             <b>Clic droit sur une annotation</b> — l’attraper et la déplacer.
+          </li>
+          <li>
+            <b>Numéroteur ou jalons ?</b> Le numéroteur raconte un <b>parcours</b> : 1 → 2 → 3,
+            reliés par des flèches. Les jalons désignent des <b>endroits</b> : des hexagones
+            numérotés, jamais reliés, avec leur propre compteur. Les deux séries cohabitent sur la
+            même carte sans se décaler, et repartent de 1 à chaque changement de couleur.
           </li>
           <li>
             <b>Clic droit BREF sur une pastille du numéroteur</b> — la série repart de ce

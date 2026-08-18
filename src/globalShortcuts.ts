@@ -102,10 +102,11 @@ export function isRegisteredGlobally(action: KeymapAction): boolean {
  * Exécution d'une action arrivée du processus principal
  * ------------------------------------------------------------------ */
 
-const TOOL_OF_ACTION: Partial<Record<KeymapAction, 'pen' | 'highlight' | 'eraser'>> = {
+const TOOL_OF_ACTION: Partial<Record<KeymapAction, 'pen' | 'highlight' | 'eraser' | 'marker'>> = {
   'tool.pen': 'pen',
   'tool.highlight': 'highlight',
   'tool.eraser': 'eraser',
+  'tool.marker': 'marker',
 }
 
 /**

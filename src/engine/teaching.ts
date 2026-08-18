@@ -200,6 +200,32 @@ export function renderBadge(
 
   if (pop <= 0.01) return
   const rr = r * pop
+  /**
+   * JALON ou PASTILLE ? Un seul peintre, deux silhouettes.
+   *
+   * Les deux séries cohabitent souvent sur la même carte — un parcours au
+   * numéroteur, des positions au jalon — et il faut les distinguer d'un coup
+   * d'œil, à trente centimètres d'un écran de direct, sans lire les chiffres.
+   * L'hexagone se lit instantanément contre le disque (et c'est la forme de
+   * l'application). Rien d'autre ne change : mêmes couleurs, même halo, même
+   * pop élastique.
+   */
+  const hexa = s.tool === 'marker'
+  const contour = (rayon: number): void => {
+    if (!hexa) {
+      ctx.arc(c.x, c.y, rayon, 0, Math.PI * 2)
+      return
+    }
+    // pointe en haut : la silhouette est franche même très petite
+    for (let i = 0; i < 6; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / 3
+      const x = c.x + Math.cos(a) * rayon
+      const y = c.y + Math.sin(a) * rayon
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.closePath()
+  }
   ctx.save()
   // halo
   ctx.globalCompositeOperation = 'lighter'
@@ -217,7 +243,7 @@ export function renderBadge(
   disc.addColorStop(1, rgba(s.color, 0.95 * st.alpha))
   ctx.fillStyle = disc
   ctx.beginPath()
-  ctx.arc(c.x, c.y, rr, 0, Math.PI * 2)
+  contour(rr)
   ctx.fill()
   ctx.strokeStyle = `rgba(255,255,255,${0.55 * st.alpha})`
   ctx.lineWidth = Math.max(1, rr * 0.075)
@@ -228,11 +254,11 @@ export function renderBadge(
   const rTrait = rr - ctx.lineWidth / 2
   if (rTrait > 0) {
     ctx.beginPath()
-    ctx.arc(c.x, c.y, rTrait, 0, Math.PI * 2)
+    contour(rTrait)
     ctx.stroke()
   }
   // chiffre
-  const fs = rr * 1.12
+  const fs = rr * (hexa ? 1.02 : 1.12)
   ctx.font = `800 ${fs}px ${FONT_STACK}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'

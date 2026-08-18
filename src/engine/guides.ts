@@ -53,7 +53,7 @@ export function buildAnchors(strokes: Stroke[]): Anchor[] {
     if (s.dying || s.points.length === 0) continue
     const a = s.points[0]
     const b = s.points[s.points.length - 1]
-    if (s.tool === 'badge' || s.tool === 'stamp' || s.tool === 'text') {
+    if (s.tool === 'badge' || s.tool === 'marker' || s.tool === 'stamp' || s.tool === 'text') {
       out.push({ x: a.x, y: a.y, id: s.id, kind: 'center' })
       continue
     }

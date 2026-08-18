@@ -159,6 +159,42 @@ await rapport.test(win, 's13-5-retrait', 'Retirer le masque rend tout à zéro',
   }
 })
 
+await rapport.test(win, 's13-6-apres-tout', 'Après avoir tout utilisé, Hexa redevient totalement muet', async () => {
+  // Le scénario réel : on annote, on grossit, on gèle, on masque, on efface.
+  // C'est APRÈS ça qu'un coût résiduel se paie, minute après minute, sous OBS.
+  await win.keyboard.press('p')
+  await win.mouse.move(300, 250)
+  await win.mouse.down()
+  await win.mouse.move(700, 300, { steps: 10 })
+  await win.mouse.up()
+  await win.keyboard.down('a') // loupe
+  await win.mouse.move(600, 400)
+  await win.waitForTimeout(500)
+  await win.keyboard.up('a')
+  await win.keyboard.press('v') // gel
+  await win.waitForTimeout(500)
+  await win.keyboard.press('v') // dégel
+  await win.keyboard.press('b') // flou
+  await win.mouse.move(900, 500)
+  await win.mouse.down()
+  await win.mouse.move(1150, 640, { steps: 6 })
+  await win.mouse.up()
+  await win.waitForTimeout(3400) // stabilisation + extinction du flux
+  const images = await imagesPendant(2000)
+  const e = await fx()
+  const canevas = await win.evaluate(() => {
+    let px = 0
+    for (const cv of document.querySelectorAll('canvas')) px += cv.width * cv.height
+    return px
+  })
+  return {
+    statut: images === 0 && e?.feed === false ? OK : KO,
+    detail:
+      `${images} image(s) en 2 s (0 exigé) · flux d’écran ${e?.feed ? 'ENCORE OUVERT' : 'éteint'} · ` +
+      `${e?.masks} masque à l’écran · ${(canevas / 1e6).toFixed(1)} Mpx de canevas alloués`,
+  }
+})
+
 process.stdout.write(rapport.tableau() + '\n')
 await app.close()
 process.exit(rapport.codeSortie)

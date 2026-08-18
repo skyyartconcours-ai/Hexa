@@ -69,6 +69,7 @@ import {
   IconLine,
   IconMagnet,
   IconScript,
+  IconJalon,
   IconMeasure,
   IconMute,
   IconPen,
@@ -156,6 +157,13 @@ const TOOLS: ToolButton[] = [
     label: 'Numéroteur : pastilles 1, 2, 3…',
     kbd: 'N',
     action: 'tool.badge',
+  },
+  {
+    id: 'marker',
+    icon: <IconJalon />,
+    label: 'Jalons : 1, 2, 3… posés sans être reliés',
+    kbd: 'Y',
+    action: 'tool.marker',
   },
   {
     id: 'measure',
@@ -790,8 +798,8 @@ export function Toolbar({
           className={`tbtn chip ${badgeContinuous ? 'active' : ''}`}
           title={
             badgeContinuous
-              ? 'Numérotation continue : les pastilles s’enchaînent d’une couleur à l’autre. Clique pour que chaque couleur reparte de 1.'
-              : 'Numérotation par couleur : chaque couleur repart de 1. Clique pour poursuivre la même série d’une couleur à l’autre.'
+              ? 'Numérotation continue : pastilles ET jalons s’enchaînent d’une couleur à l’autre. Clique pour que chaque couleur reparte de 1.'
+              : 'Numérotation par couleur : chaque couleur repart de 1, pour les pastilles comme pour les jalons. Clique pour poursuivre la même série d’une couleur à l’autre.'
           }
           onClick={toggleBadgeContinuous}
         >

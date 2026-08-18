@@ -26,6 +26,7 @@ export type KeymapAction =
   | 'tool.ellipse'
   | 'tool.text'
   | 'tool.badge'
+  | 'tool.marker'
   | 'tool.measure'
   | 'tool.stamp'
   | 'tool.blur'
@@ -48,6 +49,7 @@ export type KeymapAction =
   | 'edit.undo'
   | 'edit.redo'
   | 'edit.clear'
+  | 'edit.deleteHovered'
   | 'size.dec'
   | 'size.inc'
   | 'fade.cycle'
@@ -137,6 +139,13 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
   { action: 'tool.ellipse', label: 'Ellipse', category: 'outils' },
   { action: 'tool.text', label: 'Texte', category: 'outils' },
   { action: 'tool.badge', label: 'Numéroteur', category: 'outils', hint: 'Pastilles 1, 2, 3…' },
+  {
+    action: 'tool.marker',
+    label: 'Jalons',
+    category: 'outils',
+    global: true,
+    hint: 'Des 1, 2, 3… posés SANS être reliés — le numéroteur, lui, trace le parcours',
+  },
   { action: 'tool.measure', label: 'Règle de mesure', category: 'outils' },
   {
     action: 'tool.stamp',
@@ -211,6 +220,12 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
     category: 'edition',
     global: true,
     hint: 'Nettoie tous les écrans d’un coup',
+  },
+  {
+    action: 'edit.deleteHovered',
+    label: 'Supprimer l’annotation sous le curseur',
+    category: 'edition',
+    hint: 'Vise, appuie : le trait visé part seul, sans changer d’outil',
   },
   {
     action: 'size.dec',
@@ -352,6 +367,7 @@ const HEXA_BINDINGS: Bindings = {
   'tool.ellipse': 'o',
   'tool.text': 't',
   'tool.badge': 'n',
+  'tool.marker': 'y',
   'tool.measure': 'm',
   'tool.stamp': 'i',
   'tool.blur': 'b',
@@ -374,6 +390,11 @@ const HEXA_BINDINGS: Bindings = {
   'edit.undo': 'ctrl+z',
   'edit.redo': ['ctrl+y', 'ctrl+shift+z'],
   'edit.clear': 'c',
+  // Ctrl+D est volontairement LOCAL (il n'est pas marqué « global ») : c'est le
+  // « ajouter un favori » de tous les navigateurs, et le confisquer au système
+  // le retirerait à Chrome, à Firefox et à YouTube. En mode dessin — le seul
+  // moment où l'on supprime une annotation — il nous revient de toute façon.
+  'edit.deleteHovered': 'ctrl+d',
   'size.dec': '[',
   'size.inc': ']',
   'fade.cycle': 'd',
@@ -433,6 +454,8 @@ const EPICPEN_BINDINGS: Bindings = {
   'tool.pen': ['ctrl+shift+3', 'p'],
   'tool.highlight': ['ctrl+shift+4', 's'],
   'tool.eraser': ['ctrl+shift+5', 'e'],
+  // Les jalons prolongent la série des doigts d'Epic Pen là où elle s'arrête.
+  'tool.marker': ['ctrl+shift+9', 'y'],
   // édition
   'edit.undo': ['ctrl+shift+6', 'ctrl+z'],
   'edit.clear': ['ctrl+e', 'c'],

@@ -123,7 +123,7 @@ const TWO_POINT_TOOLS = new Set(['line', 'rect', 'ellipse', 'measure'])
  */
 const GESTURE_TOOLS = new Set(['arrow'])
 /** outils qui posent une annotation d'un seul clic */
-const CLICK_TOOLS = new Set(['text', 'badge', 'stamp'])
+const CLICK_TOOLS = new Set(['text', 'badge', 'marker', 'stamp'])
 
 /** nombre d'effacements complets qu'on sait encore rendre (§64 : Ctrl+Z) */
 const CLEAR_HISTORY = 8
@@ -263,6 +263,14 @@ export class HexaEngine {
   /** numéroteur */
   private badgeSeq = 1
   private lastBadgeId: number | null = null
+  /**
+   * Compteur des JALONS, strictement séparé de celui du numéroteur : on doit
+   * pouvoir tracer un parcours 1→5 au numéroteur ET poser des jalons 1, 2, 3
+   * sur la même carte sans que l'un décale l'autre.
+   */
+  private jalonSeq = 1
+  /** jalon qui tient la série après une reprise au clic droit */
+  private ancreJalon: number | null = null
   /**
    * Pastille qui tient la série en cours : la dernière posée, ou celle que
    * l'utilisateur a désignée au clic droit bref. Tant qu'elle est à l'écran,
@@ -419,6 +427,11 @@ export class HexaEngine {
 
     this.resize()
     this.syncCursor()
+    // Point d'entrée de test, même convention que la couche d'effets
+    // (`window.hexaFx`) : les campagnes bout en bout pilotent la VRAIE
+    // application et doivent pouvoir lire ce que le moteur tient vraiment,
+    // plutôt que de le déduire de pixels.
+    ;(window as unknown as { hexaEngine?: HexaEngine }).hexaEngine = this
   }
 
   /** la molette est gérée par l'app (taille du pinceau) — seam volontaire */
@@ -499,6 +512,9 @@ export class HexaEngine {
     if (patch.color !== undefined && patch.color !== prevColor && !this.opts.badgeContinuous) {
       this.badgeSeq = 1
       this.lastBadgeId = null
+      // Même règle pour les jalons : une couleur, une série.
+      this.jalonSeq = 1
+      this.ancreJalon = null
       this.ancreSerie = null
     }
     if (this.opts.tool !== prevTool && prevTool === 'text') this.closeText?.()
@@ -626,6 +642,7 @@ export class HexaEngine {
       this.sortir(s)
       this.redoStack.push({ kind: 'stroke', stroke: s })
       if (s.tool === 'badge') this.syncBadgeSeq()
+      else if (s.tool === 'marker') this.syncJalonSeq()
       this.anchorsDirty = true
       this.staticDirty = true
       this.wake()
@@ -670,6 +687,7 @@ export class HexaEngine {
       lot.mode === 'panic' ? { kind: 'clear' } : { kind: 'erase', strokes: lot.strokes.map((e) => e.s) },
     )
     this.syncBadgeSeq()
+    this.syncJalonSeq()
     this.anchorsDirty = true
     this.staticDirty = true
     this.emitActivity()
@@ -759,6 +777,7 @@ export class HexaEngine {
     this.strokes.push(s)
     this.salir(s)
     if (s.tool === 'badge') this.syncBadgeSeq()
+    else if (s.tool === 'marker') this.syncJalonSeq()
     this.anchorsDirty = true
     this.staticDirty = true
     this.wake()
@@ -787,6 +806,34 @@ export class HexaEngine {
    * L'ancre partie, on retombe sur la règle simple d'avant : le plus grand
    * numéro encore visible, relié à la dernière pastille de la pile.
    */
+  /**
+   * Même mécanique que `syncBadgeSeq`, pour la série des jalons. Séparée parce
+   * que les deux compteurs sont indépendants : annuler un jalon ne doit pas
+   * toucher au parcours du numéroteur, et réciproquement.
+   */
+  private syncJalonSeq(): void {
+    if (this.ancreJalon != null) {
+      for (let i = this.strokes.length - 1; i >= 0; i--) {
+        const s = this.strokes[i]
+        if (s.id !== this.ancreJalon || s.tool !== 'marker' || s.dying) continue
+        this.jalonSeq = (s.badge ?? 0) + 1
+        return
+      }
+      this.ancreJalon = null
+    }
+    let max = 0
+    for (const s of this.strokes) {
+      if (s.tool !== 'marker' || s.dying) continue
+      max = Math.max(max, s.badge ?? 0)
+    }
+    this.jalonSeq = max + 1
+  }
+
+  /** Numéro que portera le PROCHAIN jalon (retour visuel de la reprise). */
+  get jalonSuivant(): number {
+    return this.jalonSeq
+  }
+
   private syncBadgeSeq(): void {
     if (this.ancreSerie != null) {
       // en partant de la fin : l'ancre est presque toujours la dernière
@@ -820,9 +867,16 @@ export class HexaEngine {
    */
   private reprendreSerie(s: Stroke): void {
     const suivant = (s.badge ?? 0) + 1
-    this.ancreSerie = s.id
-    this.lastBadgeId = s.id
-    this.badgeSeq = suivant
+    if (s.tool === 'marker') {
+      // Les jalons n'ont pas de fil : il n'y a rien à rebrancher, juste un
+      // compteur à replacer.
+      this.ancreJalon = s.id
+      this.jalonSeq = suivant
+    } else {
+      this.ancreSerie = s.id
+      this.lastBadgeId = s.id
+      this.badgeSeq = suivant
+    }
     this.repriseCue = {
       x: s.points[0].x,
       y: s.points[0].y,
@@ -869,6 +923,8 @@ export class HexaEngine {
     this.redoStack = []
     this.badgeSeq = 1
     this.lastBadgeId = null
+    this.jalonSeq = 1
+    this.ancreJalon = null
     this.ancreSerie = null
     this.repriseCue = null
     this.anchorsDirty = true
@@ -932,6 +988,7 @@ export class HexaEngine {
     // série d'avant n'a plus à commander le compteur de celle-ci
     this.ancreSerie = null
     this.syncBadgeSeq()
+    this.syncJalonSeq()
     this.anchorsDirty = true
     this.staticDirty = true
     this.emitActivity()
@@ -955,7 +1012,7 @@ export class HexaEngine {
         if (hitShape(s, x, y, pad)) return s
         continue
       }
-      if (s.tool === 'badge') {
+      if (s.tool === 'badge' || s.tool === 'marker') {
         if (dist(x, y, pts[0].x, pts[0].y) < badgeRadius(s.size) + 4) return s
         continue
       }
@@ -1082,6 +1139,7 @@ export class HexaEngine {
       this.overlay.clear(performance.now())
       if (t === 'text') this.openText(p)
       else if (t === 'badge') this.placeBadge(p)
+      else if (t === 'marker') this.placeJalon(p)
       else this.placeStamp(p)
       return
     }
@@ -1203,6 +1261,39 @@ export class HexaEngine {
     // la pastille qu'on vient de poser tient la série : une pastille plus
     // ancienne qui s'efface au fondu ne peut plus dérégler le compteur
     this.ancreSerie = s.id
+    this.anchorsDirty = true
+    this.staticDirty = true
+    this.emitActivity()
+    this.wake()
+  }
+
+  /**
+   * JALON : le même geste que le numéroteur, sans le fil.
+   *
+   * Aucun `linkFrom`, jamais : c'est toute la raison d'être de cet outil. Le
+   * compteur est le sien, et il repart de 1 au changement de couleur comme
+   * celui des pastilles.
+   */
+  private placeJalon(pt: StrokePoint): void {
+    const now = performance.now()
+    const s: Stroke = {
+      id: this.idSeq++,
+      tool: 'marker',
+      color: this.opts.color,
+      size: this.opts.size,
+      points: [{ x: pt.x, y: pt.y, p: 0.5, t: now }],
+      simulatePressure: false,
+      done: true,
+      startedAt: now,
+      endedAt: now,
+      badge: this.jalonSeq,
+      anim: { start: now, duration: BADGE_ANIM },
+    }
+    if (this.opts.fadeDelay != null) s.dieAt = now + this.opts.fadeDelay + BADGE_ANIM
+    this.strokes.push(s)
+    this.salir(s)
+    this.jalonSeq++
+    this.ancreJalon = s.id
     this.anchorsDirty = true
     this.staticDirty = true
     this.emitActivity()
@@ -1481,7 +1572,7 @@ export class HexaEngine {
       const dx = this.grabLast.x - this.grabFrom.x
       const dy = this.grabLast.y - this.grabFrom.y
       if (
-        g.tool === 'badge' &&
+        (g.tool === 'badge' || g.tool === 'marker') &&
         now - this.grabAt <= REPRISE_MS &&
         Math.hypot(dx, dy) <= REPRISE_SLOP
       ) {
@@ -1630,6 +1721,39 @@ export class HexaEngine {
     // la gomme est une action neuve : plus rien à rétablir derrière elle
     this.redoStack = []
     this.wake()
+  }
+
+  /**
+   * Ctrl+D — SUPPRIMER L'ANNOTATION SOUS LE CURSEUR.
+   *
+   * Le geste manquant. Jusqu'ici, retirer UNE annotation au milieu de dix
+   * imposait de prendre la gomme, de la passer dessus, puis de reprendre son
+   * outil : trois actions et un changement d'outil pour défaire un trait de
+   * trop, en plein direct. Ici : on vise, on appuie, c'est parti — et l'outil
+   * courant ne bouge pas d'un pouce.
+   *
+   * Techniquement, c'est exactement une gomme d'un seul trait : même
+   * dissolution, même lot d'annulation, donc le Ctrl+Z suivant le rend à sa
+   * place exacte dans la pile. Le lot est refermé tout de suite, pour que deux
+   * Ctrl+D successifs restent deux annulations distinctes.
+   *
+   * Renvoie false s'il n'y avait rien sous le curseur : l'appelant peut alors
+   * le dire au lieu de laisser croire à une touche morte.
+   */
+  supprimerSousLeCurseur(): boolean {
+    const p = this.pointer
+    if (!p) return false
+    const s = this.strokeAt(p.x, p.y)
+    if (!s || s.dying) return false
+    const lotEnCours = this.eraseLot
+    this.eraseLot = null
+    this.eraseAt({ x: p.x, y: p.y, p: 0.5, t: performance.now() })
+    // Un Ctrl+D en plein passage de gomme ne doit pas se greffer sur ce
+    // passage : on referme, et l'on rend son lot à la gomme si elle en avait un.
+    this.eraseLot = lotEnCours
+    this.anchorsDirty = true
+    this.staticDirty = true
+    return true
   }
 
   private pushLaser(pt: StrokePoint, pressed: boolean): void {
@@ -1858,12 +1982,14 @@ export class HexaEngine {
     // purger les traits entièrement dissous
     let purged = false
     let purgedBadge = false
+    let purgedJalon = false
     for (let i = this.strokes.length - 1; i >= 0; i--) {
       const st = this.strokes[i]
       const d = st.dying
       if (d && now - d.start >= d.duration) {
         this.morphs.delete(st.id)
         if (st.tool === 'badge') purgedBadge = true
+        else if (st.tool === 'marker') purgedJalon = true
         this.strokes.splice(i, 1)
         this.sortir(st)
         purged = true
@@ -1871,6 +1997,7 @@ export class HexaEngine {
     }
     if (purged) {
       if (purgedBadge) this.syncBadgeSeq()
+      if (purgedJalon) this.syncJalonSeq()
       this.anchorsDirty = true
       this.staticDirty = true
       this.emitActivity()
