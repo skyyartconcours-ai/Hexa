@@ -39,7 +39,7 @@ import {
 } from '../replay/exporter'
 import { OBS_DEFAULT_PORT, suggestedCanvasSize } from '../obs/protocol'
 import { obsWsClient, statusLabel, type ObsWsStatus } from '../obs/client'
-import { obsServerInfo, subscribeObsServer } from '../obs/status'
+import { obsServerInfo, setObsClients, setObsServerInfo, subscribeObsServer } from '../obs/status'
 import './settings.css'
 
 export interface SettingsPanelProps {
@@ -59,6 +59,22 @@ export interface SettingsPanelProps {
 }
 
 const SCALES: PngScale[] = [1, 2, 4]
+
+/**
+ * Canaux d'état du serveur de la vue OBS (voir electron/preload.ts).
+ *
+ * Typés ici plutôt que dans le pont : ce sont des canaux de service, pas des
+ * commandes de l'application.
+ */
+interface HoteObs {
+  obsStatus?: () => Promise<unknown>
+  on?: (channel: string, cb: (...args: unknown[]) => void) => () => void
+}
+
+function hoteObs(): HoteObs | undefined {
+  if (typeof window === 'undefined') return undefined
+  return (window as unknown as { hexa?: HoteObs }).hexa
+}
 
 function fadeLabel(v: number | null): string {
   return v == null ? '∞' : `${Math.round(v / 1000)} s`
@@ -246,17 +262,46 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
   const [serverInfo, setServerInfo] = useState(obsServerInfo)
   useEffect(() => subscribeObsServer(() => setServerInfo(obsServerInfo())), [])
 
-  // état obs-websocket — le client pousse, on affiche
+  /**
+   * ⚠️ ET IL FAUT ALLER LE CHERCHER : IL N'ARRIVE PAS TOUT SEUL ICI.
+   *
+   * Le pont OBS (src/obs/ObsBridge.tsx) est monté avec le MOTEUR, donc dans la
+   * fenêtre encre : c'est lui qui alimente src/obs/status.ts… dans SA fenêtre.
+   * Celui de la fenêtre d'interface, où vit ce panneau, n'était jamais nourri.
+   * Mesuré en deux fenêtres : la phrase d'état restait bloquée sur
+   * « Démarrage… » toute la session, serveur allumé comme éteint, et le nombre
+   * de sources connectées affichait toujours zéro — y compris avec une source
+   * en train de recevoir les annotations.
+   *
+   * On s'abonne donc aux mêmes canaux, mais seulement tant que le panneau est
+   * ouvert : à sa fermeture il ne reste rien, et rien ne tourne au repos.
+   */
   useEffect(() => {
-    const previous = obsWsClient.onStatus
-    obsWsClient.onStatus = (s, scene) => {
-      previous?.(s, scene)
-      setWsStatus(s)
-    }
-    setWsStatus(obsWsClient.status)
+    const h = hoteObs()
+    if (!h?.on) return
+    let vivant = true
+    void h.obsStatus?.().then((info) => {
+      if (vivant) setObsServerInfo(info)
+    })
+    const offStatus = h.on('obs-status', (...args: unknown[]) => setObsServerInfo(args[0]))
+    const offClients = h.on('obs-clients', (...args: unknown[]) => {
+      const n = args[0]
+      setObsClients(typeof n === 'number' ? n : 0)
+    })
     return () => {
-      obsWsClient.onStatus = previous
+      vivant = false
+      offStatus()
+      offClients()
     }
+  }, [])
+
+  // état obs-websocket — le client pousse, on affiche.
+  // Un ABONNEMENT, pas une prise de contrôle de `onStatus` : le pont OBS est le
+  // propriétaire de cette propriété, et le moindre re-rendu de sa part écrasait
+  // la chaîne que ce panneau installait — le voyant restait figé.
+  useEffect(() => {
+    setWsStatus(obsWsClient.status)
+    return obsWsClient.souscrire((s) => setWsStatus(s))
   }, [])
 
   // fermeture : Échap, clic extérieur

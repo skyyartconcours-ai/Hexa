@@ -41,7 +41,22 @@ export const OBS_WS_DEFAULTS: Omit<ObsWsConfig, 'enabled' | 'password'> = {
 /** Abonnement aux événements de scènes uniquement (EventSubscription.Scenes). */
 const SUB_SCENES = 1 << 2
 
-const BACKOFF = [1000, 2000, 4000, 8000, 15_000]
+/**
+ * Reconnexion : progressive, et surtout ESPACÉE À LA FIN.
+ *
+ * Un streamer qui a coché « obs-websocket » et qui lance Hexa avant OBS (ou qui
+ * ferme OBS en cours de session) laisse ce client tenter la connexion pendant
+ * des heures. L'ancien palier maximum était de 15 secondes : quatre tentatives
+ * par minute, 720 en trois heures, chacune avec sa socket, son échec réseau et
+ * sa ligne dans la console de Chromium. Ce n'est pas énorme, mais c'est du
+ * travail périodique QUI NE SERT À RIEN et qui dure aussi longtemps que le
+ * direct — exactement ce qu'on est en train de traquer.
+ *
+ * On garde donc une reconnexion rapide au début (une coupure d'OBS se rattrape
+ * en une seconde) et on finit à une tentative par minute : le retour d'OBS est
+ * détecté en moins d'une minute, pour un coût quinze fois moindre.
+ */
+const BACKOFF = [1000, 2000, 4000, 8000, 15_000, 30_000, 60_000]
 
 interface OpMessage {
   op: number
@@ -57,8 +72,16 @@ export class ObsWebSocketClient {
   private state: ObsWsStatus = 'off'
   private sceneName = ''
 
-  /** état de connexion, pour l'indicateur discret des réglages */
+  /**
+   * État de connexion, pour l'indicateur discret des réglages.
+   *
+   * ⚠️ UN SEUL propriétaire — le pont OBS, monté une fois pour toute la vie de
+   * l'application. Le panneau de réglages, lui, passe par `souscrire` : quand il
+   * s'emparait de cette propriété en chaînant l'ancienne, le moindre re-rendu du
+   * pont écrasait la chaîne et le voyant du panneau se figeait pour de bon.
+   */
   onStatus?: (status: ObsWsStatus, scene: string) => void
+  private abonnes = new Set<(status: ObsWsStatus, scene: string) => void>()
   /** changement de scène programme (le nom n'est utilisé que pour l'affichage) */
   onSceneChange?: (scene: string) => void
 
@@ -90,10 +113,26 @@ export class ObsWebSocketClient {
     this.close()
   }
 
+  /**
+   * Abonnement libre à l'état, en plus de `onStatus`. Rien de périodique : on
+   * n'est prévenu que lorsque l'état change vraiment.
+   */
+  souscrire(cb: (status: ObsWsStatus, scene: string) => void): () => void {
+    this.abonnes.add(cb)
+    return () => {
+      this.abonnes.delete(cb)
+    }
+  }
+
+  private emettre(): void {
+    this.onStatus?.(this.state, this.sceneName)
+    for (const cb of this.abonnes) cb(this.state, this.sceneName)
+  }
+
   private setStatus(s: ObsWsStatus): void {
     if (this.state === s) return
     this.state = s
-    this.onStatus?.(s, this.sceneName)
+    this.emettre()
   }
 
   private close(): void {
@@ -135,7 +174,7 @@ export class ObsWebSocketClient {
       } catch {
         return
       }
-      void this.handle(msg)
+      void this.handle(msg, sock)
     }
     sock.onclose = (e: CloseEvent) => {
       if (this.socket === sock) this.socket = null
@@ -164,15 +203,21 @@ export class ObsWebSocketClient {
     }, delay)
   }
 
-  private send(op: number, d: Record<string, unknown>): void {
+  private send(op: number, d: Record<string, unknown>, sock?: WebSocket | null): void {
+    const cible = sock ?? this.socket
+    // Répondre sur une socket qui n'est plus la nôtre, c'est envoyer une
+    // authentification calculée pour un ANCIEN défi : OBS la refuse, coupe, et
+    // on repart pour un tour. Le calcul du condensat est asynchrone, donc le cas
+    // se produit pour de vrai quand OBS redémarre pendant l'authentification.
+    if (!cible || cible !== this.socket) return
     try {
-      this.socket?.send(JSON.stringify({ op, d }))
+      cible.send(JSON.stringify({ op, d }))
     } catch {
       /* ignore */
     }
   }
 
-  private async handle(msg: OpMessage): Promise<void> {
+  private async handle(msg: OpMessage, sock?: WebSocket | null): Promise<void> {
     if (msg.op === 0) {
       // Hello : on répond Identify, avec le condensat si le serveur l'exige
       const auth = msg.d.authentication as { challenge?: string; salt?: string } | undefined
@@ -186,7 +231,7 @@ export class ObsWebSocketClient {
         const secret = await sha256Base64(this.cfg.password + auth.salt)
         payload.authentication = await sha256Base64(secret + auth.challenge)
       }
-      this.send(1, payload)
+      this.send(1, payload, sock)
       return
     }
     if (msg.op === 2) {
@@ -199,7 +244,7 @@ export class ObsWebSocketClient {
       if (type === 'CurrentProgramSceneChanged') {
         const data = msg.d.eventData as { sceneName?: string } | undefined
         this.sceneName = typeof data?.sceneName === 'string' ? data.sceneName : ''
-        this.onStatus?.(this.state, this.sceneName)
+        this.emettre()
         if (this.cfg.clearOnScene) this.onSceneChange?.(this.sceneName)
       }
     }

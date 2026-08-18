@@ -245,6 +245,10 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
           <b>Clic droit sur un trait</b>, et tu le fais glisser où tu veux. Rien n’est figé : tant
           qu’il est à l’écran, il se déplace.
         </p>
+        <p>
+          Sur une pastille du numéroteur, un clic droit <b>bref</b> (sans bouger) fait autre chose :
+          la numérotation repart de cette pastille. Dès que la main bouge, c’est un déplacement.
+        </p>
         <p className="hlp-keys">
           <span className="hlp-gesture">Clic droit maintenu sur le trait</span>
         </p>
@@ -299,6 +303,13 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
           </li>
           <li>
             <b>Clic droit sur une annotation</b> — l’attraper et la déplacer.
+          </li>
+          <li>
+            <b>Clic droit BREF sur une pastille du numéroteur</b> — la série repart de ce
+            numéro-là : la prochaine pastille portera le suivant et s’y reliera. L’anneau et
+            l’étiquette « suivante : n » confirment à l’écran. Un clic droit SUIVI D’UN MOUVEMENT
+            déplace la pastille, comme n’importe quelle annotation : c’est le mouvement qui
+            distingue les deux gestes, jamais autre chose.
           </li>
           <li>
             <b>Clic droit maintenu dans le vide</b> — la roue d’outils éclot sous le curseur : glisse

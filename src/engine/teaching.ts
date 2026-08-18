@@ -244,6 +244,84 @@ export function renderBadge(
 }
 
 /* ------------------------------------------------------------------ */
+/*  Reprise de la numérotation : le retour visuel du clic droit bref   */
+/* ------------------------------------------------------------------ */
+
+/** durée du signal de reprise, sur la pastille désignée */
+export const REPRISE_CUE_MS = 1150
+
+export interface RepriseCue {
+  /** centre de la pastille reprise */
+  x: number
+  y: number
+  /** rayon de cette pastille (badgeRadius de son épaisseur) */
+  r: number
+  color: string
+  /** numéro que portera la PROCHAINE pastille */
+  suivant: number
+  start: number
+}
+
+/**
+ * « C'est reparti d'ici, et la suivante portera ce numéro-là. »
+ *
+ * Le geste (clic droit BREF sur une pastille) est invisible : sans retour à
+ * l'écran, l'utilisateur ne peut pas savoir s'il a été compris. On dessine
+ * donc, sur la couche LIVE — celle qui se nettoie toute seule et ne part ni
+ * dans l'export ni dans le calque consolidé :
+ *
+ *   1. une onde qui s'écarte de la pastille : le clic a été reçu ;
+ *   2. un anneau qui la cercle : c'est CELLE-CI qui reprend la main ;
+ *   3. une étiquette « suivante : 4 » juste au-dessus : le prochain numéro,
+ *      écrit en toutes lettres, à l'endroit précis où se pose la question.
+ *
+ * Rien ne persiste : au bout de REPRISE_CUE_MS la boucle se rendort et
+ * l'écran est net (§2.5).
+ */
+export function renderReprise(ctx: CanvasRenderingContext2D, cue: RepriseCue, now: number): void {
+  const t = clamp((now - cue.start) / REPRISE_CUE_MS, 0, 1)
+  if (t >= 1) return
+  ctx.save()
+  // 1. l'onde : elle part du bord de la pastille et s'éteint au tiers du temps
+  const onde = clamp(t / 0.34, 0, 1)
+  if (onde < 1) {
+    const ro = cue.r + 3 + onde * 26
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.strokeStyle = rgba(cue.color, 0.5 * (1 - onde))
+    ctx.lineWidth = 3.2 * (1 - onde * 0.6)
+    ctx.beginPath()
+    ctx.arc(cue.x, cue.y, ro, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+  // 2. l'anneau de désignation : plein tout du long, il s'efface à la fin
+  const a = 1 - clamp((t - 0.68) / 0.32, 0, 1)
+  ctx.globalCompositeOperation = 'lighter'
+  ctx.strokeStyle = rgba(cue.color, 0.82 * a)
+  ctx.lineWidth = 2.4
+  ctx.setLineDash([5, 4])
+  ctx.lineDashOffset = -now * 0.024
+  ctx.beginPath()
+  ctx.arc(cue.x, cue.y, cue.r + 6, 0, Math.PI * 2)
+  ctx.stroke()
+  ctx.setLineDash([])
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.restore()
+  // 3. l'étiquette, au-dessus de la pastille et JAMAIS tronquée par un bord :
+  // une pastille posée dans un coin est un cas courant (on annote les coins).
+  // La largeur en pixels CSS se déduit du canvas et de son échelle courante.
+  const ech = ctx.getTransform().a || 1
+  const large = ctx.canvas.width / ech
+  const haut = cue.y - cue.r - 20
+  const y = haut < 16 ? cue.y + cue.r + 20 : haut
+  const x = clamp(cue.x, 74, Math.max(74, large - 74))
+  glassLabel(ctx, x, y, `suivante : ${cue.suivant}`, {
+    color: cue.color,
+    alpha: a * (0.35 + 0.65 * clamp(t / 0.12, 0, 1)),
+    fontSize: 13,
+  })
+}
+
+/* ------------------------------------------------------------------ */
 /*  Règle de mesure (§4.9)                                             */
 /* ------------------------------------------------------------------ */
 

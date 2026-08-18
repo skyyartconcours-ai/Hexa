@@ -125,11 +125,33 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
   const hoverRef = useRef<Hover | null>(null)
   const closingRef = useRef(false)
 
+  /**
+   * Taille de la fenêtre qui porte la roue.
+   *
+   * Elle peut CHANGER pendant le geste : la fenêtre d'interface est réduite au
+   * rectangle de la barre quand elle n'a rien d'autre à montrer (§S12), et elle
+   * ne reprend l'écran entier qu'après un aller-retour avec le processus
+   * principal — donc après la première image de la roue. Lue une seule fois,
+   * cette taille laissait la roue centrée sur un cadre de 141 px. On la relit
+   * donc à chaque redimensionnement : un abonnement, aucune boucle, et il part
+   * avec la roue.
+   */
+  const [cadre, setCadre] = useState(() => ({
+    w: typeof window !== 'undefined' ? window.innerWidth : 1920,
+    h: typeof window !== 'undefined' ? window.innerHeight : 1080,
+  }))
+  useEffect(() => {
+    const relire = () => setCadre({ w: window.innerWidth, h: window.innerHeight })
+    relire()
+    window.addEventListener('resize', relire)
+    return () => window.removeEventListener('resize', relire)
+  }, [])
+
   // la roue reste toujours entièrement à l'écran (§8.2 : jamais tronquée)
   const half = BOX / 2
   const m = 10
-  const vw = typeof window !== 'undefined' ? window.innerWidth : 1920
-  const vh = typeof window !== 'undefined' ? window.innerHeight : 1080
+  const vw = cadre.w
+  const vh = cadre.h
   const cx = vw < BOX + m * 2 ? vw / 2 : Math.min(Math.max(x, half + m), vw - half - m)
   const cy = vh < BOX + m * 2 ? vh / 2 : Math.min(Math.max(y, half + m), vh - half - m)
 
@@ -158,10 +180,14 @@ export function RadialMenu({ x, y, onClose }: RadialMenuProps) {
     })
   }, [])
 
-  // suivi du geste : tout passe par window, le stage garde la capture pointeur
+  // le son d'ouverture appartient à l'OUVERTURE, pas au suivi du geste : posé
+  // ici, un simple redimensionnement de la fenêtre le rejouerait
   useEffect(() => {
     sfx.wheelOpen()
+  }, [])
 
+  // suivi du geste : tout passe par window, le stage garde la capture pointeur
+  useEffect(() => {
     const pick = (h: Hover | null) => {
       const prev = hoverRef.current
       if (prev?.ring === h?.ring && prev?.index === h?.index) return

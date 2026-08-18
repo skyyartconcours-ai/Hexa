@@ -48,6 +48,17 @@ export interface TrayActions {
   drawShortcut: () => string
   /** accélérateur courant du « tout effacer », affiché dans « À propos » */
   clearShortcut: () => string
+  /**
+   * Les écrans disponibles, et lequel porte l'annotation.
+   *
+   * L'utilisateur annote sur UN écran, désigné. Sur trois moniteurs, le mode
+   * dessin visait auparavant l'écran du curseur : il fallait donc que la souris
+   * soit déjà au bon endroit au moment du F8. Ce menu rend le choix explicite,
+   * et il reste atteignable même quand toutes les fenêtres sont masquées.
+   */
+  listDisplays: () => { id: number; label: string; current: boolean }[]
+  /** désigne l'écran d'annotation */
+  setAnnotationDisplay: (id: number) => void
   /** ferme proprement toute l'application */
   quit: () => void
 }
@@ -176,6 +187,8 @@ function buildMenu(): Menu {
   const dessine = a?.isDrawing() === true
   const veille = a?.isSuspended() === true
 
+  const ecrans = a?.listDisplays() ?? []
+
   const items: MenuItemConstructorOptions[] = [
     // En-tête non cliquable : l'état est lisible sans survoler l'icône.
     { label: `Hexa — ${etat()}`, enabled: false },
@@ -189,6 +202,19 @@ function buildMenu(): Menu {
     { label: 'Tout effacer', click: () => a?.clearAll() },
     { type: 'separator' },
     { label: 'Réglages…', click: () => a?.openSettings() },
+    ...(ecrans.length > 1
+      ? [
+          {
+            label: 'Écran d’annotation',
+            submenu: ecrans.map((e) => ({
+              label: e.label,
+              type: 'radio' as const,
+              checked: e.current,
+              click: () => a?.setAnnotationDisplay(e.id),
+            })),
+          } as Electron.MenuItemConstructorOptions,
+        ]
+      : []),
     { label: 'Replacer la barre d’outils', click: () => a?.resetToolbar() },
     {
       label: veille ? 'Afficher Hexa' : 'Masquer Hexa (mise en veille)',

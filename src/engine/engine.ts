@@ -39,13 +39,16 @@ import type { Anchor } from './guides'
 import {
   BADGE_ANIM,
   BADGE_LINK_ANIM,
+  REPRISE_CUE_MS,
   badgeRadius,
   imageFromClipboard,
   openTextInput,
+  renderReprise,
   setImageInvalidate,
   textBox,
   textSizeOf,
 } from './teaching'
+import type { RepriseCue } from './teaching'
 
 /** durée de vie de la traînée laser (§5.3) — une vraie comète, pas un pointillé */
 const LASER_TTL = 650
@@ -66,6 +69,24 @@ const SPOT_MS = 250
 const GRAB_SCALE = 1.04
 const GRAB_IN_MS = 150
 const GRAB_BACK_MS = 520
+
+/**
+ * CLIC DROIT BREF SUR UNE PASTILLE = REPRISE DE LA NUMÉROTATION (§4.8).
+ *
+ * Le clic droit sert à DÉPLACER une annotation, et ce geste-là est central :
+ * il n'est pas question de le sacrifier. On distingue donc les deux par ce
+ * qu'ils sont réellement — un déplacement DÉPLACE, un clic ne bouge pas :
+ *
+ *   • relâché sous REPRISE_MS et sans avoir bougé de plus de REPRISE_SLOP
+ *     → la pastille n'a pas été déplacée, c'était un clic : la série repart
+ *       d'elle, et la pastille est remise à l'IMAGE PRÈS là où elle était ;
+ *   • tout le reste → déplacement, exactement comme avant.
+ *
+ * Le seuil de durée donne en prime une porte de sortie : maintenir sans bouger
+ * puis relâcher ne fait rien du tout, comme aujourd'hui.
+ */
+const REPRISE_MS = 450
+const REPRISE_SLOP = 8
 
 /** retour élastique (relâché d'une annotation attrapée) */
 const easeOutElastic = (t: number): number => {
@@ -191,6 +212,11 @@ export class HexaEngine {
   private laser: LaserPoint[] = []
   private grabbed: Stroke | null = null
   private grabLast = { x: 0, y: 0 }
+  /** point et instant de l'appui : c'est ce qui sépare le clic du déplacement */
+  private grabFrom = { x: 0, y: 0 }
+  private grabAt = 0
+  /** signal « la série repart d'ici » affiché sur la pastille désignée */
+  private repriseCue: RepriseCue | null = null
   private erasing = false
   private pointer = { x: -200, y: -200 }
   private shiftHeld = false
@@ -237,6 +263,13 @@ export class HexaEngine {
   /** numéroteur */
   private badgeSeq = 1
   private lastBadgeId: number | null = null
+  /**
+   * Pastille qui tient la série en cours : la dernière posée, ou celle que
+   * l'utilisateur a désignée au clic droit bref. Tant qu'elle est à l'écran,
+   * c'est elle qui donne le numéro suivant — sinon la première pastille qui
+   * s'efface au fondu rappellerait `syncBadgeSeq` et effacerait le choix.
+   */
+  private ancreSerie: number | null = null
   /** éditeur de texte flottant en cours (fonction de fermeture) */
   private closeText: (() => void) | null = null
   /** dernière image collée, prête à être tamponnée */
@@ -466,6 +499,7 @@ export class HexaEngine {
     if (patch.color !== undefined && patch.color !== prevColor && !this.opts.badgeContinuous) {
       this.badgeSeq = 1
       this.lastBadgeId = null
+      this.ancreSerie = null
     }
     if (this.opts.tool !== prevTool && prevTool === 'text') this.closeText?.()
     // le spotlight vit tant que son outil est sélectionné (§8.5 : maintien de
@@ -730,8 +764,42 @@ export class HexaEngine {
     this.wake()
   }
 
-  /** le compteur du numéroteur suit toujours la plus grande pastille présente */
+  /**
+   * Numéro que portera la PROCHAINE pastille du numéroteur (§4.8). Lecture
+   * seule : c'est ce que la reprise au clic droit vient de changer, et ce que
+   * le retour visuel annonce à l'écran.
+   */
+  get numeroSuivant(): number {
+    return this.badgeSeq
+  }
+
+  /**
+   * Recale le compteur du numéroteur après une annulation, un rétablissement
+   * ou la disparition d'une pastille.
+   *
+   * L'ANCRE D'ABORD. Tant que la pastille qui tient la série est à l'écran,
+   * c'est elle qui commande : la suivante porte son numéro + 1 et s'y relie.
+   * Sans cette règle, la reprise au clic droit (« repars du 3 ») ne survivait
+   * pas à la première pastille qui s'efface au fondu — le compteur repartait
+   * silencieusement sur le plus grand numéro présent, et l'utilisateur voyait
+   * son choix s'annuler tout seul quelques secondes plus tard.
+   *
+   * L'ancre partie, on retombe sur la règle simple d'avant : le plus grand
+   * numéro encore visible, relié à la dernière pastille de la pile.
+   */
   private syncBadgeSeq(): void {
+    if (this.ancreSerie != null) {
+      // en partant de la fin : l'ancre est presque toujours la dernière
+      // pastille posée, donc trouvée en une poignée de comparaisons
+      for (let i = this.strokes.length - 1; i >= 0; i--) {
+        const s = this.strokes[i]
+        if (s.id !== this.ancreSerie || s.tool !== 'badge' || s.dying) continue
+        this.badgeSeq = (s.badge ?? 0) + 1
+        this.lastBadgeId = s.id
+        return
+      }
+      this.ancreSerie = null
+    }
     let max = 0
     let last: number | null = null
     for (const s of this.strokes) {
@@ -741,6 +809,30 @@ export class HexaEngine {
     }
     this.badgeSeq = max + 1
     this.lastBadgeId = last
+  }
+
+  /**
+   * §4.8 — « clic droit sur un nœud : je reprends la numérotation à partir de
+   * ce numéro ». La série repart de la pastille `s` : la prochaine portera son
+   * numéro + 1 et la flèche de liaison partira d'ELLE, pas de la dernière
+   * posée. Le changement de couleur continue, lui, de remettre à 1 (c'est le
+   * défaut voulu) — cette reprise est la façon de revenir dans une série.
+   */
+  private reprendreSerie(s: Stroke): void {
+    const suivant = (s.badge ?? 0) + 1
+    this.ancreSerie = s.id
+    this.lastBadgeId = s.id
+    this.badgeSeq = suivant
+    this.repriseCue = {
+      x: s.points[0].x,
+      y: s.points[0].y,
+      r: badgeRadius(s.size),
+      color: s.color,
+      suivant,
+      start: performance.now(),
+    }
+    sfx.tick()
+    this.wake()
   }
 
   /**
@@ -777,6 +869,8 @@ export class HexaEngine {
     this.redoStack = []
     this.badgeSeq = 1
     this.lastBadgeId = null
+    this.ancreSerie = null
+    this.repriseCue = null
     this.anchorsDirty = true
     // mode écriture : la file d'analyse en attente part avec le reste
     this.hwUndoing = null
@@ -834,6 +928,9 @@ export class HexaEngine {
       this.strokes.push(s)
       this.salir(s)
     }
+    // une session importée est une scène NEUVE : la pastille qui tenait la
+    // série d'avant n'a plus à commander le compteur de celle-ci
+    this.ancreSerie = null
     this.syncBadgeSeq()
     this.anchorsDirty = true
     this.staticDirty = true
@@ -926,6 +1023,10 @@ export class HexaEngine {
       if (s) {
         this.grabbed = s
         this.grabLast = { x: pt.x, y: pt.y }
+        // point et instant de départ : au relâché, ils diront si la main a
+        // réellement déplacé quelque chose ou si c'était un simple clic
+        this.grabFrom = { x: pt.x, y: pt.y }
+        this.grabAt = performance.now()
         s.dieAt = undefined // le compte à rebours est suspendu pendant le drag
         this.salir(s)
         this.grabAnim = { id: s.id, start: performance.now(), from: 1, back: false }
@@ -1099,6 +1200,9 @@ export class HexaEngine {
     this.salir(s)
     this.badgeSeq++
     this.lastBadgeId = s.id
+    // la pastille qu'on vient de poser tient la série : une pastille plus
+    // ancienne qui s'efface au fondu ne peut plus dérégler le compteur
+    this.ancreSerie = s.id
     this.anchorsDirty = true
     this.staticDirty = true
     this.emitActivity()
@@ -1369,6 +1473,26 @@ export class HexaEngine {
     }
     if (this.grabbed) {
       const now = performance.now()
+      const g = this.grabbed
+      // §4.8 — CLIC DROIT BREF SUR UNE PASTILLE : la numérotation reprend là.
+      // La main n'a pas bougé et le bouton est déjà relâché : ce n'était pas un
+      // déplacement. On rend d'abord à la pastille le micro-décalage éventuel
+      // (jusqu'à REPRISE_SLOP pixels) — un clic ne doit RIEN déplacer.
+      const dx = this.grabLast.x - this.grabFrom.x
+      const dy = this.grabLast.y - this.grabFrom.y
+      if (
+        g.tool === 'badge' &&
+        now - this.grabAt <= REPRISE_MS &&
+        Math.hypot(dx, dy) <= REPRISE_SLOP
+      ) {
+        if (dx !== 0 || dy !== 0) {
+          for (const p of g.points) {
+            p.x -= dx
+            p.y -= dy
+          }
+        }
+        this.reprendreSerie(g)
+      }
       if (this.opts.fadeDelay != null) {
         this.grabbed.dieAt = now + this.opts.fadeDelay
       }
@@ -1833,6 +1957,7 @@ export class HexaEngine {
       this.laser.length > 0 ||
       this.pings.length > 0 ||
       this.grabAnim != null ||
+      this.repriseCue != null ||
       spotAnim ||
       dyingActive ||
       animActive ||
@@ -2015,6 +2140,15 @@ export class HexaEngine {
     // §5.2 — zone de spotlight en cours de tracé : un contour pointillé, le
     // temps du geste seulement (le voile montre déjà le résultat)
     if (this.spotDraw) paintSpotDraft(ctx, this.spotDraw, this.opts.color)
+    // §4.8 — « la série repart de cette pastille-là » : anneau, onde et numéro
+    // suivant, sur la couche LIVE. Elle se nettoie d'elle-même à l'image
+    // suivante, donc rien à purger et rien qui traîne à l'antenne.
+    if (this.repriseCue) {
+      if (now - this.repriseCue.start >= REPRISE_CUE_MS) this.repriseCue = null
+      // annotations masquées : la pastille désignée n'est pas à l'écran, son
+      // anneau n'a rien à y faire non plus
+      else if (!this.opts.annotationsHidden) renderReprise(ctx, this.repriseCue, now)
+    }
     if (this.particles.length > 0) this.renderSparks(ctx, now)
     if (this.pings.length > 0) this.renderPings(ctx, now)
     if (this.laser.length > 0) this.renderLaser(ctx, now)

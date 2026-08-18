@@ -242,6 +242,10 @@ export default function App() {
       // aucun chemin de mutation.
       __dbg.obsRepare = obsLink.reparations
       __dbg.vivants = strokes.length
+      // §4.8 — numéro que portera la prochaine pastille : c'est ce que la
+      // reprise au clic droit modifie, et la seule façon de la vérifier
+      // depuis l'extérieur sans ouvrir le moteur.
+      __dbg.numSuivant = engine.numeroSuivant
       if (__dbg.appels % 60 === 0) {
         let p = 0
         for (const s of strokes) p += s.points.length
@@ -1144,6 +1148,10 @@ export default function App() {
                 couleurs
               </li>
               <li>
+                <b>Clic droit bref sur une pastille du numéroteur</b> : la série repart de ce
+                numéro (la suivante s'y relie) — avec un mouvement, c'est un déplacement
+              </li>
+              <li>
                 <b>Clic droit maintenu dans le vide</b> : menu radial — glisse vers l'outil ou la
                 couleur, relâche, c'est pris
               </li>
@@ -1243,20 +1251,6 @@ export default function App() {
             />
           )}
 
-          {/* Menu radial (§8.2) : clic droit maintenu 220 ms dans le vide.
-              Le moteur (autre fenêtre) décide de l'ouverture et relaie le geste,
-              la roue gère le choix et se referme elle-même au relâché. */}
-          {radial && (
-            <RadialMenu
-              x={radial.x}
-              y={radial.y}
-              onClose={() => {
-                envoyerCommande({ nom: 'radial-close' })
-                setRadial(null)
-              }}
-            />
-          )}
-
           {/* Réglages complets : thèmes, hygiène à l'écran, session et exports,
               OBS, profils, raccourcis. Le panneau embarque ProfilesPanel et
               KeymapEditor, qui sont autonomes. */}
@@ -1292,6 +1286,39 @@ export default function App() {
               c'est un repère pour le streamer. Le moteur garde le sien sur les
               écrans qui ne portent pas la barre (voir l'effet `barre-hote`). */}
           {coucheSeparee && <CurseurHexa />}
+        </>
+      )}
+
+      {/* ============================================================ *
+          MENU RADIAL (§8.2) — VOLONTAIREMENT HORS DU BLOC `isHost`.
+          ============================================================
+          C'est tout l'objet du correctif « le clic droit apparaît sur
+          l'écran de droite ». Le geste se déroule dans la couche ENCRE de
+          L'ÉCRAN CLIQUÉ ; le processus principal route donc l'ouverture vers
+          la couche interface de CE MÊME écran (electron/main.ts,
+          'hexa:etat-encre'), et les deux fenêtres d'un écran ont exactement
+          les mêmes bornes : les coordonnées arrivent déjà bonnes, sans aucune
+          conversion.
+          Restait le dernier verrou, ici : cette fenêtre-là ne rendait RIEN
+          quand elle ne portait pas la barre. La roue était bien adressée au
+          bon écran… et personne ne la dessinait. Elle sort donc du bloc.
+          La fenêtre s'affiche le temps du geste (`contenu` plus haut) et se
+          retire ensuite. Sur un écran unique, `isHost` est vrai : strictement
+          rien ne change.
+          Le curseur personnalisé suit la roue sur cet écran-là : sans lui, la
+          couche encre ayant masqué le sien pendant le geste, il n'y aurait
+          plus aucun pointeur à l'écran. */}
+      {porteInterface && radial && (
+        <>
+          <RadialMenu
+            x={radial.x}
+            y={radial.y}
+            onClose={() => {
+              envoyerCommande({ nom: 'radial-close' })
+              setRadial(null)
+            }}
+          />
+          {coucheSeparee && !isHost && <CurseurHexa />}
         </>
       )}
     </div>

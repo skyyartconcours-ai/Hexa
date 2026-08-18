@@ -595,13 +595,15 @@
   color: var(--text-2);
 }
 
-/* Avertissement d'archive pleine : lisible sans être criard, et juste dans les
-   huit thèmes (100 % tokens, aucune couleur en dur). */
+/* Avertissement d'archive pleine : lisible sans être criard. L'orange est le
+   même que celui de l'état « hors ligne » plus haut dans cette feuille, et il
+   n'est posé qu'en mélange transparent : juste dans les huit thèmes, clairs
+   comme sombres. */
 .hx-note-alerte {
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--warn, var(--accent)) 45%, transparent);
-  background: color-mix(in srgb, var(--warn, var(--accent)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, #ff6b35 42%, transparent);
+  background: color-mix(in srgb, #ff6b35 12%, transparent);
   color: var(--text-1);
 }
 

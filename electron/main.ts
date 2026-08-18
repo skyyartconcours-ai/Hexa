@@ -639,7 +639,10 @@ function toggleDrawMode(): void {
   cancelWelcome()
   // On sort de veille : demander à dessiner, c'est demander à voir Hexa.
   if (suspended) setSuspended(false)
-  const target = overlayUnderCursor()
+  // ⚠️ L'ÉCRAN D'ANNOTATION, PAS CELUI DU CURSEUR. Voir annotationDisplayId() :
+  // viser le curseur obligeait à placer la souris au bon endroit avant chaque
+  // F8, et faisait basculer le mauvais écran le reste du temps.
+  const target = overlayAnnotation()
   if (!target) return
   // On ENTRE en mode dessin si l'écran visé était en clic traversant.
   const enterDraw = target.passthrough
@@ -720,7 +723,9 @@ function dispatchGlobalAction(action: string): void {
     broadcast('action', action)
     return
   }
-  const target = overlayUnderCursor()
+  // Même règle que F8 : on vise l'écran d'annotation, pas celui du curseur.
+  // Sans quoi Ctrl+Maj+3 sortirait le stylo sur l'écran où traîne la souris.
+  const target = overlayAnnotation()
   if (!target) return
   cancelWelcome()
   if (suspended) setSuspended(false)
@@ -841,7 +846,7 @@ function setEclipsed(value: boolean, raison: string): void {
 function openSettingsPanel(): void {
   cancelWelcome()
   if (suspended) setSuspended(false)
-  const target = overlayUnderCursor() ?? overlays.values().next().value
+  const target = overlayAnnotation()
   if (!target) return
   // En mode traversant, la fenêtre est cachée (ou traverse les clics) : le
   // panneau serait invisible et inutilisable. On entre en mode dessin d'abord.
@@ -969,6 +974,49 @@ function toolbarHostId(): number {
   } catch {
     return -1
   }
+}
+
+/**
+ * L'ÉCRAN SUR LEQUEL ON ANNOTE. Un seul, et c'est volontaire.
+ *
+ * Demande textuelle de l'utilisateur : « je n'ai pas besoin que ça note les
+ * annotations sur tous les écrans, je vais utiliser l'écran principal pour
+ * annoter et je veux que ça note que cet écran ».
+ *
+ * Et ce n'est pas qu'un confort. Le mode dessin se déclenchait jusqu'ici sur
+ * L'ÉCRAN OÙ SE TROUVE LE CURSEUR : sur trois moniteurs, il fallait donc que la
+ * souris soit déjà au bon endroit au moment du F8, sans quoi c'était un autre
+ * écran qui passait en dessin — celui-là devenait dessinable, et celui qu'on
+ * regardait ne l'était pas. D'où le symptôme rapporté : « F8 fonctionne sur
+ * l'écran où il y a l'interface mais pas sur l'écran que j'utilise ».
+ *
+ * Un écran d'annotation désigné supprime toute ambiguïté : F8 le bascule
+ * TOUJOURS, où que soit la souris. Les autres écrans n'entrent jamais en mode
+ * dessin, restent vides, donc cachés, donc gratuits pour le compositeur.
+ *
+ * `annotationDisplay` vaut null tant que l'utilisateur n'a pas choisi : on prend
+ * alors l'écran principal de Windows, qui est celui où l'on joue dans la quasi
+ * totalité des cas.
+ */
+let annotationDisplay: number | null = null
+
+function annotationDisplayId(): number {
+  try {
+    const tous = screen.getAllDisplays()
+    if (annotationDisplay != null && tous.some((d) => d.id === annotationDisplay)) {
+      return annotationDisplay
+    }
+    return screen.getPrimaryDisplay().id
+  } catch {
+    return -1
+  }
+}
+
+/** L'overlay désigné pour l'annotation, avec repli sur le premier existant. */
+function overlayAnnotation(): Overlay | undefined {
+  const vise = overlays.get(annotationDisplayId())
+  if (vise && !vise.win.isDestroyed()) return vise
+  return overlays.values().next().value
 }
 
 /**
@@ -1953,7 +2001,15 @@ function registerIpc(): void {
   ipcMain.on('hexa:commande', (e, commande: unknown) => {
     const c = commande as { nom?: unknown } | null
     if (!c || typeof c.nom !== 'string') return
-    const unique = c.nom === 'export' || c.nom === 'session-get' || c.nom === 'session-load'
+    // Les demandes qui produisent une RÉPONSE ne visent qu'une seule couche
+    // encre : deux écrans répondraient sinon deux fois à la même question, et
+    // l'archive de session partirait en double sur l'IPC à chaque export.
+    const unique =
+      c.nom === 'export' ||
+      c.nom === 'session-get' ||
+      c.nom === 'session-load' ||
+      c.nom === 'archive-etat' ||
+      c.nom === 'archive-session'
     if (unique) {
       const cible = coucheEncrePrincipale(e)
       sendTo(cible, 'commande', commande)
@@ -1980,7 +2036,19 @@ function registerIpc(): void {
     // a constaté : « le clic droit apparaît sur l'écran de droite ».
     if (quoi === 'radial' || quoi === 'radial-move' || quoi === 'radial-up') {
       const o = overlayFromEvent(e)
-      if (o?.ui && !o.ui.isDestroyed()) sendTo(o.ui, 'etat-encre', message)
+      if (!o?.ui || o.ui.isDestroyed()) return
+      // …ET ON L'AFFICHE TOUT DE SUITE. Sur un écran qui ne porte pas la barre,
+      // cette fenêtre-là est CACHÉE (§2.5 : rien à montrer, coût nul). Attendre
+      // que la page ait rendu la roue puis renvoyé son signal d'activité, c'est
+      // un aller-retour IPC + une image de rendu avant que quoi que ce soit
+      // n'apparaisse — sur un geste qui doit répondre à l'instant. On la montre
+      // donc dès l'ouverture ; le renderer confirmera, et c'est lui qui la
+      // rendra à nouveau invisible à la fin du geste.
+      if (quoi === 'radial' && !o.uiHasContent) {
+        o.uiHasContent = true
+        refreshVisibiliteInterface(o)
+      }
+      sendTo(o.ui, 'etat-encre', message)
       return
     }
     for (const o of overlays.values()) {
@@ -2434,6 +2502,34 @@ if (!gotLock) {
 
     // L'icône près de l'horloge : sans elle, Hexa est invisible ET impilotable.
     trayReady = createHexaTray({
+      /**
+       * Les écrans, pour que l'utilisateur DÉSIGNE celui sur lequel il annote.
+       * Sur trois moniteurs, c'est la seule façon de lever l'ambiguïté sans
+       * exiger que la souris soit au bon endroit au moment du raccourci.
+       */
+      listDisplays: () => {
+        try {
+          const actuel = annotationDisplayId()
+          const principal = screen.getPrimaryDisplay().id
+          return screen.getAllDisplays().map((d, i) => ({
+            id: d.id,
+            label:
+              `Écran ${i + 1} — ${d.size.width}×${d.size.height}` +
+              (d.id === principal ? ' (principal)' : ''),
+            current: d.id === actuel,
+          }))
+        } catch {
+          return []
+        }
+      },
+      setAnnotationDisplay: (id) => {
+        annotationDisplay = id
+        log('écrans', `écran d'annotation choisi : ${id}`)
+        // On rend la main au jeu partout, puis on laisse l'utilisateur
+        // rebasculer : sinon un écran resterait en mode dessin dans son dos.
+        for (const o of overlays.values()) if (!o.passthrough) applyPassthrough(o, true)
+        refreshTray()
+      },
       toggleDraw: () => toggleDrawMode(),
       clearAll: () => {
         cancelWelcome()

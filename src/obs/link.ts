@@ -298,6 +298,8 @@ export class ObsLink {
   private sizeTimer: ReturnType<typeof setTimeout> | null = null
   /** taille visée d'un lot d'état complet — resserrée si le relais refuse */
   private lotMax = OBS_BATCH_CHARS
+  /** rendez-vous de rattrapage quand le moteur s'endort (voir programmerBalayage) */
+  private balaiTimer: ReturnType<typeof setTimeout> | null = null
   /** curseur tournant du filet de sécurité (voir AUDIT) */
   private auditIdx = 0
   /** dernier réalignement complet : on ne s'acharne pas */
@@ -357,6 +359,10 @@ export class ObsLink {
 
   /** Tout jeter : plus personne ne regarde, rien de ce qu'on retient ne vaut. */
   private oublier(): void {
+    if (this.balaiTimer != null) {
+      clearTimeout(this.balaiTimer)
+      this.balaiTimer = null
+    }
     this.arreterEnvoi()
     this.attente = false
     this.sent.clear()
@@ -402,9 +408,61 @@ export class ObsLink {
     }
     if (this.muet()) return
     const now = performance.now()
-    if (now - this.lastScan < SAMPLE_MS) return
+    if (now - this.lastScan < SAMPLE_MS) {
+      this.programmerBalayage(now)
+      return
+    }
     this.lastScan = now
-    this.scan(now)
+    this.scan(now, true)
+  }
+
+  /**
+   * Trait RÉELLEMENT en cours de tracé.
+   *
+   * `lastCurrent` n'est rafraîchi qu'à l'appel du moteur. Entre deux images —
+   * et tout rendez-vous différé tombe forcément entre deux images — le geste a
+   * pu se terminer : le moteur a mis `current` à null et poussé le trait dans
+   * la scène. Le compter une seconde fois ferait croire à un trait de plus
+   * qu'il n'y en a. Un trait terminé n'est jamais le trait en cours : c'est
+   * exactement ce que dit `done`.
+   */
+  private courant(): Stroke | null {
+    const c = this.lastCurrent
+    return c && !c.done ? c : null
+  }
+
+  /**
+   * LA DERNIÈRE IMAGE D'UN GESTE NE DOIT PAS RESTER EN RADE.
+   *
+   * On n'émet qu'à 30 Hz alors que le moteur tourne à 60 : une image sur deux
+   * est sautée, et ses changements attendent la suivante. Sauf qu'il n'y en a
+   * pas toujours de suivante — le moteur s'endort dès qu'il n'a plus rien à
+   * animer. Un Ctrl+Z sur le dernier trait posé, c'est exactement ce cas : une
+   * seule image, sautée, et l'annotation restait affichée dans la vue OBS
+   * jusqu'au geste suivant. À l'antenne, ça se lit comme un bug.
+   *
+   * Un rendez-vous unique, calé sur la fin de la fenêtre d'échantillonnage,
+   * annulé dès qu'un balayage a lieu, et jamais posé quand il n'y a rien à
+   * dire : au repos, il ne se passe toujours rigoureusement rien.
+   */
+  private programmerBalayage(now: number): void {
+    if (this.balaiTimer != null) return
+    if (this.aRelire.size === 0 && this.aRetirer.size === 0) return
+    this.balaiTimer = setTimeout(
+      () => {
+        this.balaiTimer = null
+        if (!this.enabled || !this.audience() || this.muet()) return
+        if (this.aRelire.size === 0 && this.aRetirer.size === 0) return
+        this.lastScan = performance.now()
+        // SANS LE FILET : il compare la scène à ce qu'on a envoyé, et ici la
+        // scène est celle de MAINTENANT alors que le journal du moteur s'arrête
+        // à la dernière image. Un trait posé (ou annulé) dans l'intervalle
+        // ferait croire à une divergence et déclencherait un état complet pour
+        // rien. Le filet appartient au balayage nourri par le moteur.
+        this.scan(this.lastScan, false)
+      },
+      Math.max(1, SAMPLE_MS - (now - this.lastScan)),
+    )
   }
 
   /** Un état complet est demandé ou en route : le différentiel n'a rien à dire. */
@@ -458,9 +516,8 @@ export class ObsLink {
     this.arreterEnvoi()
     this.attente = false
     if (!this.enabled || !this.audience()) return
-    const liste = this.lastCurrent
-      ? [...this.lastStrokes, this.lastCurrent]
-      : [...this.lastStrokes]
+    const c = this.courant()
+    const liste = c ? [...this.lastStrokes, c] : [...this.lastStrokes]
     // L'index repart de zéro : les empreintes sont reposées lot par lot, au
     // moment exact où chaque trait part vraiment sur le fil.
     this.sent.clear()
@@ -590,7 +647,11 @@ export class ObsLink {
    * comparaison des dix-huit champs de chaque annotation. Ce qui n'est pas dans
    * le journal du moteur n'est pas relu — jamais.
    */
-  private scan(now: number): void {
+  private scan(now: number, filet: boolean): void {
+    if (this.balaiTimer != null) {
+      clearTimeout(this.balaiTimer)
+      this.balaiTimer = null
+    }
     // 1. les départs (annulés, dissous, gommés)
     if (this.aRetirer.size > 0) {
       const gone: number[] = []
@@ -604,7 +665,7 @@ export class ObsLink {
       this.aRelire.clear()
     }
     // 3. le filet de sécurité, à coût constant (voir AUDIT)
-    this.auditer(now)
+    if (filet) this.auditer(now)
     // 4. toutes les échéances de ce balayage en UN message
     if (this.phases.length > 0) {
       this.send({ t: 'stroke:phase', now, items: this.phases })
@@ -666,7 +727,7 @@ export class ObsLink {
    */
   private auditer(now: number): void {
     const n = this.lastStrokes.length
-    const vivants = n + (this.lastCurrent ? 1 : 0)
+    const vivants = n + (this.courant() ? 1 : 0)
     if (this.sent.size !== vivants) {
       this.realigner(`composition (${this.sent.size} envoyés, ${vivants} vivants)`)
       return
