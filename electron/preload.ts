@@ -197,6 +197,20 @@ const api = {
   },
 
   /**
+   * Niveau de privilège d'Hexa (Windows). C'est ce qui décide si un raccourci
+   * global est livré PENDANT une partie : un jeu lancé en administrateur retient
+   * les touches d'un programme ordinaire. Voir electron/elevation.ts.
+   */
+  privileges(): Promise<unknown> {
+    return ipcRenderer.invoke('hexa:privileges').catch(() => null)
+  },
+
+  /** Relance Hexa en administrateur (demande de consentement de Windows). */
+  relancerAdmin(): Promise<unknown> {
+    return ipcRenderer.invoke('hexa:relaunch-admin').catch(() => null)
+  },
+
+  /**
    * Écrit une ligne dans le journal de diagnostic (hexa.log). Sert quand la page
    * rencontre un problème que seul l'utilisateur pourra nous rapporter.
    */

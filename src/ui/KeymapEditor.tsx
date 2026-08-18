@@ -42,7 +42,7 @@ import {
 } from '../keymap'
 import { COLORS, useUiStore } from '../store'
 import { getGlobalShortcutStatus, subscribeGlobalShortcuts } from '../globalShortcuts'
-import { isElectron } from '../bridge'
+import { bridge, isElectron } from '../bridge'
 import './keymap-editor.css'
 
 /** Couleur réelle de la palette pour les actions « Couleur N ». */
@@ -55,6 +55,21 @@ export function KeymapEditor() {
   const keymapPreset = useUiStore((s) => s.keymapPreset)
   const keymapOverrides = useUiStore((s) => s.keymapOverrides)
   const globalShortcutsOn = useUiStore((s) => s.globalShortcutsOn)
+  /** Niveau de privilège : lu une fois, il ne change pas en cours de session. */
+  const [privileges, setPrivileges] = useState<{ windows: boolean; eleve: boolean } | null>(null)
+  useEffect(() => {
+    if (!isElectron) return
+    let vivant = true
+    void bridge.privileges().then((p) => {
+      if (vivant) setPrivileges(p)
+    })
+    return () => {
+      vivant = false
+    }
+  }, [])
+  const relancerAdmin = (): void => {
+    void bridge.relancerAdmin()
+  }
   const setKeymapPreset = useUiStore((s) => s.setKeymapPreset)
   const setBinding = useUiStore((s) => s.setBinding)
   const resetBinding = useUiStore((s) => s.resetBinding)
@@ -248,6 +263,26 @@ export function KeymapEditor() {
           <span className="kme-global-knob" />
         </span>
       </button>
+
+      {/* LE CAS QUE PERSONNE NE DEVINE. Le raccourci est bien réservé auprès de
+          Windows — le journal le dit — et pourtant il ne se passe rien pendant
+          la partie : Windows ne livre pas les touches d'un programme ordinaire
+          tant qu'un jeu lancé EN ADMINISTRATEUR est au premier plan. D'où le
+          symptôme exact « je dois alt-tab pour que ça marche ». */}
+      {privileges?.windows && !privileges.eleve && (
+        <div className="kme-alert kme-admin">
+          <span>
+            <b>Tes raccourcis ne répondent pas pendant une partie ?</b> Windows ne remet pas les
+            touches d’un programme ordinaire tant qu’un jeu lancé en administrateur est au premier
+            plan — c’est le cas de League of Legends et de Valorant. Le symptôme est toujours le
+            même : il faut Alt+Tab pour qu’Hexa réagisse. Relance Hexa en administrateur et ils
+            passeront aussi en jeu.
+          </span>
+          <button type="button" className="kme-admin-go" onClick={relancerAdmin}>
+            Relancer Hexa en administrateur
+          </button>
+        </div>
+      )}
 
       {isElectron && failedCount > 0 && (
         <div className="kme-alert">

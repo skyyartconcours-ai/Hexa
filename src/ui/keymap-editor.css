@@ -770,3 +770,42 @@
     transition-duration: 60ms !important;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Bandeau « relancer en administrateur »
+ *
+ * Il ne s'affiche que sur Windows, et seulement tant qu'Hexa n'est pas déjà
+ * administrateur. C'est la réponse à la question la plus déroutante de tout
+ * l'outil : « mes raccourcis marchent partout SAUF pendant la partie ».
+ * ------------------------------------------------------------------ */
+.kme-admin {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.kme-admin > span {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.kme-admin-go {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: var(--chip-radius, 10px);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text-1);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s ease, transform 0.14s ease;
+}
+
+.kme-admin-go:hover {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.kme-admin-go:active {
+  transform: translateY(1px);
+}

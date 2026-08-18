@@ -147,6 +147,31 @@ const MASK_MIN = 24
 /** Zone cliquable de la croix de suppression d'un masque. */
 const MASK_X_R = 13
 
+/**
+ * DURÉE DE STABILISATION D'UNE PLAQUE DE MASQUAGE, en millisecondes.
+ *
+ * ⚠️ C'EST LA CORRECTION LA PLUS IMPORTANTE DE TOUT LE FICHIER POUR LE STREAM.
+ *
+ * Un masque devait, croyait-on, rester « vivant » : relire l'écran à chaque
+ * image vidéo, indéfiniment. Cela maintenait un FLUX DE CAPTURE D'ÉCRAN PLEIN
+ * CADRE ouvert en permanence — un second pipeline de capture, en plus de celui
+ * d'OBS, tant qu'un seul masque traînait à l'écran. Deux captures de bureau
+ * simultanées, c'est exactement ce qui met une machine à genoux : l'utilisateur
+ * décrivait « ça rame énormément, mais seulement quand j'utilise l'outil ».
+ *
+ * Or ce travail perpétuel ne servait À RIEN, et le fichier le documentait
+ * lui-même sans en tirer la conséquence : notre propre plaque fait partie de
+ * l'écran capturé, elle est donc refloutée à chaque image, et le voile posé
+ * par-dessus s'accumule. Au bout d'une seconde, la zone a CONVERGÉ vers un
+ * aplat opaque — 1 − 0,84^30 ≈ 0,995 d'opacité. Continuer à la recalculer trente
+ * fois par seconde ne change plus un seul pixel.
+ *
+ * On laisse donc la plaque se former, puis on la FIGE dans un petit bitmap à
+ * sa taille, et le flux s'éteint. Rien ne change à l'écran ; le coût, lui,
+ * retombe à zéro. Aucune information ne fuit : la plaque figée est un aplat.
+ */
+const MASK_SETTLE_MS = 1200
+
 /** Délai avant extinction réelle du flux quand plus personne ne le regarde. */
 const FEED_RELEASE_MS = 1200
 /** Repli quand `requestVideoFrameCallback` n'existe pas : ~15 images/s. */
@@ -195,6 +220,15 @@ interface FxMask {
   h: number
   /** horodatage de pose : sert à l'animation d'apparition */
   born: number
+  /**
+   * Plaque figée : le rendu final de la zone, gardé dans un bitmap à sa
+   * taille. Tant qu'elle est nulle, la plaque se forme encore et le flux
+   * d'écran doit rester ouvert. Une fois posée, elle se repeint d'un simple
+   * `drawImage` et PLUS RIEN ne lit l'écran (voir MASK_SETTLE_MS).
+   */
+  plaque?: HTMLCanvasElement | null
+  /** instant à partir duquel la plaque est considérée comme stabilisée */
+  figeA?: number
 }
 
 /** Source dessinable : la vidéo du flux, ou l'image gelée. */
@@ -547,7 +581,10 @@ export class FxLayer {
       void this.feed.request(false)
     }
     if (tool === 'freeze' && prev !== 'freeze' && !demarrage) this.toggleFreeze()
-    if (tool === 'blur' && !demarrage) void this.feed.request(false)
+    // ⚠️ Choisir l'outil flou n'ouvre PLUS le flux d'écran. Il s'ouvrait au
+    // clic sur le bouton et ne se refermait qu'à l'outil suivant : une capture
+    // de bureau plein cadre laissée branchée pour un bouton effleuré, à côté de
+    // celle d'OBS. Le flux s'ouvre maintenant au premier geste de tracé.
     if (prev === 'blur' && this.drawingMask) this.drawingMask = null
     this.syncFeedNeed()
     this.notify()
@@ -774,6 +811,10 @@ export class FxLayer {
       const hit = this.maskAt(e.clientX, e.clientY)
       if (hit) {
         this.movingMask = { mask: hit, dx: e.clientX - hit.x, dy: e.clientY - hit.y }
+        // La plaque figée montre l'ANCIENNE zone : elle doit se reformer.
+        this.rouvrirMasque(hit)
+        void this.feed.request(true)
+        this.syncFeedNeed()
         this.claim(e)
         return
       }
@@ -840,7 +881,8 @@ export class FxLayer {
       const w = Math.abs(m.w)
       const h = Math.abs(m.h)
       if (w >= MASK_MIN && h >= MASK_MIN) {
-        this.masks.push({ id: m.id, x, y, w, h, born: performance.now() })
+        const now = performance.now()
+        this.masks.push({ id: m.id, x, y, w, h, born: now, plaque: null })
         void this.feed.request(true)
       }
       this.syncFeedNeed()
@@ -850,7 +892,10 @@ export class FxLayer {
       return
     }
     if (this.movingMask) {
+      // Le masque est reposé : l'horloge de stabilisation repart d'ici.
+      this.rouvrirMasque(this.movingMask.mask)
       this.movingMask = null
+      this.syncFeedNeed()
       this.claim(e)
       this.wake()
       return
@@ -940,9 +985,20 @@ export class FxLayer {
     })
   }
 
-  /** Le flux est-il encore utile ? Sinon on l'éteint pour de bon. */
+  /**
+   * Le flux est-il encore utile ? Sinon on l'éteint pour de bon.
+   *
+   * ⚠️ « Un masque existe » N'EST PLUS une raison de garder l'écran branché.
+   * Seule une plaque encore EN TRAIN de se former en est une (MASK_SETTLE_MS).
+   * Choisir l'outil flou n'en est pas une non plus : le flux s'ouvre au premier
+   * geste, pas au clic sur le bouton.
+   */
   private syncFeedNeed(): void {
-    const need = this.tool === 'magnifier' || this.tool === 'blur' || this.masks.length > 0
+    const need =
+      this.tool === 'magnifier' ||
+      this.drawingMask != null ||
+      this.movingMask != null ||
+      this.masks.some((m) => !m.plaque)
     if (need) this.feed.keepAlive()
     else this.feed.release()
     // les canvas suivent exactement le même cycle de vie que le flux
@@ -991,9 +1047,19 @@ export class FxLayer {
    * instantané : c'est un simple `cv.width = …` au premier usage.
    */
   private resize(): void {
+    const dprAvant = this.dpr
+    const wAvant = this.w
+    const hAvant = this.h
     this.dpr = Math.min(window.devicePixelRatio || 1, 2.5)
     this.w = this.stage.clientWidth || window.innerWidth
     this.h = this.stage.clientHeight || window.innerHeight
+    // L'écran a changé de taille, d'échelle ou de rotation : les plaques figées
+    // décrivent un bureau qui n'existe plus. On les laisse se reformer.
+    if (this.masks.length > 0 && (this.dpr !== dprAvant || this.w !== wAvant || this.h !== hAvant)) {
+      for (const m of this.masks) this.rouvrirMasque(m)
+      void this.feed.request(false)
+      this.syncFeedNeed()
+    }
     const utile = this.besoinCouche()
     for (const [cv, ctx] of [
       [this.underCv, this.uCtx],
@@ -1066,9 +1132,15 @@ export class FxLayer {
     if (magOn) again = this.paintMagnifier() || again
     if (this.compare && hasFrozen) this.paintCompareHandle()
 
-    // Les masques doivent rester vivants : on se réveille à la prochaine image
-    // vidéo décodée, jamais sur une horloge à nous.
-    if (this.masks.length > 0 && this.feed.live && !again) {
+    // Une plaque EN TRAIN de se former se réveille à la prochaine image vidéo
+    // décodée, jamais sur une horloge à nous. Une plaque figée, elle, ne
+    // redemande plus rien : la boucle s'arrête, le flux s'éteint, et le coût
+    // d'un masque laissé à l'écran retombe exactement à zéro.
+    const enFormation = this.drawingMask != null || this.masks.some((m) => !m.plaque)
+    // La loupe suit la MÊME règle : elle vit au rythme du flux, pas à celui de
+    // l'écran. Sur un bureau immobile, plus une seule image n'est peinte.
+    const loupeVivante = magOn && this.frozen == null
+    if ((enFormation || loupeVivante) && this.feed.live && !again) {
       this.feed.onNextFrame(() => this.wake())
     }
     return again
@@ -1183,11 +1255,27 @@ export class FxLayer {
         w: Math.abs(d.w),
         h: Math.abs(d.h),
         born: d.born,
+        // Copie de travail du rectangle EN COURS de tracé : elle ne se fige
+        // jamais (le masque n'est posé qu'au relâchement).
+        figeA: Number.POSITIVE_INFINITY,
       })
     }
+    // Une plaque vient-elle de finir de se former ? Alors le flux d'écran n'a
+    // plus de raison d'être ouvert, et c'est TOUT l'enjeu (voir MASK_SETTLE_MS).
+    let figeUnNouveau = false
     for (const m of all) {
       if (m.w < 2 || m.h < 2) continue
       const grow = Math.min(1, (now - m.born) / 180)
+      // Plaque déjà figée : un blit, et on ne touche pas à l'écran.
+      if (m.plaque) {
+        ctx.save()
+        roundRect(ctx, m.x, m.y, m.w, m.h, 12)
+        ctx.clip()
+        ctx.drawImage(m.plaque, m.x, m.y, m.w, m.h)
+        ctx.restore()
+        this.cadreMasque(ctx, m, grow)
+        continue
+      }
       ctx.save()
       roundRect(ctx, m.x, m.y, m.w, m.h, 12)
       ctx.clip()
@@ -1223,22 +1311,86 @@ export class FxLayer {
         }
       }
       ctx.restore()
+      this.cadreMasque(ctx, m, grow)
 
-      // cadre de la plaque
-      ctx.save()
-      ctx.globalAlpha = grow
-      roundRect(ctx, m.x + 0.5, m.y + 0.5, m.w - 1, m.h - 1, skin().rayon)
-      ctx.strokeStyle = encrePanneau(0.22)
-      ctx.lineWidth = 1
-      ctx.stroke()
-      ctx.restore()
+      // La plaque a-t-elle fini de converger ? On la met en boîte une fois pour
+      // toutes. `m` peut être le masque EN COURS de tracé (pas encore dans
+      // this.masks) : on ne fige que ce qui est posé.
+      // L'horloge de stabilisation démarre à la PREMIÈRE image réellement lue,
+      // pas à la pose : `getUserMedia` met deux à cinq dixièmes de seconde à
+      // livrer sa première image, et les compter aurait raccourci d'autant la
+      // convergence de la plaque.
+      if (src && scale && m.figeA == null) m.figeA = now + MASK_SETTLE_MS
+      if (src && scale && now >= (m.figeA ?? Number.POSITIVE_INFINITY)) {
+        if (this.figerPlaque(m)) figeUnNouveau = true
+      }
     }
+    // L'extinction du flux passe par le chemin normal : il reste peut-être un
+    // autre masque en train de se former, ou la loupe en service.
+    if (figeUnNouveau) this.syncFeedNeed()
 
     // Poignées d'édition. Elles apparaissent avec l'outil masque, mais AUSSI
     // avec la gomme : « comment j'efface un masque ? » est la première question
     // que se pose l'utilisateur, et chercher la croix en repassant par l'outil
     // flou n'est devinable par personne.
     if (this.tool === 'blur' || this.tool === 'eraser') this.paintMaskHandles()
+  }
+
+  /** Cadre discret de la plaque — identique figée ou non. */
+  private cadreMasque(ctx: CanvasRenderingContext2D, m: FxMask, grow: number): void {
+    ctx.save()
+    ctx.globalAlpha = grow
+    roundRect(ctx, m.x + 0.5, m.y + 0.5, m.w - 1, m.h - 1, skin().rayon)
+    ctx.strokeStyle = encrePanneau(0.22)
+    ctx.lineWidth = 1
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  /**
+   * Met la zone masquée en boîte : on relit ce que NOTRE canvas vient de
+   * peindre — donc exactement ce que l'utilisateur voit — dans un bitmap à la
+   * taille du masque. Aucune différence visible, et plus une seule lecture de
+   * l'écran ensuite.
+   */
+  private figerPlaque(m: FxMask): boolean {
+    const w = Math.max(1, Math.round(m.w * this.dpr))
+    const h = Math.max(1, Math.round(m.h * this.dpr))
+    // Garde-fou mémoire : une plaque plein écran resterait raisonnable (quelques
+    // Mo), mais on refuse l'absurde plutôt que de faire confiance à l'entrée.
+    if (w * h > 40_000_000) return false
+    try {
+      const cv = document.createElement('canvas')
+      cv.width = w
+      cv.height = h
+      const c = cv.getContext('2d')
+      if (!c) return false
+      c.drawImage(
+        this.underCv,
+        Math.round(m.x * this.dpr),
+        Math.round(m.y * this.dpr),
+        w,
+        h,
+        0,
+        0,
+        w,
+        h,
+      )
+      m.plaque = cv
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * La plaque figée ne vaut plus : le masque a bougé, l'écran a changé de
+   * taille, ou l'utilisateur demande un rafraîchissement. On rouvre le flux le
+   * temps qu'elle se reforme — une seconde, puis le silence revient.
+   */
+  private rouvrirMasque(m: FxMask): void {
+    m.plaque = null
+    m.figeA = undefined
   }
 
   private paintMaskHandles(): void {
@@ -1472,7 +1624,17 @@ export class FxLayer {
     //     « Lecture de l'écran… » pour toujours.
     // Seul le cas « image gelée + disque posé » s'endort : plus rien ne peut
     // bouger, la boucle s'éteint d'elle-même.
-    return moving || this.frozen == null || !this.magPlaced
+    //
+    // ⚠️ SUR LE FLUX VIVANT, ON NE REND PLUS `true`. C'était une boucle
+    // d'animation LIBRE : soixante images par seconde, plein écran, tant que la
+    // loupe restait choisie dans la barre — pour une source qui n'en produit
+    // que trente, et qui n'en produit AUCUNE quand l'écran ne bouge pas. Sous
+    // OBS, qui capture le même écran au même moment, ces images inutiles se
+    // paient deux fois. On se recale donc sur la cadence de la source (voir
+    // `render`), exactement comme les masques : une image peinte par image
+    // réellement décodée, et le silence complet sur un écran immobile.
+    if (moving || !this.magPlaced) return true
+    return this.frozen != null ? false : this.feed.frame == null
   }
 
   /**

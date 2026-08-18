@@ -181,6 +181,14 @@ export interface HexaBridgeApi {
   getScreenSourceId(): Promise<string | null>
   /** (ré)enregistre les raccourcis globaux ; renvoie ce qui a été pris ou refusé */
   setShortcuts(map: GlobalShortcuts): Promise<unknown>
+  /**
+   * Niveau de privilège d'Hexa sous Windows. Décide si un raccourci global est
+   * livré PENDANT une partie : un jeu lancé en administrateur retient les
+   * touches d'un programme ordinaire (voir electron/elevation.ts).
+   */
+  privileges(): Promise<{ windows: boolean; eleve: boolean } | null>
+  /** Relance Hexa en administrateur (Windows affiche sa demande de consentement). */
+  relancerAdmin(): Promise<{ lance: boolean; raison?: string } | null>
   /** écrit une ligne dans le journal de diagnostic (hexa.log) */
   log(scope: string, message: string): void
   /** emplacement du journal, à montrer à l'utilisateur ('' en démo navigateur) */
@@ -246,6 +254,14 @@ export const bridge: HexaBridgeApi = {
     window.hexa?.getScreenSourceId ? window.hexa.getScreenSourceId() : null,
   setShortcuts: async (map) =>
     window.hexa?.setShortcuts ? window.hexa.setShortcuts(map) : Promise.resolve(null),
+  privileges: async () =>
+    window.hexa?.privileges
+      ? ((await window.hexa.privileges()) as { windows: boolean; eleve: boolean } | null)
+      : null,
+  relancerAdmin: async () =>
+    window.hexa?.relancerAdmin
+      ? ((await window.hexa.relancerAdmin()) as { lance: boolean; raison?: string } | null)
+      : null,
   log: (scope, message) => window.hexa?.log?.(scope, message),
   logPath: async () => (window.hexa?.logPath ? window.hexa.logPath() : ''),
   modeDessin: async () => (window.hexa?.modeDessin ? window.hexa.modeDessin() : null),

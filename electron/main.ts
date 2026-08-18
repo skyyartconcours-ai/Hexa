@@ -41,6 +41,15 @@ import {
 } from './logger'
 // Icône près de l'horloge : la seule prise que l'utilisateur ait sur Hexa.
 import { createHexaTray, destroyTray, notifyAlreadyRunning, refreshTray } from './tray'
+// Niveau de privilège : c'est lui qui décide si un raccourci global est livré
+// pendant une partie (un jeu lancé en administrateur retient les touches d'un
+// programme ordinaire). Voir electron/elevation.ts.
+import {
+  detecterElevation,
+  elevationPertinente,
+  estEleve,
+  relancerEnAdministrateur,
+} from './elevation'
 // Règle de choix de l'écran porteur de la barre (§S4.2) : source unique,
 // partagée avec la page. Module pur — esbuild l'inline dans le bundle du
 // processus principal, il n'entraîne ni React ni DOM avec lui.
@@ -700,9 +709,17 @@ function dispatchGlobalAction(action: string): void {
   // Le canal 'action' sert aussi de marqueur anti double-exécution : si Windows
   // livre la touche à la page EN PLUS de nous, elle verra que le système a déjà
   // pris l'action et ne la rejouera pas (voir claimAction, src/globalShortcuts).
+  // TRACE DÉCISIVE. « Mes raccourcis ne marchent pas pendant le jeu » a deux
+  // causes possibles et une seule ligne les sépare : soit Windows ne nous livre
+  // pas la touche (rien n'apparaît ici), soit il nous la livre et le défaut est
+  // chez nous. Sans cette trace, on ne peut que deviner.
+  log('raccourcis', `action reçue du système : ${action}`)
   if (action === 'mode.draw') {
-    const o = overlayUnderCursor()
-    if (o) send(o, 'action', action)
+    // Le marqueur anti double-exécution part sur TOUS les écrans : viser celui
+    // du curseur laissait l'écran d'annotation — le seul qui bascule vraiment —
+    // sans marqueur. Sa page rejouait alors la touche de son côté et annulait
+    // la bascule sur-le-champ.
+    broadcast('action', action)
     toggleDrawMode()
     return
   }
@@ -2315,6 +2332,34 @@ function registerIpc(): void {
   // État du serveur, à la demande (panneau de réglages ouvert en pleine session).
   ipcMain.handle('hexa:obs-status', () => obsServerStatus())
 
+  // Niveau de privilège, pour que l'éditeur de raccourcis puisse EXPLIQUER
+  // pourquoi une touche réservée auprès de Windows n'arrive pas pendant une
+  // partie — au lieu de laisser croire à une panne d'Hexa.
+  ipcMain.handle('hexa:privileges', async () => {
+    const eleve = estEleve() ?? (await detecterElevation())
+    return { windows: elevationPertinente(), eleve }
+  })
+
+  ipcMain.handle('hexa:relaunch-admin', () => {
+    if (!elevationPertinente()) return { lance: false, raison: 'Windows uniquement.' }
+    return new Promise<{ lance: boolean; raison?: string }>((resolve) => {
+      let repondu = false
+      relancerEnAdministrateur((raison) => {
+        if (repondu) return
+        repondu = true
+        showToast('Relance en administrateur', raison, 9000)
+        resolve({ lance: false, raison })
+      })
+      // Si la relance aboutit, l'application quitte : la promesse n'a plus
+      // personne à qui répondre. On rend donc la main tout de suite côté page.
+      setTimeout(() => {
+        if (repondu) return
+        repondu = true
+        resolve({ lance: true })
+      }, 1500)
+    })
+  })
+
   /**
    * Message déjà sérialisé par le renderer : on le relaie… mais UN SEUL écran à
    * la fois.
@@ -2466,6 +2511,12 @@ if (!gotLock) {
   app.whenReady().then(() => {
     registerIpc()
 
+    // Hors du chemin critique : le verdict n'est utile qu'au moment où
+    // l'utilisateur ouvre le menu ou l'éditeur de raccourcis. On rafraîchit
+    // l'icône ensuite, pour que l'entrée « Relancer en administrateur »
+    // apparaisse dès qu'on sait qu'elle est utile.
+    void detecterElevation().then(() => refreshTray())
+
     const ecrans = screen.getAllDisplays()
     log('écrans', `${ecrans.length} écran(s) détecté(s)`, {
       principal: screen.getPrimaryDisplay().id,
@@ -2531,6 +2582,12 @@ if (!gotLock) {
         refreshTray()
       },
       toggleDraw: () => toggleDrawMode(),
+      // Windows ne livre pas les raccourcis d'un programme ordinaire tant qu'un
+      // jeu lancé en administrateur est au premier plan. On le dit, et on
+      // propose la seule parade qui existe.
+      elevation: () => ({ windows: elevationPertinente(), eleve: estEleve() === true }),
+      relancerAdmin: () =>
+        relancerEnAdministrateur((raison) => showToast('Relance en administrateur', raison, 9000)),
       clearAll: () => {
         cancelWelcome()
         broadcast('panic-clear')

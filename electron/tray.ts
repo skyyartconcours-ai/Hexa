@@ -59,6 +59,13 @@ export interface TrayActions {
   listDisplays: () => { id: number; label: string; current: boolean }[]
   /** désigne l'écran d'annotation */
   setAnnotationDisplay: (id: number) => void
+  /**
+   * Niveau de privilège (Windows). `eleve` faux avec `windows` vrai = les
+   * raccourcis d'Hexa peuvent être retenus par un jeu lancé en administrateur.
+   */
+  elevation: () => { windows: boolean; eleve: boolean }
+  /** relance Hexa en administrateur (Windows affiche sa demande de consentement) */
+  relancerAdmin: () => void
   /** ferme proprement toute l'application */
   quit: () => void
 }
@@ -221,6 +228,17 @@ function buildMenu(): Menu {
       click: () => a?.toggleSuspended(),
     },
   ]
+
+  // LA PARADE AUX « RACCOURCIS QUI NE MARCHENT PAS EN JEU ». Elle n'apparaît
+  // que si elle sert : sur Windows, et seulement tant qu'Hexa n'est pas déjà
+  // administrateur.
+  const priv = a?.elevation() ?? { windows: false, eleve: false }
+  if (priv.windows && !priv.eleve) {
+    items.push({ type: 'separator' }, {
+      label: 'Relancer en administrateur (raccourcis pendant les parties)',
+      click: () => a?.relancerAdmin(),
+    })
+  }
 
   if (demarrageAutoDisponible()) {
     items.push({
