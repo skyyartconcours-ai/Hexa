@@ -152,6 +152,51 @@ export default function App() {
   /** état des effets de capture — mis à jour sur événement, jamais par image */
   const [fxState, setFxState] = useState({ frozen: false, compare: false })
 
+  /**
+   * CET ÉCRAN EST-IL L'ÉCRAN D'ANNOTATION ?
+   *
+   * L'utilisateur annote sur UN écran, qu'il désigne dans le menu de l'icône
+   * système. Les couches des autres écrans doivent être totalement inertes :
+   * le moteur du deuxième écran recevait les mouvements de souris (Windows les
+   * transmet à TOUTES les fenêtres en clic traversant) et traçait une traînée
+   * laser que personne ne regardait — ce qui, en prime, ressortait sa fenêtre
+   * du sommeil et la faisait composer par Windows, donc payer par OBS.
+   *
+   * La valeur initiale vient de l'argument de lancement ; la suite arrive par
+   * le canal 'ecran-annotation', pour que changer d'écran dans le menu prenne
+   * effet SUR-LE-CHAMP, sans redémarrer.
+   */
+  const [ecranAnnotation, setEcranAnnotation] = useState(bridge.ecranAnnotation)
+  useEffect(() => {
+    if (!isElectron) return
+    return bridge.on('ecran-annotation', (v) => setEcranAnnotation(v !== false))
+  }, [])
+
+  // Le moteur et la couche d'effets s'allument et s'éteignent avec leur écran.
+  // On ne les DÉMONTE pas : les annotations déjà posées survivent, et rallumer
+  // est instantané. Éteints, ils ne reçoivent plus un geste, ne demandent plus
+  // une image et rendent leurs canevas à la mémoire.
+  const actifRef = useRef(bridge.ecranAnnotation)
+  // Point d'entrée de test, même convention que window.hexaFx / window.hexaEngine :
+  // les campagnes doivent pouvoir jouer la bascule « cet écran annote / n'annote
+  // plus » sans montage multi-écrans, qui n'existe pas sous xvfb.
+  useEffect(() => {
+    const g = window as unknown as { __hexaTestEcranAnnotation?: (v: boolean) => void }
+    g.__hexaTestEcranAnnotation = (v: boolean) => setEcranAnnotation(v !== false)
+    return () => {
+      delete g.__hexaTestEcranAnnotation
+    }
+  }, [])
+  useEffect(() => {
+    actifRef.current = ecranAnnotation
+    engineRef.current?.setActif(ecranAnnotation)
+    fxRef.current?.setActif(ecranAnnotation)
+    // La fenêtre doit se retirer (ou revenir) tout de suite, sans attendre le
+    // prochain changement d'activité — qui, sur un écran éteint, n'arrivera
+    // jamais.
+    if (porteEncre) bridge.notifyActivity(ecranAnnotation && engineRef.current?.hasContent === true)
+  }, [ecranAnnotation])
+
   // création du moteur (une seule fois) — COUCHE ENCRE uniquement.
   // Dans la fenêtre d'interface il n'y a ni canvas ni moteur : elle pilote
   // celui de l'autre fenêtre par commandes (§S11).
@@ -164,6 +209,12 @@ export default function App() {
     // boucle dormante, son propre flux d'écran allumé à la demande.
     const fx = new FxLayer(stageRef.current!)
     fxRef.current = fx
+    // On applique l'état AVANT tout le reste : sur un écran qui n'annote pas,
+    // rien ne doit jamais s'allumer, pas même une image.
+    if (!bridge.ecranAnnotation) {
+      engine.setActif(false)
+      fx.setActif(false)
+    }
     // « Gel d'image » est une bascule, pas un état où l'on reste : si la
     // session précédente s'est terminée pile dessus, on repart au pinceau.
     if (useUiStore.getState().tool === 'freeze') useUiStore.getState().setTool('pen')
@@ -175,7 +226,14 @@ export default function App() {
     // notes). Sans eux dans le calcul, un compte à rebours seul à l'écran
     // ferait disparaître la fenêtre : le viewer ne verrait plus rien.
     const live = { engine: false, fx: false, widgets: false }
-    const pushActivity = () => bridge.notifyActivity(live.engine || live.fx || live.widgets)
+    // ⚠️ Un écran qui n'annote pas ne déclare JAMAIS d'activité : sa fenêtre
+    // reste cachée, donc le compositeur de Windows l'oublie, donc OBS ne la
+    // paie pas. C'est la moitié « fenêtre » de la correction ; l'autre moitié
+    // est `setActif` dans le moteur.
+    const pushActivity = () =>
+      bridge.notifyActivity(
+        actifRef.current && (live.engine || live.fx || live.widgets),
+      )
     engine.onActivity = (has) => {
       live.engine = has
       pushActivity()
@@ -1195,9 +1253,15 @@ export default function App() {
           ============================================================ */}
       {porteEncre && (
         <>
-          {/* Grille / règle des tiers (§5.8.1) : AVANT la scène dans le document,
-              donc peinte sous les annotations. Du CSS pur — zéro image de rendu. */}
-          <StageGrid />
+          {/* ⚠️ `ecranAnnotation` : sur un écran qui n'annote pas, RIEN n'est
+              peint — pas même la grille, qui est pourtant du CSS pur. Le store
+              d'interface est partagé entre les fenêtres : allumer la grille la
+              faisait apparaître sur TOUS les écrans, ce qui ressortait leur
+              fenêtre du sommeil et la faisait composer par Windows — donc payer
+              par OBS, qui capture l'écran.
+              La SCÈNE, elle, reste montée : c'est le support du moteur, et un
+              div vide ne coûte rien. Ses canevas sont à 0×0 (voir setActif). */}
+          {ecranAnnotation && <StageGrid />}
 
           <div ref={stageRef} className="stage" data-tool={tool}>
             <canvas ref={staticRef} />
@@ -1207,18 +1271,23 @@ export default function App() {
           {/* Chronos, comptes à rebours et notes posés à l'écran (§5.8.2, §5.8.3).
               Les notes sont immunisées au fondu et à la touche panique : elles
               vivent dans le store, pas dans la liste des annotations. */}
-          <StageWidgets />
+          {ecranAnnotation && <StageWidgets />}
 
           {/* Rejeu de session (§11) : calque dédié, la session vive reste intacte.
               Il vit du côté du MOTEUR, avec l'enregistreur qui le nourrit — et
               parce qu'un rejeu se regarde : il doit passer à l'antenne comme
               n'importe quelle annotation. Seule sa réglette de commandes est
               donc visible dans le direct, le temps du rejeu. */}
-          {replayOpen && <ReplayBar onClose={() => useUiStore.getState().setReplayOpen(false)} />}
+          {ecranAnnotation && replayOpen && (
+            <ReplayBar onClose={() => useUiStore.getState().setReplayOpen(false)} />
+          )}
 
           {/* Miroir OBS + obs-websocket (§10.2, §7.3) — silencieux par défaut.
               Il regarde le moteur travailler : il vit donc du côté du moteur. */}
-          <ObsBridge onSceneChange={() => engineRef.current?.clear()} />
+          {/* Le miroir OBS regarde le MOTEUR travailler : un écran qui n'annote
+              pas n'a rien à miroiter, et deux émetteurs pour une même vue se
+              disputeraient le fil. */}
+          {ecranAnnotation && <ObsBridge onSceneChange={() => engineRef.current?.clear()} />}
         </>
       )}
 

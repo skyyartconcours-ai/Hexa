@@ -471,6 +471,18 @@ export class FxLayer {
   private freezing = false
 
   /* ---- masques flous ---- */
+  /**
+   * CETTE COUCHE EST-ELLE SUR L'ÉCRAN D'ANNOTATION ?
+   *
+   * Même défaut, même correction que dans le moteur (voir `actif` dans
+   * src/engine/engine.ts) : en clic traversant, Windows transmet les
+   * mouvements de souris à toutes les couches. La loupe et le spotlight d'un
+   * écran qui n'annote pas se réveillaient donc à chaque pixel parcouru — et
+   * pire, ils pouvaient OUVRIR UN FLUX DE CAPTURE D'ÉCRAN sur cet écran-là.
+   * Éteinte, cette couche ne reçoit plus rien, ne peint plus rien, n'alloue
+   * plus un pixel et ne lit plus jamais l'écran.
+   */
+  private actif = true
   private masks: FxMask[] = []
   /** les canvas sont-ils actuellement dimensionnés en plein écran ? */
   private alloue = false
@@ -578,7 +590,11 @@ export class FxLayer {
     if (tool === 'magnifier') {
       this.magPlaced = false
       this.magPinned = false
-      void this.feed.request(false)
+      // ⚠️ `actif` : sur un écran qui n'annote pas, choisir la loupe ne doit
+      // PAS ouvrir une capture de bureau. L'outil est partagé entre les écrans
+      // (le store est synchronisé), donc sans ce garde, sélectionner la loupe
+      // ouvrait un flux d'écran PAR ÉCRAN branché. Mesuré par la campagne §S16.
+      if (this.actif) void this.feed.request(false)
     }
     if (tool === 'freeze' && prev !== 'freeze' && !demarrage) this.toggleFreeze()
     // ⚠️ Choisir l'outil flou n'ouvre PLUS le flux d'écran. Il s'ouvrait au
@@ -588,6 +604,27 @@ export class FxLayer {
     if (prev === 'blur' && this.drawingMask) this.drawingMask = null
     this.syncFeedNeed()
     this.notify()
+    this.wake()
+  }
+
+  /** Voir le champ `actif` : allume ou éteint cette couche avec son écran. */
+  setActif(actif: boolean): void {
+    if (actif === this.actif) return
+    this.actif = actif
+    if (!actif) {
+      this.drawingMask = null
+      this.movingMask = null
+      if (this.raf) cancelAnimationFrame(this.raf)
+      this.raf = 0
+      this.feed.stop()
+      // Les canevas retombent à 0×0 et la couche déclare n'avoir rien à
+      // montrer : sa fenêtre peut se retirer.
+      this.syncAllocation()
+      this.emitActivity(false)
+      return
+    }
+    this.resize()
+    this.syncFeedNeed()
     this.wake()
   }
 
@@ -752,6 +789,7 @@ export class FxLayer {
   /* ------------------------------------------------------------- entrées */
 
   private onMove(e: PointerEvent): void {
+    if (!this.actif) return
     // En clic traversant, Electron nous transmet quand même les mouvements :
     // c'est CE qui permet à la loupe de continuer à suivre le curseur pendant
     // que la souris appartient au jeu (§6.5).
@@ -794,6 +832,7 @@ export class FxLayer {
   }
 
   private onDown(e: PointerEvent): void {
+    if (!this.actif) return
     if (!this.onStage(e)) return
     this.px = e.clientX
     this.py = e.clientY
@@ -872,6 +911,7 @@ export class FxLayer {
   }
 
   private onUp(e: PointerEvent): void {
+    if (!this.actif) return
     if (this.drawingMask) {
       const m = this.drawingMask
       this.drawingMask = null
@@ -907,6 +947,7 @@ export class FxLayer {
   }
 
   private onWheel(e: WheelEvent): void {
+    if (!this.actif) return
     if (this.tool !== 'magnifier' || !this.onStage(e)) return
     // Molette = grossissement 1,5 → 8 (§6). On confisque l'événement : sinon
     // le moteur changerait aussi l'épaisseur du pinceau derrière.
@@ -994,6 +1035,11 @@ export class FxLayer {
    * geste, pas au clic sur le bouton.
    */
   private syncFeedNeed(): void {
+    if (!this.actif) {
+      this.feed.stop()
+      this.syncAllocation()
+      return
+    }
     const need =
       this.tool === 'magnifier' ||
       this.drawingMask != null ||
@@ -1025,6 +1071,7 @@ export class FxLayer {
    * n'ont aucune raison d'exister en plein écran.
    */
   private besoinCouche(): boolean {
+    if (!this.actif) return false
     return (
       this.tool === 'magnifier' ||
       this.tool === 'blur' ||
@@ -1087,6 +1134,8 @@ export class FxLayer {
   }
 
   private wake(): void {
+    // Passage obligé de tout ce qui anime ici : le fermer les ferme tous.
+    if (!this.actif) return
     if (this.raf) return
     this.raf = requestAnimationFrame(this.loop)
   }

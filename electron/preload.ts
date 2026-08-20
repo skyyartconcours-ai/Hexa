@@ -33,6 +33,16 @@ const INBOUND = [
   /** action déclenchée par un raccourci GLOBAL, alors que le jeu avait le focus */
   'action',
   /**
+   * Cet écran est-il (devenu, ou n'est-il plus) L'ÉCRAN D'ANNOTATION ?
+   *
+   * L'utilisateur annote sur UN écran, désigné dans le menu de l'icône
+   * système. Les couches des autres écrans doivent être totalement inertes :
+   * sans ce message, le moteur du deuxième écran continuait de recevoir les
+   * mouvements de souris et de tracer une traînée laser que personne ne
+   * regardait — au prix fort pour OBS, qui capture l'écran.
+   */
+  'ecran-annotation',
+  /**
    * L'écran porteur a changé de taille, d'échelle (100 % → 125 %) ou de
    * rotation. La page doit recalibrer ses canvas : sans ça, le trait tombe à
    * côté du curseur (§12.3).
@@ -74,6 +84,24 @@ interface DisplayInfo {
   toolbarHost?: boolean
 }
 
+/**
+ * Cette fenêtre est-elle celle de l'écran d'annotation ?
+ *
+ * Le processus principal le déclare à la création (--hexa-annotation=0|1) : lui
+ * seul sait quel écran l'utilisateur a désigné. Défaut VRAI quand l'argument
+ * manque : mieux vaut un écran de trop qui annote qu'un utilisateur qui ne peut
+ * plus rien tracer nulle part.
+ */
+function readEcranAnnotation(): boolean {
+  try {
+    const arg = process.argv.find((a) => a.startsWith('--hexa-annotation='))
+    if (!arg) return true
+    return arg.slice('--hexa-annotation='.length) !== '0'
+  } catch {
+    return true
+  }
+}
+
 function readDisplayInfo(): DisplayInfo | null {
   try {
     const arg = process.argv.find((a) => a.startsWith('--hexa-display='))
@@ -109,6 +137,9 @@ const api = {
 
   /** Couche portée par cette fenêtre : 'encre', 'interface' ou 'complet'. */
   couche: readCouche(),
+
+  /** Valeur INITIALE : cet écran est-il l'écran d'annotation ? (voir readEcranAnnotation) */
+  ecranAnnotation: readEcranAnnotation(),
 
   /**
    * Écran porteur (pixels logiques + facteur d'échelle DPI, §12.3).

@@ -286,6 +286,30 @@ export class HexaEngine {
   private running = false
   private raf = 0
   private wakeTimer: ReturnType<typeof setTimeout> | null = null
+  /**
+   * CE MOTEUR EST-IL SUR L'ÉCRAN D'ANNOTATION ?
+   *
+   * ⚠️ LE DÉFAUT QUE CE DRAPEAU CORRIGE. Hexa monte une couche d'encre par
+   * écran, et en mode jeu chaque fenêtre reçoit quand même les MOUVEMENTS de
+   * souris (`setIgnoreMouseEvents(true, { forward: true })`) — c'est ce qui
+   * permet au laser et à la loupe de suivre le curseur pendant qu'on joue.
+   * Sauf que Windows les transmet à TOUTES les couches, pas seulement à celle
+   * de l'écran où l'on annote. Le moteur du deuxième écran empilait donc des
+   * points de traînée laser et réveillait sa boucle d'affichage à chaque
+   * mouvement : il TRAÇAIT vraiment, sur un écran que personne ne regarde.
+   *
+   * Et le pire venait ensuite : une couche qui a du contenu cesse d'être
+   * cachée (§2.5), donc Windows la compose de nouveau à chaque image — un coût
+   * que paie OBS, qui capture l'écran. L'utilisateur l'avait vu tout seul :
+   * « ça trace des traits en continu sur le 2ème écran, et c'est peut-être
+   * pour ça qu'OBS galère car ça calculait des tracés qui ne s'affichaient
+   * pas ». C'était exactement ça.
+   *
+   * Endormi, ce moteur ne reçoit plus un geste, ne demande plus une image,
+   * n'alloue plus un pixel de canevas, et déclare n'avoir aucun contenu — donc
+   * sa fenêtre se retire et le compositeur l'oublie.
+   */
+  private actif = true
   /** une image de rendu a déjà échoué : on ne noie pas la console à 60 Hz */
   private renderFailed = false
   private staticDirty = true
@@ -953,7 +977,59 @@ export class HexaEngine {
     }
   }
 
+  /**
+   * Allume ou éteint ce moteur selon qu'il est, ou non, sur l'écran
+   * d'annotation. Voir le champ `actif` pour le défaut que cela corrige.
+   *
+   * Éteindre RESTITUE la mémoire : les deux canevas plein écran (largeur ×
+   * hauteur × dpr² × 4 octets, soit 8 à 25 Mo pièce) tombent à 0×0. Rallumer
+   * les redimensionne et repeint la scène — instantané, et les annotations
+   * n'ont jamais quitté la mémoire du moteur.
+   */
+  setActif(actif: boolean): void {
+    if (actif === this.actif) return
+    this.actif = actif
+    if (!actif) {
+      // Un geste en cours sur un écran qu'on éteint n'a plus de sens.
+      this.current = null
+      this.grabbed = null
+      this.laser.length = 0
+      this.particles.length = 0
+      if (this.raf) cancelAnimationFrame(this.raf)
+      this.raf = 0
+      this.running = false
+      if (this.wakeTimer) {
+        clearTimeout(this.wakeTimer)
+        this.wakeTimer = null
+      }
+      // Le voile du spotlight compte AUSSI : un canevas jamais dimensionné
+      // garde la taille par défaut de HTML (300 × 150 = 45 000 pixels). La
+      // campagne §S16 exige un zéro absolu, et elle a raison : « à peu près
+      // rien » sur trois écrans, c'est encore de la mémoire graphique réservée
+      // pour un écran que personne ne regarde.
+      for (const cv of [this.staticCv, this.liveCv, this.veilCv]) {
+        cv.width = 0
+        cv.height = 0
+      }
+      this.veilPainted = false
+      // On force la relecture des dimensions au réveil : `resize` sort tôt
+      // quand rien n'a changé, et croirait que les canevas sont à la bonne
+      // taille alors qu'on vient de les vider.
+      this.w = -1
+      this.h = -1
+      this.emitActivity()
+      return
+    }
+    this.resize()
+    this.staticDirty = true
+    this.emitActivity()
+    this.wake()
+  }
+
   get hasContent(): boolean {
+    // Écran qui n'annote pas : il n'y a rien, il n'y aura rien, et la fenêtre
+    // doit se retirer pour que le compositeur — donc OBS — l'oublie.
+    if (!this.actif) return false
     // Masquées, les annotations ne sont plus « du contenu » au sens de §2.5 :
     // il n'y a rien à l'écran, donc la fenêtre peut se retirer et le coût
     // compositeur retombe à zéro pendant toute la coupure.
@@ -1062,6 +1138,8 @@ export class HexaEngine {
   }
 
   private onDown(e: PointerEvent): void {
+    // Écran qui n'annote pas : on ne prend AUCUN geste (voir `actif`).
+    if (!this.actif) return
     // clic dans l'éditeur de texte flottant : ce n'est pas un geste de dessin
     if (e.target !== this.stage && !(e.target instanceof HTMLCanvasElement)) return
     // la roue est ouverte : c'est elle qui pilote le geste, le moteur se tait
@@ -1330,6 +1408,7 @@ export class HexaEngine {
 
   /** collage d'une image du presse-papier (§4.10) : bascule sur le tampon */
   private async onPaste(e: ClipboardEvent): Promise<void> {
+    if (!this.actif) return
     const img = await imageFromClipboard(e.clipboardData?.items ?? null)
     if (!img) return
     this.pendingStamp = img
@@ -1338,6 +1417,7 @@ export class HexaEngine {
 
   /** molette : rayon du spotlight, taille du tampon survolé, sinon l'app */
   private onWheel(e: WheelEvent): void {
+    if (!this.actif) return
     if (this.opts.tool === 'spotlight') {
       e.preventDefault()
       const r = clamp(this.spotR * (e.deltaY < 0 ? 1.09 : 1 / 1.09), 80, 500)
@@ -1366,6 +1446,14 @@ export class HexaEngine {
   }
 
   private onMove(e: PointerEvent): void {
+    // ⚠️ LA LIGNE QUI SUPPRIME LE TRACÉ FANTÔME DU DEUXIÈME ÉCRAN.
+    //
+    // Windows transmet les mouvements de souris à TOUTES les couches, même en
+    // clic traversant. Sans ce garde, le moteur d'un écran qui n'annote pas
+    // empilait des points de traînée laser et réveillait sa boucle à chaque
+    // pixel parcouru — sur un écran que personne ne regarde, et au prix fort
+    // pour OBS. Voir le champ `actif`.
+    if (!this.actif) return
     // roue ouverte : le geste appartient au menu radial
     if (this.radialOpen) return
     this.shiftHeld = e.shiftKey
@@ -1548,6 +1636,7 @@ export class HexaEngine {
   }
 
   private onUp(_e: PointerEvent): void {
+    if (!this.actif) return
     // relâché avant 220 ms : ni roue, ni rien. Le clic droit dans le vide
     // reste inoffensif, exactement comme avant.
     this.cancelRadial()
@@ -1953,6 +2042,9 @@ export class HexaEngine {
   }
 
   private wake(): void {
+    // Un moteur endormi ne demande JAMAIS d'image. C'est le point de passage
+    // obligé de tout ce qui anime : le fermer ici les ferme tous.
+    if (!this.actif) return
     if (this.wakeTimer) {
       clearTimeout(this.wakeTimer)
       this.wakeTimer = null

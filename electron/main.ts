@@ -626,6 +626,21 @@ function applyPassthrough(o: Overlay, on: boolean): void {
   refreshTray()
 }
 
+/**
+ * Redit à CHAQUE fenêtre si elle est, ou non, sur l'écran d'annotation.
+ *
+ * Appelé quand l'utilisateur change d'écran dans le menu de l'icône, et à
+ * chaque fois que la topologie bouge (écran débranché, ajouté, résolution
+ * changée) : la désignation peut alors se replier sur un autre écran sans que
+ * personne ne l'ait demandé, et les pages doivent le savoir. Sans ce message,
+ * la couche de l'ancien écran resterait vivante et continuerait de tracer dans
+ * le vide (voir `actif` dans src/engine/engine.ts).
+ */
+function diffuserEcranAnnotation(): void {
+  const vise = annotationDisplayId()
+  for (const o of overlays.values()) send(o, 'ecran-annotation', o.displayId === vise)
+}
+
 /** Y a-t-il au moins un écran en mode dessin ? (état affiché dans le menu) */
 function isDrawing(): boolean {
   for (const o of overlays.values()) if (!o.passthrough) return true
@@ -926,7 +941,10 @@ function runWelcome(): void {
   if (welcomeDone || quitting || isSpike) return
   welcomeDone = true
   const premier = isFirstRun()
-  const target = overlays.get(screen.getPrimaryDisplay().id) ?? overlays.values().next().value
+  // L'ÉCRAN D'ANNOTATION, pas l'écran principal : ce sont deux choses
+  // différentes dès que l'utilisateur a désigné un autre écran dans le menu.
+  // Accueillir sur le mauvais écran allumait une couche censée rester inerte.
+  const target = overlayAnnotation() ?? overlays.values().next().value
   if (!target) return
 
   applyPassthrough(target, false)
@@ -1238,6 +1256,10 @@ function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindo
             }),
           )}`,
           '--hexa-couche=interface',
+          // L'utilisateur annote sur UN écran, désigné. Les couches des autres
+          // écrans doivent être totalement inertes — voir `actif` dans
+          // src/engine/engine.ts pour le tracé fantôme que cela corrige.
+          `--hexa-annotation=${display.id === annotationDisplayId() ? '1' : '0'}`,
         ],
       },
     })
@@ -1437,6 +1459,8 @@ function createOverlay(display: Display): Overlay | null {
           // §S11 : cette fenêtre ne porte que l'ENCRE — sauf en mode fusionné,
           // où elle porte tout, comme avant la séparation.
           `--hexa-couche=${fusion ? 'complet' : 'encre'}`,
+          // Idem couche interface : seul l'écran désigné annote.
+          `--hexa-annotation=${display.id === annotationDisplayId() ? '1' : '0'}`,
         ],
       },
     })
@@ -1794,6 +1818,12 @@ function rebuildOverlays(raison = 'démarrage'): void {
         overlays: overlays.size,
       })
     }
+
+    // La topologie a bougé : l'écran d'annotation désigné a pu disparaître, et
+    // annotationDisplayId() se replie alors sur l'écran principal. Chaque page
+    // doit réapprendre si elle annote ou non — sinon la couche de l'ancien
+    // écran resterait vivante et continuerait de tracer dans le vide.
+    if (cree || detruits || repose) diffuserEcranAnnotation()
 
     // Le mode dessin ne doit pas mourir avec un écran débranché.
     if (dessinAvant && !isDrawing() && !suspended && !eclipsed) {
@@ -2576,6 +2606,9 @@ if (!gotLock) {
       setAnnotationDisplay: (id) => {
         annotationDisplay = id
         log('écrans', `écran d'annotation choisi : ${id}`)
+        // Les pages doivent le savoir TOUT DE SUITE : l'ancienne couche
+        // s'éteint, la nouvelle s'allume, sans redémarrer l'application.
+        diffuserEcranAnnotation()
         // On rend la main au jeu partout, puis on laisse l'utilisateur
         // rebasculer : sinon un écran resterait en mode dessin dans son dos.
         for (const o of overlays.values()) if (!o.passthrough) applyPassthrough(o, true)

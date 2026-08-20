@@ -22,6 +22,16 @@ export interface BridgeEvents {
    */
   action: (action: string) => void
   /**
+   * Cet écran vient de devenir — ou de cesser d'être — L'ÉCRAN D'ANNOTATION.
+   *
+   * L'utilisateur le désigne dans le menu de l'icône système, et la topologie
+   * peut le changer toute seule (écran débranché). Les couches des autres
+   * écrans s'éteignent alors complètement : sans ça, le moteur du deuxième
+   * écran continuait de recevoir les mouvements de souris et de tracer une
+   * traînée que personne ne regardait — au prix fort pour OBS.
+   */
+  'ecran-annotation': (actif: boolean) => void
+  /**
    * L'écran porteur a changé de taille, d'échelle (100 % → 125 %) ou de
    * rotation. Il faut recalibrer les canvas : leur fond de rendu est en pixels
    * PHYSIQUES et un changement d'échelle ne produit pas toujours d'événement
@@ -180,6 +190,12 @@ export interface HexaBridgeApi {
   /** id de source desktopCapturer pour getUserMedia (flux continu, §6.1) */
   getScreenSourceId(): Promise<string | null>
   /** (ré)enregistre les raccourcis globaux ; renvoie ce qui a été pris ou refusé */
+  /**
+   * Cet écran est-il l'écran d'annotation ? Valeur INITIALE : la suite arrive
+   * par le canal 'ecran-annotation'. Vrai hors Electron et en démo navigateur
+   * (un seul écran : tout est l'écran d'annotation).
+   */
+  ecranAnnotation: boolean
   setShortcuts(map: GlobalShortcuts): Promise<unknown>
   /**
    * Niveau de privilège d'Hexa sous Windows. Décide si un raccourci global est
@@ -242,9 +258,31 @@ declare global {
 
 export const isElectron = typeof window !== 'undefined' && !!window.hexa
 
+/**
+ * Cet écran est-il l'écran d'annotation ?
+ *
+ * Priorité à `?annotation=0|1` dans l'adresse : c'est le point d'entrée des
+ * campagnes de test et de la démo navigateur, sur le modèle de `?couche=`
+ * (src/couches.ts). Sinon, la déclaration du processus principal, qui est le
+ * seul à savoir quel écran l'utilisateur a désigné. Défaut VRAI : mieux vaut un
+ * écran de trop qui annote qu'un utilisateur qui ne peut plus rien tracer.
+ */
+function lireEcranAnnotation(): boolean {
+  if (typeof window === 'undefined') return true
+  try {
+    const force = new URLSearchParams(window.location.search).get('annotation')
+    if (force === '0') return false
+    if (force === '1') return true
+  } catch {
+    /* adresse exotique : on continue */
+  }
+  return window.hexa?.ecranAnnotation !== false
+}
+
 export const bridge: HexaBridgeApi = {
   display: (typeof window !== 'undefined' && window.hexa?.display) || null,
   couche: (typeof window !== 'undefined' && window.hexa?.couche) || null,
+  ecranAnnotation: lireEcranAnnotation(),
   displayInfo: async () => (window.hexa?.displayInfo ? window.hexa.displayInfo() : null),
   setPassthrough: (v) => window.hexa?.setPassthrough?.(v),
   notifyActivity: (active) => window.hexa?.notifyActivity?.(active),
