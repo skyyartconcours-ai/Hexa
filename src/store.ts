@@ -254,6 +254,198 @@ export interface UiState extends ObsSettings {
   removeNote: (id: string) => void
 }
 
+/* ------------------------------------------------------------------ *
+ * ASSAINISSEMENT DE L'ÉTAT RELU
+ *
+ * ⚠️ LE MODE DE PANNE LE PLUS DANGEREUX DE TOUT LE PROJET, et il a déjà frappé
+ * une fois (« l'application empaquetée affichait une fenêtre vide »).
+ *
+ * Hexa relit à chaque lancement un état qu'il a écrit lui-même. Cet état peut
+ * être abîmé sans que l'utilisateur y soit pour rien : coupure de courant
+ * pendant une écriture, plantage de la machine, retour à une version
+ * antérieure, fichier recopié d'un autre poste. Or `clocks` et `notes` sont
+ * les seules valeurs persistées qui sont PARCOURUES AU RENDU
+ * (`clocks.length`, `clocks.map`, `note.id`). Une seule d'entre elles abîmée
+ * et le rendu React lève — donc rien ne se monte, ni la scène, ni le moteur,
+ * ni la barre. Et comme l'overlay est une fenêtre TRANSPARENTE, l'utilisateur
+ * ne voit pas un message d'erreur : il ne voit RIEN, et n'a aucun moyen de
+ * comprendre ni de s'en sortir.
+ *
+ * Mesuré sur la vraie application avant ce garde (§S20) : `clocks: null`,
+ * `clocks: 'trois'` et une liste contenant un `null` donnaient chacune une
+ * fenêtre entièrement vide — 0 canevas, aucun moteur, le stylo mort.
+ *
+ * On jette donc ce qui n'a pas de sens plutôt que de le propager. Une carte
+ * perdue est un dommage minuscule ; une application muette en plein direct
+ * n'en est pas un.
+ * ------------------------------------------------------------------ */
+
+/** Les seuls identifiants d'outil qui existent — voir ToolId. */
+const KNOWN_TOOLS = new Set<string>([
+  'pen',
+  'highlight',
+  'line',
+  'arrow',
+  'rect',
+  'ellipse',
+  'text',
+  'badge',
+  'marker',
+  'measure',
+  'stamp',
+  'laser',
+  'ping',
+  'spotlight',
+  'magnifier',
+  'freeze',
+  'blur',
+  'eraser',
+])
+
+const nombre = (v: unknown, defaut: number): number =>
+  typeof v === 'number' && Number.isFinite(v) ? v : defaut
+
+/** Ne garde que les chronos réellement exploitables par la carte qui les rend. */
+function chronosSains(v: unknown): StageClock[] {
+  if (!Array.isArray(v)) return []
+  const out: StageClock[] = []
+  for (const e of v) {
+    if (!e || typeof e !== 'object') continue
+    const c = e as Partial<StageClock>
+    if (typeof c.id !== 'string' || c.id === '') continue
+    out.push({
+      id: c.id,
+      kind: c.kind === 'countdown' ? 'countdown' : 'chrono',
+      x: nombre(c.x, 80),
+      y: nombre(c.y, 80),
+      elapsed: Math.max(0, nombre(c.elapsed, 0)),
+      // Une horloge relue est TOUJOURS à l'arrêt (voir partialize) : un
+      // `startedAt` non numérique ne doit surtout pas devenir un NaN qui
+      // ferait afficher « NaN:NaN » et tourner la boucle pour rien.
+      startedAt: typeof c.startedAt === 'number' && Number.isFinite(c.startedAt) ? c.startedAt : null,
+      duration: Math.max(0, nombre(c.duration, 60_000)),
+    })
+  }
+  return out
+}
+
+/* ------------------------------------------------------------------ *
+ * ⚠️ LES QUATRE CLÉS QUE L'ASSAINISSEMENT INITIAL AVAIT OUBLIÉES.
+ *
+ * La note ci-dessus affirmait que `clocks` et `notes` étaient « les seules
+ * valeurs persistées parcourues au rendu ». C'ÉTAIT FAUX, et mesuré comme tel
+ * (campagne §S21, sur la vraie application) :
+ *
+ *   · keymapOverrides — LE PIRE. Toolbar.tsx appelle resolveKeymap() dans un
+ *     useMemo, qui descend jusqu'à normalizeCombo() → `combo.split('+')`. La
+ *     barre est montée EN PERMANENCE. Mesure s21-1 avec
+ *     `{'edit.clear': 42}` : « n.split is not a function », puis
+ *     scène false · barre false · 0 canevas · moteur false. C'est-à-dire
+ *     L'OVERLAY ENTIÈREMENT VIDE AU LANCEMENT — le défaut historique, intact.
+ *   · lexiconCategories / lexiconWords — SettingsPanel les parcourt
+ *     (`.includes`, `.length`, `.join`) et le reconnaisseur d'écriture fait
+ *     `[...o.categories]` et `o.perso.join('')`. Mesures s21-5/6/7/8 :
+ *     « a.categories is not iterable », « null (reading 'join') »,
+ *     « a.toUpperCase is not a function ». À chaque fois, l'ouverture des
+ *     réglages emportait TOUTE l'application : barre false, scène false,
+ *     0 px peints. En clair : le streamer ouvre ses réglages en direct et son
+ *     overlay meurt, sans un mot, sans rien à l'écran.
+ *   · customProfiles — ProfilesPanel fait `[...BUILTIN_PROFILES, ...custom]`.
+ *     Mesures s21-9/10 : « undefined (reading 'fadeDelay') » et
+ *     « null (reading 'id') », même issue.
+ *
+ * Et il n'y a AUCUN error boundary React dans le projet : une levée au rendu
+ * démonte l'arbre entier, et la fenêtre étant transparente, il ne reste
+ * littéralement rien à voir. D'où la même règle que pour clocks/notes : ce qui
+ * n'a pas de sens se jette ici, une fois, plutôt que de faire tomber le rendu.
+ * ------------------------------------------------------------------ */
+
+/** Les identifiants de catégories de lexique qui existent réellement. */
+const CATEGORIES_CONNUES = new Set<string>(CATEGORIES_DEFAUT)
+
+/** Catégories de lexique : des identifiants connus, sans doublon. */
+function categoriesSaines(v: unknown): CategorieId[] {
+  if (!Array.isArray(v)) return [...CATEGORIES_DEFAUT]
+  const out: CategorieId[] = []
+  for (const c of v) {
+    if (typeof c === 'string' && CATEGORIES_CONNUES.has(c) && !out.includes(c as CategorieId)) {
+      out.push(c as CategorieId)
+    }
+  }
+  return out
+}
+
+/** Mots personnels : des chaînes non vides, rien d'autre. */
+function motsSains(v: unknown): string[] {
+  if (!Array.isArray(v)) return []
+  return v.filter((m): m is string => typeof m === 'string' && m.trim() !== '')
+}
+
+/**
+ * Un override de raccourci : une chaîne, une liste de chaînes, ou `null`
+ * (raccourci volontairement retiré). Tout le reste part à la poubelle —
+ * c'est la valeur qui faisait `split` sur un nombre et vidait la fenêtre.
+ */
+function raccourcisSains(v: unknown): Partial<Record<KeymapAction, string | string[] | null>> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
+  const out: Partial<Record<KeymapAction, string | string[] | null>> = {}
+  for (const [action, valeur] of Object.entries(v as Record<string, unknown>)) {
+    if (valeur === null) out[action as KeymapAction] = null
+    else if (typeof valeur === 'string') out[action as KeymapAction] = valeur
+    else if (Array.isArray(valeur)) {
+      // Une seule entrée douteuse suffirait à faire lever la barre : on ne
+      // garde que les chaînes, et on jette l'entrée si rien ne survit.
+      const propres = valeur.filter((c): c is string => typeof c === 'string')
+      if (propres.length > 0) out[action as KeymapAction] = propres
+    }
+  }
+  return out
+}
+
+/** Profils personnels : seuls ceux que le panneau saura afficher ET appliquer. */
+function profilsSains(v: unknown): HexaProfile[] {
+  if (!Array.isArray(v)) return []
+  const out: HexaProfile[] = []
+  for (const e of v) {
+    if (!e || typeof e !== 'object') continue
+    const p = e as Partial<HexaProfile>
+    if (typeof p.id !== 'string' || p.id === '') continue
+    // `settings` est déréférencé sans garde par le panneau (`.fadeDelay`) :
+    // un profil sans réglages est un profil qui fait tomber le rendu.
+    const reglages = p.settings && typeof p.settings === 'object' ? p.settings : {}
+    out.push({
+      id: p.id,
+      name: typeof p.name === 'string' && p.name !== '' ? p.name : p.id,
+      description: typeof p.description === 'string' ? p.description : '',
+      glyph: typeof p.glyph === 'string' && p.glyph !== '' ? p.glyph : makeGlyph(p.id),
+      // Un profil relu n'est JAMAIS d'usine : les profils d'usine viennent du
+      // code, pas du disque. Le prétendre laisserait supprimer un builtin.
+      builtin: false,
+      settings: reglages,
+    })
+  }
+  return out
+}
+
+/** Idem pour les notes posées à l'écran. */
+function notesSaines(v: unknown): StageNote[] {
+  if (!Array.isArray(v)) return []
+  const out: StageNote[] = []
+  for (const e of v) {
+    if (!e || typeof e !== 'object') continue
+    const n = e as Partial<StageNote>
+    if (typeof n.id !== 'string' || n.id === '') continue
+    out.push({
+      id: n.id,
+      x: nombre(n.x, 90),
+      y: nombre(n.y, 130),
+      text: typeof n.text === 'string' ? n.text : '',
+      color: typeof n.color === 'string' && n.color !== '' ? n.color : COLORS[0],
+    })
+  }
+  return out
+}
+
 export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
@@ -510,6 +702,45 @@ export const useUiStore = create<UiState>()(
        */
       merge: (persisted, current) => {
         const merged = { ...current, ...((persisted ?? {}) as Partial<UiState>) }
+        // ⚠️ AVANT TOUT LE RESTE : les deux listes que le RENDU parcourt. Voir
+        // chronosSains/notesSaines — c'est le garde qui empêche une fenêtre
+        // entièrement vide au lancement suivant une configuration abîmée.
+        merged.clocks = chronosSains(merged.clocks)
+        merged.notes = notesSaines(merged.notes)
+        /*
+         * ⚠️ ET LES QUATRE AUTRES — voir le grand commentaire au-dessus de
+         * `categoriesSaines`. `keymapOverrides` est le plus urgent des quatre :
+         * il est lu par la BARRE, montée en permanence, donc son abîmement ne
+         * se manifeste pas à l'ouverture d'un panneau mais AU LANCEMENT, par
+         * une fenêtre transparente entièrement vide (mesure s21-1).
+         */
+        merged.keymapOverrides = raccourcisSains(merged.keymapOverrides)
+        merged.lexiconCategories = categoriesSaines(merged.lexiconCategories)
+        merged.lexiconWords = motsSains(merged.lexiconWords)
+        merged.customProfiles = profilsSains(merged.customProfiles)
+        /*
+         * Les valeurs SCALAIRES que le moteur consomme directement. Elles ne
+         * font pas lever le rendu — elles font pire à leur façon : elles
+         * laissent une application qui a l'air normale et qui ne marche pas.
+         * Mesuré (§S20) avec `size: -9999` : le stylo peignait un cheveu de
+         * 951 pixels au lieu d'un trait de 11 800, sans le moindre message.
+         * L'utilisateur en conclut que le stylo est cassé, en plein direct.
+         */
+        if (!Number.isFinite(merged.size)) merged.size = 6
+        else merged.size = Math.min(18, Math.max(2, Math.round(merged.size)))
+        // Le fondu : soit ∞ (null), soit une durée qui a du sens.
+        if (merged.fadeDelay != null) {
+          merged.fadeDelay = Number.isFinite(merged.fadeDelay)
+            ? Math.min(60_000, Math.max(500, merged.fadeDelay))
+            : null
+        }
+        if (typeof merged.color !== 'string' || !/^#[0-9a-f]{3,8}$/i.test(merged.color)) {
+          merged.color = COLORS[0]
+        }
+        // Un outil inconnu laisserait la barre sans bouton actif et le moteur
+        // sans geste : on revient au pinceau, qui est toujours le bon repli.
+        if (!KNOWN_TOOLS.has(merged.tool as string)) merged.tool = 'pen'
+        if (!GRID_MODES.includes(merged.gridMode)) merged.gridMode = 'off'
         if (merged.keymapPresetChosen !== true) merged.keymapPreset = DEFAULT_PRESET
         // Même règle que pour le preset : le défaut du moment s'applique TANT
         // QUE l'utilisateur n'a pas actionné l'interrupteur lui-même. Une
@@ -543,6 +774,27 @@ export const useUiStore = create<UiState>()(
           merged.toolbarOrientation !== 'horizontal'
         )
           merged.toolbarOrientation = 'auto'
+        /*
+         * Les scalaires numériques restants. Leurs SETTERS bornent déjà —
+         * mais un état relu ne passe par aucun setter, et c'est précisément
+         * le chemin qu'emprunte une configuration abîmée.
+         *
+         * Aucun de ces quatre-là ne fait LEVER le rendu : ils font pire à leur
+         * façon, ils dégradent en silence. Mesure s21-11 avant bornage, avec
+         * `effectIntensity: 'beaucoup'` : le même trait peignait 9 243 px au
+         * lieu de 11 896 — les halos avaient disparu, sans un mot. Le streamer
+         * conclut que son pinceau a changé tout seul et ne trouve rien dans
+         * les réglages, puisque le curseur, lui, affiche une valeur normale.
+         *
+         * On reprend exactement les bornes des setters correspondants, pour
+         * qu'un état relu et un état réglé à la main donnent le même Hexa.
+         */
+        const borne = (v: unknown, min: number, max: number, defaut: number): number =>
+          typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : defaut
+        merged.effectIntensity = borne(merged.effectIntensity, 0.4, 1.4, 1)
+        merged.spotlightRadius = Math.round(borne(merged.spotlightRadius, 80, 500, 180))
+        merged.soundVolume = borne(merged.soundVolume, 0, 1, 0.6)
+        merged.gridOpacity = borne(merged.gridOpacity, 0.04, 0.5, 0.22)
         return merged
       },
       /** Conservé pour les futures versions : sans lui, zustand jetterait l'état. */

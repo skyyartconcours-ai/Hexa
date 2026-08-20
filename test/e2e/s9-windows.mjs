@@ -142,10 +142,32 @@ dit(
   Math.abs(t.cvW - t.cssW * t.dpr) <= 1.5,
   `dpr=${t.dpr} · CSS ${t.cssW}×${t.cssH} · canvas ${t.cvW}×${t.cvH}`,
 )
+/*
+ * ⚠️ POURQUOI LA TOLÉRANCE EST DE 12 px ET NON DE 6.
+ *
+ * Le lissage du tracé (filtre 1 € — c'est lui qui supprime le tremblement de
+ * la main, et hexa-e2e/flc-lissage exige qu'il agisse) fait légèrement TRAÎNER
+ * la fin du geste derrière le curseur. Le centre de l'encre est donc
+ * systématiquement décalé d'environ 4,5 px vers l'arrière : mesuré 645,5 pour
+ * 650 attendu ici, 445,0 pour 450 en §4.3. Ce n'est pas un défaut, c'est le
+ * lissage qui travaille.
+ *
+ * Avec 6 px de tolérance, ces tests vivaient donc à 1,5 px de l'échec — et
+ * l'un d'eux est effectivement tombé une fois sur quatre lancements, machine
+ * chargée, pour un centre mesuré à 444,0 au lieu de 445,0. Un test qui joue à
+ * pile ou face ne vérifie rien.
+ *
+ * 12 px laisse passer le lissage et rattrape TOUJOURS ce que ces tests
+ * cherchent vraiment : une erreur de facteur d'échelle. À 125 %, un transform
+ * faux place le trait à 0,8× ou 1,25× de sa position, soit 80 à 160 px
+ * d'écart sur cette géométrie — dix fois la tolérance.
+ */
+const TOLERANCE_CURSEUR = 12
 dit(
   '2.2 trait sous le curseur (attendu centre 650,400)',
-  Math.abs(cx - 650) < 6 && Math.abs(cy - 400) < 6,
-  `centre mesuré ${cx.toFixed(1)},${cy.toFixed(1)} · ${t.pixels} px d’encre`,
+  Math.abs(cx - 650) < TOLERANCE_CURSEUR && Math.abs(cy - 400) < TOLERANCE_CURSEUR,
+  `centre mesuré ${cx.toFixed(1)},${cy.toFixed(1)} · ${t.pixels} px d’encre ` +
+    `(tolérance ${TOLERANCE_CURSEUR} px : le lissage fait traîner la fin du geste)`,
 )
 await win.screenshot({ path: `${OUT}/02-dpi-trait.png` })
 
@@ -242,8 +264,9 @@ const c2x = t2.css ? (t2.css.x0 + t2.css.x1) / 2 : NaN
 const c2y = t2.css ? (t2.css.y0 + t2.css.y1) / 2 : NaN
 dit(
   '4.3 après reconfiguration, le trait tombe encore sous le curseur',
-  Math.abs(c2x - 450) < 6 && Math.abs(c2y - 250) < 6,
-  `geste (300,250)→(600,250) · centre mesuré ${c2x.toFixed(1)},${c2y.toFixed(1)} · ${t2.pixels} px`,
+  Math.abs(c2x - 450) < TOLERANCE_CURSEUR && Math.abs(c2y - 250) < TOLERANCE_CURSEUR,
+  `geste (300,250)→(600,250) · centre mesuré ${c2x.toFixed(1)},${c2y.toFixed(1)} · ${t2.pixels} px ` +
+    `(tolérance ${TOLERANCE_CURSEUR} px — voir §2.2)`,
 )
 await win.screenshot({ path: `${OUT}/02b-apres-reconfiguration.png` })
 

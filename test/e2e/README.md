@@ -37,7 +37,69 @@ Sections disponibles : `demarrage`, `outils`, `mecaniques`, `panneaux`,
 node test/e2e/s9-windows.mjs   # robustesse Windows : écrans à chaud, veille, arrêt
 node test/e2e/s9-dpi.mjs       # le trait tombe-t-il sous le curseur à 100/125/150/200 % ?
 node test/e2e/s10-obs.mjs      # la chaîne OBS : le trait arrive-t-il en stream, et personne d'autre ne l'écoute
+node test/e2e/s17-bascule-ecran.mjs        # la bascule d'écran d'annotation SOUS CONTRAINTE
+node test/e2e/s18-repos-deux-fenetres.mjs  # la règle du repos (§2.5) en VRAI mode deux fenêtres
+node test/e2e/s19-demandes-utilisateur.mjs # les demandes de l'utilisateur, une par une
+node test/e2e/s20-demarrage-froid.mjs      # démarrage à froid, y compris configuration abîmée
+node test/e2e/s21-etat-abime-suite.mjs     # les clés persistées que §S20 ne couvrait pas
+node test/e2e/s22-usage-reel.mjs           # martèlement en mode DEUX FENÊTRES, et la pente sur la durée
+node test/e2e/s23-pannes-externes.mjs      # flux d'écran refusé, port OBS pris, export impossible
 ```
+
+`s17-bascule-ecran.mjs` prend la suite de `s16` là où celui-ci s'arrête. §S16
+prouve qu'un écran qui n'annote pas ne trace rien **au repos** ; §S17 le prouve
+**pendant que quelque chose se passe** : bascule au milieu d'un tracé, pendant
+une dissolution, avec un panneau ouvert, avec la loupe et son flux d'écran
+ouverts, avec des masques flous figés. Sa première partie monte deux puis trois
+écrans réels (vrais événements `screen`, comme §S9) et vérifie l'invariant qui
+manquait : **un écran qui perd la désignation rend la souris au jeu**. Sans lui,
+sa fenêtre restait affichée plein écran, avalait tous les clics, et son moteur
+— devenu inerte — n'en dessinait aucun.
+
+`s18-repos-deux-fenetres.mjs` est la seule campagne qui mesure la règle du repos
+dans le mode que l'utilisateur emploie vraiment : **deux fenêtres par écran**,
+sans `HEXA_FUSION`. Écran vide, trait posé en fondu ∞, annotations masquées,
+veille système — à chaque fois, zéro image demandée dans l'une comme dans
+l'autre couche, et la part d'écran réellement composée par Windows.
+
+`s20-demarrage-froid.mjs` abîme la configuration persistée de six façons
+différentes (JSON tronqué, fichier vide, listes nulles ou du mauvais type,
+cartes sans leurs champs, valeurs absurdes) et exige à chaque fois que la barre
+soit là, la scène montée, et **que le stylo dessine encore**. Le mode de panne
+qu'il ferme est le pire du projet : le rendu lève, la fenêtre transparente reste
+vide, et l'utilisateur ne voit rien — pas même un message d'erreur.
+
+`s21-etat-abime-suite.mjs` termine le travail de §S20, qui n'avait assaini que
+`clocks` et `notes` en les croyant « les seules valeurs persistées parcourues au
+rendu ». Il en manquait quatre, et la pire était `keymapOverrides` : elle est
+lue par la **barre d'outils**, montée en permanence, si bien qu'un seul override
+mal typé donnait `n.split is not a function` puis **l'overlay entièrement vide
+au lancement** — le défaut historique, intact. Les trois autres
+(`lexiconCategories`, `lexiconWords`, `customProfiles`) tuaient l'application
+à l'ouverture des réglages : barre, scène et stylo perdus d'un coup, en plein
+direct. Aucun error boundary React n'existe dans le projet : toute levée au
+rendu démonte l'arbre entier, et sur une fenêtre transparente il ne reste
+littéralement rien à voir.
+
+`s22-usage-reel.mjs` martèle Hexa dans le mode que l'utilisateur emploie
+vraiment — **deux fenêtres par écran** — là où `couches.mjs` ne vérifie que la
+structure et `s18` que le repos : deux cents changements d'outil, un thème
+changé en plein trait, un panneau ouvert en plein trait, une bascule d'écran en
+plein trait, trois écrans avec la barre sur le troisième, la couche encre
+rechargée, la fenêtre d'interface détruite sous les pieds du principal, et trois
+cents cycles pour chercher **la pente** que l'utilisateur décrit (« ça saccade de
+plus en plus »). C'est lui qui a mis au jour l'invariant manquant : **un écran
+qui vient d'être branché ne doit pas entrer en mode dessin**. Il naissait plein
+écran, visible, opaque aux clics, avec un moteur inerte — le moniteur entier
+devenait inutilisable et rien ne l'expliquait.
+
+`s23-pannes-externes.mjs` exécute pour la première fois les trois pannes qui
+viennent du dehors et qu'aucune campagne ne touchait : le **flux d'écran
+refusé** (la loupe et les masques le disent, sans rafale de nouvelles
+tentatives, et le stylo continue), le **port du serveur OBS déjà occupé** (un
+vrai squatteur est posé sur le port avant le lancement), et l'**export qui ne
+peut pas produire son fichier**. Aucune n'a le droit de coûter son outil à
+l'utilisateur : elles peuvent le priver d'une fonction, pas de son stylo.
 
 `s9-windows.mjs` émet les **vrais** événements système (`screen`, `powerMonitor`) sur
 les objets du processus principal, puis regarde ce que les fenêtres et les canevas

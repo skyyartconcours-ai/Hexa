@@ -475,22 +475,56 @@ try {
       return { statut: ok ? OK : KO, detail: `message « ${h.toast} »` }
     })
 
-    await rapport.test(win, 's7-etat-04-jeu', 'Mode jeu : message explicite et écran net', async (capturer) => {
+    /*
+     * ⚠️ CE TEST A CHANGÉ DE CONTRAT, ET C'EST LE CODE QUI A RAISON.
+     *
+     * Il exigeait auparavant un bandeau « clics rendus au jeu — F8 pour
+     * revenir » au passage en mode jeu. Ce bandeau a été retiré
+     * délibérément : il s'affichait dans la COUCHE ENCRE, donc il était
+     * capturé par OBS et partait dans le direct — exactement ce que
+     * l'utilisateur refuse (« il faut que les outils n'apparaissent pas sur
+     * l'écran du stream »). Il était de surcroît redondant : la barre, le
+     * curseur et le liseré disparaissent déjà, ce qui se voit sur-le-champ.
+     *
+     * Le test mesure donc désormais le vrai contrat : le passage en mode jeu
+     * est SILENCIEUX, et ce sont les signaux visuels qui basculent.
+     */
+    await rapport.test(win, 's7-etat-04-jeu', 'Mode jeu : écran net, et aucun bandeau à l’antenne', async (capturer) => {
+      // Le message du test précédent (Ctrl+H) doit avoir expiré, sinon on
+      // mesurerait le sien : TOAST_MS vaut 2,6 s côté application.
+      await win.waitForTimeout(3000)
+      const avant = await etatHud(win)
+
       await win.keyboard.press('F8')
-      await win.waitForTimeout(400)
+      await win.waitForTimeout(500)
       const h = await etatHud(win)
       await capturer('mode-jeu')
-      const ok = h.traversant && !h.liseré && h.toast && /F8/.test(h.toast)
-      // 3 s plus tard, l'écran doit être redevenu parfaitement net
-      await win.waitForTimeout(2800)
-      const apres = await etatHud(win)
-      await capturer('mode-jeu-apres')
+
+      // Le silence doit tenir : on regarde aussi une demi-seconde plus tard,
+      // au cas où un bandeau arriverait en retard.
+      await win.waitForTimeout(700)
+      const encore = await etatHud(win)
+
       await win.keyboard.press('F8')
-      await win.waitForTimeout(400)
+      await win.waitForTimeout(500)
       const retour = await etatHud(win)
+      await capturer('mode-dessin-retour')
+
+      const ok =
+        avant.toast == null &&
+        h.traversant === true &&
+        h.liseré === false &&
+        h.toast == null &&
+        encore.toast == null &&
+        retour.traversant === false &&
+        retour.liseré === true
       return {
-        statut: ok && !apres.toast && retour.liseré ? OK : KO,
-        detail: `message « ${h.toast} » · liseré ${h.liseré}→${retour.liseré} · message effacé après 3 s ${!apres.toast}`,
+        statut: ok ? OK : KO,
+        detail:
+          `écran de départ net (aucun message) : ${avant.toast == null} · ` +
+          `mode jeu : traversant ${h.traversant}, liseré ${h.liseré}, message « ${h.toast} » ` +
+          `(aucun exigé — un bandeau partirait dans le direct) · encore silencieux 0,7 s plus tard : ` +
+          `${encore.toast == null} · retour F8 : traversant ${retour.traversant}, liseré ${retour.liseré}`,
       }
     })
 

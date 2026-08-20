@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -48,11 +48,36 @@ const OUT = `${dirname(fileURLToPath(import.meta.url))}/captures/s6/`
 mkdirSync(OUT, { recursive: true })
 const only = process.argv[2] ?? 'all'
 
+/*
+ * ⚠️ POURQUOI CE FICHIER MOURAIT AU PREMIER TEST — et ce n'était pas le code.
+ *
+ * Depuis la séparation en deux fenêtres (§S11), Hexa ouvre PAR ÉCRAN une
+ * couche ENCRE (index.html, les canevas, aucun élément d'interface) et une
+ * couche INTERFACE (ui.html, la barre, aucun canevas). `firstWindow()` rendait
+ * la couche encre : ce script y cherchait le bouton « Cadrage » de la barre,
+ * ne le trouvait évidemment jamais, et sortait sur une exception au bout de
+ * 30 s — sans exécuter une seule de ses trente vérifications. Un faux rouge qui
+ * masquait toute la campagne des effets stream.
+ *
+ * Il mesure la BARRE et les CANEVAS ensemble, à quatre lignes d'intervalle :
+ * une fenêtre unique est donc exactement ce qu'il lui faut, comme pour la
+ * campagne principale et pour §S9. La séparation elle-même a ses propres tests
+ * (couches.mjs), et la règle du repos est éprouvée en VRAI mode deux fenêtres
+ * par s18-repos-deux-fenetres.mjs.
+ *
+ * Et un dossier utilisateur NEUF : sans lui, ce script écrivait dans le profil
+ * réel de la machine et repartait de l'état laissé par le lancement précédent.
+ */
+const USER_S6 = `${OUT}.user-data`
+rmSync(USER_S6, { recursive: true, force: true })
+mkdirSync(USER_S6, { recursive: true })
+
 const app = await electron.launch({
-  args: ['.'],
+  args: ['.', `--user-data-dir=${USER_S6}`],
   cwd: process.cwd(),
   executablePath: `${process.cwd()}/node_modules/electron/dist/electron`,
   timeout: 60000,
+  env: { ...process.env, HEXA_FUSION: '1' },
 })
 const win = await app.firstWindow({ timeout: 30000 })
 win.on('pageerror', (e) => console.log('[ERREUR RENDERER]', e.message))
@@ -406,14 +431,35 @@ if (only === 'all' || only === 'spot') {
 
   await win.evaluate(() => document.querySelector('.toolbar button[title^="Pinceau"]').click())
   await win.waitForTimeout(700)
+  /*
+   * ⚠️ CE TEST A CHANGÉ DE CONTRAT, ET C'EST LE CODE QUI A RAISON.
+   *
+   * Il lisait `getImageData(0, 0, cv.width, cv.height)` en supposant le canevas
+   * du voile toujours alloué en plein écran. Il ne l'est plus : quand aucun
+   * outil de capture ne sert, les canevas retombent à 0×0 et la mémoire
+   * graphique est RENDUE (23 Mo pièce sur un 1440p à 125 %, une centaine sur un
+   * 4K). Le test mourait donc sur « The source width is 0 » — une exception non
+   * rattrapée qui emportait toute la fin de la campagne, alors que le zéro
+   * qu'elle rencontrait était le meilleur résultat possible.
+   *
+   * Un canevas à 0×0 est donc compté comme la forme FORTE du voile retiré :
+   * non seulement plus un pixel, mais plus un octet.
+   */
   const efface = await win.evaluate(() => {
     const cv = document.querySelector('.veil-canvas')
+    if (!cv) return { rendu: true, restants: 0 }
+    if (!cv.width || !cv.height) return { rendu: true, restants: 0 }
     const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
     let n = 0
     for (let i = 3; i < d.length; i += 4 * 37) if (d[i] > 6) n++
-    return n
+    return { rendu: false, restants: n }
   })
-  ok(`voile entièrement retiré à la sortie de l'outil (${efface} pixels restants)`, efface === 0)
+  ok(
+    `voile entièrement retiré à la sortie de l'outil (${
+      efface.rendu ? 'canevas rendu à 0×0 — mémoire libérée' : `${efface.restants} pixels restants`
+    })`,
+    efface.restants === 0,
+  )
   await shot('23-spot-sorti')
 }
 

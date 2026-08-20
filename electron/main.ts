@@ -140,6 +140,18 @@ interface Overlay {
   uiBounds: { x: number; y: number; width: number; height: number } | null
   /** true = clics traversants (mode jeu) ; false = mode dessin */
   passthrough: boolean
+  /**
+   * La page a-t-elle déjà annoncé son mode de clic au moins une fois ?
+   *
+   * ⚠️ SUBTIL, ET INDISPENSABLE. Le tout premier 'hexa:set-passthrough' d'une
+   * page n'est PAS un geste de l'utilisateur : c'est l'écho de son état
+   * initial, envoyé au montage de React — et c'est lui qui met Hexa en mode
+   * dessin au lancement. Le confondre avec une action annulait la séquence
+   * d'accueil 43 ms après le démarrage : Hexa restait en dessin indéfiniment,
+   * à avaler les clics, au lieu de se mettre en retrait au bout de quelques
+   * secondes. Les suivants, eux, sont bien l'utilisateur.
+   */
+  etatClicAnnonce: boolean
   /** horodatage de la dernière entrée en mode dessin (anti blur parasite) */
   drawEnteredAt: number
   /** minuterie de grâce avant win.hide() */
@@ -283,16 +295,19 @@ function overlayFromEvent(e: { sender: WebContents }): Overlay | undefined {
   return overlayFor(BrowserWindow.fromWebContents(e.sender))
 }
 
-/** Overlay de l'écran qui contient actuellement le curseur (§8.8). */
-function overlayUnderCursor(): Overlay | undefined {
-  try {
-    const point = screen.getCursorScreenPoint()
-    const display = screen.getDisplayNearestPoint(point)
-    return overlays.get(display.id)
-  } catch {
-    return overlays.values().next().value
-  }
-}
+/*
+ * `overlayUnderCursor()` VIVAIT ICI, ET N'A PLUS LIEU D'ÊTRE.
+ *
+ * C'était le dernier reste du monde d'avant, celui où le mode dessin visait
+ * l'écran du CURSEUR. Ce monde-là produisait le symptôme rapporté par
+ * l'utilisateur — « F8 fonctionne sur l'écran où il y a l'interface mais pas
+ * sur l'écran que j'utilise » — et il a été remplacé par un écran d'annotation
+ * DÉSIGNÉ (voir annotationDisplayId). Sa dernière utilisation, la reprise du
+ * mode dessin après un débranchement d'écran, pouvait remettre en dessin un
+ * écran dont le moteur est inerte : fenêtre affichée, clics avalés, pas un
+ * pixel tracé. Elle vise désormais overlayAnnotation(), et la fonction part
+ * avec : la garder, c'était garder l'ancienne règle à portée de copier-coller.
+ */
 
 /**
  * Un message d'état part vers les DEUX couches de l'écran.
@@ -638,7 +653,28 @@ function applyPassthrough(o: Overlay, on: boolean): void {
  */
 function diffuserEcranAnnotation(): void {
   const vise = annotationDisplayId()
-  for (const o of overlays.values()) send(o, 'ecran-annotation', o.displayId === vise)
+  ecranAnnonce = vise
+  for (const o of overlays.values()) {
+    const annote = o.displayId === vise
+    send(o, 'ecran-annotation', annote)
+    /*
+     * ⚠️ LE MODE DESSIN APPARTIENT À LA FENÊTRE, PAS À LA PAGE — et c'est ce
+     * qui rendait la bascule dangereuse. Mesure de la campagne §S17 avant ce
+     * garde : on entre en dessin sur l'écran d'annotation, la désignation
+     * part ailleurs, et l'ancien écran reste `passthrough = false`. Sa fenêtre
+     * est donc TOUJOURS affichée plein écran (refreshVisibility : `hasContent
+     * || !passthrough`), elle AVALE TOUS LES CLICS — et son moteur, devenu
+     * inerte, n'en dessine aucun. L'utilisateur ne peut plus ni annoter ni
+     * cliquer dans son jeu, sans le moindre message pour l'expliquer.
+     *
+     * Un écran qui n'annote plus rend donc la souris, immédiatement.
+     */
+    if (!annote && !o.passthrough) {
+      applyPassthrough(o, true)
+      send(o, 'set-draw', false)
+      log('écrans', `écran ${o.displayId} n’annote plus : la souris repart au jeu`)
+    }
+  }
 }
 
 /** Y a-t-il au moins un écran en mode dessin ? (état affiché dans le menu) */
@@ -1034,6 +1070,13 @@ function toolbarHostId(): number {
  * totalité des cas.
  */
 let annotationDisplay: number | null = null
+
+/**
+ * Dernier écran d'annotation ANNONCÉ aux pages (-1 = rien d'annoncé encore).
+ * Même rôle que `hostBarre` pour la barre d'outils : il permet de rediffuser
+ * dès que la désignation CHANGE, et de rester silencieux le reste du temps.
+ */
+let ecranAnnonce = -1
 
 function annotationDisplayId(): number {
   try {
@@ -1498,6 +1541,7 @@ function createOverlay(display: Display): Overlay | null {
       uiRect: null,
       uiBounds: { ...bounds },
       passthrough: true,
+      etatClicAnnonce: false,
       drawEnteredAt: 0,
       hideTimer: null,
       scaleFactor: display.scaleFactor,
@@ -1602,6 +1646,22 @@ function createOverlay(display: Display): Overlay | null {
 
     wc.on('did-finish-load', () => {
       log('renderer', `interface chargée (écran ${display.id})`)
+      /*
+       * ⚠️ NOUVELLE PAGE, DONC NOUVEL ÉCHO À VENIR.
+       *
+       * `etatClicAnnonce` dit, dans son propre commentaire, « le tout premier
+       * message D'UNE PAGE ». Une page rechargée EST une nouvelle page : elle
+       * va renvoyer l'écho de son état initial au montage de React. Sans cette
+       * remise à zéro, ce deuxième écho passait pour un geste de
+       * l'utilisateur — il annulait la séquence d'accueil et laissait Hexa en
+       * mode dessin indéfiniment, à avaler les clics du jeu.
+       *
+       * Mesuré : un simple rechargement de la couche encre inscrivait
+       * « [accueil] séquence interrompue : l'utilisateur a pris la main » au
+       * journal 3 s après le lancement, alors que PERSONNE n'avait rien
+       * touché — et le retour au mode traversant n'arrivait jamais.
+       */
+      overlay.etatClicAnnonce = false
       const revientDePanne = overlay.relances > 0
       // La couche a retrouvé ses esprits : le budget de relances repart à neuf,
       // sinon un plantage isolé au bout de trois heures ne serait plus réparé.
@@ -1819,17 +1879,40 @@ function rebuildOverlays(raison = 'démarrage'): void {
       })
     }
 
-    // La topologie a bougé : l'écran d'annotation désigné a pu disparaître, et
-    // annotationDisplayId() se replie alors sur l'écran principal. Chaque page
-    // doit réapprendre si elle annote ou non — sinon la couche de l'ancien
-    // écran resterait vivante et continuerait de tracer dans le vide.
-    if (cree || detruits || repose) diffuserEcranAnnotation()
+    /*
+     * La topologie a bougé : l'écran d'annotation désigné a pu disparaître, et
+     * annotationDisplayId() se replie alors sur l'écran principal. Chaque page
+     * doit réapprendre si elle annote ou non — sinon la couche de l'ancien
+     * écran resterait vivante et continuerait de tracer dans le vide.
+     *
+     * ⚠️ `annotationDisplayId() !== ecranAnnonce` EST INDISPENSABLE, et son
+     * absence était un défaut à part entière, mesuré par §S17 : changer d'écran
+     * PRINCIPAL dans Windows (ou laisser un jeu le faire) déplace la
+     * désignation sans brancher, débrancher ni reposer la moindre fenêtre.
+     * Aucune page n'était donc prévenue. Résultat mesuré sur la vraie
+     * application : l'ancien écran gardait `actif = true` et continuait de
+     * calculer, pendant que le nouvel écran d'annotation — celui que F8 vise
+     * désormais — gardait `actif = false` et refusait tous les gestes. Le
+     * stylo ne dessinait plus nulle part.
+     */
+    if (cree || detruits || repose || annotationDisplayId() !== ecranAnnonce) {
+      diffuserEcranAnnotation()
+    }
 
     // Le mode dessin ne doit pas mourir avec un écran débranché.
+    // ⚠️ ON VISE L'ÉCRAN D'ANNOTATION, PAS CELUI DU CURSEUR. Le rendre à
+    // l'écran du curseur (le comportement d'avant l'écran d'annotation désigné)
+    // pouvait remettre en mode dessin un écran dont le moteur est inerte :
+    // fenêtre affichée, clics avalés, et pas un pixel tracé — le même piège
+    // que celui refermé dans diffuserEcranAnnotation().
     if (dessinAvant && !isDrawing() && !suspended && !eclipsed) {
-      const cible = overlayUnderCursor()
+      const cible = overlayAnnotation()
       if (cible) {
-        log('écrans', 'écran de dessin disparu — la main passe à l’écran du curseur')
+        // On rétablit un état que l'utilisateur avait DEMANDÉ : la séquence
+        // d'accueil n'a plus rien à dire, et surtout pas à le défaire une
+        // seconde plus tard.
+        cancelWelcome()
+        log('écrans', 'écran de dessin disparu — la main revient sur l’écran d’annotation')
         applyPassthrough(cible, false)
         send(cible, 'set-draw', true)
       }
@@ -1991,6 +2074,67 @@ function registerIpc(): void {
     // le survol. Sans ce garde-fou, la barre d'outils rendrait la souris au jeu
     // en même temps qu'elle demande à être cliquable.
     if (vientDeInterface(o, e)) return
+    /*
+     * ⚠️ ENTRER EN DESSIN, C'EST PRENDRE LA MAIN — MÊME PAR CE CANAL-CI.
+     *
+     * La séquence d'accueil rend la souris au jeu au bout de quelques secondes.
+     * Elle s'annule dès que l'utilisateur agit… mais seuls les chemins passant
+     * par le processus principal (F8 global, menu de l'icône) l'annulaient. Un
+     * F8 traité PAR LA PAGE arrive ici, et la minuterie continuait de courir :
+     * quelques centaines de millisecondes plus tard, la souris repartait dans
+     * le jeu toute seule, sans que rien ne l'explique. Mesuré par §S17, où le
+     * mode dessin rétabli après un débranchement d'écran était repris 760 ms
+     * plus tard par cette minuterie.
+     *
+     * On ignore en revanche le PREMIER message d'une page : c'est l'écho de
+     * son état initial, pas un geste (voir `etatClicAnnonce`).
+     */
+    const premier = !o.etatClicAnnonce
+    o.etatClicAnnonce = true
+    /*
+     * ⚠️ UN ÉCRAN QUI N'ANNOTE PAS N'ENTRE JAMAIS EN MODE DESSIN — MÊME
+     * QUAND C'EST SA PROPRE PAGE QUI LE DEMANDE.
+     *
+     * `diffuserEcranAnnotation()` pose déjà cette règle, mais elle arrive TROP
+     * TÔT pour un écran qui vient d'être branché : à ce moment-là le nouvel
+     * overlay est encore `passthrough: true` (sa valeur de création), donc le
+     * garde `!o.passthrough` ne trouve rien à corriger. C'est ENSUITE que la
+     * page se monte et envoie l'écho de son état initial — `value === false` —
+     * qui faisait basculer cet écran en mode dessin. Et comme la séquence
+     * d'accueil est un coup unique, terminée depuis longtemps, PLUS RIEN ne
+     * l'en sortait.
+     *
+     * Mesure, sur la vraie application en mode deux fenêtres, accueil arrivé à
+     * son terme et tout en mode jeu, puis un second écran branché à chaud :
+     * l'écran neuf gardait `actif: false` (il n'annote pas) ET
+     * `passthrough: false` avec `visible: true` en 1280×720 — un calque plein
+     * écran, opaque aux clics, au moteur inerte. Encore vrai 15 s après. Le
+     * moniteur tout entier devenait inutilisable : ni le jeu, ni OBS, ni le
+     * chat ne recevaient un clic, et rien ne s'affichait pour l'expliquer,
+     * l'overlay étant transparent. Sur un poste à trois écrans, n'importe quel
+     * réveil de moniteur suffisait à déclencher ça en plein direct.
+     *
+     * On refuse donc l'entrée en dessin, et on le DIT à la page, sans quoi son
+     * interface continuerait d'afficher un mode dessin qu'elle n'a pas.
+     */
+    /*
+     * ⚠️ ON PASSE PAR `overlayAnnotation()`, ET SURTOUT PAS PAR UNE
+     * COMPARAISON SÈCHE À `annotationDisplayId()`.
+     *
+     * `annotationDisplayId()` rend -1 si `screen` lève (elle a un `catch`).
+     * Avec une comparaison sèche, PLUS AUCUN overlay ne correspondrait et le
+     * mode dessin serait refusé PARTOUT : Hexa deviendrait indessinable, ce
+     * qui est très exactement la panne qu'on cherche à éviter, retournée.
+     * `overlayAnnotation()` porte déjà le repli maison — le premier overlay
+     * existant — donc il y a toujours un écran où l'on peut dessiner.
+     */
+    const cible = overlayAnnotation()
+    if (value === false && cible && cible !== o) {
+      applyPassthrough(o, true)
+      send(o, 'set-draw', false)
+      return
+    }
+    if (value === false && !premier) cancelWelcome()
     applyPassthrough(o, value !== false)
   })
 

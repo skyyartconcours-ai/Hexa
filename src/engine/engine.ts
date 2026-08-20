@@ -1797,6 +1797,24 @@ export class HexaEngine {
    * emporté, et à sa place exacte dans la pile de rendu.
    */
   private eraseAt(pt: StrokePoint): void {
+    /*
+     * ⚠️ ON N'EFFACE PAS CE QU'ON NE VOIT PAS.
+     *
+     * Le bouton « masquer les annotations » promet exactement ceci : « rien
+     * n'est perdu, le fondu est suspendu ». Or gomme et Ctrl+D visent la liste
+     * des traits, pas ce qui est peint : pendant la coupure, ils retiraient
+     * pour de bon des annotations INVISIBLES. Mesuré par §S14 avant ce garde :
+     * un Ctrl+D à l'aveugle sur un écran masqué supprimait le trait, et
+     * remontrer les annotations ne rendait plus rien.
+     *
+     * C'est le geste le plus irrattrapable de tout l'outil : aucun retour à
+     * l'écran ne dit ce qui vient de partir, et en direct on ne s'en aperçoit
+     * qu'en remontrant — trop tard. Effacer redevient donc possible dès que
+     * l'utilisateur voit ce qu'il vise. « Tout effacer » et la touche panique,
+     * eux, restent entiers : ce sont des demandes explicites et globales, pas
+     * un tir à l'aveugle sur une annotation précise.
+     */
+    if (this.opts.annotationsHidden) return
     const s = this.strokeAt(pt.x, pt.y)
     if (!s) return
     s.dying = { start: performance.now(), duration: 160, mode: 'pop', cause: 'erase' }
@@ -1830,6 +1848,9 @@ export class HexaEngine {
    * le dire au lieu de laisser croire à une touche morte.
    */
   supprimerSousLeCurseur(): boolean {
+    // Annotations masquées : il n'y a rien à viser, donc rien ne part (voir
+    // eraseAt). On répond false, et l'appelant reste muet — comme sur le vide.
+    if (this.opts.annotationsHidden) return false
     const p = this.pointer
     if (!p) return false
     const s = this.strokeAt(p.x, p.y)
@@ -2014,6 +2035,22 @@ export class HexaEngine {
     // pixels CSS : c'est `setTransform(dpr, …)` qui relie les deux. Tant que ce
     // rapport est juste, le trait tombe exactement sous le curseur, à 100 %
     // comme à 125 % ou 150 % (§12.3).
+    /*
+     * ⚠️ UN ÉCRAN QUI N'ANNOTE PAS NE RÉALLOUE RIEN, JAMAIS.
+     *
+     * `setActif(false)` rend les canvas à 0×0 et pose `w = h = -1` pour forcer
+     * la relecture au réveil. Mais le navigateur émet un `resize` DOM à chaque
+     * pose de fenêtre — et Windows en pose à chaque changement de topologie
+     * (écran branché, débranché, résolution changée). Sans ce garde, ce
+     * `resize` rendait aussitôt DEUX CANVAS PLEIN ÉCRAN à un écran que
+     * personne ne regarde et qui ne dessinera jamais.
+     *
+     * Mesuré par §S17 sur trois écrans : 1 843 200 pixels — 7,4 Mo de mémoire
+     * graphique — réservés sur le second écran, moteur pourtant inerte. Sur le
+     * montage de l'utilisateur (trois écrans, dont deux qui n'annotent pas),
+     * c'est deux fois ça, en pure perte.
+     */
+    if (!this.actif) return
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5)
     const w = this.stage.clientWidth
     const h = this.stage.clientHeight

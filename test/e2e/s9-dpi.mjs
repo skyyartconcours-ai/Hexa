@@ -29,8 +29,22 @@ const electron = await chargerPilote()
 const OUT = join(CAPTURES, 's9')
 mkdirSync(OUT, { recursive: true })
 
-/** tolérance : le lissage One Euro raccourcit légèrement la fin du geste */
-const TOLERANCE = 6
+/**
+ * Tolérance : le lissage One Euro raccourcit légèrement la fin du geste, et
+ * décale donc le centre de l'encre d'environ 4 px vers l'arrière — écart
+ * mesuré ici, à toutes les échelles : −3,8 px. Ce n'est pas un défaut, c'est le
+ * lissage qui travaille (hexa-e2e/flc-lissage exige qu'il agisse).
+ *
+ * ⚠️ ELLE VALAIT 6 px, soit 2,2 px de marge : la même mesure dans §S9-windows
+ * est effectivement tombée du mauvais côté une fois sur quatre lancements,
+ * machine chargée. Un test qui joue à pile ou face ne vérifie rien.
+ *
+ * 12 px laisse passer le lissage et rattrape toujours ce que ce fichier
+ * cherche : une erreur de facteur d'échelle. À 125 % ou 200 %, un transform
+ * faux place le trait à 0,8× ou 2× de sa position, soit des dizaines à des
+ * centaines de pixels d'écart — bien au-delà.
+ */
+const TOLERANCE = 12
 
 async function essai(echelle) {
   const suffixe = String(echelle).replace('.', '_')

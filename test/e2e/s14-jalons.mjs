@@ -164,6 +164,236 @@ await rapport.test(win, 's14-6-ctrl-d', 'Ctrl+D supprime l’annotation sous le 
   }
 })
 
+/* ================================================================== *
+ * CTRL+D FACE AUX AUTRES MÉCANIQUES
+ *
+ * Ctrl+D est un raccourci de geste rapide, tapé sans regarder, en plein
+ * direct. Il croise donc forcément les autres mécaniques d'Hexa — et c'est aux
+ * croisements que les choses se cassent. Quatre croisements, quatre exigences.
+ * ================================================================== */
+
+/** Encre réellement peinte sur les canevas du moteur. */
+const encrePeinte = () =>
+  win.evaluate(() => {
+    let n = 0
+    for (const cv of document.querySelectorAll('.stage canvas')) {
+      if (!cv.width || !cv.height) continue
+      const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 8) n++
+    }
+    return n
+  })
+
+/** Un trait franc, du point A au point B. */
+const tracer = async (x0, y0, x1, y1) => {
+  await win.mouse.move(x0, y0)
+  await win.mouse.down()
+  await win.mouse.move(x1, y1, { steps: 12 })
+  await win.mouse.up()
+  await win.waitForTimeout(250)
+}
+
+await rapport.test(win, 's14-7-ctrl-d-fondu', 'Ctrl+D ne touche pas à un trait DÉJÀ en train de disparaître', async () => {
+  // Fondu court, par le vrai mécanisme de persistance.
+  await etatDeDepart(win, { fadeDelay: 2000 })
+  await toutEffacer(win)
+  await win.keyboard.press('p')
+  await win.waitForTimeout(150)
+  await tracer(400, 300, 900, 460)
+  const plein = await encrePeinte()
+
+  /*
+   * ⚠️ NI `exportSession()`, NI UNE MESURE EN DEUX TEMPS.
+   *
+   * `exportSession()` FILTRE volontairement les traits mourants
+   * (`strokes.filter(s => !s.dying)`) : un trait en train de disparaître y est
+   * déjà invisible, on ne peut donc rien y observer.
+   *
+   * Et « je constate l'état, puis j'appuie, puis je reconstate » ne prouve
+   * rien non plus : une dissolution dure à peine plus d'une seconde, elle se
+   * termine toute seule entre les deux mesures, et l'on ne saurait pas si le
+   * trait est parti à cause du Ctrl+D ou de son propre fondu. Une première
+   * version de ce test s'y est fait prendre.
+   *
+   * On rend donc la mesure ATOMIQUE : dans un seul aller-retour, on attend
+   * l'état mourant, on appelle la suppression sous le curseur, et on lit sa
+   * réponse. Aucun temps ne s'écoule entre les trois.
+   */
+  await win.mouse.move(650, 380)
+  const verdict = await win.evaluate(
+    () =>
+      new Promise((res) => {
+        const eng = window.hexaEngine
+        const debut = performance.now()
+        const guetter = () => {
+          const l = eng?.strokes ?? []
+          const mourants = l.filter((s) => !!s.dying).length
+          if (mourants >= 1) {
+            const avant = { total: l.length, mourants }
+            // L'appel réel, à l'instant précis où le trait est mourant.
+            const rendu = eng.supprimerSousLeCurseur()
+            const apresL = eng.strokes ?? []
+            res({
+              saisi: true,
+              avant,
+              rendu,
+              apres: { total: apresL.length, mourants: apresL.filter((s) => !!s.dying).length },
+            })
+            return
+          }
+          if (performance.now() - debut > 8000) {
+            res({ saisi: false, avant: { total: l.length, mourants: 0 } })
+            return
+          }
+          setTimeout(guetter, 25)
+        }
+        guetter()
+      }),
+  )
+
+  // On laisse la dissolution finir : l'écran doit être net, sans reliquat.
+  await win.waitForTimeout(2500)
+  const apresFondu = await encrePeinte()
+
+  // Et Ctrl+Z ne doit PAS ressusciter un trait que le fondu a emporté de
+  // lui-même : le Ctrl+D n'a rien inscrit dans la pile d'annulation.
+  await win.keyboard.press('Control+z')
+  await win.waitForTimeout(700)
+  const apresZ = await encrePeinte()
+
+  /*
+   * L'EXIGENCE. Un trait qui s'efface DÉJÀ tout seul n'est pas une cible :
+   * le supprimer par-dessus sa dissolution l'inscrirait dans la pile
+   * d'annulation en plein fondu, et le Ctrl+Z suivant le ferait réapparaître
+   * à moitié dissous — un fantôme à l'antenne.
+   */
+  const ok =
+    plein > 2000 &&
+    verdict.saisi === true &&
+    verdict.rendu === false &&
+    verdict.apres.total === verdict.avant.total &&
+    apresFondu === 0 &&
+    apresZ === 0
+  return {
+    statut: ok ? OK : KO,
+    detail:
+      `trait plein ${plein} px · saisi en dissolution : ${verdict.saisi} ` +
+      `(${verdict.avant.total} vivant(s), ${verdict.avant.mourants} mourant(s)) · ` +
+      `supprimerSousLeCurseur() a répondu ${verdict.rendu} (false exigé — une dissolution ` +
+      `n'est pas une cible) · liste inchangée : ${verdict.apres?.total} trait(s) · ` +
+      `fondu terminé : ${apresFondu} px · Ctrl+Z ensuite : ${apresZ} px (0 exigé — aucun ` +
+      `fantôme ne doit revenir)`,
+  }
+})
+
+await rapport.test(win, 's14-8-ctrl-d-apres-panique', 'Ctrl+D après la touche panique : rien, et surtout aucune erreur', async () => {
+  await etatDeDepart(win)
+  await toutEffacer(win)
+  await win.keyboard.press('p')
+  await win.waitForTimeout(150)
+  await tracer(400, 300, 900, 460)
+  const avant = (await traits()).length
+
+  // Touche panique (Ctrl+Maj+X) : l'écran redevient net d'un coup.
+  await win.keyboard.press('Control+Shift+x')
+  await win.waitForTimeout(900)
+  const apresPanique = await traits()
+
+  // Ctrl+D exactement là où le trait se trouvait : il n'y a plus rien.
+  await win.mouse.move(650, 380)
+  await win.keyboard.press('Control+d')
+  await win.waitForTimeout(300)
+  const apresD = await traits()
+
+  // Et Ctrl+Z doit toujours rendre ce que la panique avait pris — Ctrl+D dans
+  // le vide ne doit pas s'être glissé dans l'historique.
+  await win.keyboard.press('Control+z')
+  await win.waitForTimeout(600)
+  const rendu = await encrePeinte()
+
+  const ok = avant === 1 && apresPanique.length === 0 && apresD.length === 0 && rendu > 2000
+  return {
+    statut: ok ? OK : KO,
+    detail:
+      `${avant} trait posé · après la touche panique : ${apresPanique.length} · ` +
+      `après Ctrl+D dans le vide : ${apresD.length} (0 exigé) · ` +
+      `Ctrl+Z rend bien l’écran d’avant la panique : ${rendu} px (> 2000 exigé — Ctrl+D dans ` +
+      `le vide ne doit pas s’être glissé dans l’historique)`,
+  }
+})
+
+await rapport.test(win, 's14-9-ctrl-d-masquees', 'Ctrl+D ne supprime rien qu’on ne voit pas', async () => {
+  await etatDeDepart(win)
+  await toutEffacer(win)
+  await win.keyboard.press('p')
+  await win.waitForTimeout(150)
+  await tracer(400, 300, 900, 460)
+  const avant = (await traits()).length
+
+  // Annotations masquées : « rien n'est perdu », dit l'info-bulle.
+  await win.keyboard.press('Control+Shift+m')
+  await win.waitForTimeout(700)
+  const invisible = await encrePeinte()
+
+  await win.mouse.move(650, 380)
+  await win.keyboard.press('Control+d')
+  await win.waitForTimeout(300)
+  const pendant = (await traits()).length
+
+  // On remontre : le trait doit être là, entier.
+  await win.keyboard.press('Control+Shift+m')
+  await win.waitForTimeout(800)
+  const apres = (await traits()).length
+  const revenu = await encrePeinte()
+
+  /*
+   * L'EXIGENCE, ET POURQUOI. Masquer, c'est mettre de côté sans rien perdre —
+   * c'est ce que promet le bouton. Supprimer à l'aveugle une annotation qu'on
+   * ne voit pas est le geste le plus irrattrapable de tout l'outil : rien ne
+   * dit ce qui vient de partir, et en direct on ne s'en aperçoit qu'en
+   * remontrant, trop tard. Ctrl+D ne vise donc QUE ce qui est à l'écran.
+   */
+  const ok = avant === 1 && invisible === 0 && pendant === 1 && apres === 1 && revenu > 2000
+  return {
+    statut: ok ? OK : KO,
+    detail:
+      `${avant} trait posé · masqué : ${invisible} px à l’écran · après Ctrl+D à l’aveugle : ` +
+      `${pendant} trait(s) (1 exigé — on ne supprime pas ce qu’on ne voit pas) · ` +
+      `remontré : ${apres} trait(s), ${revenu} px`,
+  }
+})
+
+await rapport.test(win, 's14-10-jalon-annule', 'Annuler un jalon rend son numéro à la série', async () => {
+  await etatDeDepart(win)
+  await toutEffacer(win)
+  await win.keyboard.press('y')
+  await win.waitForTimeout(200)
+  await poser(400, 300)
+  await poser(520, 300)
+  await poser(640, 300)
+  const avant = (await traits()).map((s) => s.badge)
+
+  await win.keyboard.press('Control+z')
+  await win.waitForTimeout(500)
+  const apresZ = (await traits()).map((s) => s.badge)
+
+  // Le jalon suivant doit reprendre le numéro libéré, pas sauter à 4.
+  await poser(760, 300)
+  const apresPose = (await traits()).map((s) => s.badge)
+
+  const ok =
+    JSON.stringify(avant) === JSON.stringify([1, 2, 3]) &&
+    JSON.stringify(apresZ) === JSON.stringify([1, 2]) &&
+    JSON.stringify(apresPose) === JSON.stringify([1, 2, 3])
+  return {
+    statut: ok ? OK : KO,
+    detail:
+      `posés : ${JSON.stringify(avant)} · après Ctrl+Z : ${JSON.stringify(apresZ)} · ` +
+      `jalon suivant : ${JSON.stringify(apresPose)} (1,2,3 attendus — le numéro annulé doit ` +
+      `revenir, sinon la série trouerait à chaque hésitation)`,
+  }
+})
+
 process.stdout.write(rapport.tableau() + '\n')
 await app.close()
 process.exit(rapport.codeSortie)
