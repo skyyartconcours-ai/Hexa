@@ -65,6 +65,7 @@ import { closeToast, setToastProtection, showToast } from './welcome'
 import {
   applyBounds,
   probeExclusiveFullscreen,
+  premierPlanRefuse,
   reassertTopmost,
   sameBounds,
   stopWindowsGuard,
@@ -212,6 +213,28 @@ const DEFAULT_SHORTCUTS: ShortcutMap = defaultGlobalAccelerators()
 const FALLBACK_DRAW = 'F8'
 
 let shortcuts: ShortcutMap = { ...DEFAULT_SHORTCUTS }
+/**
+ * DERNIÈRE FOIS QUE WINDOWS NOUS A VRAIMENT REMIS UNE TOUCHE, et combien de
+ * combinaisons sont réservées.
+ *
+ * ⚠️ CES DEUX CHIFFRES TRANCHENT LA QUESTION LA PLUS DÉROUTANTE DE L'OUTIL :
+ * « j'appuie sur mon raccourci pendant la partie, il ne se passe rien, je dois
+ * Alt+Tab ». Deux causes possibles, opposées, et qu'on ne peut pas distinguer à
+ * l'œil parce que le symptôme est le même — un écran qui ne bouge pas :
+ *
+ *   · Windows ne nous livre PAS la touche (jeu lancé en administrateur, alors
+ *     qu'Hexa ne l'est pas) → rien n'arrive ici, `derniereActionSysteme` reste
+ *     à zéro ;
+ *   · Windows nous la livre, on agit, mais RIEN NE S'AFFICHE (jeu en plein
+ *     écran EXCLUSIF, où aucun logiciel ne peut dessiner par-dessus) →
+ *     `derniereActionSysteme` avance, et `premierPlanRefuse()` est vrai.
+ *
+ * L'auto-diagnostic du menu de l'icône lit ces valeurs et DIT laquelle des deux
+ * c'est, au lieu de laisser l'utilisateur deviner.
+ */
+let derniereActionSysteme = 0
+let raccourcisPris = 0
+let raccourcisRefuses = 0
 
 const isSpike = process.env.HEXA_SPIKE === '1'
 const devServerUrl = process.env.VITE_DEV_SERVER_URL
@@ -764,6 +787,7 @@ function dispatchGlobalAction(action: string): void {
   // causes possibles et une seule ligne les sépare : soit Windows ne nous livre
   // pas la touche (rien n'apparaît ici), soit il nous la livre et le défaut est
   // chez nous. Sans cette trace, on ne peut que deviner.
+  derniereActionSysteme = Date.now()
   log('raccourcis', `action reçue du système : ${action}`)
   if (action === 'mode.draw') {
     // Le marqueur anti double-exécution part sur TOUS les écrans : viser celui
@@ -2052,6 +2076,8 @@ function registerShortcuts(map: ShortcutMap): { registered: string[]; failed: st
   }
 
   shortcuts = map
+  raccourcisPris = registered.length
+  raccourcisRefuses = failed.length
   log('raccourcis', 'enregistrement global', {
     pris: registered.length,
     refuses: failed.length,
@@ -2759,6 +2785,24 @@ if (!gotLock) {
         refreshTray()
       },
       toggleDraw: () => toggleDrawMode(),
+      /**
+       * Tout ce qu'il faut pour répondre à « mes raccourcis ne marchent pas
+       * pendant la partie » sans rien demander à l'utilisateur.
+       */
+      diagnosticRaccourcis: () => ({
+        windows: elevationPertinente(),
+        eleve: estEleve() === true,
+        pris: raccourcisPris,
+        refuses: raccourcisRefuses,
+        // Une touche déjà reçue du système PROUVE que Windows nous la livre.
+        toucheRecue: derniereActionSysteme > 0,
+        secondesDepuis:
+          derniereActionSysteme > 0
+            ? Math.round((Date.now() - derniereActionSysteme) / 1000)
+            : -1,
+        premierPlanRefuse: premierPlanRefuse(),
+        modeDessin: isDrawing(),
+      }),
       // Windows ne livre pas les raccourcis d'un programme ordinaire tant qu'un
       // jeu lancé en administrateur est au premier plan. On le dit, et on
       // propose la seule parade qui existe.

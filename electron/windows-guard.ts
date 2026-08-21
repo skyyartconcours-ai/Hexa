@@ -304,6 +304,18 @@ let fullscreenTimer: NodeJS.Timeout | null = null
 let dejaSignale = false
 
 /**
+ * Le premier plan nous a-t-il été refusé au moins une fois ?
+ *
+ * C'est la signature du PLEIN ÉCRAN EXCLUSIF : le jeu possède la sortie vidéo,
+ * Windows ne compose plus le bureau, et AUCUN logiciel ne peut dessiner
+ * par-dessus. L'auto-diagnostic des raccourcis s'en sert pour distinguer les
+ * deux causes possibles de « rien ne se passe quand j'appuie en jeu ».
+ */
+export function premierPlanRefuse(): boolean {
+  return dejaSignale
+}
+
+/**
  * Détecte le cas d'assistance n°1 : « je vois pas Hexa quand je joue ».
  *
  * En plein écran EXCLUSIF, le jeu possède la sortie vidéo : Windows ne compose

@@ -66,6 +66,17 @@ export interface TrayActions {
   elevation: () => { windows: boolean; eleve: boolean }
   /** relance Hexa en administrateur (Windows affiche sa demande de consentement) */
   relancerAdmin: () => void
+  /** tout ce qu'il faut pour expliquer « mes raccourcis ne marchent pas en jeu » */
+  diagnosticRaccourcis: () => {
+    windows: boolean
+    eleve: boolean
+    pris: number
+    refuses: number
+    toucheRecue: boolean
+    secondesDepuis: number
+    premierPlanRefuse: boolean
+    modeDessin: boolean
+  }
   /** ferme proprement toute l'application */
   quit: () => void
 }
@@ -189,6 +200,103 @@ function aPropos(): void {
   }
 }
 
+/**
+ * L'AUTO-DIAGNOSTIC. « J'appuie sur mon raccourci pendant la partie, il ne se
+ * passe rien, je dois Alt+Tab. »
+ *
+ * Deux causes, opposées, et rigoureusement indiscernables à l'œil — dans les
+ * deux cas l'écran ne bouge pas :
+ *
+ *   (1) Windows ne nous REMET PAS la touche. C'est le cas quand le jeu tourne
+ *       en administrateur et pas Hexa : League of Legends (Vanguard) et
+ *       Valorant sont dans ce cas. Le raccourci est pourtant bien réservé
+ *       auprès de Windows — le journal le dit — mais la touche ne nous arrive
+ *       jamais tant que le jeu est au premier plan.
+ *
+ *   (2) Windows nous la remet, Hexa agit, mais RIEN NE S'AFFICHE. C'est le
+ *       plein écran EXCLUSIF : le jeu possède la sortie vidéo, Windows ne
+ *       compose plus le bureau, et aucun logiciel ne peut dessiner par-dessus.
+ *       Epic Pen bute sur le même mur. La solution est dans les options du JEU.
+ *
+ * Hexa SAIT laquelle des deux c'est : si une touche a déjà été reçue du
+ * système, c'est (2) ; sinon, et si Hexa n'est pas administrateur, c'est (1).
+ * Autant le dire, plutôt que de laisser quelqu'un chercher pendant un direct.
+ */
+function diagnostiquerRaccourcis(): void {
+  const a = actions
+  const d = a?.diagnosticRaccourcis()
+  if (!d) return
+
+  let titre = ''
+  let detail = ''
+  const boutons = ['Fermer']
+  let boutonAdmin = -1
+
+  if (!d.windows) {
+    titre = 'Diagnostic des raccourcis'
+    detail = 'Cette vérification ne concerne que Windows.'
+  } else if (d.toucheRecue && d.premierPlanRefuse) {
+    titre = 'Ton jeu est en plein écran EXCLUSIF'
+    detail =
+      'Bonne nouvelle : tes raccourcis fonctionnent. Windows nous a bien remis ta touche ' +
+      `(la dernière il y a ${d.secondesDepuis} s). Le problème est ailleurs : en plein écran ` +
+      'exclusif, le jeu possède la sortie vidéo et AUCUN logiciel ne peut dessiner par-dessus — ' +
+      'Hexa comme les autres.\n\n' +
+      'Dans les options vidéo de ton jeu, choisis « Sans bordure » (ou « Plein écran fenêtré ») ' +
+      'au lieu de « Plein écran ». L’image est identique, les performances aussi, et Hexa ' +
+      'réapparaît.\n\n' +
+      'Dans League of Legends : Options → Vidéo → Mode d’affichage → Sans bordure.'
+  } else if (d.toucheRecue) {
+    titre = 'Tes raccourcis arrivent bien jusqu’à Hexa'
+    detail =
+      `Windows nous a remis ta touche il y a ${d.secondesDepuis} s, et ${d.pris} combinaison` +
+      `${d.pris > 1 ? 's sont réservées' : ' est réservée'} auprès du système.\n\n` +
+      'Si rien ne s’affiche malgré tout pendant la partie, c’est presque toujours le plein ' +
+      'écran EXCLUSIF : passe ton jeu en « Sans bordure » dans ses options vidéo.'
+  } else if (!d.eleve) {
+    titre = 'Ton jeu retient tes raccourcis'
+    detail =
+      `Les ${d.pris} combinaisons sont bien réservées auprès de Windows, mais AUCUNE touche ne ` +
+      'nous est encore parvenue depuis le lancement.\n\n' +
+      'C’est la signature d’un jeu lancé EN ADMINISTRATEUR : Windows ne remet pas les touches ' +
+      'd’un programme ordinaire tant qu’un programme élevé est au premier plan. League of ' +
+      'Legends (avec Vanguard) et Valorant sont dans ce cas — c’est pour la même raison ' +
+      'qu’Epic Pen demande d’être lancé en administrateur.\n\n' +
+      'Relance Hexa en administrateur, et tes raccourcis passeront aussi pendant tes parties.'
+    boutonAdmin = boutons.length
+    boutons.push('Relancer en administrateur')
+  } else {
+    titre = 'Hexa est administrateur, et attend ta première touche'
+    detail =
+      `${d.pris} combinaison${d.pris > 1 ? 's réservées' : ' réservée'} auprès de Windows` +
+      `${d.refuses > 0 ? `, ${d.refuses} refusée(s) — déjà prise(s) par un autre logiciel` : ''}.\n\n` +
+      'Aucune touche n’a encore été reçue depuis le lancement. Essaie F8 maintenant : si le mode ' +
+      'dessin s’allume, tout va bien. S’il ne se passe rien même hors du jeu, une autre ' +
+      'application a peut-être confisqué la même combinaison — change-la dans Réglages → ' +
+      'Raccourcis.'
+  }
+
+  boutons.push('Ouvrir le dossier du journal')
+  const boutonJournal = boutons.length - 1
+
+  try {
+    const choix = dialog.showMessageBoxSync({
+      type: d.toucheRecue ? 'info' : 'warning',
+      title: 'Hexa — mes raccourcis en jeu',
+      message: titre,
+      detail,
+      buttons: boutons,
+      defaultId: boutonAdmin >= 0 ? boutonAdmin : 0,
+      cancelId: 0,
+      noLink: true,
+    })
+    if (choix === boutonAdmin) a?.relancerAdmin()
+    else if (choix === boutonJournal && logFilePath()) shell.showItemInFolder(logFilePath())
+  } catch (err) {
+    logError('diagnostic', 'boîte de dialogue impossible', err)
+  }
+}
+
 function buildMenu(): Menu {
   const a = actions
   const dessine = a?.isDrawing() === true
@@ -233,11 +341,20 @@ function buildMenu(): Menu {
   // que si elle sert : sur Windows, et seulement tant qu'Hexa n'est pas déjà
   // administrateur.
   const priv = a?.elevation() ?? { windows: false, eleve: false }
-  if (priv.windows && !priv.eleve) {
+  if (priv.windows) {
     items.push({ type: 'separator' }, {
-      label: 'Relancer en administrateur (raccourcis pendant les parties)',
-      click: () => a?.relancerAdmin(),
+      // Formulé comme la QUESTION que l'utilisateur se pose, pas comme la
+      // solution : il ne peut pas deviner que « administrateur » est le remède
+      // d'un symptôme qui ressemble à une panne d'Hexa.
+      label: 'Mes raccourcis ne marchent pas en jeu…',
+      click: () => diagnostiquerRaccourcis(),
     })
+    if (!priv.eleve) {
+      items.push({
+        label: 'Relancer en administrateur (raccourcis pendant les parties)',
+        click: () => a?.relancerAdmin(),
+      })
+    }
   }
 
   if (demarrageAutoDisponible()) {
