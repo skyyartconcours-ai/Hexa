@@ -140,8 +140,11 @@ const CLEAR_HISTORY = 8
 type RedoEntry =
   /** trait retiré de la scène : on le repose tel quel */
   | { kind: 'stroke'; stroke: Stroke }
-  /** forme rendue à son gribouillis (§4.1.5) : on rejoue le redressement */
-  | { kind: 'reshape'; id: number }
+  /** forme rendue à son gribouillis (§4.1.5) : on rejoue le redressement.
+   *  `indulgent` retient si la reconnaissance avait été RÉCLAMÉE avec Maj :
+   *  sans lui, le Ctrl+Y d'une forme ouverte échouerait à la refaire et
+   *  laisserait le gribouillis en place, sans un mot. */
+  | { kind: 'reshape'; id: number; indulgent: boolean }
   /** mode écriture : on refait l'échange encre → mot typographié */
   | { kind: 'swap'; remove: Stroke[]; add: Stroke[] }
   /** touche panique annulée : on refait l'effacement */
@@ -309,6 +312,19 @@ export class HexaEngine {
    * n'alloue plus un pixel de canevas, et déclare n'avoir aucun contenu — donc
    * sa fenêtre se retire et le compositeur l'oublie.
    */
+  /**
+   * MAJ A-T-IL ÉTÉ TENU PENDANT CE TRACÉ ?
+   *
+   * Au pinceau, Maj ne servait à rien. Il devient le geste « oui, c'est une
+   * forme, insiste » : la reconnaissance passe en mode indulgent et accepte ce
+   * qu'elle refusait — un cercle ouvert au quart, un rectangle auquel il manque
+   * un bout de côté (voir `recognize`, src/engine/recognizer.ts).
+   *
+   * On retient « tenu À UN MOMENT du tracé » plutôt que « tenu à la fin » :
+   * relâcher Maj une fraction de seconde avant de lever le doigt est un geste
+   * naturel, et il ne doit pas annuler l'intention.
+   */
+  private shiftDansTrace = false
   private actif = true
   /** une image de rendu a déjà échoué : on ne noie pas la console à 60 Hz */
   private renderFailed = false
@@ -408,7 +424,11 @@ export class HexaEngine {
     // aucun pointermove, il faut donc l'écouter. Rien ne se réveille en
     // dehors d'un geste en cours.
     const shiftWatch = (e: KeyboardEvent) => {
-      if (e.key !== 'Shift' || !this.current || !GESTURE_TOOLS.has(this.current.tool)) return
+      if (e.key !== 'Shift' || !this.current) return
+      // Maj enfoncé SANS bouger la souris compte aussi : au pinceau, c'est la
+      // demande explicite de reconnaissance (voir `shiftDansTrace`).
+      if (e.type === 'keydown') this.shiftDansTrace = true
+      if (!GESTURE_TOOLS.has(this.current.tool)) return
       const held = e.type === 'keydown'
       if (held === this.shiftHeld) return
       this.shiftHeld = held
@@ -656,7 +676,7 @@ export class HexaEngine {
         s.anim = undefined
         s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
         this.salir(s)
-        this.redoStack.push({ kind: 'reshape', id: s.id })
+        this.redoStack.push({ kind: 'reshape', id: s.id, indulgent: s.formeReclamee === true })
         this.anchorsDirty = true
         this.staticDirty = true
         this.wake()
@@ -765,7 +785,7 @@ export class HexaEngine {
         this.redo()
         return
       }
-      this.applySmartShape(s, now)
+      this.applySmartShape(s, now, e.indulgent)
       this.anchorsDirty = true
       this.staticDirty = true
       this.wake()
@@ -1147,6 +1167,7 @@ export class HexaEngine {
     const pt = this.toLocal(e)
     this.pointer = pt
     this.shiftHeld = e.shiftKey
+    this.shiftDansTrace = e.shiftKey
     this.altHeld = e.altKey
     this.stage.setPointerCapture(e.pointerId)
 
@@ -1457,6 +1478,7 @@ export class HexaEngine {
     // roue ouverte : le geste appartient au menu radial
     if (this.radialOpen) return
     this.shiftHeld = e.shiftKey
+    if (e.shiftKey) this.shiftDansTrace = true
     this.altHeld = e.altKey
     const coalesced = e.getCoalescedEvents?.() ?? []
     const list = coalesced.length > 0 ? coalesced : [e]
@@ -1753,7 +1775,17 @@ export class HexaEngine {
     const writing = this.opts.handwriting === true && c.tool === 'pen'
     if (writing) this.hw.push(c, now)
     // formes intelligentes : le geste au stylo est redressé (§4.1)
-    if (c.tool === 'pen' && this.opts.smartShapes && !writing) this.applySmartShape(c, now)
+    /**
+     * Maj tenu pendant le tracé RÉCLAME la reconnaissance — il ne se contente
+     * pas de l'assouplir. Elle s'applique donc même quand les formes
+     * intelligentes sont coupées dans les réglages : c'est un geste délibéré,
+     * pas un réglage subi, et refuser d'y répondre serait incompréhensible.
+     */
+    const insiste = this.shiftDansTrace
+    if (c.tool === 'pen' && !writing && (this.opts.smartShapes || insiste)) {
+      this.applySmartShape(c, now, insiste)
+    }
+    this.shiftDansTrace = false
     if (this.opts.fadeDelay != null) c.dieAt = now + this.opts.fadeDelay + (c.anim?.duration ?? 0)
     this.strokes.push(c)
     sfx.strokeSfx()
@@ -1768,8 +1800,8 @@ export class HexaEngine {
    * en 150 ms (§4.1.5). Le tracé brut est conservé dans `raw` : le premier
    * Ctrl+Z le rend au lieu de supprimer l'annotation.
    */
-  private applySmartShape(c: Stroke, now: number): void {
-    const rec = recognize(c.points)
+  private applySmartShape(c: Stroke, now: number, indulgent = false): void {
+    const rec = recognize(c.points, indulgent)
     if (!rec) return
     // une flèche née d'un crochet passe par LE MÊME embellissement que la
     // flèche tracée à la main : une seule géométrie pour toutes les flèches
@@ -1782,6 +1814,9 @@ export class HexaEngine {
     let to = shapeOutline(rec.kind, target, MORPH_SAMPLES)
     if (rec.closed) to = alignLoop(to, from)
     this.morphs.set(c.id, { from, to, start: now, duration: MORPH_MS, closed: rec.closed })
+    // On garde la trace du geste : c'est ce qui permet au Ctrl+Y de refaire
+    // exactement le même redressement (voir l'entrée 'reshape').
+    c.formeReclamee = indulgent
     c.raw = c.points
     c.tool = rec.kind
     c.points = target.map((p) => ({ x: p.x, y: p.y, p: 0.5, t: now }))

@@ -110,9 +110,11 @@ function axisDeviation(a: Pt, b: Pt): number {
 
 /* ------------------------------------------------------------------ */
 
-function asRect(pts: Pt[], bb: Bbox, diag: number): Recognition | null {
+function asRect(pts: Pt[], bb: Bbox, diag: number, indulgent = false): Recognition | null {
+  // La fermeture artificielle rend service quand il manque un bout de côté :
+  // le segment ajouté EST le côté manquant.
   const loop = [...pts, pts[0]]
-  let corners = simplify(loop, clamp(diag * 0.055, 4, 18))
+  let corners = simplify(loop, clamp(diag * (indulgent ? 0.07 : 0.055), 4, 22))
   corners = corners.slice(0, -1) // on retire la fermeture
   // le geste peut démarrer au milieu d'un côté : on supprime le sommet le plus plat
   if (corners.length === 5) {
@@ -131,7 +133,7 @@ function asRect(pts: Pt[], bb: Bbox, diag: number): Recognition | null {
   if (corners.length !== 4) return null
   for (let i = 0; i < 4; i++) {
     const a = cornerAngle(corners[(i + 3) % 4], corners[i], corners[(i + 1) % 4])
-    if (a < 66 || a > 114) return null
+    if (a < (indulgent ? 56 : 66) || a > (indulgent ? 124 : 114)) return null
     const side = dist(corners[i].x, corners[i].y, corners[(i + 1) % 4].x, corners[(i + 1) % 4].y)
     if (side < 22) return null
     if (axisDeviation(corners[i], corners[(i + 1) % 4]) > 16) return null
@@ -146,15 +148,26 @@ function asRect(pts: Pt[], bb: Bbox, diag: number): Recognition | null {
   }
 }
 
-function asEllipse(pts: Pt[], bb: Bbox): Recognition | null {
+function asEllipse(pts: Pt[], bb: Bbox, indulgent = false, gap = 0): Recognition | null {
   const rx = bb.w / 2
   const ry = bb.h / 2
-  if (rx < 14 || ry < 14) return null
-  if (Math.max(rx, ry) / Math.min(rx, ry) > 4.5) return null
+  if (rx < (indulgent ? 10 : 14) || ry < (indulgent ? 10 : 14)) return null
+  if (Math.max(rx, ry) / Math.min(rx, ry) > (indulgent ? 6 : 4.5)) return null
   const cx = bb.x + rx
   const cy = bb.y + ry
+  /**
+   * ⚠️ SUR UNE FORME OUVERTE, ON NE REFERME PAS LE TRACÉ POUR L'ANALYSER.
+   *
+   * `resample(pts, 48, true)` relie la fin au départ par une CORDE DROITE. Sur
+   * un cercle laissé ouvert au quart, cette corde traverse le disque : les
+   * points échantillonnés dessus ont un rayon proche de zéro, la moyenne
+   * s'effondre et l'écart-type explose — la forme est refusée alors qu'elle est
+   * parfaitement ronde là où la main est passée. On n'analyse donc que le
+   * tracé RÉELLEMENT dessiné dès que le trou est net.
+   */
+  const ouvert = indulgent && gap > Math.max(rx, ry) * 0.4
   // rayon normalisé : ~1 partout sur une vraie ellipse
-  const sample = resample(pts, 48, true)
+  const sample = resample(pts, 48, !ouvert)
   let sum = 0
   const rs: number[] = []
   for (const p of sample) {
@@ -163,12 +176,13 @@ function asEllipse(pts: Pt[], bb: Bbox): Recognition | null {
     sum += r
   }
   const mean = sum / rs.length
-  if (mean < 0.88 || mean > 1.12) return null
+  if (mean < (indulgent ? 0.82 : 0.88) || mean > (indulgent ? 1.18 : 1.12)) return null
   let v = 0
   for (const r of rs) v += (r - mean) * (r - mean)
   const cv = Math.sqrt(v / rs.length) / mean
   // un rectangle donne cv ≈ 0.10, un cercle à main levée ≈ 0.03 : 0.075 est prudent
-  if (cv > 0.075) return null
+  // — et 0.11 quand l'utilisateur a explicitement demandé la reconnaissance.
+  if (cv > (indulgent ? 0.11 : 0.075)) return null
   return {
     kind: 'ellipse',
     points: [
@@ -239,23 +253,55 @@ function asArrow(pts: Pt[], total: number): Recognition | null {
 /* ------------------------------------------------------------------ */
 
 /** Reconnaît une forme dans un tracé au stylo, ou null si le doute subsiste. */
-export function recognize(raw: StrokePoint[]): Recognition | null {
-  if (raw.length < 10) return null
+/**
+ * `indulgent` — LE GESTE « OUI, C'EST BIEN UNE FORME, INSISTE ».
+ *
+ * En temps normal, la reconnaissance est SÉVÈRE, et elle doit l'être : elle se
+ * déclenche toute seule à la fin de chaque trait au pinceau. Une main un peu
+ * ronde ne doit pas voir son gribouillis transformé en ellipse sans l'avoir
+ * demandé — le redressement intempestif est le défaut n°1 des outils de ce
+ * genre. D'où des seuils prudents : le tracé doit revenir presque exactement à
+ * son point de départ pour être tenu pour fermé.
+ *
+ * Mais quand l'utilisateur MAINTIENT MAJ pendant qu'il trace, il ne subit plus
+ * la reconnaissance : il la RÉCLAME. Il n'y a plus de risque de faux positif,
+ * puisqu'il a dit ce qu'il voulait. On peut donc accepter ce qu'on refusait :
+ * un cercle ouvert au trois quarts, un rectangle dont il manque un morceau de
+ * côté, une ellipse tracée vite et pas refermée. C'est très exactement la
+ * demande : « tente de reconnaître la forme même si elle n'est pas totalement
+ * fermée ».
+ *
+ * Tous les seuils desserrés sont regroupés ici, en un seul endroit, pour qu'on
+ * puisse lire d'un coup d'œil ce que « indulgent » veut dire au juste.
+ */
+export function recognize(raw: StrokePoint[], indulgent = false): Recognition | null {
+  if (raw.length < (indulgent ? 6 : 10)) return null
   const pts: Pt[] = raw.map((p) => ({ x: p.x, y: p.y }))
   const total = pathLength(pts)
   const bb = bboxOf(pts)
   const diag = Math.hypot(bb.w, bb.h)
-  if (total < 70 || diag < 38) return null
+  if (total < (indulgent ? 45 : 70) || diag < (indulgent ? 24 : 38)) return null
 
   const gap = dist(pts[0].x, pts[0].y, pts[pts.length - 1].x, pts[pts.length - 1].y)
-  const closed =
-    total > 150 &&
-    bb.w > 26 &&
-    bb.h > 26 &&
-    gap < Math.min(total * 0.22, Math.max(30, diag * 0.36))
+  // Le trou toléré entre le départ et l'arrivée passe d'un tiers du diamètre à
+  // quatre cinquièmes : un « C » bien rond devient un cercle, alors qu'il
+  // restait un gribouillis.
+  const closed = indulgent
+    ? total > 90 && bb.w > 18 && bb.h > 18 && gap < Math.min(total * 0.5, Math.max(70, diag * 0.8))
+    : total > 150 &&
+      bb.w > 26 &&
+      bb.h > 26 &&
+      gap < Math.min(total * 0.22, Math.max(30, diag * 0.36))
 
   if (closed) {
-    return asRect(pts, bb, diag) ?? asEllipse(pts, bb)
+    return asRect(pts, bb, diag, indulgent) ?? asEllipse(pts, bb, indulgent, gap)
+  }
+  // Maj tenu sur une forme qu'on n'a pas su refermer : on tente quand même la
+  // boucle AVANT de se rabattre sur la flèche ou la ligne. Sans cela, un carré
+  // laissé grand ouvert repartirait en simple trait droit.
+  if (indulgent) {
+    const boucle = asRect(pts, bb, diag, true) ?? asEllipse(pts, bb, true, gap)
+    if (boucle) return boucle
   }
   return asArrow(pts, total) ?? asLine(pts)
 }

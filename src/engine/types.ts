@@ -86,6 +86,9 @@ export interface Stroke {
   /** tracé brut conservé quand une forme intelligente a redressé le geste :
    *  le premier Ctrl+Z le restitue au lieu de supprimer (§4.1.5) */
   raw?: StrokePoint[]
+  /** la forme a été RÉCLAMÉE en tenant Maj pendant le tracé, donc reconnue en
+   *  mode indulgent — le Ctrl+Y doit refaire le même redressement */
+  formeReclamee?: boolean
   /** mode écriture : traits manuscrits d'origine d'un mot typographié.
    *  Le premier Ctrl+Z rejoue le morph à l'envers et les rend. */
   ink?: Stroke[]
