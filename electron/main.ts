@@ -45,9 +45,12 @@ import { createHexaTray, destroyTray, notifyAlreadyRunning, refreshTray } from '
 // pendant une partie (un jeu lancé en administrateur retient les touches d'un
 // programme ordinaire). Voir electron/elevation.ts.
 import {
+  chargerToujoursAdmin,
+  definirToujoursAdmin,
   detecterElevation,
   elevationPertinente,
   estEleve,
+  lireToujoursAdmin,
   relancerEnAdministrateur,
 } from './elevation'
 // Règle de choix de l'écran porteur de la barre (§S4.2) : source unique,
@@ -2639,14 +2642,64 @@ function registerIpc(): void {
  * couches transparentes superposées, des raccourcis globaux qui se battent pour
  * la même touche, et un utilisateur qui ne comprend plus rien.
  */
+/**
+ * LE RELAIS D'ÉLÉVATION, ET LE VERROU QUI L'AVALAIT.
+ *
+ * ⚠️ DÉFAUT MAJEUR CORRIGÉ ICI. « Relancer en administrateur » démarrait la
+ * nouvelle instance élevée AVANT que l'ancienne ait fini de se retirer. La
+ * nouvelle demandait le verrou d'instance unique, ne l'obtenait pas — puisque
+ * l'ancienne le tenait encore — et se retirait aussitôt. L'ancienne, elle,
+ * quittait comme prévu. Résultat : l'utilisateur voyait Hexa disparaître,
+ * revenait péniblement au lancement normal, et n'était JAMAIS administrateur.
+ * Il continuait donc à devoir faire Alt+Tab pour que ses raccourcis répondent,
+ * en croyant avoir appliqué le remède.
+ *
+ * L'instance élevée annonce maintenant sa nature (--hexa-eleve). Quand elle
+ * trouve le verrou pris, elle ne renonce pas : elle attend que l'ancienne
+ * lâche prise et se relance elle-même, en comptant ses essais pour ne jamais
+ * boucler. Un enfant d'un processus élevé reste élevé : l'élévation obtenue
+ * auprès de Windows n'est pas perdue en chemin.
+ */
+const ARG_ELEVE = '--hexa-eleve'
+const ARG_ESSAI = '--hexa-eleve-essai='
+const RELAIS_ESSAIS_MAX = 8
+const RELAIS_ATTENTE_MS = 700
+
+function relaisElevation(): { attendu: boolean; essai: number } {
+  const attendu = process.argv.includes(ARG_ELEVE)
+  const brut = process.argv.find((a) => a.startsWith(ARG_ESSAI))
+  const essai = brut ? Number(brut.slice(ARG_ESSAI.length)) || 0 : 0
+  return { attendu, essai }
+}
+
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
-  // La première instance sera prévenue par 'second-instance' : on se retire.
-  // `app.exit` et pas `app.quit` : avant que l'application soit prête, `quit`
-  // peut ne jamais aboutir et laisser un processus fantôme dans le gestionnaire
-  // des tâches — exactement ce qu'on veut éviter.
-  log('cycle', 'Hexa tourne déjà — cette seconde instance se retire')
-  app.exit(0)
+  const relais = relaisElevation()
+  if (relais.attendu && relais.essai < RELAIS_ESSAIS_MAX) {
+    // L'ancienne instance est encore en train de se retirer : on lui laisse le
+    // temps, puis on repart. C'est CE chemin qui rend le bouton « Relancer en
+    // administrateur » réellement efficace.
+    log(
+      'cycle',
+      `relais d'élévation : verrou encore tenu, nouvel essai dans ${RELAIS_ATTENTE_MS} ms`,
+      { essai: relais.essai + 1, max: RELAIS_ESSAIS_MAX },
+    )
+    setTimeout(() => {
+      const args = process.argv
+        .slice(1)
+        .filter((a) => !a.startsWith(ARG_ESSAI))
+        .concat(`${ARG_ESSAI}${relais.essai + 1}`)
+      app.relaunch({ args })
+      app.exit(0)
+    }, RELAIS_ATTENTE_MS)
+  } else {
+    // La première instance sera prévenue par 'second-instance' : on se retire.
+    // `app.exit` et pas `app.quit` : avant que l'application soit prête, `quit`
+    // peut ne jamais aboutir et laisser un processus fantôme dans le
+    // gestionnaire des tâches — exactement ce qu'on veut éviter.
+    log('cycle', 'Hexa tourne déjà — cette seconde instance se retire')
+    app.exit(0)
+  }
 } else {
   initLogger()
   installCrashHandlers()
@@ -2716,6 +2769,9 @@ if (!gotLock) {
     // l'icône ensuite, pour que l'entrée « Relancer en administrateur »
     // apparaisse dès qu'on sait qu'elle est utile.
     void detecterElevation().then(() => refreshTray())
+    // La couche de compatibilité RUNASADMIN : c'est elle qui rend l'élévation
+    // PERMANENTE, et l'utilisateur doit voir son état dans le menu.
+    void chargerToujoursAdmin().then(() => refreshTray())
 
     const ecrans = screen.getAllDisplays()
     log('écrans', `${ecrans.length} écran(s) détecté(s)`, {
@@ -2806,7 +2862,25 @@ if (!gotLock) {
       // Windows ne livre pas les raccourcis d'un programme ordinaire tant qu'un
       // jeu lancé en administrateur est au premier plan. On le dit, et on
       // propose la seule parade qui existe.
-      elevation: () => ({ windows: elevationPertinente(), eleve: estEleve() === true }),
+      elevation: () => ({
+        windows: elevationPertinente(),
+        eleve: estEleve() === true,
+        toujours: lireToujoursAdmin() === true,
+      }),
+      basculerToujoursAdmin: (actif) => {
+        void definirToujoursAdmin(actif).then((etat) => {
+          refreshTray()
+          if (etat) {
+            showToast(
+              'Hexa se lancera en administrateur',
+              'À chaque démarrage, Windows te demandera l’autorisation une fois, puis tes ' +
+                'raccourcis répondront aussi pendant tes parties. Ferme et relance Hexa pour ' +
+                'que ça prenne effet dès maintenant.',
+              10000,
+            )
+          }
+        })
+      },
       relancerAdmin: () =>
         relancerEnAdministrateur((raison) => showToast('Relance en administrateur', raison, 9000)),
       clearAll: () => {

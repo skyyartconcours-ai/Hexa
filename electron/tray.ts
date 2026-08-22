@@ -63,7 +63,9 @@ export interface TrayActions {
    * Niveau de privilège (Windows). `eleve` faux avec `windows` vrai = les
    * raccourcis d'Hexa peuvent être retenus par un jeu lancé en administrateur.
    */
-  elevation: () => { windows: boolean; eleve: boolean }
+  elevation: () => { windows: boolean; eleve: boolean; toujours: boolean }
+  /** pose ou retire la couche de compatibilité RUNASADMIN (élévation permanente) */
+  basculerToujoursAdmin: (actif: boolean) => void
   /** relance Hexa en administrateur (Windows affiche sa demande de consentement) */
   relancerAdmin: () => void
   /** tout ce qu'il faut pour expliquer « mes raccourcis ne marchent pas en jeu » */
@@ -340,7 +342,7 @@ function buildMenu(): Menu {
   // LA PARADE AUX « RACCOURCIS QUI NE MARCHENT PAS EN JEU ». Elle n'apparaît
   // que si elle sert : sur Windows, et seulement tant qu'Hexa n'est pas déjà
   // administrateur.
-  const priv = a?.elevation() ?? { windows: false, eleve: false }
+  const priv = a?.elevation() ?? { windows: false, eleve: false, toujours: false }
   if (priv.windows) {
     items.push({ type: 'separator' }, {
       // Formulé comme la QUESTION que l'utilisateur se pose, pas comme la
@@ -355,6 +357,16 @@ function buildMenu(): Menu {
         click: () => a?.relancerAdmin(),
       })
     }
+    // LE RÉGLAGE QUI ÉVITE DE RECOMMENCER À CHAQUE FOIS. Lancer l'installateur
+    // en administrateur n'élève QUE l'installation — c'est le malentendu le
+    // plus coûteux de tout l'outil. Ici, c'est l'application elle-même qui est
+    // marquée, une fois pour toutes.
+    items.push({
+      label: 'Toujours lancer en administrateur',
+      type: 'checkbox',
+      checked: priv.toujours,
+      click: (item) => a?.basculerToujoursAdmin(item.checked),
+    })
   }
 
   if (demarrageAutoDisponible()) {
