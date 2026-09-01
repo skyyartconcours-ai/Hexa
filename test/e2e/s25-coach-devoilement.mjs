@@ -37,7 +37,11 @@ const devoilement = () => win.evaluate(() => window.hexaEngine?.devoilement ?? n
 /** pixels du canevas statique : opaques (> 200) et semi-transparents (8..120) */
 const pixels = () =>
   win.evaluate(() => {
-    const cv = document.querySelector('.stage canvas')
+    // Le PREMIER canevas de la scène est le voile du spotlight, tenu à 0×0 tant
+    // qu'il ne sert pas : le lire lève IndexSizeError. Le calque statique est
+    // le premier canevas qui n'est pas ce voile.
+    const cv = document.querySelector('.stage canvas:not(.veil-canvas)')
+    if (!cv || !cv.width || !cv.height) return { opaques: 0, voiles: 0 }
     const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data
     let opaques = 0
     let voiles = 0
@@ -202,6 +206,14 @@ await rapport.test(win, 's25-5-devoilement-epingle', 'Une annotation épinglée 
   const p = (await pixels()).opaques
   await win.keyboard.press('Control+Shift+r') // on sort
   await attendreStatique()
+  // on détache l'épingle : une épinglée survit à « tout effacer » et suivrait
+  // les tests suivants (mesuré : 1 235 px opaques et 4 380 px de halo hérités)
+  await win.mouse.move(450, 250)
+  await win.keyboard.down('Control')
+  await win.mouse.down({ button: 'right' })
+  await win.mouse.up({ button: 'right' })
+  await win.keyboard.up('Control')
+  await win.waitForTimeout(600)
   const epinglees = t.filter((s) => s.pinned).length
   return {
     statut: epinglees === 1 && d?.total === 1 && p > 900 ? OK : KO,
@@ -228,10 +240,15 @@ await rapport.test(win, 's25-6-fantome', 'Ctrl+Maj+F : la page précédente appa
   await win.keyboard.press('Control+Shift+f')
   await attendreStatique()
   const retire = await pixels()
-  const ok = sans.voiles < 50 && sans.opaques === 0 && avec.voiles > 800 && avec.opaques < 50 && retire.voiles < 50
+  // En DELTA par rapport à la page 2 telle qu'elle est : le filigrane doit
+  // AJOUTER des pixels semi-transparents (le trait de la page 1 à 30 %), sans
+  // ajouter d'opaques, et tout doit revenir au départ quand on le retire.
+  const ajoutes = avec.voiles - sans.voiles
+  const opaquesAjoutes = avec.opaques - sans.opaques
+  const ok = ajoutes > 800 && opaquesAjoutes < 50 && Math.abs(retire.voiles - sans.voiles) < 50
   return {
     statut: ok ? OK : KO,
-    detail: `page 2 vide : ${sans.voiles} px voilés · fantôme : ${avec.voiles} px voilés, ${avec.opaques} opaques (filigrane, pas plein) · retiré : ${retire.voiles} px`,
+    detail: `page 2 : ${sans.voiles} px voilés · fantôme : +${ajoutes} px voilés, +${opaquesAjoutes} opaques (filigrane, pas plein) · retiré : ${retire.voiles} px (retour au départ)`,
   }
 })
 

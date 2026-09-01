@@ -645,6 +645,7 @@ export class HexaEngine {
     const prevFade = this.opts.fadeDelay
     const prevTool = this.opts.tool
     const prevColor = this.opts.color
+    const prevGhost = this.opts.ghostPage
     const prevHidden = this.opts.annotationsHidden
     const prevFx = this.opts.effects
     this.opts = { ...this.opts, ...patch }
@@ -685,6 +686,13 @@ export class HexaEngine {
     // L'option « poursuivre » rend l'ancien comportement continu.
     if (patch.color !== undefined && patch.color !== prevColor && !this.opts.badgeContinuous) {
       this.changerSerieCouleur(prevColor, patch.color)
+    }
+    // Le calque fantôme est peint dans le rendu STATIQUE : l'allumer ou
+    // l'éteindre doit le reconstruire, sinon rien ne change à l'écran avant le
+    // prochain trait — mesuré par s25-6 avant cette ligne (0 pixel de filigrane).
+    if (patch.ghostPage !== undefined && patch.ghostPage !== prevGhost) {
+      this.staticDirty = true
+      this.wake()
     }
     if (this.opts.tool !== prevTool && prevTool === 'text') this.closeText?.()
     // le spotlight vit tant que son outil est sélectionné (§8.5 : maintien de
