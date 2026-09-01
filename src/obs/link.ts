@@ -46,6 +46,13 @@ import {
   type ObsStrokePhase,
 } from './protocol'
 
+/**
+ * En dessous de cette largeur ou hauteur, une page n'est pas un écran : c'est
+ * la fenêtre d'encre réduite à 8 × 8 par le processus principal (voir
+ * `viewport`). Aucun écran réel n'approche cette valeur.
+ */
+const VIEWPORT_MIN = 64
+
 /** Fenêtre d'échantillonnage des lots de points. */
 const SAMPLE_MS = 33
 
@@ -621,16 +628,43 @@ export class ObsLink {
     this.requestFull()
   }
 
+  /**
+   * Dernière taille PLAUSIBLE de l'écran annoté (0 = jamais vue).
+   *
+   * ⚠️ La fenêtre d'encre n'a plus toujours la taille de l'écran : vide, le
+   * processus principal la RÉDUIT à 8 × 8 pixels pour qu'OBS continue de la
+   * voir (electron/main.ts, retirerOverlay). La page a alors un
+   * `innerWidth` de 8 — et c'est ce chiffre qui partait ici comme « taille
+   * de l'écran annoté ». Mesuré sur le fil WebSocket (t-obs-4-eval.mjs) : un
+   * `viewport 8×8` à chaque masquage ou effacement, et un `state:full` à
+   * 8 × 8 pour toute vue qui se connectait pendant la réduction. La vue OBS
+   * mettait alors la scène à l'échelle ×135 : une session rechargée en mode
+   * jeu restait invisible à l'antenne 300 ms, jusqu'au `viewport` corrigé
+   * que le regroupement des `resize` retarde. Une fenêtre de 8 pixels n'est
+   * pas un écran : on garde la dernière taille qui en était un.
+   */
+  private dernierViewport = { w: 0, h: 0 }
+
   /** Taille de l'écran annoté, en pixels logiques. */
   private viewport(): { w: number; h: number } {
-    if (typeof window === 'undefined') return { w: 0, h: 0 }
-    return { w: Math.round(window.innerWidth), h: Math.round(window.innerHeight) }
+    if (typeof window === 'undefined') return this.dernierViewport
+    const w = Math.round(window.innerWidth)
+    const h = Math.round(window.innerHeight)
+    if (w >= VIEWPORT_MIN && h >= VIEWPORT_MIN) this.dernierViewport = { w, h }
+    return this.dernierViewport
   }
+
+  /** Dernière taille ANNONCÉE : on ne répète pas une taille inchangée. */
+  private viewportAnnonce = { w: 0, h: 0 }
 
   /** Annonce la taille de l'écran : sans elle, la vue OBS décale tout (§10.2). */
   sendViewport(): void {
     const { w, h } = this.viewport()
     if (!w || !h) return
+    // Le retour de 8 × 8 au plein écran rend la même taille qu'avant : rien
+    // à dire à la vue, elle n'a jamais cessé de connaître le bon écran.
+    if (w === this.viewportAnnonce.w && h === this.viewportAnnonce.h) return
+    this.viewportAnnonce = { w, h }
     this.send({ t: 'viewport', now: performance.now(), w, h })
   }
 

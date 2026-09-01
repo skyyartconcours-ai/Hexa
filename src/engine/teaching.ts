@@ -76,6 +76,27 @@ export function glassLabel(
 /*  Texte avec fond arrondi automatique (§4.6)                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Rayon des angles de la plaque, D'APRÈS LE THÈME : la plaque d'un texte doit
+ * avoir les mêmes coins que les boutons de la barre (arrondis en « Néon nuit »,
+ * carrés en « Terminal »), sinon elle a l'air d'un objet venu d'ailleurs. Lu
+ * dans la variable CSS `--radius-btn`, une seule fois par thème — jamais à
+ * chaque image, et jamais hors d'un document (export dans un worker, tests).
+ */
+let plateThemeSeen = ' '
+let plateRadius = -1
+function themePlateRadius(): number {
+  if (typeof document === 'undefined') return -1
+  const t = document.documentElement.dataset.theme ?? ''
+  if (t !== plateThemeSeen) {
+    plateThemeSeen = t
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--radius-btn')
+    const n = parseFloat(raw)
+    plateRadius = Number.isFinite(n) ? Math.max(0, n) : -1
+  }
+  return plateRadius
+}
+
 export function renderText(ctx: CanvasRenderingContext2D, s: Stroke, st: ShapeState): void {
   const p = s.points[0]
   if (!p || !s.text) return
@@ -94,27 +115,123 @@ export function renderText(ctx: CanvasRenderingContext2D, s: Stroke, st: ShapeSt
   const padX = fs * 0.52
   const w = ctx.measureText(s.text).width + padX * 2
   const h = fs * 1.62
-  const r = h * 0.32
+  const themeR = themePlateRadius()
+  const r = themeR < 0 ? h * 0.32 : Math.min(h / 2, themeR * (h / 38))
   const a = st.alpha
-  // halo coloré diffus : le texte s'inscrit dans l'univers néon
-  ctx.globalCompositeOperation = 'lighter'
-  ctx.fillStyle = rgba(s.color, 0.13 * a * st.glowBoost)
-  traceRoundRect(ctx, -5, -h / 2 - 5, w + 10, h + 10, r + 5)
-  ctx.fill()
-  // plaque sombre : lisibilité garantie sur n'importe quel fond
+  if (s.plate !== false) {
+    // halo coloré diffus : le texte s'inscrit dans l'univers néon. Sans
+    // plaque, ce halo RECTANGULAIRE ferait justement une plaque fantôme : le
+    // texte nu ne garde que le halo qui épouse ses lettres (shadowBlur).
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.fillStyle = rgba(s.color, 0.13 * a * st.glowBoost)
+    traceRoundRect(ctx, -5, -h / 2 - 5, w + 10, h + 10, r + 5)
+    ctx.fill()
+  }
   ctx.globalCompositeOperation = 'source-over'
-  ctx.fillStyle = `rgba(7,10,18,${0.7 * a})`
-  traceRoundRect(ctx, 0, -h / 2, w, h, r)
-  ctx.fill()
-  ctx.strokeStyle = rgba(s.color, 0.5 * a)
-  ctx.lineWidth = 1.2
-  traceRoundRect(ctx, 0.6, -h / 2 + 0.6, w - 1.2, h - 1.2, r)
-  ctx.stroke()
+  if (s.plate === false) {
+    // SANS PLAQUE : le texte tient seul sur l'image. Pour rester lisible sur
+    // un jeu clair et chargé, un contour sombre serré (source-over, donc
+    // soustractif) fait ce que la plaque faisait, sans le pavé. Deux passes :
+    // un contour large très transparent (ombre portée), un contour fin dense.
+    ctx.lineJoin = 'round'
+    ctx.strokeStyle = `rgba(7,10,18,${0.38 * a})`
+    ctx.lineWidth = fs * 0.34
+    ctx.strokeText(s.text, padX, 1)
+    ctx.strokeStyle = `rgba(7,10,18,${0.82 * a})`
+    ctx.lineWidth = fs * 0.14
+    ctx.strokeText(s.text, padX, 1)
+  } else {
+    // plaque sombre : lisibilité garantie sur n'importe quel fond
+    ctx.fillStyle = `rgba(7,10,18,${0.7 * a})`
+    traceRoundRect(ctx, 0, -h / 2, w, h, r)
+    ctx.fill()
+    ctx.strokeStyle = rgba(s.color, 0.5 * a)
+    ctx.lineWidth = 1.2
+    traceRoundRect(ctx, 0.6, -h / 2 + 0.6, w - 1.2, h - 1.2, r)
+    ctx.stroke()
+  }
   // texte : cœur blanchi + très léger halo, comme les traits
   ctx.shadowColor = rgba(s.color, 0.8 * a)
   ctx.shadowBlur = fs * 0.5
   ctx.fillStyle = whiteMix(s.color, 0.72, 0.98 * a)
   ctx.fillText(s.text, padX, 1)
+  ctx.restore()
+}
+
+/* ------------------------------------------------------------------ */
+/*  Épinglage : le témoin posé et le signal du geste                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Petite épingle au coin d'une annotation épinglée. Volontairement minuscule
+ * (une tête de 4 px, une pointe de 7 px) : c'est un rappel pour le coach, pas
+ * un élément du schéma. Elle se lit sur tout fond grâce au liseré sombre.
+ */
+export function renderPinMark(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  color: string,
+  alpha: number,
+): void {
+  if (alpha <= 0.02) return
+  const px = x + 8
+  const py = y - 8
+  ctx.save()
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.lineCap = 'round'
+  // pointe, inclinée : c'est ce qui dit « épingle » et pas « point »
+  ctx.strokeStyle = `rgba(7,10,18,${0.75 * alpha})`
+  ctx.lineWidth = 3.2
+  ctx.beginPath()
+  ctx.moveTo(px, py)
+  ctx.lineTo(px - 6, py + 6)
+  ctx.stroke()
+  ctx.strokeStyle = whiteMix(color, 0.55, 0.95 * alpha)
+  ctx.lineWidth = 1.6
+  ctx.beginPath()
+  ctx.moveTo(px, py)
+  ctx.lineTo(px - 6, py + 6)
+  ctx.stroke()
+  // tête
+  ctx.fillStyle = `rgba(7,10,18,${0.75 * alpha})`
+  ctx.beginPath()
+  ctx.arc(px + 1, py - 1, 4.6, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = whiteMix(color, 0.35, 0.98 * alpha)
+  ctx.beginPath()
+  ctx.arc(px + 1, py - 1, 3.2, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+}
+
+/**
+ * Signal « épinglé » / « détaché » sur la couche vive : une onde de 0,4 s
+ * autour du coin de l'annotation. Le geste (Ctrl + clic droit, ou une touche)
+ * est invisible par nature ; sans ce retour, l'utilisateur ne peut pas savoir
+ * s'il a été compris. Le SENS (« épinglé » ou « détaché »), lui, est dit par
+ * l'indicateur de la fenêtre d'interface (App.tsx, `onPin`) : cette couche-ci
+ * est capturée par OBS, et une étiquette en clair posée sur le jeu partait
+ * dans le direct — ce n'est pas un message pour les spectateurs.
+ */
+export function renderPinCue(
+  ctx: CanvasRenderingContext2D,
+  cue: { x: number; y: number; r: number; color: string; on: boolean; start: number },
+  now: number,
+  duration: number,
+): void {
+  const t = clamp((now - cue.start) / duration, 0, 1)
+  if (t >= 1) return
+  ctx.save()
+  const onde = t
+  if (onde < 1) {
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.strokeStyle = rgba(cue.color, 0.55 * (1 - onde))
+    ctx.lineWidth = 3 * (1 - onde * 0.6)
+    ctx.beginPath()
+    ctx.arc(cue.x + 8, cue.y - 8, 6 + onde * cue.r, 0, Math.PI * 2)
+    ctx.stroke()
+  }
   ctx.restore()
 }
 
@@ -508,6 +625,10 @@ export interface TextInputOpts {
   fontSize: number
   /** la molette a changé la taille pendant la saisie : l'app suit (épaisseur) */
   onSize?: (fontSize: number) => void
+  /** plaque de lisibilité proposée à l'ouverture (voir Stroke.plate) */
+  plate?: boolean
+  /** l'utilisateur a basculé la plaque dans le champ : nouveau défaut */
+  onPlate?: (on: boolean) => void
 }
 
 /**
@@ -566,6 +687,35 @@ export function openTextInput(
   const valeur = document.createElement('span')
   valeur.className = 'hexa-text-size-val'
   jauge.append(moins, valeur, plus)
+  /* ---- PLAQUE DE LISIBILITÉ, décidée texte par texte -------------------
+   * Sur un jeu très contrasté, un mot coloré posé nu devient illisible ; sur
+   * une zone déjà sombre, la plaque est un pavé de trop. Le bouton bascule la
+   * plaque pour CE texte, et le champ la montre tout de suite (fond du champ) :
+   * on voit ce qu'on va poser avant de valider. Le choix devient le défaut des
+   * textes suivants — un coach qui passe « sans plaque » pour une carte sombre
+   * ne veut pas le refaire à chaque mot. */
+  let plate = o.plate !== false
+  const plaque = document.createElement('button')
+  plaque.type = 'button'
+  plaque.className = 'hexa-text-plate-btn'
+  const peindrePlaque = () => {
+    wrap.classList.toggle('no-plate', !plate)
+    plaque.classList.toggle('is-on', plate)
+    plaque.title = plate
+      ? 'Plaque de lisibilité : posée derrière le texte — clique pour l’enlever (le choix reste pour les textes suivants)'
+      : 'Plaque de lisibilité : enlevée — clique pour la remettre (le choix reste pour les textes suivants)'
+    plaque.textContent = plate ? 'plaque' : 'sans'
+  }
+  peindrePlaque()
+  plaque.addEventListener('mousedown', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    plate = !plate
+    peindrePlaque()
+    o.onPlate?.(plate)
+    input.focus()
+  })
+  jauge.append(plaque)
   wrap.appendChild(jauge)
 
   // MOLETTE = TAILLE DU TEXTE, en direct pendant la frappe. C'est le geste
@@ -606,6 +756,12 @@ export function openTextInput(
     if (closed) return
     closed = true
     const v = input.value.trim()
+    // LE CLAVIER EST RENDU TOUT DE SUITE. Le champ reste dans le DOM 170 ms
+    // pour son fondu de sortie ; s'il gardait le focus pendant ce temps, la
+    // touche suivante (Page ↓, Ctrl+Maj+N, un outil) tomberait dedans et ne
+    // ferait rien — mesuré : un coach qui valide son texte et enchaîne
+    // aussitôt sur une page voyait sa touche avalée.
+    input.blur()
     wrap.classList.add('is-out')
     // sortie en fondu : un seul timeout ponctuel, aucune boucle
     setTimeout(() => wrap.remove(), 170)

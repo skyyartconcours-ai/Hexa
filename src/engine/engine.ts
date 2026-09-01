@@ -43,6 +43,8 @@ import {
   badgeRadius,
   imageFromClipboard,
   openTextInput,
+  renderPinCue,
+  renderPinMark,
   renderReprise,
   setImageInvalidate,
   textBox,
@@ -170,6 +172,48 @@ interface RemovedBatch {
 }
 
 /**
+ * UNE PAGE D'ANNOTATION mise de côté.
+ *
+ * Un coach prépare un plan (page 1), montre ce qui s'est vraiment passé
+ * (page 2), puis compare : il lui faut plusieurs tableaux, pas un seul qu'on
+ * efface. Une page qu'on ne regarde pas est STRICTEMENT inerte : ses traits ne
+ * sont plus dans `strokes`, donc ni peints, ni fondus, ni envoyés au miroir —
+ * elle ne coûte rien (§2.5). Tout ce qui est propre à une page voyage avec
+ * elle : l'historique (annuler / rétablir, lots effacés) et les compteurs du
+ * numéroteur et des jalons, pour qu'un Ctrl+Z sur la page 2 ne ronge jamais
+ * la page 1.
+ *
+ * Les annotations ÉPINGLÉES ne font partie d'aucune page : elles restent dans
+ * `strokes` d'une page à l'autre (voir Stroke.pinned).
+ */
+interface Page {
+  strokes: Stroke[]
+  redoStack: RedoEntry[]
+  cleared: RemovedBatch[]
+  badgeSeq: number
+  lastBadgeId: number | null
+  jalonSeq: number
+  ancreJalon: number | null
+  ancreSerie: number | null
+}
+
+const pageVide = (): Page => ({
+  strokes: [],
+  redoStack: [],
+  cleared: [],
+  badgeSeq: 1,
+  lastBadgeId: null,
+  jalonSeq: 1,
+  ancreJalon: null,
+  ancreSerie: null,
+})
+
+/** durée de l'onde « épinglé / détaché » sur la couche vive. Courte : chaque
+ *  image de ce signal est une image de plus demandée au moteur, et le mot
+ *  lui-même est dit par l'interface (onPin), pas par cette onde. */
+const PIN_CUE_MS = 450
+
+/**
  * Moteur de rendu et d'interaction de Hexa.
  *
  * Règles de performance (brief §13) :
@@ -206,6 +250,17 @@ export class HexaEngine {
   private cleared: RemovedBatch[] = []
   /** lot de la gomme EN COURS : tout un passage s'annule d'un seul Ctrl+Z */
   private eraseLot: RemovedBatch | null = null
+  /**
+   * Pages mises de côté. L'entrée à l'index `pageIdx` est un simple jeton :
+   * la page COURANTE vit dans les champs du moteur (`strokes`, `redoStack`…),
+   * pas dans ce tableau — sinon chaque image devrait passer par une
+   * indirection de plus. Elle y est rangée au moment de changer de page.
+   */
+  private pages: Page[] = [pageVide()]
+  private pageIdx = 0
+  /** signal « épinglé / détaché » sur la couche vive, hors export */
+  private pinCue: { x: number; y: number; r: number; color: string; on: boolean; start: number } | null =
+    null
   /** mode écriture : mot dont le dé-morph (Ctrl+Z) est encore en vol.
    *  Un Ctrl+Y pendant ces ~340 ms doit le rattraper au vol, pas se tromper
    *  d'entrée dans la pile. */
@@ -487,6 +542,23 @@ export class HexaEngine {
   /** le moteur demande un changement d'épaisseur (molette sur le champ texte) */
   onRequestSize?: (size: number) => void
 
+  /**
+   * L'utilisateur a basculé la plaque de lisibilité DANS le champ de saisie :
+   * ce choix devient le défaut des textes suivants (l'application le persiste).
+   * Un coach qui passe « sans plaque » pour une carte sombre ne veut pas le
+   * refaire à chaque mot.
+   */
+  onRequestPlate?: (on: boolean) => void
+
+  /**
+   * Une annotation vient d'être épinglée (`true`) ou détachée (`false`).
+   * L'application l'annonce dans la fenêtre d'INTERFACE — exclue des captures —
+   * et non plus en clair sur la couche vive : tout ce qui est peint sur l'encre
+   * part à l'antenne en capture de fenêtre, et « épinglé » écrit sur le jeu
+   * n'est pas un message pour les spectateurs.
+   */
+  onPin?: (on: boolean) => void
+
   /** clic droit maintenu 220 ms dans le vide : l'interface ouvre la roue (§8.2) */
   onRadial?: (x: number, y: number) => void
 
@@ -537,7 +609,7 @@ export class HexaEngine {
     ) {
       const t = performance.now()
       for (const s of this.strokes) {
-        if (s.dying) continue
+        if (s.dying || s.pinned) continue
         s.dieAt = t + this.opts.fadeDelay
         this.salir(s)
       }
@@ -578,6 +650,8 @@ export class HexaEngine {
       const rattrape =
         this.opts.fadeDelay == null || prevFade == null || this.opts.fadeDelay > prevFade
       for (const s of this.strokes) {
+        // une annotation épinglée n'a pas d'échéance, quel que soit le réglage
+        if (s.pinned) continue
         if (s.dying) {
           if (!rattrape || s.dying.cause !== 'fade') continue
           s.dying = undefined
@@ -645,6 +719,15 @@ export class HexaEngine {
     for (let i = this.strokes.length - 1; i >= 0; i--) {
       const s = this.strokes[i]
       if (s.dying) continue
+      // ÉPINGLÉE = « ça, je le garde » — Ctrl+Z aussi passe à côté. Mesuré
+      // avant ce garde : une légende épinglée, une page neuve, deux traits,
+      // puis Ctrl+Z martelé comme on le fait en direct → au cinquième appui la
+      // légende partait (« [] 0 px »), alors qu'elle venait de survivre à « tout
+      // effacer », au fondu et au changement de page. D'autant que le retour
+      // sur une page range les épinglées EN TÊTE de la pile : l'ordre d'annulation
+      // n'était déjà plus chronologique. Pour la retirer : la détacher d'abord,
+      // ou la gommer (gestes explicitement dirigés sur elle).
+      if (s.pinned) continue
       // Un effacement complet plus RÉCENT que ce trait passe d'abord : sans ce
       // test, Ctrl+Z rongerait le tableau restauré avant de rendre l'effacement.
       if (this.undoCleared(s)) return
@@ -954,7 +1037,9 @@ export class HexaEngine {
     let n = 0
     for (let i = 0; i < this.strokes.length; i++) {
       const s = this.strokes[i]
-      if (s.dying) continue
+      // ÉPINGLÉ = « ça, je le garde » : la touche panique nettoie tout le reste
+      // autour, la légende reste. Pour la retirer : la détacher, ou la gommer.
+      if (s.dying || s.pinned) continue
       s.dying = panicDying(n, now)
       this.salir(s)
       efface.push({ s, i })
@@ -1176,6 +1261,13 @@ export class HexaEngine {
       // sous le curseur, le clic droit l'ATTRAPE (l'utilisateur y tient).
       // Ce n'est que dans le vide que le maintien ouvre le menu radial (§8.2).
       const s = this.strokeAt(pt.x, pt.y)
+      // Ctrl + clic droit sur une annotation : on l'ÉPINGLE (ou on la
+      // détache). Un seul geste, sans changer d'outil, et sans risque de la
+      // déplacer : le grab n'est pas armé.
+      if (s && e.ctrlKey) {
+        this.epingler(s)
+        return
+      }
       if (s) {
         this.grabbed = s
         this.grabLast = { x: pt.x, y: pt.y }
@@ -1297,6 +1389,9 @@ export class HexaEngine {
     // dernière valeur choisie, et on la retraduit en épaisseur pour que le
     // texte posé fasse exactement la taille aperçue.
     let size = this.opts.size
+    // Plaque de lisibilité : le défaut vient des réglages, le champ permet de
+    // le renverser pour CE texte — et ce renversement devient le nouveau défaut.
+    let plate = this.opts.textPlate !== false
     this.closeText = openTextInput(
       this.stage,
       {
@@ -1304,9 +1399,14 @@ export class HexaEngine {
         y: pt.y,
         color,
         fontSize: textSizeOf(size),
+        plate,
         onSize: (fs) => {
           size = clamp(fs / 5.2, 2, 18)
           this.onRequestSize?.(size)
+        },
+        onPlate: (on) => {
+          plate = on
+          this.onRequestPlate?.(on)
         },
       },
       (value) => {
@@ -1324,6 +1424,9 @@ export class HexaEngine {
           text: value,
           anim: { start: now, duration: 260 },
         }
+        // n'écrire le champ que lorsqu'il s'écarte du défaut historique : les
+        // exports restent identiques à l'octet près pour les textes à plaque
+        if (!plate) s.plate = false
         if (this.opts.fadeDelay != null) s.dieAt = now + this.opts.fadeDelay + 260
         this.strokes.push(s)
         this.salir(s)
@@ -2138,6 +2241,13 @@ export class HexaEngine {
     // pendant qu'on ne les voit pas, et l'on rallumerait sur un écran vide.
     for (const s of this.strokes) {
       if (this.opts.annotationsHidden) break
+      // ÉPINGLÉ : jamais d'échéance. On efface aussi une échéance qui aurait
+      // été posée par un chemin oublié — sinon le réveil différé (plus bas)
+      // rappellerait la boucle toutes les 16 ms sur une échéance déjà passée.
+      if (s.pinned) {
+        s.dieAt = undefined
+        continue
+      }
       if (!s.dying && s.dieAt != null && now >= s.dieAt) {
         s.dying = { start: now, duration: dissolveDuration(s), mode: 'dissolve', cause: 'fade' }
         this.salir(s)
@@ -2249,6 +2359,7 @@ export class HexaEngine {
       this.pings.length > 0 ||
       this.grabAnim != null ||
       this.repriseCue != null ||
+      this.pinCue != null ||
       spotAnim ||
       dyingActive ||
       animActive ||
@@ -2264,7 +2375,7 @@ export class HexaEngine {
     // programmer le prochain réveil si un fondu auto est en attente
     let next = Infinity
     for (const s of this.strokes) {
-      if (!s.dying && s.dieAt != null) next = Math.min(next, s.dieAt)
+      if (!s.dying && !s.pinned && s.dieAt != null) next = Math.min(next, s.dieAt)
     }
     // …ou si une transcription d'écriture est programmée (mode écriture)
     const hwDue = this.hw.nextDue()
@@ -2406,7 +2517,258 @@ export class HexaEngine {
       }
       if (gk !== 1) ctx.restore()
     }
+    // Témoin des annotations épinglées : une petite épingle au coin de chaque
+    // boîte. Peinte ICI et pas dans renderStroke : le miroir OBS et l'export PNG
+    // partagent renderStroke, et l'épingle est un repère pour le coach, pas un
+    // élément de son schéma. Coût : quelques arcs, uniquement quand la couche
+    // statique se repeint — jamais au repos.
+    for (const s of this.strokes) {
+      if (!s.pinned || s.dying) continue
+      const b = this.boite(s)
+      renderPinMark(ctx, b.x1, b.y0, s.color, 1)
+    }
     this.staticDirty = false
+  }
+
+  /** boîte englobante des points d'une annotation (repère de l'épingle) */
+  private boite(s: Stroke): { x0: number; y0: number; x1: number; y1: number } {
+    let x0 = Infinity
+    let y0 = Infinity
+    let x1 = -Infinity
+    let y1 = -Infinity
+    for (const p of s.points) {
+      if (p.x < x0) x0 = p.x
+      if (p.y < y0) y0 = p.y
+      if (p.x > x1) x1 = p.x
+      if (p.y > y1) y1 = p.y
+    }
+    // textes, pastilles, tampons : un seul point, la boîte réelle est ailleurs
+    if (s.tool === 'text') {
+      const box = textBox(this.sCtx, s)
+      return { x0, y0: y0 - box.h / 2, x1: x0 + box.w, y1: y0 + box.h / 2 }
+    }
+    if (s.tool === 'badge' || s.tool === 'marker') {
+      const r = badgeRadius(s.size)
+      return { x0: x0 - r, y0: y0 - r, x1: x1 + r, y1: y1 + r }
+    }
+    if (s.tool === 'stamp' && s.w && s.h) {
+      return { x0: x0 - s.w / 2, y0: y0 - s.h / 2, x1: x1 + s.w / 2, y1: y1 + s.h / 2 }
+    }
+    return { x0, y0, x1, y1 }
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Épinglage (voir Stroke.pinned)
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Épingle (ou détache) une annotation. Épinglée, elle perd son échéance de
+   * fondu et, si elle était déjà en train de s'effacer par fondu, elle est
+   * rattrapée : c'est le geste « non, ça, ça reste ». Détachée, elle repart
+   * avec un compte à rebours complet.
+   */
+  epingler(s: Stroke, on = !s.pinned): void {
+    if (s.dying && s.dying.cause !== 'fade') return
+    const now = performance.now()
+    if (on) {
+      s.pinned = true
+      s.dieAt = undefined
+      if (s.dying) {
+        s.dying = undefined
+        this.staticDirty = true
+      }
+    } else {
+      s.pinned = undefined
+      if (this.opts.fadeDelay != null) s.dieAt = now + this.opts.fadeDelay
+    }
+    this.salir(s)
+    const b = this.boite(s)
+    this.pinCue = {
+      x: b.x1,
+      y: b.y0,
+      r: Math.max(12, Math.min(b.x1 - b.x0, b.y1 - b.y0) * 0.5),
+      color: s.color,
+      on,
+      start: now,
+    }
+    sfx.tick()
+    this.staticDirty = true
+    this.wake()
+    this.onPin?.(on)
+  }
+
+  /** Touche « épingler » : agit sur l'annotation sous le curseur. */
+  epinglerSousLeCurseur(): boolean {
+    const s = this.strokeAt(this.pointer.x, this.pointer.y)
+    if (!s) return false
+    this.epingler(s)
+    return true
+  }
+
+  /** nombre d'annotations épinglées à l'écran (témoin de la barre, tests) */
+  get nbEpingles(): number {
+    let n = 0
+    for (const s of this.strokes) if (s.pinned && !s.dying) n++
+    return n
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Pages (voir l'interface Page)
+   * ------------------------------------------------------------------ */
+
+  get pageIndex(): number {
+    return this.pageIdx
+  }
+
+  get pageCount(): number {
+    return this.pages.length
+  }
+
+  /** range l'état courant dans la page `pageIdx` — sans les épinglées */
+  private rangerPage(): void {
+    this.pages[this.pageIdx] = {
+      strokes: this.strokes.filter((s) => !s.pinned),
+      redoStack: this.redoStack,
+      cleared: this.cleared,
+      badgeSeq: this.badgeSeq,
+      lastBadgeId: this.lastBadgeId,
+      jalonSeq: this.jalonSeq,
+      ancreJalon: this.ancreJalon,
+      ancreSerie: this.ancreSerie,
+    }
+  }
+
+  /**
+   * Va à la page `i` (créée si elle n'existe pas encore, ainsi que toutes
+   * celles qui la précèdent : l'index demandé est toujours honoré, c'est ce qui
+   * permet à l'interface — qui vit dans une autre fenêtre — de rester la seule
+   * source de vérité du numéro de page).
+   *
+   * Un geste en cours est abandonné proprement (le trait n'est pas posé, la
+   * saisie de texte en cours est validée) : on ne refuse jamais un changement
+   * de page, le coach appuie sur la touche au moment où il en a besoin.
+   */
+  allerPage(i: number): boolean {
+    if (!Number.isFinite(i) || i < 0) return false
+    i = Math.floor(i)
+    while (this.pages.length <= i) this.pages.push(pageVide())
+    if (i === this.pageIdx) return false
+    const now = performance.now()
+    this.closeText?.()
+    if (this.current) {
+      this.sortir(this.current)
+      this.current = null
+      this.fx = null
+      this.fy = null
+      this.gesture = []
+      this.overlay.clear(now)
+    }
+    if (this.grabbed) {
+      this.grabbed = null
+      this.cursor.classList.remove('is-grab')
+    }
+    this.grabAnim = null
+    this.erasing = false
+    this.eraseLot = null
+    this.hwUndoing = null
+    this.hw.reset()
+    this.morphs.clear()
+    this.repriseCue = null
+    this.pinCue = null
+    // la page qu'on quitte : ses traits quittent la scène (le miroir OBS les
+    // retire, l'enregistreur note l'instant), les épinglées restent
+    const epinglees: Stroke[] = []
+    for (const s of this.strokes) {
+      if (s.pinned) epinglees.push(s)
+      else this.sortir(s)
+    }
+    this.rangerPage()
+    const cible = this.pages[i]
+    this.pageIdx = i
+    this.redoStack = cible.redoStack
+    this.cleared = cible.cleared
+    this.badgeSeq = cible.badgeSeq
+    this.lastBadgeId = cible.lastBadgeId
+    this.jalonSeq = cible.jalonSeq
+    this.ancreJalon = cible.ancreJalon
+    this.ancreSerie = cible.ancreSerie
+    // la page qui arrive : le FONDU A ÉTÉ SUSPENDU pendant qu'on ne la
+    // regardait pas, chaque trait repart donc avec un compte à rebours entier —
+    // sinon une page laissée trente secondes reviendrait vide, ou s'effacerait
+    // sous les yeux de l'utilisateur à la seconde où il l'ouvre. Un trait qui
+    // était en train de se dissoudre par fondu est rattrapé lui aussi.
+    const revenus: Stroke[] = []
+    for (const s of cible.strokes) {
+      if (s.dying) {
+        if (s.dying.cause !== 'fade') continue
+        s.dying = undefined
+      }
+      s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
+      revenus.push(s)
+      this.salir(s)
+    }
+    this.strokes = [...epinglees, ...revenus]
+    // le jeton de la page courante : son contenu vit dans les champs du moteur
+    this.pages[i] = pageVide()
+    // Les compteurs reviennent TELS QU'ILS ONT ÉTÉ LAISSÉS (une série
+    // repartie de 1 après un changement de couleur reste à 1) ; on ne les
+    // recalcule que si la pastille qui tenait la série a disparu entre-temps
+    // (gommée puis dissoute pendant qu'on quittait la page).
+    const present = (id: number | null) => id == null || this.strokes.some((s) => s.id === id)
+    if (!present(this.ancreSerie)) this.syncBadgeSeq()
+    if (!present(this.ancreJalon)) this.syncJalonSeq()
+    this.anchorsDirty = true
+    this.staticDirty = true
+    this.emitActivity()
+    this.wake()
+    return true
+  }
+
+  /**
+   * Copie la page `from` dans la page `to` (créée au besoin) et s'y rend.
+   * C'est le geste « voilà le plan… et voilà ce qui s'est vraiment passé » :
+   * on part du même dessin, on le corrige sur une page à part, et l'on peut
+   * revenir au plan intact. Les épinglées ne sont pas copiées : elles sont
+   * déjà sur toutes les pages.
+   */
+  dupliquerPage(from: number, to: number): boolean {
+    if (!Number.isFinite(from) || !Number.isFinite(to) || from < 0 || to < 0 || from === to) {
+      return false
+    }
+    while (this.pages.length <= Math.max(from, to)) this.pages.push(pageVide())
+    const source = from === this.pageIdx ? this.strokes : this.pages[from].strokes
+    const now = performance.now()
+    const remap = new Map<number, number>()
+    const copies: Stroke[] = []
+    for (const s of source) {
+      if (s.pinned || s.dying) continue
+      const c = structuredClone(s)
+      c.anim = undefined
+      c.dieAt = undefined
+      c.raw = undefined
+      c.ink = undefined
+      remap.set(s.id, (c.id = this.idSeq++))
+      copies.push(c)
+    }
+    for (const c of copies) if (c.linkFrom != null) c.linkFrom = remap.get(c.linkFrom)
+    if (to === this.pageIdx) {
+      for (const c of copies) {
+        c.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
+        this.strokes.push(c)
+        this.salir(c)
+      }
+      this.syncBadgeSeq()
+      this.syncJalonSeq()
+      this.anchorsDirty = true
+      this.staticDirty = true
+      this.emitActivity()
+      this.wake()
+      return true
+    }
+    const page = pageVide()
+    page.strokes = copies
+    this.pages[to] = page
+    return this.allerPage(to)
   }
 
   /** centre de la pastille précédente, pour la flèche de liaison du numéroteur */
@@ -2439,6 +2801,12 @@ export class HexaEngine {
       // annotations masquées : la pastille désignée n'est pas à l'écran, son
       // anneau n'a rien à y faire non plus
       else if (!this.opts.annotationsHidden) renderReprise(ctx, this.repriseCue, now)
+    }
+    // « épinglé » / « détaché » : le geste (Ctrl + clic droit, ou la touche)
+    // est invisible par nature, ce signal d'une seconde dit qu'il a été compris
+    if (this.pinCue) {
+      if (now - this.pinCue.start >= PIN_CUE_MS) this.pinCue = null
+      else if (!this.opts.annotationsHidden) renderPinCue(ctx, this.pinCue, now, PIN_CUE_MS)
     }
     if (this.particles.length > 0) this.renderSparks(ctx, now)
     if (this.pings.length > 0) this.renderPings(ctx, now)

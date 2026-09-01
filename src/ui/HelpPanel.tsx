@@ -119,6 +119,25 @@ const GLYPHS: Record<string, ReactElement> = {
       <circle cx="22" cy="15" r="1.6" fill="currentColor" />
     </svg>
   ),
+  pages: (
+    <svg viewBox="0 0 32 32" aria-hidden>
+      <g fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round">
+        <path d="M11 9h10l4 4v12H11z" />
+        <path d="M7 22V5h10" opacity="0.45" />
+      </g>
+    </svg>
+  ),
+  epingle: (
+    <svg viewBox="0 0 32 32" aria-hidden>
+      <path
+        d="M19 4l9 9-3 1-4.5 4.5.5 5-2.5 2.5-5.5-5.5L6 27l-1-1 6.5-6.5L6 14l2.5-2.5 5 .5L18 7.5z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
   souris: (
     <svg viewBox="0 0 32 32" aria-hidden>
       <rect
@@ -282,6 +301,37 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
         </p>
       </article>
 
+      <article className="hlp-card">
+        <span className="hlp-ico">{GLYPHS.pages}</span>
+        <h4>Plusieurs pages</h4>
+        <p>
+          Le plan sur la page 1, ce qui s’est vraiment passé sur la page 2, et tu passes de l’une à
+          l’autre pour comparer. Chaque page garde ses annotations ; le fondu s’arrête sur celles que
+          tu ne regardes pas, et « tout effacer » ne vide que la page affichée. Le témoin « 2/3 »
+          de la barre dit où tu es : un clic tourne la page (en boucle), Maj + clic en crée une
+          vierge, Ctrl + clic duplique celle-ci, Alt + clic revient en arrière.
+        </p>
+        <p className="hlp-keys">
+          <Kbd combo={key('page.prev')} /> <Kbd combo={key('page.next')} /> changer de page ·{' '}
+          <Kbd combo={key('page.new')} /> nouvelle · <Kbd combo={key('page.dup')} /> dupliquer
+        </p>
+      </article>
+
+      <article className="hlp-card">
+        <span className="hlp-ico">{GLYPHS.epingle}</span>
+        <h4>Épingler ce qui reste</h4>
+        <p>
+          La légende, la carte, le titre de la session : <b>Ctrl + clic droit</b> sur l’annotation
+          l’épingle. Elle survit à « tout effacer », au fondu, au changement de page et à Ctrl+Z —
+          une petite épingle à son coin le rappelle (elle est peinte avec l’encre, donc visible dans
+          le direct, comme le dessin). Le même geste la détache ; la gomme la retire quand même.
+        </p>
+        <p className="hlp-keys">
+          <span className="hlp-gesture">Ctrl + clic droit</span> · <Kbd combo={key('edit.pin')} />{' '}
+          sous le curseur
+        </p>
+      </article>
+
       <article className="hlp-card is-strong">
         <span className="hlp-ico">{GLYPHS.jeu}</span>
         <h4>Rendre la souris au jeu</h4>
@@ -322,6 +372,25 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
             <b>Clic droit maintenu dans le vide</b> — la roue d’outils éclot sous le curseur : glisse
             vers un outil (anneau extérieur) ou une couleur (anneau intérieur), relâche, c’est pris.
             Relâcher au centre annule.
+          </li>
+          <li>
+            <b>Ctrl + clic droit sur une annotation</b> — l’épingler (ou la détacher) : elle reste
+            malgré « tout effacer », le fondu et le changement de page.
+          </li>
+          <li>
+            <b>Texte</b> — le champ de saisie propose une <b>plaque</b> sombre derrière les lettres
+            (indispensable sur un jeu clair et chargé) ou <b>sans</b>, juste un contour sombre, pour
+            une zone déjà sombre. Le choix reste pour les textes suivants.
+          </li>
+          <li>
+            <b>Image PNG</b> — un bouton de la barre (<Kbd combo={key('export.png')} />) exporte
+            la page affichée en PNG transparent : les annotations seules, sans le fond ni la barre,
+            prêtes pour une miniature ou une VOD.
+          </li>
+          <li>
+            <b>Barre discrète</b> — en mode dessin, la barre s’estompe après quelques secondes sans
+            survol ni changement d’outil, et revient dès que la souris s’en approche. Le bouton{' '}
+            <i>off / 3 s / 5 s / 10 s</i> de la barre règle ce délai.
           </li>
           <li>
             <b>Molette</b> — épaisseur du trait.
@@ -414,23 +483,75 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
   )
 
   /* --------------------------- onglet 3 --------------------------- */
+  /**
+   * TROIS FAÇONS DE METTRE HEXA DANS OBS, et un comparatif HONNÊTE.
+   *
+   * Retour utilisateur : « parfois quand je l'affiche en stream je ne peux pas
+   * afficher l'outil et ça affiche ma page Twitch sur OBS ». La cause est une
+   * « Capture de fenêtre » : OBS retrouve une fenêtre par son titre, et n'en
+   * connaît que les fenêtres VISIBLES. Hexa retirait sa couche d'encre dès
+   * qu'elle était vide : OBS ne la trouvait plus dans sa liste, et une source
+   * déjà réglée restait vide — ou, sur les anciens OBS, sautait sur une autre
+   * fenêtre « du même type », le navigateur. C'est corrigé (la fenêtre reste,
+   * réduite à 8 pixels), mais la méthode reste la plus piégeuse des trois, et
+   * l'onglet doit le dire tel quel.
+   */
   const stream = (
     <div className="hlp-steps">
-      <ol>
-        <li>
-          <b>Dans OBS, ajoute une source « Capture d’écran »</b> (<i>Display Capture</i> en anglais)
-          et choisis l’écran sur lequel tu dessines.
-        </li>
-        <li>
-          <b>C’est tout.</b> Les annotations d’Hexa sont posées par-dessus le bureau : OBS les
-          capture comme il capture ta souris et tes fenêtres.
-        </li>
-      </ol>
+      <div className="hlp-sos">
+        <div className="hlp-sos-item">
+          <h4>1 · Capture d’écran (Display Capture) — la plus simple, la plus fiable</h4>
+          <p>
+            OBS filme l’écran entier, donc Hexa avec, comme il filme ta souris. Rien à régler :
+            choisis l’écran sur lequel tu dessines. <b>Coût :</b> celui que tu paies déjà pour
+            capturer ton écran, Hexa n’y ajoute rien. <b>Piège :</b> tout ce qui est sur cet écran
+            part à l’antenne — la barre d’outils d’Hexa, elle, est exclue des captures (réglage
+            « Direct et captures »). Ne convient pas si tu captures ton jeu en « Capture de jeu ».
+          </p>
+        </div>
+        <div className="hlp-sos-item">
+          <h4>2 · Source navigateur (Browser Source) — la moins chère, la seule vérifiable</h4>
+          <p>
+            Hexa envoie ses annotations à OBS par son petit serveur local, dessinées par le même
+            moteur, sur fond transparent. Ça marche <b>quelle que soit</b> la façon dont tu captures
+            ton jeu, même en « Capture de jeu ». <b>Coût :</b> quelques kilo-octets par trait,
+            rien au repos, et aucune fenêtre de plus à composer. <b>Piège :</b> elle ne montre
+            que les annotations posées — pas le laser, la loupe ni le projecteur. C’est la seule
+            méthode où Hexa peut te dire si OBS est bien branché : le témoin de{' '}
+            <b>Réglages → OBS</b> passe à « source connectée » tout seul
+            {obsServerOn ? (
+              <>
+                {' '}
+                — adresse à coller : <code>http://127.0.0.1:{obsPort}/obs.html</code>
+              </>
+            ) : (
+              <> — active le serveur local dans Réglages → OBS pour obtenir l’adresse</>
+            )}
+            .
+          </p>
+        </div>
+        <div className="hlp-sos-item">
+          <h4>3 · Capture de fenêtre (Window Capture) — la plus piégeuse</h4>
+          <p>
+            OBS accroche une fenêtre par son <b>titre</b>. Prends « Hexa Overlay », jamais autre
+            chose. <b>Piège n° 1 :</b> OBS ne liste que les fenêtres visibles ; Hexa gardait la
+            sienne cachée quand elle était vide, et tu ne pouvais plus la choisir — c’est corrigé,
+            la fenêtre reste présente, réduite à 8 pixels dans un coin, tant que le réglage
+            « Garder la fenêtre d’encre capturable par OBS » est actif. <b>Piège n° 2 :</b> quand
+            une fenêtre disparaît, les anciens OBS en cherchent « une du même type » : toutes les
+            fenêtres Chrome, Edge et Hexa sont du même type — c’est comme ça qu’on se retrouve
+            avec sa page Twitch à l’antenne. <b>Coût :</b> une capture de plus par image, en
+            général plus chère que la source navigateur. À réserver au cas où tu ne peux ni
+            capturer l’écran ni ajouter une source navigateur.
+          </p>
+        </div>
+      </div>
       <div className="hlp-warn">
-        <b>Le seul piège, et il vaut aussi pour Epic Pen :</b> une source « Capture de jeu »
-        (<i>Game Capture</i>) filme l’intérieur du jeu, <b>avant</b> que Windows ne pose les overlays
-        par-dessus. Elle ne verra donc jamais tes annotations. Si tes viewers ne voient rien alors
-        que toi si, c’est presque toujours ça : bascule sur « Capture d’écran ».
+        <b>Le piège qui vaut pour toutes les méthodes, Epic Pen compris :</b> une source
+        « Capture de jeu » (<i>Game Capture</i>) filme l’intérieur du jeu, <b>avant</b> que Windows
+        ne pose les overlays par-dessus. Elle ne verra jamais tes annotations. Si tes viewers ne
+        voient rien alors que toi si, c’est presque toujours ça : ajoute la source navigateur, ou
+        bascule sur « Capture d’écran ».
       </div>
       <ul className="hlp-list">
         <li>
@@ -440,21 +561,18 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
         </li>
         <li>
           <b>Garder ton écran propre et n’envoyer les annotations qu’au stream ?</b> C’est le mode
-          « Stream seul » des réglages : Hexa n’affiche plus rien chez toi et publie tout dans une
-          source navigateur d’OBS
-          {obsServerOn ? (
-            <>
-              {' '}
-              — adresse à coller : <code>http://127.0.0.1:{obsPort}/obs.html</code>
-            </>
-          ) : (
-            <> — active le petit serveur local dans Réglages → OBS pour obtenir l’adresse</>
-          )}
-          . {obsMode === 'stream' ? 'Ce mode est actuellement ACTIF.' : ''}
+          « Stream seul » des réglages : Hexa n’affiche plus rien chez toi et publie tout dans la
+          source navigateur.{obsMode === 'stream' ? ' Ce mode est actuellement ACTIF.' : ''}
         </li>
         <li>
-          <b>Deux écrans ?</b> Hexa pose une couche sur chacun. Capture celui que tu diffuses ; « tout
-          effacer » nettoie les deux d’un coup.
+          <b>Plusieurs écrans ?</b> Un seul est l’écran d’annotation (menu de l’icône près de
+          l’horloge). Sa fenêtre s’appelle « Hexa Overlay » ; celles des autres écrans disent
+          « inactif » et ne montrent jamais rien. Capture l’écran d’annotation.
+        </li>
+        <li>
+          <b>Ça prend combien de ressources ?</b> Réglages → Ressources : le témoin « Coût
+          actuel » répond en direct, et « Diagnostic de performance (30 s) » l’écrit noir sur
+          blanc dans un fichier que tu peux garder.
         </li>
       </ul>
     </div>
@@ -533,8 +651,9 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
       <div className="hlp-sos-item">
         <h4>Mes viewers ne voient pas mes annotations</h4>
         <p>
-          Ta source OBS est une « Capture de jeu ». Remplace-la par une « Capture d’écran » : détails
-          dans l’onglet <b>Sur mon stream</b>.
+          Ta source OBS est une « Capture de jeu », ou une « Capture de fenêtre » qui a perdu Hexa.
+          Ajoute la source navigateur (adresse dans Réglages → OBS, témoin « source connectée »),
+          ou une « Capture d’écran » : le comparatif est dans l’onglet <b>Sur mon stream</b>.
         </p>
       </div>
       {onReplayTour && (

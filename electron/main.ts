@@ -17,12 +17,22 @@ import {
   ipcMain,
   screen,
   type Display,
+  type Rectangle,
   type WebContents,
 } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 // Serveur local de la vue OBS (§10.2) : HTTP + WebSocket sur 127.0.0.1.
 import { broadcastObs, obsServerStatus, startObsServer, stopObsServer } from './obs-server'
+// « Ça prend combien de ressources ? » — sonde de 30 s et témoin de coût.
+import {
+  lancerSonde,
+  mesurerCout,
+  sondeEnCours,
+  sondeRestant,
+  type FenetreDecrite,
+  type SondeContexte,
+} from './sonde'
 // Table de raccourcis partagée avec le renderer : UNE seule source de vérité
 // pour les combinaisons d'usine (preset Epic Pen).
 import { defaultGlobalAccelerators } from '../src/keymap'
@@ -182,6 +192,18 @@ interface Overlay {
   relanceTimer: NodeJS.Timeout | null
   /** minuterie de relance de la couche interface (sert aussi de « déjà prévue ») */
   uiRelanceTimer: NodeJS.Timeout | null
+  /**
+   * La fenêtre d'encre est RÉDUITE à quelques pixels (voir retirerOverlay) :
+   * vide, elle n'est plus cachée mais rapetissée, pour rester capturable par
+   * OBS. `false` = elle a ses bounds plein écran (visible ou cachée).
+   */
+  reduite: boolean
+  /**
+   * Dernières bounds RÉELLEMENT posées sur la fenêtre d'encre. Même règle que
+   * `uiBounds` : on ne repose que si la cible change — jamais par image, jamais
+   * par signal d'activité.
+   */
+  encreBounds: Rectangle | null
 }
 
 /**
@@ -389,6 +411,246 @@ function broadcast(channel: string, ...args: unknown[]): void {
 }
 
 /* ------------------------------------------------------------------ *
+ * Réglages du processus principal (persistés hors du store de la page)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Deux réglages vivent ICI et pas dans le store de la page, parce qu'ils
+ * gouvernent des fenêtres que la page ne voit pas :
+ *
+ *  - `captureFenetre` — « Garder la fenêtre capturable par OBS ». Voir
+ *    retirerOverlay : c'est la parade au « OBS affiche ma page Twitch » ;
+ *  - `annotationDisplay` — l'écran d'annotation choisi dans le menu de l'icône.
+ *    Il n'était gardé qu'en mémoire : sur trois écrans, chaque relance de Hexa
+ *    remettait l'annotation sur l'écran principal, et le F8 basculait à nouveau
+ *    le mauvais écran jusqu'à ce que l'utilisateur refasse son choix.
+ *
+ * Un seul fichier JSON dans le dossier utilisateur, relu au démarrage, réécrit
+ * à chaque changement (deux par session, en pratique). Illisible ou absent :
+ * les valeurs d'usine, sans un mot — Hexa ne doit jamais refuser de démarrer
+ * pour un fichier de réglages.
+ */
+interface ReglagesPrincipal {
+  captureFenetre: boolean
+  annotationDisplay: number | null
+}
+
+let reglages: ReglagesPrincipal = { captureFenetre: true, annotationDisplay: null }
+
+function cheminReglages(): string {
+  return path.join(app.getPath('userData'), 'reglages-principal.json')
+}
+
+function lireReglages(): void {
+  try {
+    const brut = JSON.parse(fs.readFileSync(cheminReglages(), 'utf8')) as Record<string, unknown>
+    reglages = {
+      captureFenetre: brut.captureFenetre !== false,
+      annotationDisplay:
+        typeof brut.annotationDisplay === 'number' && Number.isFinite(brut.annotationDisplay)
+          ? brut.annotationDisplay
+          : null,
+    }
+    log('réglages', 'réglages du processus principal relus', reglages)
+  } catch {
+    /* premier lancement, ou fichier illisible : valeurs d'usine */
+  }
+}
+
+function ecrireReglages(): void {
+  try {
+    fs.writeFileSync(cheminReglages(), JSON.stringify(reglages, null, 2), 'utf8')
+  } catch (err) {
+    logError('réglages', 'écriture des réglages impossible', err)
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * La fenêtre d'encre RÉDUITE : capturable par OBS, gratuite pour le jeu
+ * ------------------------------------------------------------------ */
+
+/**
+ * POURQUOI ON NE CACHE PLUS LA FENÊTRE D'ENCRE VIDE, ET POURQUOI ON LA RÉDUIT.
+ *
+ * Retour utilisateur : « parfois quand je l'affiche en stream je ne peux pas
+ * afficher l'outil et ça affiche ma page Twitch sur OBS ».
+ *
+ * La « Capture de fenêtre » d'OBS (plugins/win-capture/window-capture.c,
+ * libobs/util/windows/window-helpers.c, relus pour ce correctif) ne connaît une
+ * fenêtre que si Windows la dit VISIBLE (`IsWindowVisible`) :
+ *  - la liste déroulante d'OBS n'affiche que les fenêtres visibles : quand Hexa
+ *    a caché sa couche encre parce qu'elle était vide (§2.5), « Hexa » n'est
+ *    tout simplement pas dans la liste — « je ne peux pas afficher l'outil » ;
+ *  - une source déjà réglée sur une fenêtre disparue cherche à nouveau, une
+ *    fois par seconde, « le titre, sinon une fenêtre du même type ». Le type
+ *    de toutes les fenêtres Electron est « Chrome_WidgetWin_1 » — celui de
+ *    Chrome et d'Edge. Les OBS récents (règle « generic class ») exigent alors
+ *    le titre exact ; les plus anciens prennent la première fenêtre Chromium
+ *    venue : le navigateur, ouvert sur Twitch. Mesuré ici : la fenêtre est
+ *    bien cachée (isVisible() faux) au repos, après effacement, après un fondu,
+ *    annotations masquées, en veille (test/e2e/t-obs-1-disparition.mjs).
+ *
+ * La règle §2.5 reste vraie : une fenêtre transparente PLEIN ÉCRAN coûte au
+ * compositeur à chaque image. Mais ce qui coûte, c'est la SURFACE, pas
+ * l'existence de la fenêtre. Une fenêtre de 8 × 8 pixels, transparente, en
+ * clic traversant, dans le coin inférieur droit de l'écran, ne coûte rien de
+ * mesurable (64 pixels au lieu de 2 073 600 — 0,003 % de l'écran) et reste une
+ * fenêtre visible pour Windows, donc pour OBS. Elle reprend l'écran entier au
+ * F8 ou au premier contenu, par la même pose de bounds qui la réduit — jamais
+ * par image, jamais par signal d'activité (mémoire `encreBounds`).
+ *
+ * Le repli `win.hide()` reste : en veille système (surface Direct3D à ne pas
+ * perdre), en « Masquer Hexa » (l'utilisateur veut Hexa absent), sur un écran
+ * non désigné (inerte, rien à capturer), et si l'utilisateur coupe le réglage
+ * « Garder la fenêtre capturable par OBS ».
+ */
+const REDUIT_PX = 8
+
+function boundsReduites(d: Display): Rectangle {
+  return {
+    x: d.bounds.x + d.bounds.width - REDUIT_PX,
+    y: d.bounds.y + d.bounds.height - REDUIT_PX,
+    width: REDUIT_PX,
+    height: REDUIT_PX,
+  }
+}
+
+/** Bounds attendues de la fenêtre d'encre sur son écran, selon son état. */
+function boundsEncreAttendues(o: Overlay, d: Display): Rectangle {
+  return o.reduite ? boundsReduites(d) : { ...d.bounds }
+}
+
+/**
+ * Pose la fenêtre d'encre en plein écran ou réduite. Renvoie `true` si le
+ * système a accepté les bounds. ⚠️ Ne pose que si la cible change.
+ */
+function poserEncre(o: Overlay, reduire: boolean): boolean {
+  if (o.win.isDestroyed()) return false
+  const d = ecranDe(o)
+  o.reduite = reduire
+  const cible = boundsEncreAttendues(o, d)
+  if (o.encreBounds && sameBounds(o.encreBounds, cible)) return true
+  o.encreBounds = cible
+  const ok = applyBounds(o.win, cible, `encre écran ${o.displayId}`)
+  log(
+    'capture',
+    reduire
+      ? `fenêtre d’encre réduite à ${cible.width}×${cible.height} @${cible.x},${cible.y} — vide, mais toujours capturable par OBS`
+      : `fenêtre d’encre en plein écran (${cible.width}×${cible.height})`,
+    { posee: ok },
+  )
+  return ok
+}
+
+/**
+ * Retire la fenêtre d'encre vide : réduite si elle doit rester capturable,
+ * cachée sinon. Appelé après le délai de grâce, jamais directement.
+ */
+function retirerOverlay(o: Overlay): void {
+  try {
+    if (o.win.isDestroyed()) return
+    // Jamais en mode fusionné : la fenêtre unique porte aussi la barre
+    // d'outils, et ses gestionnaires de `resize` la replaceraient dans un
+    // cadre de 8 pixels. Mesuré (campagne S7) : la barre réagissait au
+    // rétrécissement. En fusionné, c'est le retrait complet, comme avant.
+    const capturable =
+      reglages.captureFenetre && !fusion && !suspended && !eclipsed && overlayAnnotation() === o
+    if (capturable) {
+      poserEncre(o, true)
+      // Au retour de veille la fenêtre est cachée : on la remontre réduite,
+      // sinon OBS la perdrait précisément après chaque mise en veille.
+      if (!o.win.isVisible()) {
+        o.win.showInactive()
+        reassertTopmost(o.win)
+      }
+      return
+    }
+    if (o.win.isVisible()) o.win.hide()
+  } catch (err) {
+    logError('fenêtre', `retrait de la couche encre impossible (écran ${o.displayId})`, err)
+  }
+}
+
+/**
+ * Remet chaque couche encre VIDE dans l'état que lui vaut son rôle du moment :
+ * réduite et visible si elle annote et doit rester capturable, cachée sinon.
+ *
+ * Appelé quand ce rôle change sans qu'aucune page ne le signale : bascule du
+ * réglage de capture, changement d'écran d'annotation (menu de l'icône, ou
+ * repli après un débranchement). Mesuré avant ce point commun : après une
+ * bascule d'écran provoquée par la topologie, l'ANCIEN écran d'annotation
+ * restait affiché en 8 × 8 sous son titre « inactif » (rien à capturer, une
+ * fenêtre de plus dans la liste d'OBS), et le NOUVEAU restait caché tant
+ * qu'aucun trait n'y était posé — donc absent de la liste d'OBS, exactement
+ * la panne que la réduction est censée fermer.
+ */
+function reposerEncresVides(): void {
+  for (const o of overlays.values()) {
+    if (o.hasContent || !o.passthrough) continue
+    if (o.hideTimer) {
+      clearTimeout(o.hideTimer)
+      o.hideTimer = null
+    }
+    retirerOverlay(o)
+  }
+}
+
+/**
+ * « Garder la fenêtre capturable par OBS » : appliqué à chaud. Couper le
+ * réglage cache les fenêtres réduites ; le rétablir les remontre réduites.
+ */
+function setCaptureFenetre(on: boolean): void {
+  if (reglages.captureFenetre === on) return
+  reglages.captureFenetre = on
+  ecrireReglages()
+  log('capture', `fenêtre d’encre ${on ? 'gardée capturable (réduite quand vide)' : 'cachée quand vide'}`)
+  reposerEncresVides()
+}
+
+/* ------------------------------------------------------------------ *
+ * Titres des fenêtres d'encre : uniques, stables, lisibles dans OBS
+ * ------------------------------------------------------------------ */
+
+/**
+ * OBS identifie une fenêtre par « titre : classe : exécutable ». La classe est
+ * la même pour tout Chromium, l'exécutable est le même pour toutes nos
+ * fenêtres : SEUL LE TITRE distingue nos fenêtres entre elles.
+ *
+ * Or le titre natif posé à la création (« Hexa Overlay ») était aussitôt
+ * écrasé par le <title> de la page : mesuré, la couche encre s'appelait
+ * « Hexa » — exactement comme le bandeau d'accueil — et sur trois écrans, les
+ * trois couches encre portaient le même nom. Dans la liste d'OBS, trois
+ * entrées « [Hexa.exe]: Hexa » impossibles à départager.
+ *
+ * Désormais le titre de la page est ignoré (`page-title-updated` annulé) et
+ * chaque couche encre porte un titre unique et stable : « Hexa Overlay » pour
+ * l'écran d'annotation — le seul qui ait quelque chose à montrer — et
+ * « Hexa Overlay — écran N (inactif) » pour les autres.
+ */
+function titreEncre(o: Overlay): string {
+  if (o.displayId === annotationDisplayId()) return 'Hexa Overlay'
+  let rang = 0
+  try {
+    rang = screen.getAllDisplays().findIndex((d) => d.id === o.displayId)
+  } catch {
+    rang = -1
+  }
+  return `Hexa Overlay — écran ${rang >= 0 ? rang + 1 : '?'} (inactif)`
+}
+
+function retitrer(): void {
+  for (const o of overlays.values()) {
+    try {
+      if (o.win.isDestroyed()) continue
+      const titre = titreEncre(o)
+      if (o.win.getTitle() !== titre) o.win.setTitle(titre)
+    } catch {
+      /* fenêtre en cours de destruction */
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Visibilité : LA règle de perf (§2.5)
  * ------------------------------------------------------------------ */
 
@@ -429,11 +691,8 @@ function refreshVisibility(o: Overlay): void {
     o.hideTimer = null
     // Re-vérification : l'état a pu changer pendant le délai de grâce.
     if (!suspended && (o.hasContent || !o.passthrough)) return
-    try {
-      if (!o.win.isDestroyed() && o.win.isVisible()) o.win.hide()
-    } catch {
-      /* ignore */
-    }
+    // Réduite (capturable par OBS) ou cachée : voir retirerOverlay.
+    retirerOverlay(o)
   }, HIDE_GRACE_MS)
 }
 
@@ -589,6 +848,11 @@ function appliquerBoundsInterface(o: Overlay): void {
 function showOverlay(o: Overlay): void {
   try {
     if (o.win.isDestroyed() || eclipsed) return
+    // Réduite à 8 × 8 pendant qu'elle était vide : elle reprend l'écran entier
+    // AVANT d'être montrée — un seul setBounds, synchrone, et la page reçoit
+    // son `resize` dans la foulée. C'est ce qui rend le retour instantané au
+    // F8 comme au premier trait.
+    if (o.reduite) poserEncre(o, false)
     if (o.win.isVisible()) return
     o.win.showInactive()
     reassertTopmost(o.win)
@@ -701,6 +965,11 @@ function diffuserEcranAnnotation(): void {
       log('écrans', `écran ${o.displayId} n’annote plus : la souris repart au jeu`)
     }
   }
+  // Le titre « Hexa Overlay » et la fenêtre réduite (capturable par OBS)
+  // suivent la désignation : l'ancien écran redevient caché et « inactif »,
+  // le nouveau devient visible en 8 × 8 — sans attendre un premier trait.
+  retitrer()
+  reposerEncresVides()
 }
 
 /** Y a-t-il au moins un écran en mode dessin ? (état affiché dans le menu) */
@@ -854,6 +1123,102 @@ function setSuspended(value: boolean): void {
     refreshVisibiliteInterface(o)
   }
   refreshTray()
+}
+
+/* ------------------------------------------------------------------ *
+ * « Ça prend combien de ressources ? » (electron/sonde.ts)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Ce que la sonde a le droit de savoir : nos fenêtres, avec leur rôle, et la
+ * configuration qui pèse sur le coût. Rien d'autre — pas le contenu des
+ * annotations, pas le jeton OBS, pas le mot de passe obs-websocket.
+ */
+function contexteSonde(): SondeContexte {
+  return {
+    fenetres: (): FenetreDecrite[] => {
+      const out: FenetreDecrite[] = []
+      const connues = new Set<number>()
+      const annotation = annotationDisplayId()
+      for (const o of overlays.values()) {
+        if (!o.win.isDestroyed()) {
+          out.push({ win: o.win, role: 'encre', displayId: o.displayId, annotation: o.displayId === annotation })
+          connues.add(o.win.id)
+        }
+        if (o.ui && !o.ui.isDestroyed()) {
+          out.push({ win: o.ui, role: 'interface', displayId: o.displayId })
+          connues.add(o.ui.id)
+        }
+      }
+      // bandeau d'accueil, fenêtres de diagnostic : tout ce qui est composé compte
+      for (const w of BrowserWindow.getAllWindows()) {
+        if (w.isDestroyed() || connues.has(w.id)) continue
+        let role = 'autre'
+        try {
+          if (w.webContents.getURL().startsWith('data:')) role = 'bandeau'
+        } catch {
+          /* ignore */
+        }
+        out.push({ win: w, role, displayId: null })
+      }
+      return out
+    },
+    configuration: () => {
+      let ecrans: string[] = []
+      try {
+        const annotation = annotationDisplayId()
+        ecrans = screen.getAllDisplays().map(
+          (d, i) =>
+            `écran ${i + 1} : ${d.bounds.width}×${d.bounds.height} @${d.scaleFactor}×` +
+            `${d.id === screen.getPrimaryDisplay().id ? ', principal' : ''}` +
+            `${d.id === annotation ? ', ANNOTATION' : ', inerte'}`,
+        )
+      } catch {
+        ecrans = ['(écrans illisibles)']
+      }
+      return {
+        ecrans,
+        modeDessin: isDrawing() ? 'actif' : 'jeu (clics traversants)',
+        veille: suspended ? 'Hexa masqué' : 'non',
+        fenetreCapturableObs: reglages.captureFenetre ? `oui (réduite à ${REDUIT_PX}×${REDUIT_PX} px quand vide)` : 'non (cachée quand vide)',
+        interfaceExclueDesCaptures: protectionCapture ? 'oui' : 'non',
+        modeFusionne: fusion ? 'oui (une seule fenêtre par écran)' : 'non',
+        administrateur: estEleve() === true ? 'oui' : estEleve() === false ? 'non' : 'inconnu',
+        accelerationMaterielleDemandee: 'oui (jamais désactivée par Hexa)',
+        raccourcisGlobaux: Object.keys(shortcuts).length,
+      }
+    },
+  }
+}
+
+/**
+ * Lance le diagnostic de 30 s et prévient l'utilisateur, au début (un bandeau,
+ * qui s'efface avant le premier relevé) et à la fin (le dossier s'ouvre).
+ */
+function demarrerDiagnostic(): Promise<{ dossier: string; json: string; resume: string } | null> {
+  if (sondeEnCours()) {
+    showToast('Diagnostic déjà en cours', 'Patiente jusqu’à la fin des 30 secondes : le dossier s’ouvrira tout seul.', 3000)
+  } else {
+    showToast(
+      'Diagnostic de performance',
+      'Pendant 30 secondes, Hexa mesure ce qu’il coûte à ton ordinateur. Continue à faire ce que tu fais d’habitude — joue, dessine, ou ne touche à rien.',
+      3200,
+    )
+  }
+  return lancerSonde(contexteSonde(), () => refreshTray())
+    .then((r) => {
+      showToast(
+        'Diagnostic terminé',
+        `Le résumé est écrit dans ${r.resume}. Rien n’a été envoyé : le fichier n’existe que sur cet ordinateur.`,
+        7000,
+      )
+      return r
+    })
+    .catch((err: unknown) => {
+      logError('sonde', 'diagnostic interrompu', err)
+      showToast('Diagnostic interrompu', 'Le détail est dans le journal de Hexa (Réglages → À propos).', 6000)
+      return null
+    })
 }
 
 /**
@@ -1092,12 +1457,12 @@ function toolbarHostId(): number {
  * TOUJOURS, où que soit la souris. Les autres écrans n'entrent jamais en mode
  * dessin, restent vides, donc cachés, donc gratuits pour le compositeur.
  *
- * `annotationDisplay` vaut null tant que l'utilisateur n'a pas choisi : on prend
- * alors l'écran principal de Windows, qui est celui où l'on joue dans la quasi
- * totalité des cas.
+ * `reglages.annotationDisplay` vaut null tant que l'utilisateur n'a pas choisi :
+ * on prend alors l'écran principal de Windows, qui est celui où l'on joue dans
+ * la quasi-totalité des cas. Le choix est gardé d'un lancement à l'autre
+ * (reglages-principal.json) : refaire le choix à chaque relance sur trois
+ * écrans, c'était le F8 qui rebasculait le mauvais écran.
  */
-let annotationDisplay: number | null = null
-
 /**
  * Dernier écran d'annotation ANNONCÉ aux pages (-1 = rien d'annoncé encore).
  * Même rôle que `hostBarre` pour la barre d'outils : il permet de rediffuser
@@ -1108,6 +1473,7 @@ let ecranAnnonce = -1
 function annotationDisplayId(): number {
   try {
     const tous = screen.getAllDisplays()
+    const annotationDisplay = reglages.annotationDisplay
     if (annotationDisplay != null && tous.some((d) => d.id === annotationDisplay)) {
       return annotationDisplay
     }
@@ -1300,7 +1666,10 @@ function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindo
       acceptFirstMouse: true,
       roundedCorners: false,
       thickFrame: false,
-      title: 'Hexa Interface',
+      // Ce que l'utilisateur lira dans la liste d'OBS : cette fenêtre est
+      // exclue des captures (setContentProtection), la choisir donne une
+      // image NOIRE. Son nom doit le dire, à côté de « Hexa Overlay ».
+      title: 'Hexa interface (ne pas capturer)',
       webPreferences: {
         preload: path.join(__dirname, 'preload.cjs'),
         contextIsolation: true,
@@ -1333,6 +1702,9 @@ function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindo
         ],
       },
     })
+    // Même règle que la couche encre : le <title> de la page n'écrase pas le
+    // titre natif, c'est lui qu'OBS affiche.
+    ui.on('page-title-updated', (e) => e.preventDefault())
 
     reassertTopmost(ui)
     ui.setMenuBarVisibility(false)
@@ -1555,6 +1927,9 @@ function createOverlay(display: Display): Overlay | null {
     }
     // On démarre TOUJOURS en traversant : au lancement, l'utilisateur joue.
     win.setIgnoreMouseEvents(true, { forward: true })
+    // Le <title> de la page n'écrase plus le titre natif : c'est lui qu'OBS
+    // lit, et il doit rester unique et stable (voir titreEncre).
+    win.on('page-title-updated', (e) => e.preventDefault())
 
     const overlay: Overlay = {
       win,
@@ -1577,6 +1952,8 @@ function createOverlay(display: Display): Overlay | null {
       relances: 0,
       relanceTimer: null,
       uiRelanceTimer: null,
+      reduite: false,
+      encreBounds: { ...bounds },
     }
 
     win.on('closed', () => {
@@ -1801,12 +2178,16 @@ function rebuildOverlays(raison = 'démarrage'): void {
       // quelqu'un d'autre l'a déplacée (Windows le fait après un changement de
       // résolution provoqué par un jeu). Les deux méritent une pose ; la
       // seconde une seule fois, pour ne pas se battre en boucle avec le système.
+      // ⚠️ Une fenêtre d'encre RÉDUITE (8 × 8, capturable par OBS) n'est pas
+      // décalée : on compare à ce qu'elle doit être dans son état, sinon chaque
+      // événement d'écran la reposerait en plein écran… pour rien.
       const cibleChangee = !existing.wantedBounds || !sameBounds(existing.wantedBounds, d.bounds)
-      const decalee = !sameBounds(existing.win.getBounds(), d.bounds)
+      const decalee = !sameBounds(existing.win.getBounds(), boundsEncreAttendues(existing, d))
       const boundsChangees = cibleChangee || (decalee && !existing.boundsRefusees)
       if (boundsChangees) {
         existing.wantedBounds = { ...d.bounds }
-        existing.boundsRefusees = !applyBounds(existing.win, d.bounds, `écran ${d.id}`)
+        existing.encreBounds = null
+        existing.boundsRefusees = !poserEncre(existing, existing.reduite)
         // La couche interface suit le même écran, sinon la barre d'outils se
         // retrouverait hors champ après un changement de résolution. Elle passe
         // par sa propre pose : réduite à la barre (§S12), elle doit le rester —
@@ -1925,6 +2306,9 @@ function rebuildOverlays(raison = 'démarrage'): void {
     if (cree || detruits || repose || annotationDisplayId() !== ecranAnnonce) {
       diffuserEcranAnnotation()
     }
+    // Les titres suivent la topologie : l'écran d'annotation s'appelle
+    // « Hexa Overlay », les autres disent leur rang et leur inactivité.
+    retitrer()
 
     // Le mode dessin ne doit pas mourir avec un écran débranché.
     // ⚠️ ON VISE L'ÉCRAN D'ANNOTATION, PAS CELUI DU CURSEUR. Le rendre à
@@ -2159,12 +2543,35 @@ function registerIpc(): void {
      */
     const cible = overlayAnnotation()
     if (value === false && cible && cible !== o) {
+      log('fenêtre', `mode dessin refusé à l’écran ${o.displayId} : ce n’est pas l’écran d’annotation`)
       applyPassthrough(o, true)
       send(o, 'set-draw', false)
       return
     }
     if (value === false && !premier) cancelWelcome()
     applyPassthrough(o, value !== false)
+  })
+
+  /* ---- Ressources : témoin et sonde (electron/sonde.ts) ------------ */
+
+  // Instantané léger, demandé par les réglages toutes les 2 s tant qu'ils
+  // sont ouverts. Aucune minuterie côté principal.
+  ipcMain.handle('hexa:cout', () => mesurerCout(contexteSonde()))
+
+  // Diagnostic de 30 s, depuis les réglages (le menu de l'icône l'a aussi).
+  ipcMain.handle('hexa:sonde', () => demarrerDiagnostic())
+
+  // « Garder la fenêtre capturable par OBS » : lecture (sans argument) ou
+  // réglage. Renvoie toujours l'état RÉEL, jamais celui qu'on suppose.
+  ipcMain.handle('hexa:capture-fenetre', (_e, value: unknown) => {
+    if (typeof value === 'boolean') setCaptureFenetre(value)
+    return {
+      on: reglages.captureFenetre,
+      reduitPx: REDUIT_PX,
+      // ce que l'utilisateur doit chercher dans la liste d'OBS
+      titre: 'Hexa Overlay',
+      sondeEnCours: sondeEnCours(),
+    }
   })
 
   // §2.5 : le renderer nous dit si sa couche est vivante. C'est le signal qui
@@ -2762,6 +3169,9 @@ if (!gotLock) {
   })
 
   app.whenReady().then(() => {
+    // Avant les fenêtres : l'écran d'annotation et le réglage de capture
+    // décident de ce qui est créé visible ou non.
+    lireReglages()
     registerIpc()
 
     // Hors du chemin critique : le verdict n'est utile qu'au moment où
@@ -2830,16 +3240,24 @@ if (!gotLock) {
         }
       },
       setAnnotationDisplay: (id) => {
-        annotationDisplay = id
+        reglages.annotationDisplay = id
+        ecrireReglages()
         log('écrans', `écran d'annotation choisi : ${id}`)
         // Les pages doivent le savoir TOUT DE SUITE : l'ancienne couche
         // s'éteint, la nouvelle s'allume, sans redémarrer l'application.
         diffuserEcranAnnotation()
         // On rend la main au jeu partout, puis on laisse l'utilisateur
-        // rebasculer : sinon un écran resterait en mode dessin dans son dos.
+        // rebasculer : sinon un écran resterait en mode dessin dans son bureau.
         for (const o of overlays.values()) if (!o.passthrough) applyPassthrough(o, true)
+        // L'ancien écran d'annotation redevient inerte (caché), le nouveau
+        // devient capturable (réduit, visible) : diffuserEcranAnnotation() a
+        // déjà retitré et reposé ; ce second passage ne concerne que la
+        // couche que le retour au mode jeu, juste au-dessus, vient de vider.
+        reposerEncresVides()
         refreshTray()
       },
+      diagnostic: () => void demarrerDiagnostic(),
+      diagnosticEnCours: () => (sondeEnCours() ? sondeRestant() : -1),
       toggleDraw: () => toggleDrawMode(),
       /**
        * Tout ce qu'il faut pour répondre à « mes raccourcis ne marchent pas

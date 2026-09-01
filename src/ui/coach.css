@@ -1,0 +1,83 @@
+/* ============================================================
+   Hexa — finitions pour un coach en direct.
+   Pages d'annotation · barre qui s'efface · plaque du texte.
+
+   Règle tenue : rien ne tourne en permanence. Les seules animations sont
+   des transitions déclenchées par un geste (ou par le minuteur de la
+   barre), finies en moins d'une seconde.
+   ============================================================ */
+
+/* ---- témoin de page « 2/3 » dans la barre ----
+   Un bouton de la taille des autres (mesuré : une rangée de plus faisait
+   défiler la barre sur un écran de 900 px) : le chiffre remplace l'icône. */
+
+.tb-page-num {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tb-page.active .tb-page-num,
+.tb-page:hover .tb-page-num {
+  color: var(--text-1);
+}
+
+/* ---- barre qui s'efface (mode dessin, sans survol ni frappe) ----
+   Opacité seulement : la barre reste en place, cliquable, et revient au
+   premier mouvement de souris vers elle. Une transition d'entrée plus courte
+   que celle de sortie : on doit la retrouver TOUT DE SUITE, on peut la
+   laisser partir doucement. */
+.toolbar.is-dim {
+  opacity: 0.22;
+  transition: opacity 0.9s ease;
+}
+
+.toolbar:not(.is-dim) {
+  transition: opacity 0.16s ease;
+}
+
+/* Elle ne s'efface jamais pendant qu'on la déplace ni sous la souris. */
+.toolbar.is-dim:hover,
+.toolbar.is-dim.dragging {
+  opacity: 1;
+  transition: opacity 0.16s ease;
+}
+
+/* ---- plaque de lisibilité, décidée dans le champ de saisie ---- */
+
+.hexa-text-plate-btn {
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.72);
+  font: 600 10.5px ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+.hexa-text-plate-btn.is-on {
+  background: color-mix(in srgb, var(--c, #00e5ff) 28%, rgba(7, 10, 18, 0.8));
+  border-color: color-mix(in srgb, var(--c, #00e5ff) 70%, transparent);
+  color: #fff;
+}
+
+.hexa-text-plate-btn:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Aperçu fidèle : sans plaque, le champ perd son fond et son liseré, le texte
+   reçoit le même contour sombre que le texte posé. */
+.hexa-text.no-plate .hexa-text-field {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-text-stroke: 0.6px rgba(7, 10, 18, 0.85);
+  text-shadow:
+    0 0 2px rgba(7, 10, 18, 0.9),
+    0 0 6px rgba(7, 10, 18, 0.6);
+}

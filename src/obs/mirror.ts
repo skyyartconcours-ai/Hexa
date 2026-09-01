@@ -191,7 +191,11 @@ export class ObsMirror {
 
   /** Mémorise la taille de l'écran annoté (source des coordonnées). */
   private setSource(w: number, h: number): void {
-    if (!(w > 0) || !(h > 0)) return
+    // Une taille de quelques pixels n'est pas un écran : c'est la fenêtre
+    // d'encre réduite à 8 × 8 pendant qu'elle est vide (electron/main.ts), et
+    // un overlay d'une version antérieure peut encore l'annoncer. La prendre
+    // pour référence mettrait toute la scène à l'échelle ×135.
+    if (!(w >= 64) || !(h >= 64)) return
     if (this.srcW === w && this.srcH === h) return
     this.srcW = w
     this.srcH = h

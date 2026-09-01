@@ -44,6 +44,8 @@ import {
 import { useInterfaceCliquable } from './ui/interactivite'
 import { exigerPleinEcran } from './ui/fenetre-compacte'
 import { CurseurHexa } from './ui/CurseurHexa'
+import { download, exportSessionPng, stampName } from './replay/exporter'
+import './ui/coach.css'
 
 const TOOL_LABELS: Record<string, string> = {
   pen: 'Pinceau',
@@ -79,6 +81,30 @@ function telechargerSession(engine: HexaEngine): void {
   a.download = `hexa-session-${Date.now()}.json`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+/**
+ * PNG TRANSPARENT DE LA PAGE COURANTE, EN UN GESTE.
+ *
+ * Le chemin existait déjà — Réglages → Session → échelle → « PNG » : quatre
+ * gestes pour une miniature, en plein direct. Ici : un bouton de la barre ou
+ * une touche. Les annotations seules, sans le fond ni la barre (la session
+ * ne contient que les traits), en 2× : net sur une miniature YouTube, léger.
+ * Renvoie ce qu'il faut annoncer à l'écran.
+ */
+async function exporterPng(session: SessionExport | null): Promise<string> {
+  if (!session || session.strokes.length === 0) return 'Rien à exporter : la page est vide'
+  const blob = await exportSessionPng(session, { scale: 2, crop: false })
+  if (!blob) return 'Rien à exporter : la page est vide'
+  download(blob, stampName('hexa-page', 'png'))
+  // « prêt », pas « exporté » : le fichier part par le téléchargement de
+  // Chromium, et sans gestionnaire `will-download` dans le processus principal,
+  // Electron ouvre la boîte « Enregistrer sous » du système. Tant que
+  // l'utilisateur n'y a pas choisi un dossier, rien n'est écrit — vérifié ici
+  // en observant le vrai événement de téléchargement (test sE-6).
+  return `PNG transparent prêt (${session.strokes.length} annotation${
+    session.strokes.length > 1 ? 's' : ''
+  }) : choisis où l’enregistrer`
 }
 
 export default function App() {
@@ -144,6 +170,13 @@ export default function App() {
   const keymapPreset = useUiStore((s) => s.keymapPreset)
   const keymapOverrides = useUiStore((s) => s.keymapOverrides)
   const globalShortcutsOn = useUiStore((s) => s.globalShortcutsOn)
+  /** plaque de lisibilité proposée aux nouveaux textes (le champ peut la retirer) */
+  const textPlate = useUiStore((s) => s.textPlate)
+  /** pages d'annotation : l'interface décide, chaque moteur suit */
+  const pageIndex = useUiStore((s) => s.pageIndex)
+  const pageCount = useUiStore((s) => s.pageCount)
+  const pageDupSeq = useUiStore((s) => s.pageDupSeq)
+  const notice = useUiStore((s) => s.notice)
 
   const [indicator, setIndicator] = useState<string | null>(null)
   const [passthrough, setPassthrough] = useState(false)
@@ -264,6 +297,14 @@ export default function App() {
     // la molette sur le champ texte a choisi une taille : le curseur d'épaisseur
     // de la barre doit la refléter, sinon le texte suivant repartirait de l'ancienne
     engine.onRequestSize = (size) => useUiStore.getState().setSize(size)
+    // la plaque basculée dans le champ de texte devient le défaut (persisté)
+    engine.onRequestPlate = (on) => useUiStore.getState().setTextPlate(on)
+    // « épinglé » / « détaché » : dit par l'indicateur de la fenêtre d'interface
+    // (hors caméra), jamais écrit en clair sur la couche encre, qui est capturée.
+    engine.onPin = (on) =>
+      useUiStore
+        .getState()
+        .notify(on ? 'Épinglé : survit à « tout effacer », au fondu, aux pages et à Ctrl+Z' : 'Détaché')
     engine.onWheelCb = (e) => {
       e.preventDefault()
       const st = useUiStore.getState()
@@ -716,6 +757,7 @@ export default function App() {
       annotationsHidden,
       handwriting,
       effects: effectIntensity,
+      textPlate,
     })
   }, [
     tool,
@@ -730,7 +772,77 @@ export default function App() {
     annotationsHidden,
     handwriting,
     effectIntensity,
+    textPlate,
   ])
+
+  // ---- PAGES D'ANNOTATION ------------------------------------------------
+  // Dupliquer AVANT de suivre l'index : le moteur copie la page source dans la
+  // page cible et s'y rend lui-même ; l'effet suivant trouve alors l'index déjà
+  // à jour et ne fait rien. (Dans l'autre ordre, il irait d'abord sur une page
+  // vide, puis la copie s'y ajouterait : même résultat, un détour de plus.)
+  const dupJoue = useRef(0)
+  useEffect(() => {
+    if (pageDupSeq === dupJoue.current) return
+    dupJoue.current = pageDupSeq
+    const st = useUiStore.getState()
+    engineRef.current?.dupliquerPage(st.pageDupFrom, st.pageIndex)
+  }, [pageDupSeq])
+  useEffect(() => {
+    engineRef.current?.allerPage(pageIndex)
+  }, [pageIndex])
+  // ⚠️ UNE COUCHE RECHARGÉE RETROUVE SA PAGE. Le numéro de page n'est pas
+  // persisté (les pages vivent le temps d'une session), et il n'existe aucun
+  // message qui redonne l'état de l'autre fenêtre à une fenêtre qui repart.
+  // Mesuré en mode deux fenêtres : interface sur 2/2, couche encre rechargée
+  // (le chemin de la reprise après une panne du rendu) → moteur à 1/1, et
+  // Page ↑ frappé ensuite ne fait plus rien, puisque le store de l'encre se
+  // croit déjà sur la première page. sessionStorage survit au rechargement de
+  // CETTE fenêtre et meurt avec elle : au prochain lancement, on repart bien
+  // de la page 1.
+  useEffect(() => {
+    if (!coucheSeparee) return
+    try {
+      const brut = sessionStorage.getItem('hexa-pages')
+      if (brut) {
+        const v = JSON.parse(brut) as { index?: unknown; count?: unknown }
+        const count = typeof v.count === 'number' && Number.isFinite(v.count) ? Math.max(1, Math.floor(v.count)) : 1
+        const index =
+          typeof v.index === 'number' && Number.isFinite(v.index) ? Math.min(count - 1, Math.max(0, Math.floor(v.index))) : 0
+        if (index !== 0 || count !== 1) useUiStore.setState({ pageIndex: index, pageCount: count })
+      }
+    } catch {
+      /* stockage de session indisponible : on repart de la page 1 */
+    }
+  }, [])
+  useEffect(() => {
+    if (!coucheSeparee) return
+    try {
+      sessionStorage.setItem('hexa-pages', JSON.stringify({ index: pageIndex, count: pageCount }))
+    } catch {
+      /* ignore */
+    }
+  }, [pageIndex, pageCount])
+  // témoin lisible à chaque changement de page — jamais au montage
+  const pageMontee = useRef(true)
+  useEffect(() => {
+    if (pageMontee.current) {
+      pageMontee.current = false
+      return
+    }
+    // l'indicateur n'est rendu que par la couche interface : dans la couche
+    // encre, poser cet état ne ferait que re-rendre l'application pour rien
+    if (!porteInterface) return
+    setIndicator(`Page ${pageIndex + 1} / ${pageCount}`)
+    const t = setTimeout(() => setIndicator(null), 1100)
+    return () => clearTimeout(t)
+  }, [pageIndex, pageCount])
+  // messages éphémères venus du store (donc de l'une ou l'autre fenêtre)
+  useEffect(() => {
+    if (notice.seq === 0 || !notice.text || !porteInterface) return
+    setIndicator(notice.text)
+    const t = setTimeout(() => setIndicator(null), 1600)
+    return () => clearTimeout(t)
+  }, [notice])
 
   // correcteur lexical du mode écriture (§S3) : il vit dans la session
   // d'écriture, pas dans les options du moteur — le moteur n'a pas à savoir
@@ -983,6 +1095,34 @@ export default function App() {
           // la gomme passée sur une zone vide.
           if (eng.supprimerSousLeCurseur()) signalTour('erase')
           break
+        case 'edit.pin':
+          e.preventDefault()
+          // le retour visuel (onde + « épinglé ») est peint par le moteur sur
+          // la couche vive ; rien sous le curseur = rien ne se passe
+          eng.epinglerSousLeCurseur()
+          break
+        case 'page.next':
+          e.preventDefault()
+          st().nextPage()
+          break
+        case 'page.prev':
+          e.preventDefault()
+          st().prevPage()
+          break
+        case 'page.new':
+          e.preventDefault()
+          st().newPage()
+          break
+        case 'page.dup':
+          e.preventDefault()
+          st().duplicatePage()
+          break
+        case 'export.png':
+          e.preventDefault()
+          // Couche encre : le moteur est ici, pas d'aller-retour. L'annonce
+          // passe par le store pour s'afficher dans la fenêtre d'interface.
+          void exporterPng(eng.exportSession()).then((msg) => st().notify(msg))
+          break
         case 'size.dec':
           e.preventDefault()
           st().setSize(Math.max(2, st().size - 2))
@@ -1145,6 +1285,10 @@ export default function App() {
    * exécutée sur place — même chemin, aucun détour.
    */
   const exportSession = () => envoyerCommande({ nom: 'export' })
+
+  /** bouton « image PNG » de la barre : l'instantané est réclamé, puis rendu ici */
+  const exportPng = () =>
+    void demanderSession().then((s) => exporterPng(s).then((msg) => useUiStore.getState().notify(msg)))
 
   /**
    * Instantané de la scène vive, RÉCLAMÉ SEULEMENT QUAND ON EN A BESOIN.
@@ -1320,10 +1464,12 @@ export default function App() {
               onRedo={() => envoyerCommande({ nom: 'redo' })}
               onClear={() => envoyerCommande({ nom: 'clear' })}
               onExport={exportSession}
+              onExportPng={exportPng}
               onFreeze={() => envoyerCommande({ nom: 'freeze' })}
               onCompare={() => envoyerCommande({ nom: 'compare' })}
               frozen={fxState.frozen}
               comparing={fxState.compare}
+              passthrough={passthrough}
             />
           )}
 

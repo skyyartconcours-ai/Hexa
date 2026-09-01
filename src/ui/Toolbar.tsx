@@ -9,7 +9,7 @@ import {
 } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactElement, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { COLORS, useUiStore } from '../store'
+import { COLORS, TOOLBAR_FADE_STEPS, useUiStore } from '../store'
 import type { ToolId } from '../engine/types'
 import { GRID_LABELS } from '../engine/stream-fx'
 import {
@@ -54,7 +54,9 @@ import {
   IconEllipse,
   IconEye,
   IconEyeOff,
+  IconFadeBar,
   IconFreeze,
+  IconImage,
   IconHelp,
   IconMagnifier,
   IconEraser,
@@ -332,6 +334,8 @@ export interface ToolbarActions {
   onRedo: () => void
   onClear: () => void
   onExport: () => void
+  /** PNG transparent de la page courante, en un clic (miniature, VOD) */
+  onExportPng: () => void
   /** gel d'image (§5.5) : l'écran se fige, on annote la photo */
   onFreeze: () => void
   /** avant/après (§5.7) : photo à gauche, direct à droite */
@@ -339,6 +343,8 @@ export interface ToolbarActions {
   /** état de la couche d'effets, pour allumer les deux boutons ci-dessus */
   frozen: boolean
   comparing: boolean
+  /** la souris est rendue au jeu : la barre ne s'efface pas, elle est déjà discrète */
+  passthrough: boolean
 }
 
 export function Toolbar({
@@ -346,10 +352,12 @@ export function Toolbar({
   onRedo,
   onClear,
   onExport,
+  onExportPng,
   onFreeze,
   onCompare,
   frozen,
   comparing,
+  passthrough,
 }: ToolbarActions) {
   const tool = useUiStore((s) => s.tool)
   const color = useUiStore((s) => s.color)
@@ -389,6 +397,15 @@ export function Toolbar({
   const setToolbarDock = useUiStore((s) => s.setToolbarDock)
   const setToolbarOrientation = useUiStore((s) => s.setToolbarOrientation)
   const toggleToolbarOrientation = useUiStore((s) => s.toggleToolbarOrientation)
+  const pageIndex = useUiStore((s) => s.pageIndex)
+  const pageCount = useUiStore((s) => s.pageCount)
+  const nextPage = useUiStore((s) => s.nextPage)
+  const prevPage = useUiStore((s) => s.prevPage)
+  const newPage = useUiStore((s) => s.newPage)
+  const duplicatePage = useUiStore((s) => s.duplicatePage)
+  const setPage = useUiStore((s) => s.setPage)
+  const toolbarFade = useUiStore((s) => s.toolbarFade)
+  const cycleToolbarFade = useUiStore((s) => s.cycleToolbarFade)
 
   const hover = (on: boolean) => document.body.classList.toggle('over-ui', on)
 
@@ -643,6 +660,63 @@ export function Toolbar({
     window.addEventListener('pointerup', lacher, { once: true })
   }
 
+  /* ---------------- LA BARRE QUI S'EFFACE ---------------------------------
+   * En mode dessin, après `toolbarFade` secondes sans survol ni changement
+   * d'outil/couleur/taille/fondu, la barre s'estompe (opacité seulement : elle
+   * reste là, à sa place, cliquable) et revient dès que la souris s'en
+   * APPROCHE — pas dès qu'elle bouge : un coach qui trace une flèche ne veut
+   * pas que la barre se rallume au milieu de son geste.
+   *
+   * Coût au repos : un seul setTimeout armé. L'écouteur de mouvement n'est posé
+   * QUE pendant que la barre est estompée, et ne fait qu'une comparaison de
+   * rectangle — sans mouvement de souris, rien ne s'exécute. */
+  const [dim, setDim] = useState(false)
+  const fadeActif = toolbarFade > 0 && !passthrough && !drag
+  // une « frappe » (outil, couleur, taille, fondu, page, masquage) rallume la
+  // barre : ce sont les gestes du clavier qui traversent le store jusqu'ici
+  // (« hints » : la touche Fin maintenue pour lire les raccourcis — une barre
+  // qui s'estomperait pendant qu'on la lit serait un contresens)
+  useEffect(() => {
+    setDim(false)
+  }, [tool, color, size, fadeDelay, pageIndex, annotationsHidden, hints])
+  // un seul minuteur, armé tant que la barre est nette et que le réglage est
+  // actif ; réarmé à chaque rallumage et à chaque frappe
+  useEffect(() => {
+    if (!fadeActif) {
+      setDim(false)
+      return
+    }
+    if (dim) return
+    const t = setTimeout(() => setDim(true), toolbarFade * 1000)
+    return () => clearTimeout(t)
+  }, [dim, fadeActif, toolbarFade, tool, color, size, fadeDelay, pageIndex, annotationsHidden, hints])
+  useEffect(() => {
+    if (!dim) return
+    const el = barRef.current
+    if (!el) return
+    // Le rectangle est lu UNE fois, à l'estompage : une barre estompée ne
+    // bouge pas (le glisser la rallume). Le lire à chaque mouvement forçait
+    // une mise en page par événement de souris — mesuré sur la campagne DPI :
+    // le trait prenait 2 px de retard sur le curseur pendant que la barre
+    // était estompée. En mode fenêtre unique, c'est la même page que l'encre.
+    const r = el.getBoundingClientRect()
+    // marge d'approche : la barre revient AVANT que le curseur ne la touche,
+    // pour que le premier clic tombe sur une barre déjà nette
+    const m = 70
+    const approche = (e: PointerEvent) => {
+      if (
+        e.clientX >= r.left - m &&
+        e.clientX <= r.right + m &&
+        e.clientY >= r.top - m &&
+        e.clientY <= r.bottom + m
+      ) {
+        setDim(false)
+      }
+    }
+    window.addEventListener('pointermove', approche, { passive: true })
+    return () => window.removeEventListener('pointermove', approche)
+  }, [dim])
+
   // Cette fenêtre ne porte pas la barre (écran de gauche d'une configuration à
   // deux écrans) : on annote quand même, mais sans barre par-dessus le jeu.
   if (!isHost) return null
@@ -665,7 +739,7 @@ export function Toolbar({
       ref={barRef}
       className={`toolbar ${vertical ? 'vertical' : 'horizontal'} edge-${toolbarEdge} ${
         hints ? 'hints' : ''
-      } ${drag ? 'dragging' : ''}`}
+      } ${drag ? 'dragging' : ''} ${dim ? 'is-dim' : ''}`}
       style={{ '--accent': color, ...pose } as CSSProperties}
       onPointerEnter={() => hover(true)}
       onPointerLeave={() => hover(false)}
@@ -980,6 +1054,64 @@ export function Toolbar({
         >
           <IconExport />
           {rappel('Exporter')}
+        </button>
+        <button
+          className="tbtn"
+          title={bulle(
+            'Image PNG transparente de cette page : les annotations seules, sans le fond ni la barre — pour une miniature ou une VOD',
+            'export.png',
+          )}
+          onClick={onExportPng}
+        >
+          <IconImage />
+          {rappel('Image PNG', 'export.png')}
+        </button>
+        {/* PAGES D'ANNOTATION : le plan sur la 1, ce qui s'est passé sur la 2,
+            la comparaison ensuite. UN SEUL BOUTON, mesuré : la barre verticale
+            avec ses raccourcis affichés (touche Fin) tenait à 22 px près dans
+            un écran de 900 px, et une rangée « ‹ 2/3 › » la faisait défiler.
+            Le témoin dit où l'on est ; le clic tourne les pages comme un
+            diaporama, les modificateurs font le reste, et Page ↑ / Page ↓
+            restent le geste principal. */}
+        <button
+          className="tbtn tb-page"
+          title={`Page ${pageIndex + 1} sur ${pageCount} — chaque page garde ses annotations, le fondu est suspendu sur celles qu’on ne regarde pas · clic : page suivante (${
+            touche('page.next') ?? ''
+          }, en boucle) · Alt + clic : page précédente (${touche('page.prev') ?? ''}) · Maj + clic : nouvelle page vierge (${
+            touche('page.new') ?? ''
+          }) · Ctrl + clic : dupliquer cette page (${touche('page.dup') ?? ''})`}
+          onClick={(e) => {
+            if (e.shiftKey) newPage()
+            else if (e.ctrlKey || e.metaKey) duplicatePage()
+            else if (e.altKey) prevPage()
+            else if (pageIndex >= pageCount - 1) setPage(0)
+            else nextPage()
+          }}
+        >
+          <span className="tb-page-num">{`${pageIndex + 1}/${pageCount}`}</span>
+          {rappel('Page suivante', 'page.next')}
+        </button>
+        <button
+          className={`tbtn ${toolbarFade > 0 ? 'active' : ''}`}
+          title={
+            toolbarFade > 0
+              ? `Barre discrète : en mode dessin, elle s’estompe après ${toolbarFade} s sans survol ni changement d’outil, et revient dès que la souris s’en approche. Ce bouton fait défiler ${TOOLBAR_FADE_STEPS.map(
+                  (v) => (v === 0 ? 'jamais' : `${v} s`),
+                ).join(', ')}`
+              : `Barre discrète : coupée — la barre reste nette en permanence. Ce bouton fait défiler ${TOOLBAR_FADE_STEPS.map(
+                  (v) => (v === 0 ? 'jamais' : `${v} s`),
+                ).join(', ')}`
+          }
+          onClick={() => {
+            cycleToolbarFade()
+            // le réglage n'a pas de pastille (une rangée de plus ferait
+            // défiler la barre sur un écran de 900 px) : l'indicateur le dit
+            const v = useUiStore.getState().toolbarFade
+            useUiStore.getState().notify(v > 0 ? `Barre discrète : après ${v} s` : 'Barre discrète : jamais')
+          }}
+        >
+          <IconFadeBar />
+          {rappel('Barre discrète')}
         </button>
         <button
           className="tbtn"

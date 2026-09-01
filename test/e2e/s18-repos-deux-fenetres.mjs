@@ -152,6 +152,16 @@ const fenetres = () =>
 /** Part de l'écran réellement composée, toutes fenêtres confondues. */
 const partComposee = async () => (await fenetres()).reduce((s, f) => s + f.part, 0)
 
+/**
+ * « Retirée » a changé de forme : vide, la fenêtre d'encre n'est plus CACHÉE
+ * mais RÉDUITE à 8 × 8 pixels, pour rester dans la liste d'OBS (voir
+ * t-obs-2-capturable.mjs — c'était « OBS affiche ma page Twitch »). Ce qui
+ * compte pour le compositeur est la SURFACE : 64 pixels sur 1 440 000, soit
+ * moins de 0,01 % de l'écran. C'est ce seuil qu'on exige ici, plus la taille
+ * exacte, pour qu'un retour accidentel au plein écran soit vu.
+ */
+const retiree = (f) => f != null && (f.visible === false || (f.visible === true && f.part <= 0.0001))
+
 /** Le mode jeu : c'est l'état par défaut du streamer, celui qui doit être gratuit. */
 const passerEnJeu = async () => {
   for (let i = 0; i < 3; i++) {
@@ -199,20 +209,22 @@ await rapport.test(encre, 's18-1-ecran-vide', 'Écran vide en mode jeu : zéro i
   const img = await imagesDesDeux(3000)
   const m = await memoire()
   const f = await fenetres()
-  const encreVisible = f.find((x) => /index\.html/.test(x.url ?? ''))?.visible
+  const fEncre = f.find((x) => /index\.html/.test(x.url ?? ''))
+  const encreVisible = fEncre?.visible
   // Les canevas de dessin : deux plein écran au maximum (statique + vif), pas
   // un de plus. Les occasionnels : zéro absolu.
   const ok =
     img.total === 0 &&
-    encreVisible === false &&
+    retiree(fEncre) &&
     m.occasionnels === 0 &&
     m.dessin <= 2.2 * m.ecran
   return {
     statut: ok ? OK : KO,
     detail:
       `3 s d’immobilité : ${img.encre} image(s) couche encre + ${img.interface} couche interface ` +
-      `(0 exigé de part et d’autre) · fenêtre d’encre visible : ${encreVisible} (false exigé — ` +
-      `une fenêtre vide doit se retirer, sinon Windows la compose à chaque image et OBS la paie) · ` +
+      `(0 exigé de part et d’autre) · fenêtre d’encre visible : ${encreVisible}, ` +
+      `${(100 * (fEncre?.part ?? 0)).toFixed(4)} % de l’écran (retirée exigée : cachée, ou réduite à 8 × 8 — ` +
+      `une fenêtre vide plein écran serait composée par Windows à chaque image, et OBS la paierait) · ` +
       `mémoire : ${m.occasionnels} px de canevas OCCASIONNELS (0 exigé : loupe, flou, gel, voile) · ` +
       `${m.dessin} px de canevas de DESSIN, soit ${(m.dessin / m.ecran).toFixed(2)} écran(s) ` +
       `(≤ 2,2 attendu : le statique et le vif, gardés pour que le premier trait soit instantané) · ` +
@@ -282,7 +294,8 @@ await rapport.test(encre, 's18-4-annotations-masquees', 'Annotations masquées :
   const contenu = await encre.evaluate(() => window.hexaEngine?.hasContent ?? null)
   const img = await imagesDesDeux(2500)
   const f = await fenetres()
-  const encreVisible = f.find((x) => /index\.html/.test(x.url ?? ''))?.visible
+  const fEncre = f.find((x) => /index\.html/.test(x.url ?? ''))
+  const encreVisible = fEncre?.visible
   const part = await partComposee()
 
   // …puis on les remontre : rien n'a été perdu.
@@ -292,12 +305,13 @@ await rapport.test(encre, 's18-4-annotations-masquees', 'Annotations masquées :
   const revenue = (await fenetres()).find((x) => /index\.html/.test(x.url ?? ''))?.visible
 
   const ok =
-    contenu === false && img.total === 0 && encreVisible === false && part < 0.25 &&
+    contenu === false && img.total === 0 && retiree(fEncre) && part < 0.25 &&
     traits === 1 && revenue === true
   return {
     statut: ok ? OK : KO,
     detail:
-      `masquées : hasContent ${contenu} (false exigé), fenêtre d’encre visible ${encreVisible} (false exigé), ` +
+      `masquées : hasContent ${contenu} (false exigé), fenêtre d’encre visible ${encreVisible} ` +
+      `(${(100 * (fEncre?.part ?? 0)).toFixed(4)} % de l’écran — retirée exigée : cachée ou 8 × 8), ` +
       `${img.encre}+${img.interface} image(s) en 2,5 s, ${(100 * part).toFixed(1)} % d’écran composé · ` +
       `remontrées : ${traits} trait(s) retrouvé(s) (1 exigé), fenêtre revenue ${revenue}`,
   }

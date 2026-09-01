@@ -50,6 +50,7 @@ export type KeymapAction =
   | 'edit.redo'
   | 'edit.clear'
   | 'edit.deleteHovered'
+  | 'edit.pin'
   | 'size.dec'
   | 'size.inc'
   | 'fade.cycle'
@@ -57,6 +58,13 @@ export type KeymapAction =
   | 'toggle.guides'
   | 'toggle.linkBadges'
   | 'toggle.handwriting'
+  // pages d'annotation (plan / réalité / comparaison)
+  | 'page.next'
+  | 'page.prev'
+  | 'page.new'
+  | 'page.dup'
+  // export en un geste
+  | 'export.png'
   // écran et cadrage (§5.7, §5.8)
   | 'fx.compare'
   | 'stage.grid'
@@ -80,6 +88,7 @@ export type KeymapCategory =
   | 'momentanes'
   | 'couleurs'
   | 'edition'
+  | 'pages'
   | 'ecran'
   | 'interface'
   | 'systeme'
@@ -89,6 +98,7 @@ export const CATEGORY_LABELS: Record<KeymapCategory, string> = {
   momentanes: 'Outils momentanés (maintien)',
   couleurs: 'Couleurs',
   edition: 'Édition',
+  pages: 'Pages d’annotation',
   ecran: 'Écran et cadrage',
   interface: 'Interface',
   systeme: 'Système (raccourcis globaux)',
@@ -105,6 +115,7 @@ export const CATEGORY_ORDER: readonly KeymapCategory[] = [
   'momentanes',
   'couleurs',
   'edition',
+  'pages',
   'ecran',
   'interface',
   'systeme',
@@ -228,6 +239,12 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
     hint: 'Vise, appuie : le trait visé part seul, sans changer d’outil',
   },
   {
+    action: 'edit.pin',
+    label: 'Épingler / détacher l’annotation sous le curseur',
+    category: 'edition',
+    hint: 'Épinglée, elle survit à « tout effacer », au fondu, au changement de page et à Ctrl+Z · Ctrl + clic droit fait pareil',
+  },
+  {
     action: 'size.dec',
     label: 'Trait plus fin',
     category: 'edition',
@@ -262,6 +279,31 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
     hint: 'Tes CAPITALES manuscrites sont retracées en typographie (§S3)',
   },
 
+  {
+    action: 'page.next',
+    label: 'Page suivante',
+    category: 'pages',
+    hint: 'Chaque page garde ses annotations ; le fondu est suspendu sur les pages qu’on ne regarde pas',
+  },
+  { action: 'page.prev', label: 'Page précédente', category: 'pages' },
+  {
+    action: 'page.new',
+    label: 'Nouvelle page',
+    category: 'pages',
+    hint: 'Une page vierge à la fin — les annotations épinglées y sont déjà',
+  },
+  {
+    action: 'page.dup',
+    label: 'Dupliquer la page',
+    category: 'pages',
+    hint: 'Le plan reste intact sur sa page, on montre « ce qui s’est passé » sur la copie',
+  },
+  {
+    action: 'export.png',
+    label: 'Exporter la page en image PNG transparente',
+    category: 'edition',
+    hint: 'Les annotations seules, sans le fond ni la barre — pour une miniature ou une VOD',
+  },
   {
     action: 'fx.compare',
     label: 'Avant / après',
@@ -395,6 +437,9 @@ const HEXA_BINDINGS: Bindings = {
   // le retirerait à Chrome, à Firefox et à YouTube. En mode dessin — le seul
   // moment où l'on supprime une annotation — il nous revient de toute façon.
   'edit.deleteHovered': 'ctrl+d',
+  // Même logique que Ctrl+D : local (en mode dessin), jamais confisqué au
+  // système — Ctrl+Maj+P appartient aux navigateurs (impression système).
+  'edit.pin': 'ctrl+shift+p',
   'size.dec': '[',
   'size.inc': ']',
   'fade.cycle': 'd',
@@ -404,6 +449,15 @@ const HEXA_BINDINGS: Bindings = {
   'toggle.handwriting': 'j',
 
   'fx.compare': 'u',
+  // PAGES — Page ↑ / Page ↓ : les touches de la présentation, à l'écart des
+  // lettres du dessin et des sorts de League of Legends. Créer et dupliquer
+  // demandent Ctrl+Maj : on ne fabrique pas une page par accident.
+  'page.next': 'pagedown',
+  'page.prev': 'pageup',
+  'page.new': 'ctrl+shift+n',
+  'page.dup': 'ctrl+shift+d',
+  // Export image en un geste : local, comme tous les Ctrl+lettre.
+  'export.png': 'ctrl+shift+e',
   // §5.8 — éléments posés à l'écran. Volontairement à l'écart des réflexes
   // Epic Pen (Ctrl+Maj+2…8) et des lettres nues : on ne pose pas un chrono par
   // accident en pleine partie.

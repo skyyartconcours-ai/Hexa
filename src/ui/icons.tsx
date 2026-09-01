@@ -366,3 +366,28 @@ export const HexaLogo = () => (
     <circle cx="16" cy="17" r="4" fill="url(#hexa-g)" opacity="0.9" />
   </svg>
 )
+
+/* ------------------------------------------------------------------ *
+ * Pages, épinglage, export image, barre qui s'efface
+ * ------------------------------------------------------------------ */
+
+export const IconPin = () => (
+  <Svg>
+    <path d="M14.5 3.5 20.5 9.5l-2.2.8-3.6 3.6.4 3.6-2.1 2.1-4-4L4 20.5l-.5-.5 5-5-4-4 2.1-2.1 3.6.4 3.6-3.6z" />
+  </Svg>
+)
+
+export const IconImage = () => (
+  <Svg>
+    <rect x="3.5" y="5" width="17" height="14" rx="2" />
+    <circle cx="9" cy="10" r="1.8" />
+    <path d="m4 17 5-5 3.5 3.5L15 13l5 4" />
+  </Svg>
+)
+
+export const IconFadeBar = () => (
+  <Svg>
+    <rect x="4" y="5" width="16" height="14" rx="3" strokeDasharray="3 2.4" />
+    <path d="M8 12h8" opacity="0.5" />
+  </Svg>
+)

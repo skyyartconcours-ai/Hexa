@@ -196,6 +196,38 @@ export interface UiState extends ObsSettings {
   clocks: StageClock[]
   /** notes persistantes posées à l'écran (§5.8.3) — hors fondu, hors panique */
   notes: StageNote[]
+  /**
+   * PAGES D'ANNOTATION. L'interface (barre, clavier) est la seule source de
+   * vérité du numéro de page : chaque moteur — il y en a un par écran — suit
+   * `pageIndex` et crée les pages qu'il ne connaît pas encore. Le compte est
+   * tenu ici pour la même raison : deux moteurs qui annonceraient chacun leur
+   * compte se disputeraient la barre. Rien n'est persisté : comme les
+   * annotations, les pages vivent le temps d'une session.
+   */
+  pageIndex: number
+  pageCount: number
+  /** demande de duplication : compteur incrémenté à chaque « dupliquer », et
+   *  page source — le moteur copie `pageDupFrom` dans `pageIndex` */
+  pageDupSeq: number
+  pageDupFrom: number
+  /** plaque de lisibilité proposée par défaut aux nouveaux textes (Stroke.plate) */
+  textPlate: boolean
+  /**
+   * BARRE QUI S'EFFACE : en mode dessin, après ce nombre de secondes sans
+   * survol ni changement d'outil, la barre s'estompe (elle reste là, cliquable,
+   * juste discrète) et revient dès que la souris s'en approche. 0 = jamais.
+   * Un coach qui annote une vidéo n'a pas à garder un bandeau opaque sur le
+   * bord de l'image pendant qu'il parle.
+   */
+  toolbarFade: number
+  /**
+   * Message éphémère à afficher (« PNG exporté », « Page 2 / 3 »…). Passe par
+   * le store parce que le store VOYAGE entre les deux fenêtres : un geste fait
+   * au clavier dans la couche encre doit s'annoncer dans la couche interface,
+   * la seule que l'utilisateur voit hors caméra. `seq` rejoue l'animation
+   * même si le texte est identique. Jamais persisté.
+   */
+  notice: { text: string; seq: number }
   setTool: (tool: ToolId) => void
   setColor: (color: string) => void
   setSize: (size: number) => void
@@ -252,6 +284,16 @@ export interface UiState extends ObsSettings {
   addNote: (note: StageNote) => void
   updateNote: (id: string, patch: Partial<StageNote>) => void
   removeNote: (id: string) => void
+  /** page suivante / précédente (bornées), nouvelle page (à la fin), copie */
+  nextPage: () => void
+  prevPage: () => void
+  newPage: () => void
+  duplicatePage: () => void
+  setPage: (index: number) => void
+  setTextPlate: (on: boolean) => void
+  setToolbarFade: (seconds: number) => void
+  cycleToolbarFade: () => void
+  notify: (text: string) => void
 }
 
 /* ------------------------------------------------------------------ *
@@ -446,6 +488,9 @@ function notesSaines(v: unknown): StageNote[] {
   return out
 }
 
+/** paliers de la barre qui s'efface : jamais, 3 s, 5 s, 10 s */
+export const TOOLBAR_FADE_STEPS = [0, 3, 5, 10]
+
 export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
@@ -497,6 +542,15 @@ export const useUiStore = create<UiState>()(
       gridOpacity: 0.22,
       clocks: [],
       notes: [],
+      pageIndex: 0,
+      pageCount: 1,
+      pageDupSeq: 0,
+      pageDupFrom: 0,
+      textPlate: true,
+      // 5 s par défaut : assez long pour ne jamais s'effacer sous la main qui
+      // cherche un bouton, assez court pour dégager l'image pendant qu'on parle.
+      toolbarFade: 5,
+      notice: { text: '', seq: 0 },
       setTool: (tool) => set({ tool }),
       setColor: (color) => set({ color }),
       setSize: (size) => set({ size }),
@@ -619,6 +673,31 @@ export const useUiStore = create<UiState>()(
       updateNote: (id, patch) =>
         set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, ...patch } : n)) })),
       removeNote: (id) => set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
+
+      // ---- pages d'annotation ----
+      // Bornées : PageDown sur la dernière page ne crée rien — créer une page
+      // est un acte voulu (Ctrl+Maj+N, ou le témoin de la barre), sinon un
+      // coach qui « regarde s'il y a une suite » se retrouve avec une page vide.
+      nextPage: () => set((s) => ({ pageIndex: Math.min(s.pageCount - 1, s.pageIndex + 1) })),
+      prevPage: () => set((s) => ({ pageIndex: Math.max(0, s.pageIndex - 1) })),
+      newPage: () => set((s) => ({ pageCount: s.pageCount + 1, pageIndex: s.pageCount })),
+      duplicatePage: () =>
+        set((s) => ({
+          pageCount: s.pageCount + 1,
+          pageIndex: s.pageCount,
+          pageDupFrom: s.pageIndex,
+          pageDupSeq: s.pageDupSeq + 1,
+        })),
+      setPage: (index) =>
+        set((s) => ({ pageIndex: Math.max(0, Math.min(s.pageCount - 1, Math.floor(index))) })),
+      setTextPlate: (textPlate) => set({ textPlate }),
+      setToolbarFade: (seconds) => set({ toolbarFade: Math.max(0, Math.min(60, seconds)) }),
+      cycleToolbarFade: () =>
+        set((s) => {
+          const i = TOOLBAR_FADE_STEPS.indexOf(s.toolbarFade)
+          return { toolbarFade: TOOLBAR_FADE_STEPS[(i + 1) % TOOLBAR_FADE_STEPS.length] }
+        }),
+      notify: (text) => set((s) => ({ notice: { text, seq: s.notice.seq + 1 } })),
     }),
     {
       name: 'hexa-ui',
@@ -671,6 +750,8 @@ export const useUiStore = create<UiState>()(
         customProfiles: s.customProfiles,
         gridMode: s.gridMode,
         gridOpacity: s.gridOpacity,
+        textPlate: s.textPlate,
+        toolbarFade: s.toolbarFade,
         // Les notes sont persistantes au sens fort : on les retrouve au
         // prochain lancement, à leur place (§5.8.3).
         notes: s.notes,
@@ -740,6 +821,17 @@ export const useUiStore = create<UiState>()(
         // Un outil inconnu laisserait la barre sans bouton actif et le moteur
         // sans geste : on revient au pinceau, qui est toujours le bon repli.
         if (!KNOWN_TOOLS.has(merged.tool as string)) merged.tool = 'pen'
+        // Les deux réglages « coach » relus du disque : un délai qui n'est pas
+        // un nombre donnerait `setTimeout(NaN)` — une barre qui s'estompe
+        // aussitôt — et un libellé « après cinq s » dans la barre ; une plaque
+        // qui n'est pas un booléen se propagerait telle quelle jusqu'au champ
+        // de saisie. Mesuré (sE-12) avec « cinq » / « oui » : relus tels quels.
+        merged.toolbarFade = TOOLBAR_FADE_STEPS.includes(merged.toolbarFade as number)
+          ? merged.toolbarFade
+          : Number.isFinite(merged.toolbarFade)
+            ? Math.min(60, Math.max(0, Math.round(merged.toolbarFade)))
+            : 5
+        merged.textPlate = merged.textPlate !== false
         if (!GRID_MODES.includes(merged.gridMode)) merged.gridMode = 'off'
         if (merged.keymapPresetChosen !== true) merged.keymapPreset = DEFAULT_PRESET
         // Même règle que pour le preset : le défaut du moment s'applique TANT

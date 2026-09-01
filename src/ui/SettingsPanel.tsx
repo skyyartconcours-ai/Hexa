@@ -69,6 +69,65 @@ const SCALES: PngScale[] = [1, 2, 4]
 interface HoteObs {
   obsStatus?: () => Promise<unknown>
   on?: (channel: string, cb: (...args: unknown[]) => void) => () => void
+  /** instantané du coût (processeur, mémoire, images/s, surface) — electron/sonde.ts */
+  cout?: () => Promise<unknown>
+  /** diagnostic de 30 s ; revient avec les chemins écrits */
+  lancerSonde?: () => Promise<unknown>
+  /** « Garder la fenêtre capturable par OBS » : lecture sans argument */
+  captureFenetre?: (on?: boolean) => Promise<unknown>
+}
+
+/** Ce que renvoie `hexa.cout()`, revalidé ici : la page n'affiche jamais un chiffre qu'elle n'a pas compris. */
+interface CoutLu {
+  cpuTotal: number
+  cpuCoeur: number
+  coeurs: number
+  memoireMo: number
+  imagesParSeconde: number
+  surface: number
+  fenetres: { titre: string; visible: boolean; largeur: number; hauteur: number; surface: number; imagesParSeconde: number }[]
+}
+
+function lireCout(raw: unknown): CoutLu | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const r = raw as Record<string, unknown>
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+  const fenetres = Array.isArray(r.fenetres)
+    ? (r.fenetres as Record<string, unknown>[]).map((f) => ({
+        titre: typeof f.titre === 'string' ? f.titre : '?',
+        visible: f.visible === true,
+        largeur: n(f.largeur),
+        hauteur: n(f.hauteur),
+        surface: n(f.surface),
+        imagesParSeconde: n(f.imagesParSeconde),
+      }))
+    : []
+  return {
+    cpuTotal: n(r.cpuTotal),
+    cpuCoeur: n(r.cpuCoeur),
+    coeurs: Math.max(1, n(r.coeurs)),
+    memoireMo: n(r.memoireMo),
+    imagesParSeconde: n(r.imagesParSeconde),
+    surface: n(r.surface),
+    fenetres,
+  }
+}
+
+/** État du réglage « Garder la fenêtre capturable par OBS », tel que le principal le dit. */
+interface CaptureFenetreLue {
+  on: boolean
+  titre: string
+  reduitPx: number
+}
+
+function lireCaptureFenetre(raw: unknown): CaptureFenetreLue | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const r = raw as Record<string, unknown>
+  return {
+    on: r.on === true,
+    titre: typeof r.titre === 'string' ? r.titre : 'Hexa Overlay',
+    reduitPx: typeof r.reduitPx === 'number' ? r.reduitPx : 8,
+  }
 }
 
 function hoteObs(): HoteObs | undefined {
@@ -303,6 +362,79 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
     setWsStatus(obsWsClient.status)
     return obsWsClient.souscrire((s) => setWsStatus(s))
   }, [])
+
+  /**
+   * « GARDER LA FENÊTRE CAPTURABLE PAR OBS » — un réglage du processus
+   * principal, pas du store : il gouverne la fenêtre d'ENCRE, que cette page ne
+   * voit pas. Lu à l'ouverture, écrit au clic, et toujours affiché d'après ce
+   * que le principal répond — jamais d'après ce qu'on vient de demander.
+   */
+  const [captureFenetre, setCaptureFenetre] = useState<CaptureFenetreLue | null>(null)
+  useEffect(() => {
+    const h = hoteObs()
+    if (!h?.captureFenetre) return
+    let vivant = true
+    void h.captureFenetre().then((r) => {
+      if (vivant) setCaptureFenetre(lireCaptureFenetre(r))
+    })
+    return () => {
+      vivant = false
+    }
+  }, [])
+  const basculerCaptureFenetre = () => {
+    const h = hoteObs()
+    if (!h?.captureFenetre || !captureFenetre) return
+    void h.captureFenetre(!captureFenetre.on).then((r) => setCaptureFenetre(lireCaptureFenetre(r)))
+  }
+
+  /**
+   * « COÛT ACTUEL » — la réponse à « ça prend combien de ressources ? ».
+   *
+   * Demandé au processus principal toutes les 2 s, UNIQUEMENT tant que ce
+   * panneau est monté : la minuterie naît ici et meurt avec le panneau
+   * (nettoyage de l'effet). Panneau fermé, il ne reste rien — ni ici, ni dans
+   * le principal, qui ne fait que répondre. Le premier relevé est jeté : le
+   * processeur s'y mesure « depuis l'appel précédent », il ne veut rien dire.
+   */
+  const [cout, setCout] = useState<CoutLu | null>(null)
+  useEffect(() => {
+    const h = hoteObs()
+    if (!h?.cout) return
+    let vivant = true
+    let premier = true
+    const relever = () =>
+      void h.cout?.().then((r) => {
+        if (!vivant) return
+        if (premier) {
+          premier = false
+          return
+        }
+        setCout(lireCout(r))
+      })
+    relever()
+    const minuterie = setInterval(relever, 2000)
+    return () => {
+      vivant = false
+      clearInterval(minuterie)
+    }
+  }, [])
+
+  /** diagnostic de 30 s : lancé d'ici ou depuis l'icône près de l'horloge */
+  const [sonde, setSonde] = useState<'repos' | 'en cours' | 'fini'>('repos')
+  const [sondeChemin, setSondeChemin] = useState('')
+  const lancerDiagnostic = () => {
+    const h = hoteObs()
+    if (!h?.lancerSonde || sonde === 'en cours') return
+    setSonde('en cours')
+    void h.lancerSonde().then((r) => {
+      const chemin =
+        typeof r === 'object' && r !== null && typeof (r as { resume?: unknown }).resume === 'string'
+          ? (r as { resume: string }).resume
+          : ''
+      setSondeChemin(chemin)
+      setSonde(chemin ? 'fini' : 'repos')
+    })
+  }
 
   // fermeture : Échap, clic extérieur
   useEffect(() => {
@@ -877,6 +1009,19 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
               </div>
             )}
 
+            {/* ---- L'ASSISTANT : trois gestes, dix secondes, aucun réseau à comprendre ---- */}
+            <div className="hx-field hx-obs-assistant">
+              <div className="hx-field-text">
+                <b>Brancher OBS en trois gestes</b>
+                <i>
+                  <strong>1.</strong> Copie l'adresse ci-dessous. <strong>2.</strong> Dans OBS : <strong>+</strong> sous
+                  « Sources » → <strong>Navigateur</strong> (Browser) → colle l'adresse → Largeur{' '}
+                  <strong>{canvas.width}</strong>, Hauteur <strong>{canvas.height}</strong> → OK. <strong>3.</strong> Regarde le
+                  témoin juste en dessous : il passe tout seul à « source connectée » dès
+                  qu'OBS est branché. Le fond est déjà transparent, rien d'autre à cocher.
+                </i>
+              </div>
+            </div>
             <div className="hx-url">
               <code>{obsUrl}</code>
               <button className="hx-btn hx-btn-small" onClick={() => void copyUrl()}>
@@ -884,13 +1029,47 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
               </button>
             </div>
             <p className="hx-note">
-              Dans OBS : <b>+</b> sous « Sources » → <b>Navigateur</b> (Browser) → colle cette
-              adresse → Largeur <b>{canvas.width}</b>, Hauteur <b>{canvas.height}</b> → OK. Le fond
-              est déjà transparent, il n'y a rien d'autre à cocher.{' '}
-              <span className="hx-chip-status" data-status={serverTone}>
+              Témoin :{' '}
+              <span className="hx-chip-status hx-obs-temoin" data-status={serverTone}>
                 {serverLine}
-              </span>
+              </span>{' '}
+              {isElectron && obsServerOn && serverInfo.running && serverInfo.clients === 0
+                ? "— si OBS est censé être branché, vérifie l'adresse collée (le port a pu changer) et que la source n'est pas désactivée dans OBS."
+                : ''}
             </p>
+
+            {isElectron && (
+              <>
+                <Switch
+                  label="Garder la fenêtre d'encre capturable par OBS"
+                  hint={
+                    captureFenetre
+                      ? `Vide, la fenêtre « ${captureFenetre.titre} » est réduite à ${captureFenetre.reduitPx} × ${captureFenetre.reduitPx} pixels dans le coin de l'écran au lieu de disparaître : OBS la garde dans sa liste et ne la perd plus. Coût : ${captureFenetre.reduitPx * captureFenetre.reduitPx} pixels composés, aucune image.`
+                      : 'Lecture du réglage…'
+                  }
+                  on={captureFenetre?.on ?? true}
+                  onChange={basculerCaptureFenetre}
+                />
+                <p className="hx-note">
+                  {captureFenetre?.on === false ? (
+                    <>
+                      <b>Coupé</b> : la fenêtre d'encre est cachée dès qu'elle est vide. Une
+                      « Capture de fenêtre » d'OBS ne la trouve alors plus dans sa liste, et une
+                      source déjà réglée reste vide jusqu'au prochain trait — sur les anciens OBS,
+                      elle peut même basculer sur une autre fenêtre du même type (ton navigateur).
+                      À ne couper que si tu n'utilises jamais la « Capture de fenêtre ».
+                    </>
+                  ) : (
+                    <>
+                      <b>Actif</b> : pour capturer Hexa par « Capture de fenêtre », choisis
+                      « {captureFenetre?.titre ?? 'Hexa Overlay'} » dans la liste d'OBS — c'est le
+                      seul nom qui compte, il ne change jamais. La capture d'écran et la source
+                      navigateur, elles, n'ont pas besoin de ce réglage.
+                    </>
+                  )}
+                </p>
+              </>
+            )}
 
             <div className="hx-field">
               <div className="hx-field-text">
@@ -950,6 +1129,64 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
               </div>
             )}
           </Section>
+
+          {/* ---------------- Ressources ---------------- */}
+          {isElectron && (
+            <Section
+              title="Ressources"
+              hint="Ce que Hexa coûte à ton ordinateur, maintenant — et un diagnostic de 30 s qui l'écrit noir sur blanc."
+            >
+              <div className="hx-field">
+                <div className="hx-field-text">
+                  <b>Coût actuel</b>
+                  <i className="hx-cout">
+                    {cout ? (
+                      <>
+                        Processeur <strong>{cout.cpuTotal.toLocaleString('fr-FR')} %</strong> (
+                        {cout.cpuCoeur.toLocaleString('fr-FR')} % d'un cœur sur {cout.coeurs}) ·
+                        Mémoire <strong>{Math.round(cout.memoireMo)} Mo</strong> · Images demandées{' '}
+                        <strong>{cout.imagesParSeconde}/s</strong> · Surface composée{' '}
+                        <strong>{cout.surface.toLocaleString('fr-FR')} %</strong> de l'écran
+                        {cout.fenetres.length > 0 && (
+                          <>
+                            {' — '}
+                            {cout.fenetres
+                              .filter((f) => f.visible)
+                              .map((f) => `${f.titre} ${f.largeur}×${f.hauteur}`)
+                              .join(', ') || 'aucune fenêtre visible'}
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      'Mesure en cours (mise à jour toutes les 2 secondes tant que ce panneau est ouvert)…'
+                    )}
+                  </i>
+                </div>
+              </div>
+              <p className="hx-note">
+                Lecture : 0 image/s et une surface composée nulle ou minuscule = Hexa ne coûte rien
+                à ton jeu, quoi qu'affiche le gestionnaire des tâches. La surface, c'est ce que
+                Windows empile par-dessus le jeu à chaque image (fenêtres visibles additionnées :
+                100 % = un calque plein écran, 200 % = deux — normal en mode dessin, panneau
+                ouvert) : c'est elle qui fait saccader, pas le processeur. En jeu, écran vide, elle
+                doit retomber sous 1 %. Ce témoin ne tourne que panneau ouvert.
+              </p>
+              <div className="hx-inline hx-inline-wrap">
+                <button
+                  className="hx-btn hx-sonde"
+                  disabled={sonde === 'en cours'}
+                  onClick={lancerDiagnostic}
+                >
+                  {sonde === 'en cours' ? 'Diagnostic en cours… (30 s)' : 'Diagnostic de performance (30 s)'}
+                </button>
+                <span className="hx-note">
+                  {sonde === 'fini'
+                    ? `Résumé écrit et dossier ouvert : ${sondeChemin}`
+                    : "Trente secondes de relevés sans rien changer, un résumé en français, le dossier s'ouvre. Rien n'est envoyé nulle part."}
+                </span>
+              </div>
+            </Section>
+          )}
 
           {/* ---------------- Raccourcis (titre porté par l'éditeur) ---------- */}
           <section className="hx-sec">

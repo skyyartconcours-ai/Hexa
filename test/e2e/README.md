@@ -120,6 +120,34 @@ d'autre ne peut écouter — jeton de session exigé, iframe « sandbox » (orig
 Les deux sortent en code 1 si un test casse, et écrivent leurs captures dans
 `captures/s9/`.
 
+### Capture OBS fiable et coût mesurable (deux fenêtres par écran, comme en usage réel)
+
+```bash
+xvfb-run -a --server-args="-screen 0 1600x900x24" node test/e2e/t-obs-1-disparition.mjs
+xvfb-run -a --server-args="-screen 0 1600x900x24" node test/e2e/t-obs-2-capturable.mjs
+xvfb-run -a --server-args="-screen 0 1600x900x24" node test/e2e/t-obs-3-sonde.mjs
+```
+
+`t-obs-1-disparition.mjs` instruit la piste « OBS affiche ma page Twitch » : avec le
+réglage « Garder la fenêtre capturable par OBS » **coupé** (comportement hérité), il
+prouve que la fenêtre d'encre est réellement **cachée** (`isVisible()` faux) dans chaque
+état où l'utilisateur perd l'outil — au repos, annotations effacées, fondu terminé,
+annotations masquées, veille — donc absente de la liste d'OBS. Il vérifie aussi que
+les titres des fenêtres sont uniques et qu'un écran branché à chaud, non désigné,
+reste inerte.
+
+`t-obs-2-capturable.mjs` éprouve le comportement **par défaut** : vide, la fenêtre
+d'encre reste visible mais **réduite à 8 × 8 px** dans le coin de son écran, reprend
+l'écran entier au F8 (latence mesurée), ne se repose jamais au repos (0 `setBounds`
+en 5 s), garde ses pixels après un cycle, se cache en veille, et le réglage se coupe à
+chaud et survit au redémarrage.
+
+`t-obs-3-sonde.mjs` couvre « ça prend combien de ressources ? » : le témoin OBS des
+réglages qui passe seul à « source connectée », le témoin « Coût actuel » (une lecture
+toutes les 2 s panneau ouvert, **zéro** panneau fermé), et la sonde de 30 s — fichiers
+écrits, conclusion en français, trait vu pendant la mesure, et rien qui reste après
+(ni minuterie, ni méthode de fenêtre enrobée, ni lecture périodique).
+
 ## Playwright
 
 Playwright n'est **pas** une dépendance d'Hexa : l'application livrée ne doit pas

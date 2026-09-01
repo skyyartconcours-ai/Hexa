@@ -75,6 +75,24 @@ export interface Stroke {
   filled?: boolean
   /** texte : contenu (outil texte) */
   text?: string
+  /**
+   * Texte : PLAQUE DE LISIBILITÉ derrière les lettres.
+   *
+   * `false` = pas de plaque, le texte n'a que son halo. Absent ou `true` =
+   * plaque sombre semi-transparente (le comportement historique, donc les
+   * sessions exportées avant ce champ se rechargent à l'identique). Le choix
+   * est PAR TEXTE : sur une zone de jeu déjà sombre, la plaque est un pavé de
+   * trop ; sur une zone claire et chargée, elle est ce qui rend le mot
+   * lisible.
+   */
+  plate?: boolean
+  /**
+   * ÉPINGLÉ : cette annotation survit à « tout effacer », au fondu automatique
+   * et au changement de page. C'est la légende, la carte ou le titre qu'un
+   * coach garde toute la session pendant que le reste de l'écran tourne. La
+   * gomme et Ctrl+D, gestes explicitement dirigés sur elle, la retirent encore.
+   */
+  pinned?: boolean
   /** pastille numérotée */
   badge?: number
   /** pastille : id de la pastille précédente, reliée par une flèche fine (§4.8) */
@@ -172,6 +190,9 @@ export interface EngineOptions {
   /** mode écriture : le gribouillis manuscrit devient une typographie nette
    *  ~600 ms après le dernier trait. Désactivé par défaut : la magie se choisit. */
   handwriting?: boolean
+  /** plaque de lisibilité proposée par défaut à chaque nouveau texte (voir
+   *  Stroke.plate). Le champ de saisie permet d'en décider texte par texte. */
+  textPlate?: boolean
 }
 
 export interface Particle {

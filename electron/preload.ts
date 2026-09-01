@@ -347,6 +347,33 @@ const api = {
     return ipcRenderer.invoke('hexa:protection-capture', on === true).catch(() => null)
   },
 
+  /* ---- Ressources : « ça prend combien ? » (electron/sonde.ts) --------- */
+
+  /**
+   * Instantané du coût de Hexa : processeur, mémoire, images par seconde,
+   * surface composée. La page ne le demande QUE panneau ouvert, toutes les
+   * 2 s ; côté processus principal il n'y a aucune minuterie, juste une
+   * lecture.
+   */
+  cout(): Promise<unknown> {
+    return ipcRenderer.invoke('hexa:cout').catch(() => null)
+  },
+
+  /** Lance le diagnostic de 30 s ; la promesse revient avec les chemins écrits. */
+  lancerSonde(): Promise<unknown> {
+    return ipcRenderer.invoke('hexa:sonde').catch(() => null)
+  },
+
+  /**
+   * « Garder la fenêtre capturable par OBS ». Sans argument : lecture.
+   * Renvoie toujours l'état RÉEL du processus principal.
+   */
+  captureFenetre(on?: boolean): Promise<unknown> {
+    return ipcRenderer
+      .invoke('hexa:capture-fenetre', typeof on === 'boolean' ? on : undefined)
+      .catch(() => null)
+  },
+
   /** Diffuse un message du miroir OBS (déjà sérialisé) aux vues connectées. */
   obsPublish(payload: string): void {
     try {

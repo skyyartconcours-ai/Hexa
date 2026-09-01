@@ -250,6 +250,44 @@ let demandeEnCours = false
 let totalConnexions = 0
 let totalRetards = 0
 let totalCoupures = 0
+/**
+ * Octets et messages RÉELLEMENT écrits vers les vues, depuis le lancement.
+ *
+ * Lus par la sonde de performance (electron/sonde.ts) : « ça prend combien de
+ * ressources ? » n'a de réponse honnête que si l'on peut dire combien la source
+ * navigateur a reçu pendant la mesure — un streamer qui trace 200 annotations
+ * doit voir des kilo-octets, pas des mégaoctets, sinon c'est le miroir qui
+ * coûte, pas le dessin. Comptés à l'écriture, jamais estimés.
+ */
+let totalOctetsEnvoyes = 0
+let totalMessagesEnvoyes = 0
+
+/** Instantané des compteurs du serveur — aucun contenu d'annotation. */
+export interface ObsServerStats {
+  running: boolean
+  port: number
+  clients: number
+  connexions: number
+  coupures: number
+  retards: number
+  octetsEnvoyes: number
+  messagesEnvoyes: number
+  reserveKo: number
+}
+
+export function obsServerStats(): ObsServerStats {
+  return {
+    running: server != null,
+    port: livePort,
+    clients: clients.size,
+    connexions: totalConnexions,
+    coupures: totalCoupures,
+    retards: totalRetards,
+    octetsEnvoyes: totalOctetsEnvoyes,
+    messagesEnvoyes: totalMessagesEnvoyes,
+    reserveKo: Math.round(lastFullOctets / 1024),
+  }
+}
 
 /**
  * Dernier état complet, renvoyé à chaque nouvelle vue qui se connecte.
@@ -359,7 +397,10 @@ function writeFullState(c: Client): boolean {
   c.servi = true
   for (const frame of lastFullState) {
     try {
-      c.socket.write(encodeText(frame))
+      const trame = encodeText(frame)
+      c.socket.write(trame)
+      totalOctetsEnvoyes += trame.length
+      totalMessagesEnvoyes++
     } catch {
       return false
     }
@@ -1064,6 +1105,8 @@ export function broadcastObs(payload: string): void {
     }
     try {
       c.socket.write(frame)
+      totalOctetsEnvoyes += frame.length
+      totalMessagesEnvoyes++
     } catch {
       dropClient(c)
     }

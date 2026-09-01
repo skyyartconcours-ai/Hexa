@@ -79,6 +79,14 @@ export interface TrayActions {
     premierPlanRefuse: boolean
     modeDessin: boolean
   }
+  /**
+   * « Diagnostic de performance (30 s) » : la réponse à « ça prend combien de
+   * ressources ? ». Trente secondes de relevés sans rien changer, un résumé en
+   * français dans le dossier utilisateur, et le dossier qui s'ouvre.
+   */
+  diagnostic: () => void
+  /** secondes restantes du diagnostic en cours, -1 si aucun */
+  diagnosticEnCours: () => number
   /** ferme proprement toute l'application */
   quit: () => void
 }
@@ -337,6 +345,20 @@ function buildMenu(): Menu {
       label: veille ? 'Afficher Hexa' : 'Masquer Hexa (mise en veille)',
       click: () => a?.toggleSuspended(),
     },
+    { type: 'separator' },
+    // Toujours atteignable, même quand toutes les fenêtres sont rentrées :
+    // c'est précisément pendant une partie qu'on veut savoir ce que ça coûte.
+    (() => {
+      const restant = a?.diagnosticEnCours() ?? -1
+      return {
+        label:
+          restant >= 0
+            ? `Diagnostic en cours… ${restant} s`
+            : 'Diagnostic de performance (30 s)',
+        enabled: restant < 0,
+        click: () => a?.diagnostic(),
+      }
+    })(),
   ]
 
   // LA PARADE AUX « RACCOURCIS QUI NE MARCHENT PAS EN JEU ». Elle n'apparaît

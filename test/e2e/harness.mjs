@@ -145,6 +145,12 @@ export async function etatDeDepart(win, patch = {}) {
           // moment (actif) et ce `false` serait ignoré.
           globalShortcutsOn: false,
           globalShortcutsChosen: true,
+          // la barre qui s'efface (réglage par défaut : 5 s) est coupée pour
+          // la campagne : une barre à 22 % d'opacité fausserait les captures
+          // comparées d'une campagne à l'autre, et ce qu'elle teste (le
+          // moteur, les outils) n'en dépend pas. Elle a son propre test
+          // (sB-fonctionnalites.mjs), qui la rallume explicitement.
+          toolbarFade: 0,
           ...p,
         },
         version: 2,
