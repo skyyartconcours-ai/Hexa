@@ -99,6 +99,14 @@ export const IconJalon = () => (
   </Svg>
 )
 
+/** Calque fantôme : deux pages décalées, celle du dessous en pointillé. */
+export const IconFantome = () => (
+  <Svg>
+    <rect x="7" y="7" width="13" height="13" rx="2" />
+    <path d="M4 15V6a2 2 0 0 1 2-2h9" opacity="0.45" strokeDasharray="2.2 2" />
+  </Svg>
+)
+
 export const IconMeasure = () => (
   <Svg>
     <path d="M4.5 19.5 19.5 4.5" />

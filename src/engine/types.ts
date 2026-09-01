@@ -190,6 +190,8 @@ export interface EngineOptions {
   /** mode écriture : le gribouillis manuscrit devient une typographie nette
    *  ~600 ms après le dernier trait. Désactivé par défaut : la magie se choisit. */
   handwriting?: boolean
+  /** calque fantôme : la page précédente peinte en filigrane sous la courante */
+  ghostPage?: boolean
   /** plaque de lisibilité proposée par défaut à chaque nouveau texte (voir
    *  Stroke.plate). Le champ de saisie permet d'en décider texte par texte. */
   textPlate?: boolean

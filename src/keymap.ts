@@ -63,6 +63,13 @@ export type KeymapAction =
   | 'page.prev'
   | 'page.new'
   | 'page.dup'
+  | 'page.ghost'
+  // dévoilement pas à pas (tableau tactique)
+  | 'reveal.toggle'
+  | 'reveal.next'
+  | 'reveal.prev'
+  // duo de couleurs : la précédente revient d'une touche
+  | 'color.swap'
   // export en un geste
   | 'export.png'
   // écran et cadrage (§5.7, §5.8)
@@ -299,6 +306,31 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
     hint: 'Le plan reste intact sur sa page, on montre « ce qui s’est passé » sur la copie',
   },
   {
+    action: 'page.ghost',
+    label: 'Calque fantôme',
+    category: 'pages',
+    hint: 'La page précédente en filigrane sous la courante : on dessine l’écart par-dessus',
+  },
+  {
+    action: 'reveal.toggle',
+    label: 'Dévoilement pas à pas',
+    category: 'pages',
+    hint: 'Tout se cache ; Espace révèle une annotation à la fois, dans l’ordre du tracé',
+  },
+  {
+    action: 'reveal.next',
+    label: 'Révéler la suivante',
+    category: 'pages',
+    hint: 'Pendant un dévoilement. La dernière révélée termine le mode',
+  },
+  { action: 'reveal.prev', label: 'Cacher la dernière révélée', category: 'pages' },
+  {
+    action: 'color.swap',
+    label: 'Revenir à la couleur précédente',
+    category: 'couleurs',
+    hint: 'Bleu, rouge, bleu… chaque couleur garde sa propre numérotation',
+  },
+  {
     action: 'export.png',
     label: 'Exporter la page en image PNG transparente',
     category: 'edition',
@@ -456,6 +488,14 @@ const HEXA_BINDINGS: Bindings = {
   'page.prev': 'pageup',
   'page.new': 'ctrl+shift+n',
   'page.dup': 'ctrl+shift+d',
+  'page.ghost': 'ctrl+shift+f',
+  // Espace : la touche du présentateur. Nue, donc jamais confisquée au système,
+  // et sans effet hors dévoilement.
+  'reveal.toggle': 'ctrl+shift+r',
+  'reveal.next': 'space',
+  'reveal.prev': 'shift+space',
+  // Tab : le « X » de Photoshop — l'échange de deux couleurs, sous le doigt.
+  'color.swap': 'tab',
   // Export image en un geste : local, comme tous les Ctrl+lettre.
   'export.png': 'ctrl+shift+e',
   // §5.8 — éléments posés à l'écran. Volontairement à l'écart des réflexes

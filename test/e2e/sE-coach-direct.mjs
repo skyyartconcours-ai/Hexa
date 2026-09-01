@@ -319,7 +319,7 @@ await rapport.test(inter, 'sE-2-page-barre-vers-moteur', 'Le témoin de la barre
  * 2. §2.5 : UNE PAGE VIDE RETIRE LA FENÊTRE D'ENCRE, UNE PAGE PLEINE LA RAMÈNE
  * ================================================================== */
 
-await rapport.test(encre, 'sE-3-page-vide-fenetre-retiree', 'Sur une page vide, la fenêtre d’encre se retire (§2.5) et rien ne tourne ; elle revient avec la page pleine', async () => {
+await rapport.test(encre, 'sE-3-page-vide-fenetre-retiree', 'Sur une page vide, la fenêtre d’encre se retire ou se réduit à 8×8 (§2.5 + capture OBS) et rien ne tourne ; elle revient avec la page pleine', async () => {
   // page 4 (copie) → page 3 (vide)
   await encre.keyboard.press('PageUp')
   await pause(300)
@@ -345,7 +345,7 @@ await rapport.test(encre, 'sE-3-page-vide-fenetre-retiree', 'Sur une page vide, 
   await encre.keyboard.press('F8')
   await pause(500)
   const ok =
-    pg.index === 2 && contenu === false && fen?.visible === false && act.encre.raf === 0 && act.inter.raf === 0 && act.encre.iv === 0 && act.inter.iv === 0 && act.encre.to === 0 && act.inter.to === 0 && fenPleine?.visible === true && px > 1000 && actPleine.encre.raf === 0 && actPleine.inter.raf === 0
+    pg.index === 2 && contenu === false && (fen?.visible === false || fen?.bounds === '8×8') && act.encre.raf === 0 && act.inter.raf === 0 && act.encre.iv === 0 && act.inter.iv === 0 && act.encre.to === 0 && act.inter.to === 0 && fenPleine?.visible === true && px > 1000 && actPleine.encre.raf === 0 && actPleine.inter.raf === 0
   return {
     statut: ok ? OK : KO,
     detail: `page ${pg.index + 1} vide : hasContent=${contenu}, fenêtre d’encre visible=${fen?.visible} (${fen?.bounds}), interface ${interF?.bounds} (${(100 * (interF?.part ?? 0)).toFixed(1)} % de l’écran) · 5 s de repos : ${act.txt} (0 partout exigé) · page 4 pleine : visible=${fenPleine?.visible} ${fenPleine?.bounds}, ${px} px · 4 s : ${actPleine.txt}`,
@@ -571,10 +571,10 @@ await rapport.test(encre, 'sE-10-masquage-et-page', 'Annotations masquées penda
   const pxRetour = await peints()
   const pg = await pageMoteur()
   const t = await traits()
-  const ok = px1 > 1000 && px2 > 0 && px2 < px1 && fenMasquee?.visible === false && pxMasque === 0 && Math.abs(pxRetour - px1) < px1 * 0.05 && pg.index === 0 && t.length === 1 && t[0].tool === 'rect'
+  const ok = px1 > 1000 && px2 > 0 && px2 < px1 && (fenMasquee?.visible === false || fenMasquee?.bounds === '8×8') && pxMasque === 0 && Math.abs(pxRetour - px1) < px1 * 0.05 && pg.index === 0 && t.length === 1 && t[0].tool === 'rect'
   return {
     statut: ok ? OK : KO,
-    detail: `page 1 : ${px1} px, page 2 : ${px2} px · masquées : fenêtre visible=${fenMasquee?.visible}, Page↑ → ${pxMasque} px peints · remontrées : ${pxRetour} px sur la page ${pg.index + 1} (${t.map((s) => s.tool)})`,
+    detail: `page 1 : ${px1} px, page 2 : ${px2} px · masquées : fenêtre visible=${fenMasquee?.visible} (${fenMasquee?.bounds} — 8×8 = réduite pour OBS, voir t-obs-2), Page↑ → ${pxMasque} px peints · remontrées : ${pxRetour} px sur la page ${pg.index + 1} (${t.map((s) => s.tool)})`,
   }
 })
 

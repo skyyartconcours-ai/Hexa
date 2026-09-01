@@ -65,6 +65,10 @@ export const OBS_DEFAULTS: ObsSettings = {
 export interface UiState extends ObsSettings {
   tool: ToolId
   color: string
+  /** couleur précédente : Tab l'échange avec la courante (duo bleu / rouge) */
+  prevColor: string
+  /** calque fantôme : la page précédente en filigrane sous la courante */
+  ghostPage: boolean
   size: number
   /** null = les annotations restent jusqu'au clear ("board" persistant) */
   fadeDelay: number | null
@@ -230,6 +234,9 @@ export interface UiState extends ObsSettings {
   notice: { text: string; seq: number }
   setTool: (tool: ToolId) => void
   setColor: (color: string) => void
+  /** Tab : échange couleur courante et précédente */
+  swapColor: () => void
+  toggleGhostPage: () => void
   setSize: (size: number) => void
   setFadeDelay: (fadeDelay: number | null) => void
   cycleFade: () => void
@@ -496,6 +503,8 @@ export const useUiStore = create<UiState>()(
     (set) => ({
       tool: 'pen',
       color: COLORS[0],
+      prevColor: COLORS[1],
+      ghostPage: false,
       size: 6,
       fadeDelay: 4000,
       sparkles: true,
@@ -552,7 +561,12 @@ export const useUiStore = create<UiState>()(
       toolbarFade: 5,
       notice: { text: '', seq: 0 },
       setTool: (tool) => set({ tool }),
-      setColor: (color) => set({ color }),
+      // La précédente n'est mémorisée que si la couleur CHANGE : recliquer la
+      // même pastille ne doit pas écraser le duo.
+      setColor: (color) =>
+        set((s) => (color === s.color ? { color } : { color, prevColor: s.color })),
+      swapColor: () => set((s) => ({ color: s.prevColor, prevColor: s.color })),
+      toggleGhostPage: () => set((s) => ({ ghostPage: !s.ghostPage })),
       setSize: (size) => set({ size }),
       setFadeDelay: (fadeDelay) => set({ fadeDelay }),
       cycleFade: () =>
@@ -704,6 +718,8 @@ export const useUiStore = create<UiState>()(
       partialize: (s) => ({
         tool: s.tool,
         color: s.color,
+        prevColor: s.prevColor,
+        ghostPage: s.ghostPage,
         size: s.size,
         fadeDelay: s.fadeDelay,
         sparkles: s.sparkles,
@@ -818,6 +834,12 @@ export const useUiStore = create<UiState>()(
         if (typeof merged.color !== 'string' || !/^#[0-9a-f]{3,8}$/i.test(merged.color)) {
           merged.color = COLORS[0]
         }
+        // Le duo : une couleur précédente abîmée retomberait sur Tab en `set({ color: undefined })`
+        // et la barre n'aurait plus aucune pastille active. Même règle que la couleur.
+        if (typeof merged.prevColor !== 'string' || !/^#[0-9a-f]{3,8}$/i.test(merged.prevColor)) {
+          merged.prevColor = merged.color === COLORS[1] ? COLORS[0] : COLORS[1]
+        }
+        if (typeof merged.ghostPage !== 'boolean') merged.ghostPage = false
         // Un outil inconnu laisserait la barre sans bouton actif et le moteur
         // sans geste : on revient au pinceau, qui est toujours le bon repli.
         if (!KNOWN_TOOLS.has(merged.tool as string)) merged.tool = 'pen'

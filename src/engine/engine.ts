@@ -186,6 +186,26 @@ interface RemovedBatch {
  * Les annotations ÉPINGLÉES ne font partie d'aucune page : elles restent dans
  * `strokes` d'une page à l'autre (voir Stroke.pinned).
  */
+/**
+ * Une SÉRIE de numérotation : les compteurs du numéroteur et des jalons pour
+ * UNE couleur. Voir `changerSerieCouleur` pour la règle.
+ */
+interface SerieCouleur {
+  badgeSeq: number
+  lastBadgeId: number | null
+  ancreSerie: number | null
+  jalonSeq: number
+  ancreJalon: number | null
+}
+
+const serieNeuve = (): SerieCouleur => ({
+  badgeSeq: 1,
+  lastBadgeId: null,
+  ancreSerie: null,
+  jalonSeq: 1,
+  ancreJalon: null,
+})
+
 interface Page {
   strokes: Stroke[]
   redoStack: RedoEntry[]
@@ -195,6 +215,10 @@ interface Page {
   jalonSeq: number
   ancreJalon: number | null
   ancreSerie: number | null
+  /** les séries des AUTRES couleurs de cette page (la courante vit dans les champs ci-dessus) */
+  series: Map<string, SerieCouleur>
+  /** dévoilement pas à pas : traits révélés, null = tout visible */
+  reveal: number | null
 }
 
 const pageVide = (): Page => ({
@@ -206,7 +230,12 @@ const pageVide = (): Page => ({
   jalonSeq: 1,
   ancreJalon: null,
   ancreSerie: null,
+  series: new Map(),
+  reveal: null,
 })
+
+/** opacité du calque fantôme : la page précédente en filigrane sous la courante */
+const GHOST_ALPHA = 0.3
 
 /** durée de l'onde « épinglé / détaché » sur la couche vive. Courte : chaque
  *  image de ce signal est une image de plus demandée au moteur, et le mot
@@ -336,6 +365,30 @@ export class HexaEngine {
    * s'efface au fondu rappellerait `syncBadgeSeq` et effacerait le choix.
    */
   private ancreSerie: number | null = null
+  /**
+   * UNE SÉRIE PAR COULEUR — la demande, mot pour mot : « quand je reviens sur
+   * une couleur, sa numérotation reprend où elle en était ».
+   *
+   * Avant, changer de couleur remettait le compteur à 1, point. Pour un coach
+   * qui alterne bleu et rouge vingt fois dans un teamfight, c'est inutilisable :
+   * revenir au bleu après deux pastilles rouges repartait à 1 et cassait le
+   * parcours bleu. Chaque couleur garde donc ses compteurs, son ancre de
+   * reprise et sa dernière pastille (pour le fil) ; on les range ici quand on
+   * quitte la couleur et on les recharge quand on y revient. Une couleur jamais
+   * vue commence à 1 — c'est la règle d'origine, conservée.
+   */
+  private series = new Map<string, SerieCouleur>()
+  /**
+   * DÉVOILEMENT PAS À PAS : nombre de traits (non épinglés, dans l'ordre du
+   * tracé) actuellement révélés ; null = mode inactif, tout est visible.
+   * Le geste du tableau tactique : on dessine tout le plan, puis on le révèle
+   * une annotation à la fois devant le chat.
+   */
+  private reveal: number | null = null
+  /** identifiants des traits CACHÉS par le dévoilement (recalculé au rendu statique) */
+  private caches = new Set<number>()
+  /** traits visibles pendant un dévoilement — ce que voit aussi le miroir OBS */
+  private visibles: Stroke[] = []
   /** éditeur de texte flottant en cours (fonction de fermeture) */
   private closeText: (() => void) | null = null
   /** dernière image collée, prête à être tamponnée */
@@ -541,6 +594,11 @@ export class HexaEngine {
 
   /** le moteur demande un changement d'épaisseur (molette sur le champ texte) */
   onRequestSize?: (size: number) => void
+  /** reprise au clic droit sur une pastille d'une AUTRE couleur : le moteur a
+   *  déjà changé de série, l'interface doit suivre (voir reprendreSerie) */
+  onRequestColor?: (color: string) => void
+  /** dévoilement : (traits révélés, total) — total 0 = mode terminé */
+  onReveal?: (montres: number, total: number) => void
 
   /**
    * L'utilisateur a basculé la plaque de lisibilité DANS le champ de saisie :
@@ -626,12 +684,7 @@ export class HexaEngine {
     // relier la dernière pastille d'une série à la première de la suivante.
     // L'option « poursuivre » rend l'ancien comportement continu.
     if (patch.color !== undefined && patch.color !== prevColor && !this.opts.badgeContinuous) {
-      this.badgeSeq = 1
-      this.lastBadgeId = null
-      // Même règle pour les jalons : une couleur, une série.
-      this.jalonSeq = 1
-      this.ancreJalon = null
-      this.ancreSerie = null
+      this.changerSerieCouleur(prevColor, patch.color)
     }
     if (this.opts.tool !== prevTool && prevTool === 'text') this.closeText?.()
     // le spotlight vit tant que son outil est sélectionné (§8.5 : maintien de
@@ -938,6 +991,31 @@ export class HexaEngine {
    * que les deux compteurs sont indépendants : annuler un jalon ne doit pas
    * toucher au parcours du numéroteur, et réciproquement.
    */
+  private serieCourante(): SerieCouleur {
+    return {
+      badgeSeq: this.badgeSeq,
+      lastBadgeId: this.lastBadgeId,
+      ancreSerie: this.ancreSerie,
+      jalonSeq: this.jalonSeq,
+      ancreJalon: this.ancreJalon,
+    }
+  }
+
+  private chargerSerie(serie: SerieCouleur): void {
+    this.badgeSeq = serie.badgeSeq
+    this.lastBadgeId = serie.lastBadgeId
+    this.ancreSerie = serie.ancreSerie
+    this.jalonSeq = serie.jalonSeq
+    this.ancreJalon = serie.ancreJalon
+  }
+
+  /** On quitte la couleur `de` pour `vers` : on range l'une, on recharge l'autre. */
+  private changerSerieCouleur(de: string, vers: string): void {
+    this.series.set(de, this.serieCourante())
+    this.chargerSerie(this.series.get(vers) ?? serieNeuve())
+    this.series.delete(vers)
+  }
+
   private syncJalonSeq(): void {
     if (this.ancreJalon != null) {
       for (let i = this.strokes.length - 1; i >= 0; i--) {
@@ -951,6 +1029,8 @@ export class HexaEngine {
     let max = 0
     for (const s of this.strokes) {
       if (s.tool !== 'marker' || s.dying) continue
+      // une série par couleur : les jalons des autres couleurs ne comptent pas
+      if (!this.opts.badgeContinuous && s.color !== this.opts.color) continue
       max = Math.max(max, s.badge ?? 0)
     }
     this.jalonSeq = max + 1
@@ -978,6 +1058,8 @@ export class HexaEngine {
     let last: number | null = null
     for (const s of this.strokes) {
       if (s.tool !== 'badge' || s.dying) continue
+      // une série par couleur : les pastilles des autres couleurs ne comptent pas
+      if (!this.opts.badgeContinuous && s.color !== this.opts.color) continue
       max = Math.max(max, s.badge ?? 0)
       last = s.id
     }
@@ -994,6 +1076,17 @@ export class HexaEngine {
    */
   private reprendreSerie(s: Stroke): void {
     const suivant = (s.badge ?? 0) + 1
+    // LE NŒUD COMMANDE SA COULEUR. Reprendre « à partir du 3 bleu » alors que
+    // le rouge est actif doit continuer le PARCOURS BLEU — c'est ce que veut
+    // dire « reprendre », et la demande était explicite : « vérifie que ça
+    // continue bien sur le nœud que je déplace en clic droit quand c'est les
+    // nombres qui se suivent dans la couleur en question ». On bascule donc
+    // de série ici même, puis on prévient l'interface pour que la barre suive.
+    if (!this.opts.badgeContinuous && s.color !== this.opts.color) {
+      this.changerSerieCouleur(this.opts.color, s.color)
+      this.opts.color = s.color
+      this.onRequestColor?.(s.color)
+    }
     if (s.tool === 'marker') {
       // Les jalons n'ont pas de fil : il n'y a rien à rebrancher, juste un
       // compteur à replacer.
@@ -1055,6 +1148,8 @@ export class HexaEngine {
     this.jalonSeq = 1
     this.ancreJalon = null
     this.ancreSerie = null
+    this.series.clear()
+    this.reveal = null
     this.repriseCue = null
     this.anchorsDirty = true
     // mode écriture : la file d'analyse en attente part avec le reste
@@ -1186,6 +1281,8 @@ export class HexaEngine {
     for (let i = this.strokes.length - 1; i >= 0; i--) {
       const s = this.strokes[i]
       if (s.dying) continue
+      // un trait pas encore dévoilé n'est pas à l'écran : on ne l'attrape pas
+      if (this.reveal != null && this.caches.has(s.id)) continue
       const pad = Math.max(14, s.size * 2)
       const pts = s.points
       // formes, textes, pastilles et tampons ont leur propre zone de saisie
@@ -2344,7 +2441,9 @@ export class HexaEngine {
     // deviner ce qui a bougé, donc plus à relire toute la scène. Il est vidé
     // JUSTE APRÈS — un consommateur qui s'échantillonne plus lentement doit
     // accumuler de son côté (voir MirrorDelta).
-    this.delta.strokes = this.strokes
+    // Pendant un dévoilement, le miroir ne voit que ce qui est révélé : les
+    // spectateurs découvrent le plan au même rythme que le chat en face.
+    this.delta.strokes = this.reveal == null ? this.strokes : this.visibles
     this.delta.current = this.current
     this.onMirror?.(this.delta)
     this.sales.clear()
@@ -2446,6 +2545,26 @@ export class HexaEngine {
     // Annotations masquées : on efface et on s'arrête là. Rien n'est détruit —
     // la liste des traits est intacte, seul l'affichage est coupé.
     if (this.opts.annotationsHidden) return
+    // ---- calque FANTÔME : la page précédente en filigrane -----------------
+    // Page 1 : ce qu'il aurait fallu faire ; page 2 : ce qui s'est passé. Avec
+    // le fantôme, on dessine l'écart par-dessus sans aller-retour de mémoire.
+    // Peint ici, donc seulement quand le statique se reconstruit — jamais par
+    // image. Local à la fenêtre d'encre (capturée par OBS) ; la source
+    // navigateur ne le voit pas, l'aide le dit.
+    if (this.opts.ghostPage && this.pageIdx > 0) {
+      const precedente = this.pages[this.pageIdx - 1]
+      if (precedente && precedente.strokes.length > 0) {
+        ctx.save()
+        ctx.globalAlpha = GHOST_ALPHA
+        for (const s of precedente.strokes) {
+          if (s.dying) continue
+          renderStroke(ctx, s, { alpha: 1, from: 0, glowBoost: 0.4, now })
+        }
+        ctx.restore()
+      }
+    }
+    // ---- dévoilement : seuls les traits révélés existent pour le rendu ----
+    const scene = this.recalculerVisibles()
     // ---- calque consolidé (src/engine/ink-fx.ts) --------------------------
     // Les traits POSÉS (terminés, immobiles, sans animation) sont peints une
     // seule fois hors écran puis restitués en un appel : 200 annotations ne
@@ -2453,7 +2572,7 @@ export class HexaEngine {
     // source de vérité — le calque se reconstruit tout seul dès que la liste
     // change (annuler, dissolution, thème, redimensionnement).
     const glow = this.opts.effects ?? 1
-    const settled = inkLayer.compose(ctx, this.strokes, {
+    const settled = inkLayer.compose(ctx, scene, {
       w: this.w,
       h: this.h,
       now,
@@ -2462,7 +2581,7 @@ export class HexaEngine {
       paint: (c, s) => renderStroke(c, s, { alpha: 1, from: 0, glowBoost: glow, now }),
     })
     // ---- fin du calque consolidé -----------------------------------------
-    for (const s of this.strokes) {
+    for (const s of scene) {
       if (settled.has(s.id)) continue
       let alpha = 1
       let from = 0
@@ -2616,6 +2735,82 @@ export class HexaEngine {
    * Pages (voir l'interface Page)
    * ------------------------------------------------------------------ */
 
+  /* ------------------------------------------------------------------
+   * Dévoilement pas à pas
+   * ------------------------------------------------------------------ */
+
+  /** traits concernés par le dévoilement : tout sauf les épinglés, dans l'ordre du tracé */
+  private devoilables(): Stroke[] {
+    return this.strokes.filter((s) => !s.pinned && !s.dying)
+  }
+
+  /** recalcule `visibles` / `caches` ; renvoie la scène à peindre */
+  private recalculerVisibles(): Stroke[] {
+    if (this.reveal == null) {
+      if (this.caches.size) this.caches.clear()
+      return this.strokes
+    }
+    this.caches.clear()
+    let rang = 0
+    this.visibles = this.strokes.filter((s) => {
+      if (s.pinned || s.dying) return true
+      const ok = rang < (this.reveal as number)
+      rang++
+      if (!ok) this.caches.add(s.id)
+      return ok
+    })
+    return this.visibles
+  }
+
+  get devoilement(): { montres: number; total: number } | null {
+    if (this.reveal == null) return null
+    return { montres: Math.min(this.reveal, this.devoilables().length), total: this.devoilables().length }
+  }
+
+  /**
+   * Entre dans le dévoilement (tout se cache, on révèle au geste) — ou en sort
+   * si on y est déjà (tout redevient visible d'un coup).
+   */
+  basculerDevoilement(): void {
+    this.poserDevoilement(this.reveal == null ? 0 : null)
+  }
+
+  devoilerSuivant(): void {
+    if (this.reveal == null) return
+    const total = this.devoilables().length
+    // le dernier révélé termine le mode : plus rien à cacher, on rend la main
+    this.poserDevoilement(this.reveal + 1 >= total ? null : this.reveal + 1)
+  }
+
+  devoilerPrecedent(): void {
+    if (this.reveal == null) return
+    this.poserDevoilement(Math.max(0, this.reveal - 1))
+  }
+
+  private poserDevoilement(valeur: number | null): void {
+    const avant = new Set(this.caches)
+    this.reveal = valeur
+    this.recalculerVisibles()
+    // Journal du miroir : ce qui vient d'apparaître est « sali », ce qui vient
+    // de se cacher est « sorti ». La vue OBS suit sans rien deviner.
+    for (const s of this.strokes) {
+      const cacheAvant = avant.has(s.id)
+      const cacheApres = this.caches.has(s.id)
+      if (cacheAvant && !cacheApres) this.salir(s)
+      else if (!cacheAvant && cacheApres) this.sortir(s)
+    }
+    const total = this.devoilables().length
+    this.onReveal?.(this.reveal == null ? 0 : Math.min(this.reveal, total), this.reveal == null ? 0 : total)
+    this.anchorsDirty = true
+    this.staticDirty = true
+    this.emitActivity()
+    this.wake()
+  }
+
+  /* ------------------------------------------------------------------
+   * Pages
+   * ------------------------------------------------------------------ */
+
   get pageIndex(): number {
     return this.pageIdx
   }
@@ -2635,6 +2830,8 @@ export class HexaEngine {
       jalonSeq: this.jalonSeq,
       ancreJalon: this.ancreJalon,
       ancreSerie: this.ancreSerie,
+      series: this.series,
+      reveal: this.reveal,
     }
   }
 
@@ -2692,6 +2889,9 @@ export class HexaEngine {
     this.jalonSeq = cible.jalonSeq
     this.ancreJalon = cible.ancreJalon
     this.ancreSerie = cible.ancreSerie
+    this.series = cible.series ?? new Map()
+    this.reveal = cible.reveal ?? null
+    this.onReveal?.(this.reveal ?? 0, this.reveal == null ? 0 : this.devoilables().length)
     // la page qui arrive : le FONDU A ÉTÉ SUSPENDU pendant qu'on ne la
     // regardait pas, chaque trait repart donc avec un compte à rebours entier —
     // sinon une page laissée trente secondes reviendrait vide, ou s'effacerait

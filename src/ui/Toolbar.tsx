@@ -72,6 +72,7 @@ import {
   IconMagnet,
   IconScript,
   IconJalon,
+  IconFantome,
   IconMeasure,
   IconMute,
   IconPen,
@@ -379,6 +380,10 @@ export function Toolbar({
   const setSize = useUiStore((s) => s.setSize)
   const cycleFade = useUiStore((s) => s.cycleFade)
   const badgeContinuous = useUiStore((s) => s.badgeContinuous)
+  const prevColor = useUiStore((s) => s.prevColor)
+  const swapColor = useUiStore((s) => s.swapColor)
+  const ghostPage = useUiStore((s) => s.ghostPage)
+  const toggleGhostPage = useUiStore((s) => s.toggleGhostPage)
   const annotationsHidden = useUiStore((s) => s.annotationsHidden)
   const toggleAnnotationsHidden = useUiStore((s) => s.toggleAnnotationsHidden)
   const toggleBadgeContinuous = useUiStore((s) => s.toggleBadgeContinuous)
@@ -819,6 +824,23 @@ export function Toolbar({
           découpé avec elles. Le rappel de touche vit donc DANS LA CELLULE,
           à côté de l'hexagone, jamais dedans. */}
       <div className="group swatches">
+        {/* LE DUO. Bleu pour une équipe, rouge pour l'autre, et Tab pour passer de
+            l'une à l'autre — chaque couleur garde sa propre numérotation. La
+            « précédente » est simplement la dernière couleur choisie : pas de
+            réglage, le duo se forme tout seul en cliquant deux pastilles. */}
+        <button
+          className="tbtn chip duo"
+          title={bulle(
+            `Revenir à la couleur précédente (${COLOR_NAMES[COLORS.indexOf(prevColor)] ?? prevColor})`,
+            'color.swap',
+            'Tab',
+          )}
+          onClick={swapColor}
+          aria-label="Échanger avec la couleur précédente"
+        >
+          <span className="duo-dot" style={{ background: color }} />
+          <span className="duo-dot duo-prev" style={{ background: prevColor }} />
+        </button>
         {COLORS.map((c, i) => (
           <span className="swatch-cell" key={c}>
             <button
@@ -867,6 +889,19 @@ export function Toolbar({
           {fadeDelay == null ? <IconInfinity /> : <IconTimer />}
           <span className="chip-label">{fadeDelay == null ? '∞' : `${fadeDelay / 1000}s`}</span>
           {rappel('Durée du fondu', 'fade.cycle', 'D')}
+        </button>
+        <button
+          className={`tbtn ${ghostPage ? 'active' : ''}`}
+          title={bulle(
+            ghostPage
+              ? 'Calque fantôme actif : la page précédente en filigrane. Clique pour le retirer.'
+              : 'Calque fantôme : voir la page précédente en filigrane sous celle-ci',
+            'page.ghost',
+          )}
+          onClick={toggleGhostPage}
+          aria-pressed={ghostPage}
+        >
+          <IconFantome />
         </button>
         <button
           className={`tbtn chip ${badgeContinuous ? 'active' : ''}`}

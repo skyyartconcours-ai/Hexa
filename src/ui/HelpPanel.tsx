@@ -332,6 +332,43 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
         </p>
       </article>
 
+      <article className="hlp-card">
+        <span className="hlp-ico">{GLYPHS.pages}</span>
+        <h4>Dévoiler pas à pas</h4>
+        <p>
+          Le tableau tactique : tu dessines tout le plan, puis tu le révèles une annotation à la
+          fois, dans l’ordre où tu l’as tracé — le chat voit l’engage arriver étape par étape au
+          lieu d’un schéma déjà complet. Les annotations épinglées restent visibles ; la vue OBS
+          suit au même rythme. La dernière révélée termine le mode.
+        </p>
+        <p className="hlp-keys">
+          <Kbd combo={key('reveal.toggle')} /> commencer ou tout révéler ·{' '}
+          <Kbd combo={key('reveal.next')} /> suivante · <Kbd combo={key('reveal.prev')} /> revenir
+        </p>
+      </article>
+
+      <article className="hlp-card">
+        <span className="hlp-ico">{GLYPHS.pages}</span>
+        <h4>Deux couleurs, deux séries · le calque fantôme</h4>
+        <p>
+          Bleu pour une équipe, rouge pour l’autre : <b>Tab</b> passe de l’une à l’autre, et{' '}
+          <b>chaque couleur garde sa propre numérotation</b> — revenir au bleu après deux
+          pastilles rouges continue le parcours bleu, il ne repart pas à 1. Un clic droit bref sur
+          un nœud reprend la série <i>de sa couleur</i>, même si une autre est active. La pastille
+          « duo » de la barre montre les deux couleurs.
+        </p>
+        <p>
+          Le <b>calque fantôme</b> peint la page précédente en filigrane sous la page courante :
+          le plan sur la page 1, ce qui s’est passé par-dessus sur la page 2. Il vit dans la
+          fenêtre d’encre (capture d’écran ou de fenêtre) ; la source navigateur d’OBS ne le voit
+          pas.
+        </p>
+        <p className="hlp-keys">
+          <Kbd combo={key('color.swap')} /> couleur précédente · <Kbd combo={key('page.ghost')} />{' '}
+          calque fantôme
+        </p>
+      </article>
+
       <article className="hlp-card is-strong">
         <span className="hlp-ico">{GLYPHS.jeu}</span>
         <h4>Rendre la souris au jeu</h4>

@@ -149,6 +149,7 @@ export default function App() {
   const linkBadges = useUiStore((s) => s.linkBadges)
   const annotationsHidden = useUiStore((s) => s.annotationsHidden)
   const badgeContinuous = useUiStore((s) => s.badgeContinuous)
+  const ghostPage = useUiStore((s) => s.ghostPage)
   const handwriting = useUiStore((s) => s.handwriting)
   const lexicon = useUiStore((s) => s.lexicon)
   const lexiconCategories = useUiStore((s) => s.lexiconCategories)
@@ -297,6 +298,20 @@ export default function App() {
     // la molette sur le champ texte a choisi une taille : le curseur d'épaisseur
     // de la barre doit la refléter, sinon le texte suivant repartirait de l'ancienne
     engine.onRequestSize = (size) => useUiStore.getState().setSize(size)
+    // reprise au clic droit sur un nœud d'une autre couleur : le moteur a déjà
+    // basculé de série, la barre doit montrer la bonne pastille
+    engine.onRequestColor = (c) => useUiStore.getState().setColor(c)
+    // dévoilement : on ne parle que quand l'état CHANGE (le changement de page
+    // rappelle ce signal à vide, et ne doit pas afficher « tout est révélé »)
+    let dernierDevoilement = ''
+    engine.onReveal = (montres, total) => {
+      const cle = `${montres}/${total}`
+      if (cle === dernierDevoilement) return
+      const etaitActif = dernierDevoilement !== '' && !dernierDevoilement.endsWith('/0')
+      dernierDevoilement = cle
+      if (total > 0) useUiStore.getState().notify(`Dévoilement ${montres} / ${total} — Espace pour la suivante`)
+      else if (etaitActif) useUiStore.getState().notify('Tout est révélé')
+    }
     // la plaque basculée dans le champ de texte devient le défaut (persisté)
     engine.onRequestPlate = (on) => useUiStore.getState().setTextPlate(on)
     // « épinglé » / « détaché » : dit par l'indicateur de la fenêtre d'interface
@@ -754,6 +769,7 @@ export default function App() {
       guides,
       linkBadges,
       badgeContinuous,
+      ghostPage,
       annotationsHidden,
       handwriting,
       effects: effectIntensity,
@@ -769,6 +785,7 @@ export default function App() {
     guides,
     linkBadges,
     badgeContinuous,
+    ghostPage,
     annotationsHidden,
     handwriting,
     effectIntensity,
@@ -1100,6 +1117,30 @@ export default function App() {
           // le retour visuel (onde + « épinglé ») est peint par le moteur sur
           // la couche vive ; rien sous le curseur = rien ne se passe
           eng.epinglerSousLeCurseur()
+          break
+        case 'page.ghost':
+          e.preventDefault()
+          st().toggleGhostPage()
+          st().notify(st().ghostPage ? 'Calque fantôme : la page précédente en filigrane' : 'Calque fantôme retiré')
+          break
+        case 'reveal.toggle':
+          e.preventDefault()
+          eng.basculerDevoilement()
+          break
+        case 'reveal.next':
+          // Espace hors dévoilement : on laisse la touche tranquille (rien à faire)
+          if (eng.devoilement == null) break
+          e.preventDefault()
+          eng.devoilerSuivant()
+          break
+        case 'reveal.prev':
+          if (eng.devoilement == null) break
+          e.preventDefault()
+          eng.devoilerPrecedent()
+          break
+        case 'color.swap':
+          e.preventDefault()
+          st().swapColor()
           break
         case 'page.next':
           e.preventDefault()
