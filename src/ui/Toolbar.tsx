@@ -108,7 +108,7 @@ interface ToolButton {
 }
 
 /** Les sept couleurs, nommées : « Couleur 3 » ne dit rien à personne. */
-const COLOR_NAMES = ['Bleu', 'Rouge', 'Cyan', 'Magenta', 'Vert', 'Jaune', 'Blanc']
+const COLOR_NAMES = ['Bleu clair', 'Rouge', 'Bleu', 'Magenta', 'Vert', 'Jaune', 'Blanc']
 
 /** « build 37 » — le numéro de la Release GitHub, lu dans le coin de la barre */
 const VERSION_BARRE = libelleBuild()

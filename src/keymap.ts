@@ -222,9 +222,9 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
 
   // Les couleurs sont nommées : « Couleur 4 » ne dit rien à personne, « Vert »
   // se retrouve d'un coup d'œil dans la liste comme dans la barre.
-  { action: 'color.1', label: 'Couleur 1 · bleu (blue side)', category: 'couleurs' },
+  { action: 'color.1', label: 'Couleur 1 · bleu clair (blue side)', category: 'couleurs' },
   { action: 'color.2', label: 'Couleur 2 · rouge (red side)', category: 'couleurs' },
-  { action: 'color.3', label: 'Couleur 3 · cyan', category: 'couleurs' },
+  { action: 'color.3', label: 'Couleur 3 · bleu', category: 'couleurs' },
   { action: 'color.4', label: 'Couleur 4 · magenta', category: 'couleurs' },
   { action: 'color.5', label: 'Couleur 5 · vert', category: 'couleurs' },
   { action: 'color.6', label: 'Couleur 6 · jaune', category: 'couleurs' },

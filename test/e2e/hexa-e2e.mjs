@@ -1426,7 +1426,7 @@ if (actif('raccourcis')) {
     let ok = true
     const c1 = await apresTouche('3', 170)
     lignes.push(`touche 3 → couleur ${c1.color}`)
-    if (c1.color !== '#00e5ff') ok = false // 3 = cyan (palette bleu, rouge, cyan, magenta, vert, jaune, blanc)
+    if (c1.color !== '#2f7cff') ok = false // 3 = bleu (palette bleu clair, rouge, bleu, magenta, vert, jaune, blanc)
     const c2 = await apresTouche('6', 170)
     lignes.push(`touche 6 → ${c2.color}`)
     if (c2.color !== '#ffe900') ok = false // 6 = jaune

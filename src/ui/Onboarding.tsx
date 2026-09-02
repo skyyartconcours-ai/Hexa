@@ -48,7 +48,7 @@ const STEPS: Step[] = [
     text: 'Clique une pastille de la barre en bas, ou appuie sur un chiffre. Sept couleurs, choisies pour rester lisibles sur n’importe quel jeu.',
     cue: 'Change de couleur',
     keys: [
-      { action: 'color.1', label: 'bleu' },
+      { action: 'color.1', label: 'bleu clair' },
       { action: 'color.2', label: 'magenta' },
       { action: 'color.4', label: 'vert' },
     ],

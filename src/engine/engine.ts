@@ -262,7 +262,7 @@ export class HexaEngine {
 
   private opts: EngineOptions = {
     tool: 'pen',
-    color: '#2f7cff',
+    color: '#00e5ff',
     size: 6,
     fadeDelay: 4000,
     sparkles: true,

@@ -110,7 +110,7 @@ await rapport.test(win, 's25-2-series-par-couleur', 'Chaque couleur reprend sa n
   await poser(500, 500) // doit être rouge 3
   await capturer('series')
   const t = (await traits()).filter((s) => s.tool === 'badge')
-  const bleu = t.filter((s) => s.color === '#2f7cff').map((s) => s.badge).join(',')
+  const bleu = t.filter((s) => s.color === '#00e5ff').map((s) => s.badge).join(',')
   const rouge = t.filter((s) => s.color === '#ff3d3d').map((s) => s.badge).join(',')
   return {
     statut: bleu === '1,2,3' && rouge === '1,2,3' ? OK : KO,
@@ -137,7 +137,7 @@ await rapport.test(win, 's25-3-reprise-noeud-autre-couleur', 'Clic droit bref su
   const t = (await traits()).filter((s) => s.tool === 'badge')
   const dernier = t[t.length - 1]
   return {
-    statut: couleurApres === '#2f7cff' && dernier?.color === '#2f7cff' && dernier?.badge === 2 ? OK : KO,
+    statut: couleurApres === '#00e5ff' && dernier?.color === '#00e5ff' && dernier?.badge === 2 ? OK : KO,
     detail: `couleur après la reprise : ${couleurApres} (bleu attendu) · pastille posée : ${dernier?.badge} en ${dernier?.color} (2 en bleu attendu)`,
   }
 })
