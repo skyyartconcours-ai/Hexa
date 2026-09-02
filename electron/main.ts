@@ -11,6 +11,7 @@
  */
 import {
   app,
+  clipboard,
   BrowserWindow,
   desktopCapturer,
   globalShortcut,
@@ -86,6 +87,30 @@ import {
   watchPower,
   watchSessionEnd,
 } from './windows-guard'
+
+/**
+ * L'ADRESSE DE LA VUE OBS, COPIÉE PAR LE PROCESSUS PRINCIPAL.
+ *
+ * Trois chemins y mènent — le bouton « OBS » de la barre, le panneau de
+ * réglages, le menu de la zone de notification — et tous passent par ici :
+ * le presse-papiers de la page (navigator.clipboard) refuse de servir une
+ * fenêtre qui n'est pas au premier plan, et l'interface d'Hexa ne l'est jamais
+ * tout à fait (non focusable, par-dessus le jeu). Celui d'Electron, lui,
+ * n'a pas cette exigence. Le port est celui RÉELLEMENT écouté : si 4787 était
+ * pris, c'est l'adresse qui marche qu'on copie, pas celle des réglages.
+ */
+function copierAdresseObs(origine: string): { adresse: string; copie: boolean } {
+  const port = obsServerStatus().port || 4787
+  const adresse = `http://127.0.0.1:${port}/obs.html`
+  try {
+    clipboard.writeText(adresse)
+    log('obs', `adresse copiée (${origine}) : ${adresse}`)
+    return { adresse, copie: true }
+  } catch (err) {
+    logError('obs', `copie de l’adresse OBS impossible (${origine})`, err)
+    return { adresse, copie: false }
+  }
+}
 
 /* ------------------------------------------------------------------ *
  * Réglages moteur Chromium
@@ -1695,6 +1720,7 @@ function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindo
             }),
           )}`,
           '--hexa-couche=interface',
+          `--hexa-version=${app.getVersion()}`,
           // L'utilisateur annote sur UN écran, désigné. Les couches des autres
           // écrans doivent être totalement inertes — voir `actif` dans
           // src/engine/engine.ts pour le tracé fantôme que cela corrige.
@@ -1901,6 +1927,7 @@ function createOverlay(display: Display): Overlay | null {
           // §S11 : cette fenêtre ne porte que l'ENCRE — sauf en mode fusionné,
           // où elle porte tout, comme avant la séparation.
           `--hexa-couche=${fusion ? 'complet' : 'encre'}`,
+          `--hexa-version=${app.getVersion()}`,
           // Idem couche interface : seul l'écran désigné annote.
           `--hexa-annotation=${display.id === annotationDisplayId() ? '1' : '0'}`,
         ],
@@ -2942,6 +2969,10 @@ function registerIpc(): void {
   // État du serveur, à la demande (panneau de réglages ouvert en pleine session).
   ipcMain.handle('hexa:obs-status', () => obsServerStatus())
 
+  // L'adresse pour OBS, copiée d'un clic depuis le bouton « OBS » de la barre ou
+  // le panneau de réglages — voir copierAdresseObs plus haut.
+  ipcMain.handle('hexa:obs-copier-adresse', () => copierAdresseObs('interface'))
+
   // Niveau de privilège, pour que l'éditeur de raccourcis puisse EXPLIQUER
   // pourquoi une touche réservée auprès de Windows n'arrive pas pendant une
   // partie — au lieu de laisser croire à une panne d'Hexa.
@@ -3263,6 +3294,19 @@ if (!gotLock) {
       diagnostic: () => void demarrerDiagnostic(),
       diagnosticEnCours: () => (sondeEnCours() ? sondeRestant() : -1),
       toggleDraw: () => toggleDrawMode(),
+      copierAdresseObs: () => {
+        const r = copierAdresseObs('menu')
+        if (r.copie) {
+          showToast(
+            'Adresse copiée pour OBS',
+            `<kbd>${r.adresse}</kbd> · Dans OBS : Sources → + → Navigateur → colle l’adresse → ` +
+              'largeur et hauteur de ton écran d’annotation → OK. Le fond est déjà transparent.',
+            9000,
+          )
+        } else {
+          showToast('Adresse pour OBS', r.adresse, 9000)
+        }
+      },
       /**
        * Tout ce qu'il faut pour répondre à « mes raccourcis ne marchent pas
        * pendant la partie » sans rien demander à l'utilisateur.

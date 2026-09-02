@@ -321,14 +321,18 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
         <span className="hlp-ico">{GLYPHS.epingle}</span>
         <h4>Épingler ce qui reste</h4>
         <p>
-          La légende, la carte, le titre de la session : <b>Ctrl + clic droit</b> sur l’annotation
-          l’épingle. Elle survit à « tout effacer », au fondu, au changement de page et à Ctrl+Z —
-          une petite épingle à son coin le rappelle (elle est peinte avec l’encre, donc visible dans
-          le direct, comme le dessin). Le même geste la détache ; la gomme la retire quand même.
+          La légende, la carte, le titre de la session : épinglée, une annotation survit à
+          « tout effacer », au fondu, au changement de page et à Ctrl+Z — une petite épingle à
+          son coin le rappelle (peinte avec l’encre, donc visible dans le direct). Seules la gomme
+          et Ctrl+D la retirent.
+        </p>
+        <p>
+          <b>Aucune touche par défaut, et aucun geste souris</b> : une annotation épinglée sans le
+          vouloir « ne s’efface plus », et rien ne dit pourquoi. Si tu veux épingler, donne une
+          touche à « Épingler » dans Réglages → Raccourcis ; la même touche détache.
         </p>
         <p className="hlp-keys">
-          <span className="hlp-gesture">Ctrl + clic droit</span> · <Kbd combo={key('edit.pin')} />{' '}
-          sous le curseur
+          <Kbd combo={key('edit.pin')} /> sous le curseur — à assigner
         </p>
       </article>
 
@@ -559,7 +563,8 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
             {obsServerOn ? (
               <>
                 {' '}
-                — adresse à coller : <code>http://127.0.0.1:{obsPort}/obs.html</code>
+                — adresse à coller : <code>http://127.0.0.1:{obsPort}/obs.html</code> ; le bouton{' '}
+                <b>OBS</b> de la barre la copie d’un clic
               </>
             ) : (
               <> — active le serveur local dans Réglages → OBS pour obtenir l’adresse</>

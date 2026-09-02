@@ -207,7 +207,7 @@ export function renderPinMark(
 
 /**
  * Signal « épinglé » / « détaché » sur la couche vive : une onde de 0,4 s
- * autour du coin de l'annotation. Le geste (Ctrl + clic droit, ou une touche)
+ * autour du coin de l'annotation. Le geste (la touche assignée à edit.pin)
  * est invisible par nature ; sans ce retour, l'utilisateur ne peut pas savoir
  * s'il a été compris. Le SENS (« épinglé » ou « détaché »), lui, est dit par
  * l'indicateur de la fenêtre d'interface (App.tsx, `onPin`) : cette couche-ci

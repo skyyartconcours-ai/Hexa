@@ -22,7 +22,13 @@ import {
   type HexaProfile,
 } from './profiles'
 
-export const COLORS = ['#00e5ff', '#ff2d95', '#b026ff', '#39ff14', '#ffe900', '#ff6b35', '#ffffff']
+/**
+ * La palette. BLEU et ROUGE en tête, et comme duo par défaut : ce sont les deux
+ * camps de League of Legends (blue side / red side), ce qu'un coach annote
+ * quatre-vingt-dix-neuf fois sur cent. Le reste garde la signature néon d'Hexa.
+ * Sept couleurs, pas une de plus : la barre tient en largeur avec Fin tenu.
+ */
+export const COLORS = ['#2f7cff', '#ff3d3d', '#00e5ff', '#ff2d95', '#39ff14', '#ffe900', '#ffffff']
 
 export const FADE_STEPS: (number | null)[] = [2000, 4000, 8000, null]
 
@@ -67,6 +73,8 @@ export interface UiState extends ObsSettings {
   color: string
   /** couleur précédente : Tab l'échange avec la courante (duo bleu / rouge) */
   prevColor: string
+  /** version de la palette enregistrée — voir la migration dans `merge` */
+  palette: 2
   /** calque fantôme : la page précédente en filigrane sous la courante */
   ghostPage: boolean
   size: number
@@ -504,6 +512,7 @@ export const useUiStore = create<UiState>()(
       tool: 'pen',
       color: COLORS[0],
       prevColor: COLORS[1],
+      palette: 2,
       ghostPage: false,
       size: 6,
       fadeDelay: 4000,
@@ -719,6 +728,8 @@ export const useUiStore = create<UiState>()(
         tool: s.tool,
         color: s.color,
         prevColor: s.prevColor,
+        /** version de la palette — voir la migration dans `merge` */
+        palette: s.palette,
         ghostPage: s.ghostPage,
         size: s.size,
         fadeDelay: s.fadeDelay,
@@ -839,6 +850,24 @@ export const useUiStore = create<UiState>()(
         if (typeof merged.prevColor !== 'string' || !/^#[0-9a-f]{3,8}$/i.test(merged.prevColor)) {
           merged.prevColor = merged.color === COLORS[1] ? COLORS[0] : COLORS[1]
         }
+        /*
+         * PALETTE 2 : bleu et rouge en tête — les deux camps de League of
+         * Legends, demandés comme couleurs par défaut. Un état enregistré par
+         * une version antérieure n'a pas de `palette` : s'il en était resté au
+         * duo par défaut d'alors (cyan/magenta), il passe au duo bleu/rouge.
+         * Une couleur choisie exprès (vert, jaune…) est conservée telle quelle.
+         */
+        const ancien = (persisted ?? {}) as { palette?: unknown; color?: unknown; prevColor?: unknown }
+        if (ancien.palette !== 2) {
+          const duoAncien = new Set(['#00e5ff', '#ff2d95'])
+          const restaitAuDuo =
+            duoAncien.has(String(ancien.color)) && duoAncien.has(String(ancien.prevColor ?? '#ff2d95'))
+          if (ancien.color === undefined || restaitAuDuo) {
+            merged.color = COLORS[0]
+            merged.prevColor = COLORS[1]
+          }
+        }
+        merged.palette = 2
         if (typeof merged.ghostPage !== 'boolean') merged.ghostPage = false
         // Un outil inconnu laisserait la barre sans bouton actif et le moteur
         // sans geste : on revient au pinceau, qui est toujours le bon repli.

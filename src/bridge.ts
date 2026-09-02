@@ -166,6 +166,12 @@ export interface HexaDisplayInfo {
  */
 export type GlobalShortcuts = Record<string, string>
 
+/** résultat d'une copie de l'adresse OBS : l'adresse, et si le presse-papiers l'a prise */
+export interface AdresseObs {
+  adresse: string
+  copie: boolean
+}
+
 export interface HexaBridgeApi {
   /** écran porteur au moment de la création de la fenêtre (null en démo) */
   display: HexaDisplayInfo | null
@@ -196,6 +202,14 @@ export interface HexaBridgeApi {
    * (un seul écran : tout est l'écran d'annotation).
    */
   ecranAnnotation: boolean
+  /** version de l'application telle que le processus principal la connaît ('' en démo) */
+  version: string
+  /**
+   * Copie l'adresse de la vue OBS (source « Navigateur ») dans le presse-papiers.
+   * Sous Electron c'est le processus principal qui copie — fiable même quand
+   * l'interface n'a pas le focus. Revient avec l'adresse, copiée ou non.
+   */
+  copierAdresseObs(): Promise<AdresseObs | null>
   setShortcuts(map: GlobalShortcuts): Promise<unknown>
   /**
    * Niveau de privilège d'Hexa sous Windows. Décide si un raccourci global est
@@ -283,6 +297,21 @@ export const bridge: HexaBridgeApi = {
   display: (typeof window !== 'undefined' && window.hexa?.display) || null,
   couche: (typeof window !== 'undefined' && window.hexa?.couche) || null,
   ecranAnnotation: lireEcranAnnotation(),
+  version: (typeof window !== 'undefined' && window.hexa?.version) || '',
+  copierAdresseObs: async () => {
+    if (window.hexa?.copierAdresseObs) {
+      const r = (await window.hexa.copierAdresseObs()) as AdresseObs | null
+      return r && typeof r.adresse === 'string' ? { adresse: r.adresse, copie: !!r.copie } : null
+    }
+    // démo navigateur : la vue OBS est servie par le même serveur que la page
+    const adresse = `${location.origin}/obs.html`
+    try {
+      await navigator.clipboard.writeText(adresse)
+      return { adresse, copie: true }
+    } catch {
+      return { adresse, copie: false }
+    }
+  },
   displayInfo: async () => (window.hexa?.displayInfo ? window.hexa.displayInfo() : null),
   setPassthrough: (v) => window.hexa?.setPassthrough?.(v),
   notifyActivity: (active) => window.hexa?.notifyActivity?.(active),
@@ -326,4 +355,30 @@ if (isElectron && typeof window !== 'undefined') {
   window.addEventListener('unhandledrejection', (e) => {
     bridge.log('page', `promesse rejetée : ${String(e.reason)}`)
   })
+}
+
+/**
+ * LE NUMÉRO DE BUILD, LISIBLE. La fabrication GitHub numérote chaque version
+ * 0.1.<numéro d'exécution> — celui-là même qui nomme la Release (« build 37 »).
+ * L'utilisateur doit pouvoir le lire dans l'interface, sans ouvrir un menu :
+ * c'est ce qui permet de savoir, en direct, si la version installée est bien
+ * la dernière. Une version locale (0.1.0) ou une démo ('') n'en a pas.
+ */
+export function numeroBuild(version: string = bridge.version): number | null {
+  const m = /^0\.1\.(\d+)$/.exec(version)
+  return m && Number(m[1]) > 0 ? Number(m[1]) : null
+}
+
+/** « build 37 », sinon « v0.1.0 » (fabrication locale), sinon '' (démo) */
+export function libelleBuild(version: string = bridge.version): string {
+  if (!version) return ''
+  const n = numeroBuild(version)
+  return n != null ? `build ${n}` : `v${version}`
+}
+
+/** « v0.1.37 · build 37 » pour l'en-tête des réglages */
+export function libelleVersion(version: string = bridge.version): string {
+  if (!version) return ''
+  const n = numeroBuild(version)
+  return n != null ? `v${version} · build ${n}` : `v${version}`
 }

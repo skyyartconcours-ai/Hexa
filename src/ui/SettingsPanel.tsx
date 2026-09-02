@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { SessionExport } from '../engine/types'
 // `isElectron` est déjà calculé localement plus bas dans ce fichier.
-import { bridge, type ProtectionCapture } from '../bridge'
+import { bridge, libelleVersion, type ProtectionCapture } from '../bridge'
 import { FADE_STEPS, useUiStore } from '../store'
 import { THEMES } from '../themes'
 import { CATEGORIES } from '../engine/handwriting/mots'
@@ -59,6 +59,9 @@ export interface SettingsPanelProps {
 }
 
 const SCALES: PngScale[] = [1, 2, 4]
+
+/** « v0.1.37 · build 37 » dans l'en-tête — pour savoir d'un coup d'œil ce qui tourne */
+const VERSION_REGLAGES = libelleVersion()
 
 /**
  * Canaux d'état du serveur de la vue OBS (voir electron/preload.ts).
@@ -553,6 +556,13 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
   }
 
   const copyUrl = async () => {
+    // Le processus principal copie (fiable sans focus) et connaît le port
+    // RÉELLEMENT écouté ; la page ne sert que de repli, en démo navigateur.
+    const r = await bridge.copierAdresseObs()
+    if (r?.copie) {
+      setFlash(`Adresse copiée (${r.adresse}) : colle-la dans une source « Navigateur » d’OBS.`)
+      return
+    }
     try {
       await navigator.clipboard.writeText(obsUrl)
       setFlash('Adresse copiée : colle-la dans une source « Navigateur » d’OBS.')
@@ -575,7 +585,10 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
         <header className="hx-top">
           <span className="hx-top-mark" aria-hidden />
           <div className="hx-top-text">
-            <b>Réglages</b>
+            <b>
+              Réglages
+              {VERSION_REGLAGES && <span className="hx-version">{VERSION_REGLAGES}</span>}
+            </b>
             <i>Tout se règle ici. En direct, tout se fait au clavier.</i>
           </div>
           <button className="hx-close" onClick={onClose} title="Fermer (Échap)">

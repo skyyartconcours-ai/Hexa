@@ -76,6 +76,19 @@ export const IconText = () => (
   </Svg>
 )
 
+/**
+ * OBS — un écran et, dedans, la pastille « en direct ». C'est le bouton qui
+ * copie l'adresse de la vue OBS : l'œil doit y reconnaître le logiciel de
+ * diffusion avant même de lire l'infobulle.
+ */
+export const IconObs = () => (
+  <Svg>
+    <rect x="3" y="4.5" width="18" height="12" rx="2.2" />
+    <circle cx="12" cy="10.5" r="2.6" />
+    <path d="M8.5 20h7" />
+  </Svg>
+)
+
 export const IconBadge = () => (
   <Svg>
     <circle cx="8.5" cy="8.5" r="4" />

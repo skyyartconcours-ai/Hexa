@@ -207,12 +207,11 @@ const clic = async (x, y) => {
   await encre.mouse.up()
   await pause(120)
 }
+/** Épingler l'annotation sous (x, y) — par la touche assignée dans l'état de départ
+ *  (il n'y a plus de geste souris, ni de touche par défaut : voir keymap.ts). */
 const clicDroitCtrl = async (x, y) => {
   await encre.mouse.move(x, y)
-  await encre.keyboard.down('Control')
-  await encre.mouse.down({ button: 'right' })
-  await encre.mouse.up({ button: 'right' })
-  await encre.keyboard.up('Control')
+  await encre.keyboard.press('Control+Shift+p')
   await pause(150)
 }
 const attendre = async (fn, ms = 2500, pas = 100) => {
@@ -239,7 +238,7 @@ const ETAT = {
   toolbarVisible: true,
   keymapPreset: 'epicpen',
   keymapPresetChosen: true,
-  keymapOverrides: {},
+  keymapOverrides: { 'edit.pin': 'ctrl+shift+p' },
   globalShortcutsOn: false,
   globalShortcutsChosen: true,
   annotationsHidden: false,

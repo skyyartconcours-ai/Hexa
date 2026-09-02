@@ -38,7 +38,7 @@ import {
 preparerCaptures()
 const rapport = new Rapport()
 const { app, win, journal } = await lancerHexa({ profil: 'sB-fonctions' })
-await etatDeDepart(win)
+await etatDeDepart(win, { keymapOverrides: { 'edit.pin': 'ctrl+shift+p' } })
 
 /* ------------------------------------------------------------------ *
  * Outils de lecture
@@ -68,12 +68,11 @@ const clic = async (x, y) => {
   await win.mouse.up()
   await win.waitForTimeout(120)
 }
+/** Épingler l'annotation sous (x, y) — par la touche assignée dans l'état de départ
+ *  (il n'y a plus de geste souris, ni de touche par défaut : voir keymap.ts). */
 const clicDroitCtrl = async (x, y) => {
   await win.mouse.move(x, y)
-  await win.keyboard.down('Control')
-  await win.mouse.down({ button: 'right' })
-  await win.mouse.up({ button: 'right' })
-  await win.keyboard.up('Control')
+  await win.keyboard.press('Control+Shift+p')
   await win.waitForTimeout(150)
 }
 

@@ -138,6 +138,20 @@ const api = {
   /** Couche portée par cette fenêtre : 'encre', 'interface' ou 'complet'. */
   couche: readCouche(),
 
+  /**
+   * Version de l'application (le numéro de build y est : 0.1.36 = build 36).
+   * L'utilisateur doit pouvoir lire d'un coup d'œil QUELLE version il fait
+   * tourner — sans ça, « j'ai installé la dernière » ne se vérifie pas.
+   */
+  version: (() => {
+    try {
+      const arg = process.argv.find((a) => a.startsWith('--hexa-version='))
+      return arg ? arg.slice('--hexa-version='.length) : ''
+    } catch {
+      return ''
+    }
+  })(),
+
   /** Valeur INITIALE : cet écran est-il l'écran d'annotation ? (voir readEcranAnnotation) */
   ecranAnnotation: readEcranAnnotation(),
 
@@ -225,6 +239,16 @@ const api = {
   /** État du serveur de la vue OBS : port réellement écouté, vues, erreur. */
   obsStatus(): Promise<unknown> {
     return ipcRenderer.invoke('hexa:obs-status').catch(() => null)
+  },
+
+  /**
+   * Copie l'adresse de la vue OBS dans le presse-papiers, DEPUIS LE PROCESSUS
+   * PRINCIPAL : le presse-papiers de la page réclame une fenêtre au premier
+   * plan, que l'interface d'Hexa n'est jamais tout à fait (non focusable,
+   * par-dessus le jeu). Revient avec { adresse, copie }.
+   */
+  copierAdresseObs(): Promise<unknown> {
+    return ipcRenderer.invoke('hexa:obs-copier-adresse').catch(() => null)
   },
 
   /**

@@ -46,7 +46,7 @@ const TOOL_LABELS: Record<string, string> = {
 }
 
 /** les sept couleurs, nommées comme dans la barre et le menu radial */
-const COLOR_NAMES = ['Cyan', 'Magenta', 'Violet', 'Vert', 'Jaune', 'Orange', 'Blanc']
+const COLOR_NAMES = ['Bleu', 'Rouge', 'Cyan', 'Magenta', 'Vert', 'Jaune', 'Blanc']
 
 const TOAST_MS = 2600
 

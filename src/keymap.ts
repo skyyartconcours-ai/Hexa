@@ -222,12 +222,12 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
 
   // Les couleurs sont nommées : « Couleur 4 » ne dit rien à personne, « Vert »
   // se retrouve d'un coup d'œil dans la liste comme dans la barre.
-  { action: 'color.1', label: 'Couleur 1 · cyan', category: 'couleurs' },
-  { action: 'color.2', label: 'Couleur 2 · magenta', category: 'couleurs' },
-  { action: 'color.3', label: 'Couleur 3 · violet', category: 'couleurs' },
-  { action: 'color.4', label: 'Couleur 4 · vert', category: 'couleurs' },
-  { action: 'color.5', label: 'Couleur 5 · jaune', category: 'couleurs' },
-  { action: 'color.6', label: 'Couleur 6 · orange', category: 'couleurs' },
+  { action: 'color.1', label: 'Couleur 1 · bleu (blue side)', category: 'couleurs' },
+  { action: 'color.2', label: 'Couleur 2 · rouge (red side)', category: 'couleurs' },
+  { action: 'color.3', label: 'Couleur 3 · cyan', category: 'couleurs' },
+  { action: 'color.4', label: 'Couleur 4 · magenta', category: 'couleurs' },
+  { action: 'color.5', label: 'Couleur 5 · vert', category: 'couleurs' },
+  { action: 'color.6', label: 'Couleur 6 · jaune', category: 'couleurs' },
   { action: 'color.7', label: 'Couleur 7 · blanc', category: 'couleurs' },
 
   { action: 'edit.undo', label: 'Annuler', category: 'edition', global: true },
@@ -249,7 +249,8 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
     action: 'edit.pin',
     label: 'Épingler / détacher l’annotation sous le curseur',
     category: 'edition',
-    hint: 'Épinglée, elle survit à « tout effacer », au fondu, au changement de page et à Ctrl+Z · Ctrl + clic droit fait pareil',
+    hint:
+      'AUCUNE touche par défaut — assigne-la ici si tu veux épingler. Épinglée, l’annotation survit à « tout effacer », au fondu, au changement de page et à Ctrl+Z ; seules la gomme et Ctrl+D la retirent',
   },
   {
     action: 'size.dec',
@@ -471,7 +472,12 @@ const HEXA_BINDINGS: Bindings = {
   'edit.deleteHovered': 'ctrl+d',
   // Même logique que Ctrl+D : local (en mode dessin), jamais confisqué au
   // système — Ctrl+Maj+P appartient aux navigateurs (impression système).
-  'edit.pin': 'ctrl+shift+p',
+  // Épingler n'a PAS de touche par défaut, et plus de geste souris non plus.
+  // Retour d'usage : une annotation épinglée par mégarde résiste à « tout
+  // effacer » et à la touche panique — et rien à l'écran n'explique pourquoi
+  // « ça ne s'efface pas ». Le geste doit être choisi, jamais subi : celui qui
+  // en veut lui donne une touche dans l'éditeur de raccourcis.
+  'edit.pin': [],
   'size.dec': '[',
   'size.inc': ']',
   'fade.cycle': 'd',

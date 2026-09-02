@@ -68,6 +68,8 @@ export interface TrayActions {
   basculerToujoursAdmin: (actif: boolean) => void
   /** relance Hexa en administrateur (Windows affiche sa demande de consentement) */
   relancerAdmin: () => void
+  /** copie dans le presse-papiers l'adresse à coller dans une source navigateur d'OBS */
+  copierAdresseObs: () => void
   /** tout ce qu'il faut pour expliquer « mes raccourcis ne marchent pas en jeu » */
   diagnosticRaccourcis: () => {
     windows: boolean
@@ -316,7 +318,7 @@ function buildMenu(): Menu {
 
   const items: MenuItemConstructorOptions[] = [
     // En-tête non cliquable : l'état est lisible sans survoler l'icône.
-    { label: `Hexa — ${etat()}`, enabled: false },
+    { label: `Hexa ${app.getVersion()} — ${etat()}`, enabled: false },
     { type: 'separator' },
     {
       label: `Mode dessin (${a?.drawShortcut() ?? 'F8'})`,
@@ -327,6 +329,9 @@ function buildMenu(): Menu {
     { label: 'Tout effacer', click: () => a?.clearAll() },
     { type: 'separator' },
     { label: 'Réglages…', click: () => a?.openSettings() },
+    // L'adresse de la source navigateur vivait au fond des réglages : « je ne
+    // vois pas où avoir le lien section OBS ». Ici, un clic, elle est copiée.
+    { label: 'Copier l’adresse pour OBS (source navigateur)', click: () => a?.copierAdresseObs() },
     ...(ecrans.length > 1
       ? [
           {

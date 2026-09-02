@@ -78,7 +78,7 @@ const TOOLS: { id: ToolId; icon: ReactElement; label: string; essentiel?: true }
 
 const TOOLS_ESSENTIELS = TOOLS.filter((t) => t.essentiel)
 
-const COLOR_NAMES = ['Cyan', 'Magenta', 'Violet', 'Vert', 'Jaune', 'Orange', 'Blanc']
+const COLOR_NAMES = ['Bleu', 'Rouge', 'Cyan', 'Magenta', 'Vert', 'Jaune', 'Blanc']
 
 type Ring = 'tool' | 'color'
 interface Hover {

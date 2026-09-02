@@ -42,12 +42,13 @@ import {
   exigerPleinEcran,
   publierRectBarre,
 } from './fenetre-compacte'
-import { bridge } from '../bridge'
+import { bridge, libelleBuild } from '../bridge'
 import { spawnClock, spawnNote } from './StageWidgets'
 import {
   HexaLogo,
   IconArrow,
   IconBadge,
+  IconObs,
   IconBlur,
   IconClear,
   IconCompare,
@@ -107,7 +108,10 @@ interface ToolButton {
 }
 
 /** Les sept couleurs, nommées : « Couleur 3 » ne dit rien à personne. */
-const COLOR_NAMES = ['Cyan', 'Magenta', 'Violet', 'Vert', 'Jaune', 'Orange', 'Blanc']
+const COLOR_NAMES = ['Bleu', 'Rouge', 'Cyan', 'Magenta', 'Vert', 'Jaune', 'Blanc']
+
+/** « build 37 » — le numéro de la Release GitHub, lu dans le coin de la barre */
+const VERSION_BARRE = libelleBuild()
 
 const TOOLS: ToolButton[] = [
   { id: 'pen', icon: <IconPen />, label: 'Pinceau', kbd: 'P', action: 'tool.pen' },
@@ -407,6 +411,15 @@ export function Toolbar({
   const setPage = useUiStore((s) => s.setPage)
   const toolbarFade = useUiStore((s) => s.toolbarFade)
   const cycleToolbarFade = useUiStore((s) => s.cycleToolbarFade)
+  const notify = useUiStore((s) => s.notify)
+
+  /** L'adresse pour OBS, copiée d'un clic (bouton « OBS » de la barre). */
+  const copierAdresseObs = async () => {
+    const r = await bridge.copierAdresseObs()
+    if (!r) notify('Adresse OBS introuvable : ouvre Réglages → OBS')
+    else if (r.copie) notify(`Adresse copiée pour OBS : ${r.adresse} — colle-la dans une source « Navigateur »`)
+    else notify(`Adresse pour OBS (copie impossible) : ${r.adresse}`)
+  }
 
   const hover = (on: boolean) => document.body.classList.toggle('over-ui', on)
 
@@ -768,19 +781,46 @@ export function Toolbar({
             <IconGrip />
           </span>
         </span>
-        <button
-          className="tbtn tb-orient"
-          title={bulle(
-            vertical
-              ? 'Barre verticale — passer à l’horizontale'
-              : 'Barre horizontale — passer à la verticale',
-            'ui.toolbar.orient',
-          )}
-          onClick={toggleToolbarOrientation}
-        >
-          <IconOrient vertical={vertical} />
-        </button>
+        {/* Orientation et adresse OBS CÔTE À CÔTE. L'adresse pour OBS se copie
+            d'un clic, dans l'outil — pas au fond d'un panneau ni dans un menu de
+            la zone de notification : le streamer la cherche pendant qu'il monte
+            sa scène. Placée ici, la puce partage la rangée du bouton
+            d'orientation quand la barre est debout : posée parmi les autres
+            puces, elle prenait une rangée entière et la barre débordait d'un
+            écran de 900 px avec Fin tenu (mesure s4-barre-fin). Le processus
+            principal copie, ce qui marche même sans le focus. */}
+        <span className="tb-handle-btns">
+          <button
+            className="tbtn tb-orient"
+            title={bulle(
+              vertical
+                ? 'Barre verticale — passer à l’horizontale'
+                : 'Barre horizontale — passer à la verticale',
+              'ui.toolbar.orient',
+            )}
+            onClick={toggleToolbarOrientation}
+          >
+            <IconOrient vertical={vertical} />
+          </button>
+          <button
+            className="tbtn chip tb-obs"
+            title="Copier l’adresse pour OBS — colle-la dans une source « Navigateur » (Sources → + → Navigateur), largeur et hauteur de ton écran d’annotation. Le fond est déjà transparent."
+            onClick={() => void copierAdresseObs()}
+          >
+            <IconObs />
+            <span className="chip-label">OBS</span>
+          </button>
+        </span>
       </div>
+
+      {/* LE NUMÉRO DE BUILD, LISIBLE SANS RIEN OUVRIR : « build 37 » dans le coin
+          de la barre — le même numéro que la Release GitHub. Posé en absolu dans
+          la marge, il n'ajoute pas un pixel à la hauteur de la barre. */}
+      {VERSION_BARRE && (
+        <span className="tb-version" title={`Hexa ${VERSION_BARRE}`} aria-hidden>
+          {VERSION_BARRE}
+        </span>
+      )}
 
       <div className="group">
         {TOOLS.map((t) => (

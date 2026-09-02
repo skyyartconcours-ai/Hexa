@@ -44,6 +44,9 @@ node test/e2e/s20-demarrage-froid.mjs      # démarrage à froid, y compris conf
 node test/e2e/s21-etat-abime-suite.mjs     # les clés persistées que §S20 ne couvrait pas
 node test/e2e/s22-usage-reel.mjs           # martèlement en mode DEUX FENÊTRES, et la pente sur la durée
 node test/e2e/s23-pannes-externes.mjs      # flux d'écran refusé, port OBS pris, export impossible
+node test/e2e/s24-maj-forme.mjs            # Maj tenue au pinceau : la forme est reconnue même ouverte
+node test/e2e/s25-coach-devoilement.mjs    # dévoilement pas à pas, calque fantôme, duo de couleurs (Tab)
+node test/e2e/s26-trait-collant.mjs        # pointerup perdu : le trait ne doit plus suivre la souris
 ```
 
 `s17-bascule-ecran.mjs` prend la suite de `s16` là où celui-ci s'arrête. §S16

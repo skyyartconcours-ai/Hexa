@@ -66,7 +66,7 @@ const trait = async (x1, y1, x2, y2) => {
 }
 const attendreStatique = () => win.waitForTimeout(450)
 
-await etatDeDepart(win)
+await etatDeDepart(win, { keymapOverrides: { 'edit.pin': 'ctrl+shift+p' } })
 
 /* ------------------------------------------------------------------ *
  * DUO DE COULEURS
@@ -74,8 +74,8 @@ await etatDeDepart(win)
 
 await rapport.test(win, 's25-1-tab-echange', 'Tab échange la couleur courante et la précédente', async () => {
   await toutEffacer(win)
-  await win.keyboard.press('1') // cyan
-  await win.keyboard.press('2') // magenta → précédente = cyan
+  await win.keyboard.press('1') // bleu
+  await win.keyboard.press('2') // rouge → précédente = bleu
   await win.waitForTimeout(120)
   const avant = await etatStore()
   await win.keyboard.press('Tab')
@@ -104,17 +104,17 @@ await rapport.test(win, 's25-2-series-par-couleur', 'Chaque couleur reprend sa n
   await win.keyboard.press('2')
   await poser(300, 500)
   await poser(400, 500) // rouge 1, 2
-  await win.keyboard.press('Tab') // retour au cyan
+  await win.keyboard.press('Tab') // retour au bleu
   await poser(500, 300) // doit être bleu 3
-  await win.keyboard.press('Tab') // retour au magenta
+  await win.keyboard.press('Tab') // retour au rouge
   await poser(500, 500) // doit être rouge 3
   await capturer('series')
   const t = (await traits()).filter((s) => s.tool === 'badge')
-  const cyan = t.filter((s) => s.color === '#00e5ff').map((s) => s.badge).join(',')
-  const magenta = t.filter((s) => s.color === '#ff2d95').map((s) => s.badge).join(',')
+  const bleu = t.filter((s) => s.color === '#2f7cff').map((s) => s.badge).join(',')
+  const rouge = t.filter((s) => s.color === '#ff3d3d').map((s) => s.badge).join(',')
   return {
-    statut: cyan === '1,2,3' && magenta === '1,2,3' ? OK : KO,
-    detail: `cyan ${cyan} (1,2,3 attendu) · magenta ${magenta} (1,2,3 attendu) — avant, revenir au cyan repartait à 1`,
+    statut: bleu === '1,2,3' && rouge === '1,2,3' ? OK : KO,
+    detail: `bleu ${bleu} (1,2,3 attendu) · rouge ${rouge} (1,2,3 attendu) — avant, revenir au bleu repartait à 1`,
   }
 })
 
@@ -137,8 +137,8 @@ await rapport.test(win, 's25-3-reprise-noeud-autre-couleur', 'Clic droit bref su
   const t = (await traits()).filter((s) => s.tool === 'badge')
   const dernier = t[t.length - 1]
   return {
-    statut: couleurApres === '#00e5ff' && dernier?.color === '#00e5ff' && dernier?.badge === 2 ? OK : KO,
-    detail: `couleur après la reprise : ${couleurApres} (cyan attendu) · pastille posée : ${dernier?.badge} en ${dernier?.color} (2 en cyan attendu)`,
+    statut: couleurApres === '#2f7cff' && dernier?.color === '#2f7cff' && dernier?.badge === 2 ? OK : KO,
+    detail: `couleur après la reprise : ${couleurApres} (bleu attendu) · pastille posée : ${dernier?.badge} en ${dernier?.color} (2 en bleu attendu)`,
   }
 })
 
@@ -196,10 +196,7 @@ await rapport.test(win, 's25-5-devoilement-epingle', 'Une annotation épinglée 
   await attendreStatique()
   // Ctrl + clic droit : épingler la première
   await win.mouse.move(450, 250)
-  await win.keyboard.down('Control')
-  await win.mouse.down({ button: 'right' })
-  await win.mouse.up({ button: 'right' })
-  await win.keyboard.up('Control')
+  await win.keyboard.press('Control+Shift+p') // touche assignée dans l'état de départ
   await win.waitForTimeout(600)
   const t = await traits()
   await win.keyboard.press('Control+Shift+r')
@@ -211,10 +208,7 @@ await rapport.test(win, 's25-5-devoilement-epingle', 'Une annotation épinglée 
   // on détache l'épingle : une épinglée survit à « tout effacer » et suivrait
   // les tests suivants (mesuré : 1 235 px opaques et 4 380 px de halo hérités)
   await win.mouse.move(450, 250)
-  await win.keyboard.down('Control')
-  await win.mouse.down({ button: 'right' })
-  await win.mouse.up({ button: 'right' })
-  await win.keyboard.up('Control')
+  await win.keyboard.press('Control+Shift+p') // touche assignée dans l'état de départ
   await win.waitForTimeout(600)
   const epinglees = t.filter((s) => s.pinned).length
   return {

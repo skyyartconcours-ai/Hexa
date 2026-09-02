@@ -1061,6 +1061,30 @@ body.passthrough .fx-toast {
   opacity: 1;
 }
 
+/* ---- numéro de build, dans la marge basse de la barre ----
+   « build 37 » : le même numéro que la Release GitHub. En absolu dans la
+   marge de 10 px, pour n'ajouter aucune hauteur — la barre déborderait sinon
+   avec Fin tenu (mesure s4-barre-fin). */
+.tb-version {
+  position: absolute;
+  left: 14px;
+  bottom: 0;
+  font-size: 8px;
+  line-height: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  opacity: 0.55;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.toolbar.vertical .tb-version {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 .tbtn.tb-orient {
   width: 26px;
   height: 26px;
@@ -1069,6 +1093,36 @@ body.passthrough .fx-toast {
 
 .tbtn.tb-orient:hover {
   opacity: 1;
+}
+
+/* orientation + adresse OBS sur UNE rangée, debout comme couchée ; la puce
+   prend la hauteur du bouton d'orientation pour ne pas grandir la rangée */
+.tb-handle-btns {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.tbtn.chip.tb-obs,
+.toolbar.vertical .tbtn.chip.tb-obs {
+  height: 26px;
+  padding: 0 7px;
+  gap: 4px;
+  opacity: 0.85;
+}
+
+.tbtn.chip.tb-obs:hover {
+  opacity: 1;
+}
+
+.tbtn.chip.tb-obs svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tbtn.chip.tb-obs .chip-label {
+  min-width: 0;
+  font-size: 10.5px;
 }
 
 .toolbar.dragging {

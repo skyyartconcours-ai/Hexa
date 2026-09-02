@@ -262,7 +262,7 @@ export class HexaEngine {
 
   private opts: EngineOptions = {
     tool: 'pen',
-    color: '#00e5ff',
+    color: '#2f7cff',
     size: 6,
     fadeDelay: 4000,
     sparkles: true,
@@ -1366,13 +1366,11 @@ export class HexaEngine {
       // sous le curseur, le clic droit l'ATTRAPE (l'utilisateur y tient).
       // Ce n'est que dans le vide que le maintien ouvre le menu radial (§8.2).
       const s = this.strokeAt(pt.x, pt.y)
-      // Ctrl + clic droit sur une annotation : on l'ÉPINGLE (ou on la
-      // détache). Un seul geste, sans changer d'outil, et sans risque de la
-      // déplacer : le grab n'est pas armé.
-      if (s && e.ctrlKey) {
-        this.epingler(s)
-        return
-      }
+      // Il n'y a plus de geste souris pour épingler. Ctrl + clic droit
+      // épinglait l'annotation — et c'est exactement le clic droit qu'on fait
+      // pour déplacer une pastille en tenant Ctrl pour autre chose : la
+      // légende « qui ne s'efface plus » naissait là. Épingler passe par une
+      // touche que l'utilisateur ASSIGNE lui-même (action edit.pin).
       if (s) {
         this.grabbed = s
         this.grabLast = { x: pt.x, y: pt.y }
@@ -1685,6 +1683,24 @@ export class HexaEngine {
     if (!this.actif) return
     // roue ouverte : le geste appartient au menu radial
     if (this.radialOpen) return
+    /**
+     * ⚠️ LE TRAIT QUI SUIT LA SOURIS PARTOUT.
+     *
+     * Vu par l'utilisateur après un passage dans les réglages : une traînée
+     * rose collée au curseur, d'un bord à l'autre de l'écran. Le mécanisme :
+     * en deux fenêtres, un clic peut ENTRER dans la couche encre (le bouton
+     * s'enfonce, un trait commence) tandis que le relâchement part dans la
+     * fenêtre d'interface devenue cliquable entre-temps — la couche encre ne
+     * reçoit jamais son pointerup, `current` reste vivant, et chaque mouvement
+     * y ajoute un point. Un mouvement SANS aucun bouton enfoncé alors qu'un
+     * trait ou un déplacement est en cours ne peut vouloir dire qu'une chose :
+     * le relâchement s'est perdu. On le rejoue ici, et le trait se termine
+     * proprement là où il en était.
+     */
+    if ((this.current || this.grabbed) && e.buttons === 0) {
+      this.onUp(e)
+      return
+    }
     this.shiftHeld = e.shiftKey
     if (e.shiftKey) this.shiftDansTrace = true
     this.altHeld = e.altKey
@@ -3010,7 +3026,7 @@ export class HexaEngine {
       // anneau n'a rien à y faire non plus
       else if (!this.opts.annotationsHidden) renderReprise(ctx, this.repriseCue, now)
     }
-    // « épinglé » / « détaché » : le geste (Ctrl + clic droit, ou la touche)
+    // « épinglé » / « détaché » : la touche assignée par l'utilisateur
     // est invisible par nature, ce signal d'une seconde dit qu'il a été compris
     if (this.pinCue) {
       if (now - this.pinCue.start >= PIN_CUE_MS) this.pinCue = null

@@ -68,6 +68,14 @@ jobs:
       - name: Installer les dépendances
         run: npm ci
 
+      # LE NUMÉRO DE BUILD SE LIT DANS L'INTERFACE : la version devient
+      # 0.1.<numéro d'exécution>, celui-là même qui nomme la Release. Sans ça,
+      # toutes les versions s'appelaient 0.1.0 et personne ne pouvait dire
+      # laquelle tournait. « build 37 » s'affiche dans le coin de la barre,
+      # dans l'en-tête des réglages et dans le menu de la zone de notification.
+      - name: Numéroter la version avec le numéro de build
+        run: npm version --no-git-tag-version 0.1.${{ github.run_number }}
+
       - name: Fabriquer l'installateur
         run: npm run dist
 

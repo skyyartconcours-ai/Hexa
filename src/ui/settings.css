@@ -63,6 +63,16 @@
   letter-spacing: 0.01em;
 }
 
+/* « v0.1.37 · build 37 », à côté du titre : le numéro de la Release GitHub */
+.hx-version {
+  margin-left: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+  vertical-align: 1px;
+}
+
 .hx-top-text i {
   display: block;
   margin-top: 2px;
