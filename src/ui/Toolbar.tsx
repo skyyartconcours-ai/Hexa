@@ -802,13 +802,16 @@ export function Toolbar({
           >
             <IconOrient vertical={vertical} />
           </button>
+          {/* Ni `chip` ni `chip-label` ici : ces classes désignent les puces
+              d'ÉTAT (fondu, numérotation), que l'aide, la découverte guidée et
+              les campagnes repèrent par « la première puce de la barre ». */}
           <button
-            className="tbtn chip tb-obs"
+            className="tbtn tb-obs"
             title="Copier l’adresse pour OBS — colle-la dans une source « Navigateur » (Sources → + → Navigateur), largeur et hauteur de ton écran d’annotation. Le fond est déjà transparent."
             onClick={() => void copierAdresseObs()}
           >
             <IconObs />
-            <span className="chip-label">OBS</span>
+            <span className="tb-obs-label">OBS</span>
           </button>
         </span>
       </div>
