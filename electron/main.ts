@@ -3026,11 +3026,15 @@ function registerIpc(): void {
       // vraiment ailleurs. S'il a disparu (fenêtre fermée, écran débranché),
       // reprise immédiate par celui qui parle.
       if (previous && !nouveauTrait) return
-      // Personne n'a encore la main : l'écran PRINCIPAL est prioritaire, c'est
-      // celui que le streamer capture dans neuf cas sur dix.
+      // Personne n'a encore la main : L'ÉCRAN D'ANNOTATION est prioritaire —
+      // pas l'écran principal de Windows. Les deux ne coïncident pas toujours
+      // (l'utilisateur annote sur son écran du milieu), et une vue OBS qui
+      // s'accroche au mauvais écran hérite de SA taille : tout est alors mis à
+      // l'échelle de travers jusqu'au premier trait. Les autres écrans sont
+      // inertes de toute façon (voir `actif` dans src/engine/engine.ts).
       if (!previous && !nouveauTrait) {
-        const principal = overlays.get(screen.getPrimaryDisplay().id)
-        if (principal && !principal.win.isDestroyed() && principal.win.webContents.id !== id) return
+        const annotant = overlays.get(annotationDisplayId())
+        if (annotant && !annotant.win.isDestroyed() && annotant.win.webContents.id !== id) return
       }
       obsSender = id
       broadcast('obs-full-request')
