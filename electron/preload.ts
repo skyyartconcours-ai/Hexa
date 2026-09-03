@@ -64,6 +64,8 @@ const INBOUND = [
   'sync',
   'commande',
   'etat-encre',
+  /** la fenêtre clavier a perdu le focus : les touches maintenues se relâchent */
+  'clavier-perdu',
 ] as const
 type Inbound = (typeof INBOUND)[number]
 
@@ -184,6 +186,19 @@ const api = {
   notifyActivity(active: boolean): void {
     try {
       ipcRenderer.send('hexa:activity', active === true)
+    } catch {
+      /* ignore */
+    }
+  },
+
+  /**
+   * Un clic dans cette fenêtre : si le clavier d'Hexa est parti ailleurs, le
+   * processus principal le reprend (les fenêtres transparentes ne s'activent
+   * jamais au clic — voir electron/clavier.ts).
+   */
+  reprendreClavier(): void {
+    try {
+      ipcRenderer.send('hexa:reprendre-clavier')
     } catch {
       /* ignore */
     }

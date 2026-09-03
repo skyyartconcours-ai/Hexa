@@ -784,14 +784,10 @@ export const useUiStore = create<UiState>()(
         // Les notes sont persistantes au sens fort : on les retrouve au
         // prochain lancement, à leur place (§5.8.3).
         notes: s.notes,
-        // Une horloge est toujours ENREGISTRÉE À L'ARRÊT, avec son cumul figé :
-        // sans cela, un chrono oublié en marche afficherait douze heures au
-        // lancement du lendemain.
-        clocks: s.clocks.map((c): StageClock => ({
-          ...c,
-          elapsed: c.elapsed + (c.startedAt == null ? 0 : Math.max(0, Date.now() - c.startedAt)),
-          startedAt: null,
-        })),
+        // Les CHRONOS ne sont PAS enregistrés. Retour utilisateur : « le
+        // chronomètre doit pas être là par défaut » — un chrono posé un soir
+        // revenait à chaque lancement, comme s'il faisait partie de l'outil.
+        // Une horloge vit le temps d'une session, pas plus.
       }),
       // v2 : le preset Epic Pen devient le clavier par défaut.
       version: 2,

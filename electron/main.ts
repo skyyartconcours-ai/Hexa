@@ -87,6 +87,15 @@ import {
   watchPower,
   watchSessionEnd,
 } from './windows-guard'
+import {
+  creerFenetreClavier,
+  deplacerClavier,
+  detruireClavier,
+  emulerFocus,
+  fenetreClavier,
+  focusClavier,
+  relacherClavier,
+} from './clavier'
 
 /**
  * L'ADRESSE DE LA VUE OBS, COPIÉE PAR LE PROCESSUS PRINCIPAL.
@@ -610,6 +619,7 @@ function retirerOverlay(o: Overlay): void {
  * la panne que la réduction est censée fermer.
  */
 function reposerEncresVides(): void {
+  deplacerClavier(ecranAnnotation())
   for (const o of overlays.values()) {
     if (o.hasContent || !o.passthrough) continue
     if (o.hideTimer) {
@@ -906,31 +916,31 @@ function applyPassthrough(o: Overlay, on: boolean): void {
   o.passthrough = on
   try {
     if (o.win.isDestroyed()) return
+    // ⚠️ LA FENÊTRE D'ENCRE N'EST JAMAIS FOCUSABLE, ni ici ni ailleurs. Activer
+    // une fenêtre transparente, c'est risquer l'aplat gris opaque qui « cache
+    // YouTube » (voir electron/clavier.ts). Le clavier passe par la fenêtre
+    // clavier, opaque ; la souris, elle, arrive sans activation.
     if (on) {
       o.win.setIgnoreMouseEvents(true, { forward: true })
-      // On redevient non focusable AVANT de rendre la main : un overlay
-      // focusable dans l'Alt+Tab fait perdre des parties.
-      o.win.setFocusable(false)
-      try {
-        o.win.blur()
-      } catch {
-        /* ignore */
-      }
+      // On rend le clavier au jeu — sauf si un panneau attend encore la frappe.
+      if (o === overlayAnnotation() && !o.uiModale) relacherClavier()
     } else {
       o.drawEnteredAt = Date.now()
       o.win.setIgnoreMouseEvents(false)
-      o.win.setFocusable(true)
       showOverlay(o)
       // Entrée DÉLIBÉRÉE en mode dessin : c'est le seul moment où l'utilisateur
       // exige de voir Hexa devant tout le reste. On réaffirme donc ici, une
       // fois par bascule — et plus à chaque signal d'activité (voir showOverlay).
       reassertTopmost(o.win)
-      o.win.focus()
-      // On vient de RÉCLAMER le premier plan à Windows. Si on ne l'obtient pas,
-      // c'est presque toujours un jeu en plein écran exclusif : le seul cas où
-      // Hexa ne peut structurellement rien afficher. On le dit à l'utilisateur
-      // au lieu de le laisser croire à une panne (voir windows-guard.ts).
-      probeExclusiveFullscreen(o.win, warnExclusiveFullscreen)
+      if (o === overlayAnnotation()) assurerClavier()
+      if (o === overlayAnnotation() && focusClavier()) {
+        // On vient de RÉCLAMER le premier plan à Windows. Si on ne l'obtient
+        // pas, c'est presque toujours un jeu en plein écran exclusif : le seul
+        // cas où Hexa ne peut structurellement rien afficher. On le dit à
+        // l'utilisateur au lieu de le laisser croire à une panne.
+        const clavier = fenetreClavier()
+        if (clavier) probeExclusiveFullscreen(clavier, warnExclusiveFullscreen)
+      }
     }
   } catch (err) {
     // Le mode dessin qui ne bascule pas, c'est « ça ne marche pas » côté
@@ -966,6 +976,51 @@ function applyPassthrough(o: Overlay, on: boolean): void {
  * la couche de l'ancien écran resterait vivante et continuerait de tracer dans
  * le vide (voir `actif` dans src/engine/engine.ts).
  */
+/** L'écran d'annotation, comme objet `Display` (repli : l'écran principal). */
+function ecranAnnotation(): Display {
+  const id = annotationDisplayId()
+  return screen.getAllDisplays().find((d) => d.id === id) ?? screen.getPrimaryDisplay()
+}
+
+/** La fenêtre clavier existe, quoi qu'il arrive, avant qu'on en ait besoin. */
+function assurerClavier(): void {
+  if (!fenetreClavier()) creerClavierSurEcranAnnotation()
+}
+
+/** Crée (ou replace) la fenêtre clavier sur l'écran d'annotation. */
+function creerClavierSurEcranAnnotation(): void {
+  creerFenetreClavier(ecranAnnotation(), {
+    cible: () => {
+      const o = overlayAnnotation()
+      if (!o || o.win.isDestroyed()) return null
+      if (o.uiModale && o.ui && !o.ui.isDestroyed()) return o.ui.webContents
+      return o.win.webContents
+    },
+    surPerte: clavierPerdu,
+  })
+}
+
+/**
+ * Le clavier vient d'être perdu (Alt+Tab, clic dans le jeu sur un autre
+ * écran). Les touches maintenues se relâchent dans les pages, et, si on
+ * dessinait, la souris repart au jeu : l'utilisateur est parti ailleurs, on ne
+ * le laisse pas cliquer dans le vide sur un overlay qui avale tout.
+ */
+function clavierPerdu(): void {
+  const o = overlayAnnotation()
+  if (!o) return
+  send(o, 'clavier-perdu')
+  if (o.passthrough) return
+  // Fenêtre de grâce : sous Windows, montrer puis activer une fenêtre peut
+  // produire un blur parasite juste après l'entrée en mode dessin.
+  if (Date.now() - o.drawEnteredAt < 400) return
+  // Un panneau attend la frappe : l'utilisateur reviendra cliquer dedans, et
+  // le clavier sera repris à ce clic (hexa:reprendre-clavier).
+  if (o.uiModale) return
+  applyPassthrough(o, true)
+  send(o, 'set-draw', false)
+}
+
 function diffuserEcranAnnotation(): void {
   const vise = annotationDisplayId()
   ecranAnnonce = vise
@@ -1280,6 +1335,7 @@ function setEclipsed(value: boolean, raison: string): void {
   eclipsed = value
   if (value) {
     cancelWelcome()
+    relacherClavier()
     for (const o of overlays.values()) {
       try {
         if (o.hideTimer) {
@@ -1731,6 +1787,7 @@ function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindo
     // Même règle que la couche encre : le <title> de la page n'écrase pas le
     // titre natif, c'est lui qu'OBS affiche.
     ui.on('page-title-updated', (e) => e.preventDefault())
+    emulerFocus(ui.webContents, `interface écran ${display.id}`)
 
     reassertTopmost(ui)
     ui.setMenuBarVisibility(false)
@@ -1752,17 +1809,8 @@ function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindo
       if (overlay.ui === ui) overlay.ui = null
     })
 
-    // Un panneau ouvert peut avoir pris le focus ; s'il le perd, il ne doit pas
-    // rester focusable, sinon la fenêtre entrerait dans l'Alt+Tab du joueur.
-    ui.on('blur', () => {
-      if (!overlay.uiModale) return
-      try {
-        if (!ui.isDestroyed()) ui.setFocusable(false)
-      } catch {
-        /* ignore */
-      }
-      overlay.uiModale = false
-    })
+    // Cette fenêtre non plus n'a jamais le focus : un panneau ouvert reçoit sa
+    // frappe par la fenêtre clavier (voir electron/clavier.ts).
 
     const wc = ui.webContents
     wc.on('did-fail-load', (_e, code, description, url, isMainFrame) => {
@@ -1957,6 +2005,7 @@ function createOverlay(display: Display): Overlay | null {
     // Le <title> de la page n'écrase plus le titre natif : c'est lui qu'OBS
     // lit, et il doit rester unique et stable (voir titreEncre).
     win.on('page-title-updated', (e) => e.preventDefault())
+    emulerFocus(win.webContents, `encre écran ${display.id}`)
 
     const overlay: Overlay = {
       win,
@@ -2013,22 +2062,8 @@ function createOverlay(display: Display): Overlay | null {
     // (Depuis Electron 30, `session-end` est porté par la fenêtre, plus par app.)
     watchSessionEnd(win, () => setEclipsed(true, 'fin de session'))
 
-    // Perdre le focus pendant le mode dessin = l'utilisateur est reparti dans le
-    // jeu (clic dans la fenêtre du jeu, Alt+Tab…). On rend la souris immédiatement
-    // plutôt que de le laisser cliquer dans le vide sur un overlay opaque.
-    win.on('blur', () => {
-      if (overlay.passthrough) return
-      // Fenêtre de grâce : sous Windows, passer focusable puis appeler focus()
-      // peut produire un blur parasite juste après l'entrée en mode dessin.
-      if (Date.now() - overlay.drawEnteredAt < 400) return
-      // Le focus n'est pas parti dans le jeu : il est passé à NOTRE fenêtre
-      // d'interface, parce qu'un panneau vient de s'ouvrir et attend la frappe
-      // clavier. Rendre la souris au jeu ici couperait le mode dessin chaque
-      // fois qu'on ouvre les réglages.
-      if (overlay.uiModale) return
-      applyPassthrough(overlay, true)
-      send(overlay, 'set-draw', false)
-    })
+    // Cette fenêtre n'a jamais le focus : « perdre le clavier pendant le mode
+    // dessin » se lit désormais sur la fenêtre clavier (voir clavierPerdu).
 
     /* ---- Diagnostic : plus RIEN n'est avalé en silence ------------- *
      * Une fenêtre transparente qui échoue à charger son interface reste une
@@ -2756,10 +2791,12 @@ function registerIpc(): void {
   })
 
   /**
-   * Un panneau est ouvert : la fenêtre d'interface doit accepter la frappe
-   * clavier (nom de profil, capture d'un raccourci). C'est le SEUL moment où
-   * elle prend le focus — et la fenêtre encre sait alors ne pas rendre la
-   * souris au jeu pour autant (voir le 'blur' de la couche encre).
+   * Un panneau est ouvert : la frappe clavier (nom de profil, capture d'un
+   * raccourci) doit aller à la page d'interface. La fenêtre d'interface ne
+   * prend PAS le focus pour autant — elle est transparente, et l'activer
+   * risquerait l'aplat gris (voir electron/clavier.ts) : c'est la fenêtre
+   * clavier qui le tient, et qui route les touches vers l'interface tant que
+   * `uiModale` est vrai.
    */
   ipcMain.on('hexa:interface-modale', (e, value: unknown) => {
     const o = overlayFromEvent(e)
@@ -2767,19 +2804,28 @@ function registerIpc(): void {
     const modale = value === true
     if (o.uiModale === modale) return
     o.uiModale = modale
-    try {
-      o.ui.setFocusable(modale)
-      if (modale) {
-        o.ui.focus()
-      } else {
-        o.ui.blur()
-        // Le panneau se referme : si l'utilisateur était en train de dessiner,
-        // on lui rend le clavier de la couche encre. Sans ça, il fermerait ses
-        // réglages et se retrouverait avec des touches sans effet.
-        if (!o.passthrough && !o.win.isDestroyed()) o.win.focus()
-      }
-    } catch (err) {
-      logError('interface', 'focus de la couche interface impossible', err)
+    if (o !== overlayAnnotation()) return
+    if (modale) {
+      assurerClavier()
+      focusClavier()
+    } else if (o.passthrough) {
+      // Le panneau se referme et on ne dessinait pas : le clavier repart au jeu.
+      relacherClavier()
+    }
+  })
+
+  /**
+   * Un clic dans une fenêtre d'Hexa pendant qu'on dessine ou qu'un panneau est
+   * ouvert : si le clavier était parti ailleurs (Alt+Tab, clic dans le jeu sur
+   * un autre écran), on le reprend. Les fenêtres transparentes ne s'activent
+   * pas au clic — c'est voulu — donc c'est ici que le focus revient.
+   */
+  ipcMain.on('hexa:reprendre-clavier', (e) => {
+    const o = overlayFromEvent(e)
+    if (!o || o !== overlayAnnotation()) return
+    if (!o.passthrough || o.uiModale) {
+      assurerClavier()
+      focusClavier()
     }
   })
 
@@ -3225,6 +3271,15 @@ if (!gotLock) {
     })
 
     rebuildOverlays('démarrage')
+    // Le clavier d'Hexa : une fenêtre opaque de 2 pixels qui tient le focus à
+    // la place des fenêtres transparentes (voir electron/clavier.ts). Créée
+    // APRÈS les couches, avec un délai : sa page se charge en un instant, et
+    // tout ce qui prend « la première fenêtre » d'Hexa (campagnes de tests,
+    // outils de diagnostic) tomberait sur elle au lieu de la couche encre.
+    // Avant ce délai, le premier besoin (mode dessin, panneau) la crée.
+    setTimeout(() => {
+      if (!quitting) assurerClavier()
+    }, 2500)
     if (overlays.size === 0) {
       fatalDialog(
         'aucun écran utilisable',
@@ -3405,6 +3460,7 @@ if (!gotLock) {
     cancelWelcome()
     closeToast()
     destroyTray()
+    detruireClavier()
     stopObsServer()
     // Écouteurs d'écrans et d'alimentation + minuteries différées du garde-fou.
     // Un écouteur `screen`/`powerMonitor` encore branché peut rappeler du code

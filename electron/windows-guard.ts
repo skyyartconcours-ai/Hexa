@@ -53,20 +53,15 @@ export function applyBounds(win: BrowserWindow, bounds: Rectangle, etiquette: st
     // ne touche à aucun style de fenêtre.
     win.setBounds(bounds)
     if (sameBounds(win.getBounds(), bounds)) return true
-    // Refusé : on tente le contournement, mais SEULEMENT maintenant. Le
-    // dégeler/regeler modifie brièvement le style natif de la fenêtre (elle est
-    // créée avec `thickFrame: false` pour n'avoir ni ombre ni animation) : hors
-    // de question de le faire à chaque pose alors que ça ne sert presque jamais.
-    if (!win.isResizable()) {
-      win.setResizable(true)
-      win.setBounds(bounds)
-      win.setResizable(false)
-    }
+    // ⚠️ PLUS JAMAIS `setResizable(true)` ICI. C'était le contournement d'un
+    // refus supposé des fenêtres non redimensionnables ; or `setBounds` pose
+    // lui-même les contraintes de taille sur ces fenêtres (Electron,
+    // native_window_views.cc), et surtout, rendre redimensionnable une fenêtre
+    // TRANSPARENTE lui ajoute WS_THICKFRAME à partir d'Electron 39 — un style
+    // incompatible avec les fenêtres translucides, qui détruit leur
+    // transparence pour de bon (electron/electron#51175). Un refus réel, lui,
+    // ne vient que de Windows (WM_DPICHANGED) : on repose après coup.
     const obtenu = win.getBounds()
-    if (sameBounds(obtenu, bounds)) {
-      log('écrans', `bounds posées au second essai (${etiquette})`)
-      return true
-    }
     log('écrans', `pose des bounds refusée par le système (${etiquette}) — essai différé`, {
       demande: `${bounds.width}×${bounds.height} @${bounds.x},${bounds.y}`,
       obtenu: `${obtenu.width}×${obtenu.height} @${obtenu.x},${obtenu.y}`,
@@ -76,10 +71,7 @@ export function applyBounds(win: BrowserWindow, bounds: Rectangle, etiquette: st
       retards.delete(t)
       try {
         if (win.isDestroyed() || sameBounds(win.getBounds(), bounds)) return
-        const f = !win.isResizable()
-        if (f) win.setResizable(true)
         win.setBounds(bounds)
-        if (f) win.setResizable(false)
         log('écrans', `bounds reposées après coup (${etiquette})`)
       } catch (err) {
         logError('écrans', `seconde pose impossible (${etiquette})`, err)

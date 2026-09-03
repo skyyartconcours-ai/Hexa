@@ -305,19 +305,21 @@ await rapport.test(win, 's20-8-etat-reecrit-sain', 'Après le relèvement, l’�
     const s = raw?.state ?? {}
     return {
       lisible: true,
-      clocks: Array.isArray(s.clocks),
+      // Les chronos ne sont PLUS enregistrés (un chrono posé un soir revenait à
+      // chaque lancement) : l'état réécrit ne doit plus en porter du tout.
+      clocks: s.clocks === undefined,
       notes: Array.isArray(s.notes),
       taille: typeof s.size === 'number' && s.size > 0 && s.size < 100,
       contenu: `clocks=${JSON.stringify(s.clocks)} notes=${JSON.stringify(s.notes)}`.slice(0, 160),
     }
   })
-  // Un état relu doit être relisable, et ses listes doivent être des listes :
-  // sinon le prochain lancement retomberait dans le même trou.
+  // Un état relu doit être relisable, sa liste de notes doit être une liste, et
+  // les chronos absents : sinon le prochain lancement retomberait dans le même trou.
   const ok = etat.lisible && etat.clocks && etat.notes && etat.taille
   return {
     statut: ok ? OK : KO,
     detail:
-      `relisible ${etat.lisible} · clocks est une liste : ${etat.clocks} · ` +
+      `relisible ${etat.lisible} · chronos absents de l’état enregistré : ${etat.clocks} · ` +
       `notes est une liste : ${etat.notes} · taille de trait plausible : ${etat.taille} · ` +
       `${etat.contenu ?? ''}`,
   }

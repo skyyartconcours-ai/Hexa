@@ -51,6 +51,8 @@ export interface BridgeEvents {
   sync: (patch: Record<string, unknown>) => void
   /** État annoncé par la couche encre à la couche interface. */
   'etat-encre': (message: EtatEncre) => void
+  /** la fenêtre clavier a perdu le focus : rejoué en `blur` sur la page */
+  'clavier-perdu': () => void
   /** Commande adressée par la couche interface au moteur (couche encre). */
   commande: (message: CommandeEncre) => void
 }
@@ -210,6 +212,8 @@ export interface HexaBridgeApi {
    * l'interface n'a pas le focus. Revient avec l'adresse, copiée ou non.
    */
   copierAdresseObs(): Promise<AdresseObs | null>
+  /** un clic chez nous : reprendre le clavier s'il est parti ailleurs (voir electron/clavier.ts) */
+  reprendreClavier(): void
   setShortcuts(map: GlobalShortcuts): Promise<unknown>
   /**
    * Niveau de privilège d'Hexa sous Windows. Décide si un raccourci global est
@@ -312,6 +316,7 @@ export const bridge: HexaBridgeApi = {
       return { adresse, copie: false }
     }
   },
+  reprendreClavier: () => window.hexa?.reprendreClavier?.(),
   displayInfo: async () => (window.hexa?.displayInfo ? window.hexa.displayInfo() : null),
   setPassthrough: (v) => window.hexa?.setPassthrough?.(v),
   notifyActivity: (active) => window.hexa?.notifyActivity?.(active),
@@ -349,6 +354,17 @@ export const bridge: HexaBridgeApi = {
  * Aucun coût au repos : deux écouteurs passifs, rien de plus.
  */
 if (isElectron && typeof window !== 'undefined') {
+  /*
+   * LE CLAVIER PASSE PAR UNE FENÊTRE OPAQUE (electron/clavier.ts) : cette page
+   * n'a jamais le focus système, elle est en focus émulé. Deux conséquences :
+   *  - quand la fenêtre clavier perd le focus (Alt+Tab, clic dans le jeu),
+   *    aucun `blur` n'arrive ici de lui-même. On le rejoue, pour que les
+   *    touches maintenues (laser, spotlight, rappels) se relâchent ;
+   *  - un clic dans cette page doit RAMENER le clavier s'il est parti : une
+   *    fenêtre transparente ne s'active pas au clic, c'est voulu.
+   */
+  bridge.on('clavier-perdu', () => window.dispatchEvent(new Event('blur')))
+  window.addEventListener('pointerdown', () => bridge.reprendreClavier(), { capture: true, passive: true })
   window.addEventListener('error', (e) => {
     bridge.log('page', `erreur : ${e.message} (${e.filename}:${e.lineno})`)
   })
