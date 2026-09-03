@@ -197,7 +197,7 @@ const assainir = async () => {
       'hexa-ui',
       JSON.stringify({
         state: { onboarded: true, fadeDelay: null, tool: 'pen', size: 6, sound: false },
-        version: 2,
+        version: 3,
       }),
     ),
   )
@@ -219,7 +219,7 @@ const CAS = [
     pourquoi:
       'le mode de panne le plus dangereux : `clocks.length` sur null lève au RENDU, ' +
       'et une fenêtre transparente qui ne rend rien est indiscernable d’une application morte',
-    brut: JSON.stringify({ state: { onboarded: true, clocks: null, notes: null }, version: 2 }),
+    brut: JSON.stringify({ state: { onboarded: true, clocks: null, notes: null }, version: 3 }),
   },
   {
     id: 's20-4-listes-mauvais-type',
@@ -227,7 +227,7 @@ const CAS = [
     pourquoi: 'un fichier recopié d’un autre poste, ou écrit par une version antérieure',
     brut: JSON.stringify({
       state: { onboarded: true, clocks: 'trois', notes: { a: 1 } },
-      version: 2,
+      version: 3,
     }),
   },
   {
@@ -244,7 +244,7 @@ const CAS = [
         theme: 'inexistant',
         gridMode: 42,
       },
-      version: 2,
+      version: 3,
     }),
   },
   {
@@ -263,7 +263,7 @@ const CAS = [
         clocks: [{ id: 'c1' }, null],
         notes: [{ id: 'n1' }, 'pas un objet'],
       },
-      version: 2,
+      version: 3,
     }),
   },
 ]

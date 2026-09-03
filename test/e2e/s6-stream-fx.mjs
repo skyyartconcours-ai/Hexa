@@ -97,7 +97,7 @@ const ok = (t, v) => {
  *  Aucun crochet de test n'existe dans le code de production. */
 const seed = async (patch) => {
   await win.evaluate((p) => {
-    const raw = JSON.parse(localStorage.getItem('hexa-ui') ?? '{"state":{},"version":2}')
+    const raw = JSON.parse(localStorage.getItem('hexa-ui') ?? '{"state":{},"version":3}')
     raw.state = { ...raw.state, ...p, onboarded: true }
     localStorage.setItem('hexa-ui', JSON.stringify(raw))
   }, patch)
@@ -225,12 +225,13 @@ if (only === 'all' || only === 'rebours') {
       urgent: el.dataset.urgent,
       texte: el.querySelector('.sw-digits').textContent,
       anim: getComputedStyle(el.querySelector('.sw-digits')).animationName,
-      arrete: JSON.parse(localStorage.getItem('hexa-ui')).state.clocks[0].startedAt === null,
+      // les chronos ne sont plus enregistrés : rien ne doit revenir au prochain lancement
+      arrete: !('clocks' in JSON.parse(localStorage.getItem('hexa-ui')).state),
     }
   })
   console.log('fin :', JSON.stringify(fin))
   ok(`zéro atteint : « ${fin.texte} », battement final ${fin.anim}`, fin.texte === '0:00' && fin.done === '1')
-  ok('horloge rangée à l’arrêt (plus rien ne tourne)', fin.arrete === true)
+  ok('chrono non enregistré (il ne reviendra pas au prochain lancement)', fin.arrete === true)
   await shot('10-rebours-zero')
   await win.waitForTimeout(2400)
   await shot('11-rebours-zero-fige')

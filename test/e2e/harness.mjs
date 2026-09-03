@@ -153,7 +153,7 @@ export async function etatDeDepart(win, patch = {}) {
           toolbarFade: 0,
           ...p,
         },
-        version: 2,
+        version: 3,
       }),
     )
   }, patch)

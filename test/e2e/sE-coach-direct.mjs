@@ -247,7 +247,7 @@ const ETAT = {
 const poserEtat = async (patch = {}) => {
   for (const p of [encre, inter]) {
     await p.evaluate((e) => {
-      localStorage.setItem('hexa-ui', JSON.stringify({ state: e, version: 2 }))
+      localStorage.setItem('hexa-ui', JSON.stringify({ state: e, version: 3 }))
       // les pages survivent au rechargement d'une fenêtre (sessionStorage) :
       // un état de départ, c'est aussi la page 1
       sessionStorage.clear()

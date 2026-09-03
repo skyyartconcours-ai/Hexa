@@ -790,7 +790,9 @@ export const useUiStore = create<UiState>()(
         // Une horloge vit le temps d'une session, pas plus.
       }),
       // v2 : le preset Epic Pen devient le clavier par défaut.
-      version: 2,
+      // v3 : les chronos ne sont plus enregistrés — un état v2 qui en porte
+      //      encore les perd à la migration, dès le premier lancement.
+      version: 3,
       /**
        * Reprise d'un état déjà enregistré.
        *
@@ -946,8 +948,18 @@ export const useUiStore = create<UiState>()(
         merged.gridOpacity = borne(merged.gridOpacity, 0.04, 0.5, 0.22)
         return merged
       },
-      /** Conservé pour les futures versions : sans lui, zustand jetterait l'état. */
-      migrate: (persisted) => persisted as UiState,
+      /**
+       * Migration d'un état plus ancien. Sans `migrate`, zustand jetterait
+       * l'état entier. v2 → v3 : les chronos enregistrés disparaissent (retour
+       * utilisateur : « le chronomètre doit pas être là par défaut »).
+       */
+      migrate: (persisted, version) => {
+        const s = (persisted && typeof persisted === 'object' ? persisted : {}) as Partial<UiState> & {
+          clocks?: unknown
+        }
+        if (version < 3) delete s.clocks
+        return s as UiState
+      },
     },
   ),
 )

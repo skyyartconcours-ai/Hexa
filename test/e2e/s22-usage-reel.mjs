@@ -155,7 +155,7 @@ await encre.evaluate(() =>
         globalShortcutsOn: false,
         globalShortcutsChosen: true,
       },
-      version: 2,
+      version: 3,
     }),
   ),
 )

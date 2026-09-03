@@ -61,7 +61,7 @@ const eprouver = async (etat, { ouvrirReglages = false } = {}) => {
         globalShortcutsChosen: true,
         ...etat,
       },
-      version: 2,
+      version: 3,
     }),
   )
   await win.reload()
@@ -240,7 +240,7 @@ await rapport.test(win, 's21-8-ecriture-lexique-abime', 'Le mode écriture survi
       lexiconCategories: null,
       lexiconWords: null,
     },
-    version: 2,
+    version: 3,
   }))
   await win.reload()
   await win.waitForSelector('.stage', { timeout: 12000 }).catch(() => {})

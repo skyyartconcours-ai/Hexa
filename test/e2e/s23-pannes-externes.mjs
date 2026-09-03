@@ -55,7 +55,7 @@ await win.evaluate(() =>
         globalShortcutsOn: false,
         globalShortcutsChosen: true,
       },
-      version: 2,
+      version: 3,
     }),
   ),
 )
@@ -329,7 +329,7 @@ await rapport.test(win2, 's23-6-port-obs-occupe', 'Le port du serveur OBS déjà
             obsServerOn: true,
             obsPort: p,
           },
-          version: 2,
+          version: 3,
         }),
       ),
     PORT,
