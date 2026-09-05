@@ -48,6 +48,7 @@ node test/e2e/s24-maj-forme.mjs            # Maj tenue au pinceau : la forme est
 node test/e2e/s25-coach-devoilement.mjs    # dévoilement pas à pas, calque fantôme, duo de couleurs (Tab)
 node test/e2e/s26-trait-collant.mjs        # pointerup perdu : le trait ne doit plus suivre la souris
 node test/e2e/s27-clavier.mjs              # la fenêtre clavier : les fenêtres transparentes ne prennent jamais le focus
+node test/e2e/s28-clavier-deux-fenetres.mjs # Tab et les lettres dans le VRAI mode à deux fenêtres
 ```
 
 `s17-bascule-ecran.mjs` prend la suite de `s16` là où celui-ci s'arrête. §S16

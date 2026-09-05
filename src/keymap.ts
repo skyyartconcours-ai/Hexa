@@ -156,7 +156,16 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
   { action: 'tool.rect', label: 'Rectangle', category: 'outils' },
   { action: 'tool.ellipse', label: 'Ellipse', category: 'outils' },
   { action: 'tool.text', label: 'Texte', category: 'outils' },
-  { action: 'tool.badge', label: 'Numéroteur', category: 'outils', hint: 'Pastilles 1, 2, 3…' },
+  {
+    action: 'tool.badge',
+    label: 'Numéroteur',
+    category: 'outils',
+    // Réservé auprès de Windows comme le pinceau : Ctrl+Maj+1 doit répondre
+    // EN PLEINE PARTIE, sans passer par la fenêtre d'Hexa. La lettre « n »,
+    // elle, reste locale — une lettre nue ne se confisque jamais au système.
+    global: true,
+    hint: 'Pastilles 1, 2, 3…',
+  },
   {
     action: 'tool.marker',
     label: 'Jalons',
@@ -556,6 +565,10 @@ const EPICPEN_BINDINGS: Bindings = {
   'tool.eraser': ['ctrl+shift+5', 'e'],
   // Les jalons prolongent la série des doigts d'Epic Pen là où elle s'arrête.
   'tool.marker': ['ctrl+shift+9', 'y'],
+  // Le numéroteur ouvre la série : Ctrl+Maj+1, la combinaison que le coach
+  // cherchait sous ses doigts. Réservée auprès de Windows, elle répond donc
+  // aussi pendant une partie, comme Ctrl+Maj+3 pour le pinceau.
+  'tool.badge': ['ctrl+shift+1', 'n'],
   // édition
   'edit.undo': ['ctrl+shift+6', 'ctrl+z'],
   'edit.clear': ['ctrl+e', 'c'],
@@ -577,7 +590,7 @@ export const KEYMAP_PRESETS: readonly KeymapPreset[] = [
     id: 'epicpen',
     name: 'Epic Pen',
     description:
-      'Par défaut. Reprend les combinaisons d’Epic Pen (Ctrl+Maj+2/3/4/5/6, Ctrl+E, Ctrl+H) en gardant celles d’Hexa en second.',
+      'Par défaut. Reprend les combinaisons d’Epic Pen (Ctrl+Maj+2/3/4/5/6, Ctrl+E, Ctrl+H) et prolonge la série : Ctrl+Maj+1 numéroteur, 7/8 épaisseur, 9 jalons. Les touches d’Hexa restent en second.',
     extends: 'hexa',
     bindings: EPICPEN_BINDINGS,
   },

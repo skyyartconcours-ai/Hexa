@@ -91,7 +91,7 @@ import {
   creerFenetreClavier,
   deplacerClavier,
   detruireClavier,
-  emulerFocus,
+  suivreFocus,
   fenetreClavier,
   focusClavier,
   relacherClavier,
@@ -1787,7 +1787,7 @@ function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindo
     // Même règle que la couche encre : le <title> de la page n'écrase pas le
     // titre natif, c'est lui qu'OBS affiche.
     ui.on('page-title-updated', (e) => e.preventDefault())
-    emulerFocus(ui.webContents, `interface écran ${display.id}`)
+    suivreFocus(ui.webContents, `interface écran ${display.id}`)
 
     reassertTopmost(ui)
     ui.setMenuBarVisibility(false)
@@ -2005,7 +2005,7 @@ function createOverlay(display: Display): Overlay | null {
     // Le <title> de la page n'écrase plus le titre natif : c'est lui qu'OBS
     // lit, et il doit rester unique et stable (voir titreEncre).
     win.on('page-title-updated', (e) => e.preventDefault())
-    emulerFocus(win.webContents, `encre écran ${display.id}`)
+    suivreFocus(win.webContents, `encre écran ${display.id}`)
 
     const overlay: Overlay = {
       win,

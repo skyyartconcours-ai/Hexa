@@ -35,7 +35,7 @@
  * sont mises en « focus émulé » pour que champs, caret et événements se
  * comportent comme si elles l'avaient.
  */
-import { BrowserWindow, type Display, type Input, type WebContents } from 'electron'
+import { app, BrowserWindow, type Display, type Input, type WebContents } from 'electron'
 import { log, logError } from './logger'
 
 /** 2 pixels : invisible à l'œil, mais une vraie fenêtre pour Windows. */
@@ -54,6 +54,8 @@ export interface ClavierOptions {
 }
 
 let fenetre: BrowserWindow | null = null
+/** une seule ligne de journal pour dire que le relais est vivant */
+let premiereRelayee = false
 let options: ClavierOptions | null = null
 
 function boundsClavier(d: Display): { x: number; y: number; width: number; height: number } {
@@ -158,10 +160,54 @@ export function fenetreClavier(): BrowserWindow | null {
  */
 export function focusClavier(): boolean {
   if (!fenetre || fenetre.isDestroyed()) return false
+  const win = fenetre
   try {
-    if (!fenetre.isVisible()) fenetre.showInactive()
-    if (fenetre.isFocused()) return true
-    fenetre.focus()
+    if (!win.isVisible()) win.showInactive()
+    if (win.isFocused()) return true
+    /*
+     * `app.focus({ steal: true })` D'ABORD, et c'est décisif sous Windows :
+     * le système n'autorise le passage au premier plan qu'au processus qui
+     * détient déjà le premier plan ou qui vient de recevoir une entrée. Hexa,
+     * lui, se réveille sur un raccourci global pendant qu'un jeu est devant.
+     * Sans ce vol assumé, `focus()` échouait en silence : les touches du
+     * joueur restaient dans son jeu, et AUCUN raccourci local d'Hexa (Tab, les
+     * lettres) ne répondait — seuls les raccourcis réservés au système
+     * marchaient encore.
+     */
+    if (process.platform === 'win32') {
+      try {
+        app.focus({ steal: true })
+      } catch {
+        /* plateforme sans vol de focus : on tente quand même la fenêtre */
+      }
+    }
+    win.focus()
+    // On VÉRIFIE, et on réessaie une fois : Windows accorde parfois le premier
+    // plan à la seconde demande, juste après l'affichage de la fenêtre.
+    setTimeout(() => {
+      try {
+        if (win.isDestroyed() || win.isFocused()) return
+        log('clavier', 'clavier non obtenu du premier coup — seconde tentative')
+        win.showInactive()
+        if (process.platform === 'win32') app.focus({ steal: true })
+        win.focus()
+        setTimeout(() => {
+          if (win.isDestroyed()) return
+          if (!win.isFocused()) {
+            logError(
+              'clavier',
+              'CLAVIER REFUSÉ PAR LE SYSTÈME : les raccourcis locaux (Tab, lettres) ne ' +
+                'répondront pas. Cause la plus probable : jeu en plein écran exclusif.',
+              null,
+            )
+          } else {
+            log('clavier', 'clavier obtenu à la seconde tentative')
+          }
+        }, 260)
+      } catch (err) {
+        logError('clavier', 'seconde prise du clavier impossible', err)
+      }
+    }, 180)
     return true
   } catch (err) {
     logError('clavier', 'prise du clavier impossible', err)
@@ -182,6 +228,7 @@ export function relacherClavier(): void {
 export function detruireClavier(): void {
   const f = fenetre
   fenetre = null
+  premiereRelayee = false
   options = null
   if (!f || f.isDestroyed()) return
   try {
@@ -218,6 +265,22 @@ export function emulerFocus(wc: WebContents, etiquette: string): void {
     .sendCommand('Emulation.setFocusEmulationEnabled', { enabled: true })
     .then(() => log('clavier', `focus émulé (${etiquette})`))
     .catch((err: unknown) => logError('clavier', `émulation du focus impossible (${etiquette})`, err))
+}
+
+/**
+ * ⚠️ L'ÉMULATION NE SURVIT PAS À UNE NAVIGATION, et c'est un piège complet :
+ * une page rechargée reçoit toujours les touches du relais, mais elles n'ont
+ * PLUS AUCUN EFFET — clavier muet, sans un message, sans une erreur. Mesuré
+ * (§S27) : « o » puis Tab agissent, la page se recharge, les deux mêmes
+ * touches ne font plus rien du tout.
+ *
+ * Or la page se recharge pour de vrai : au changement d'écran, après une
+ * panne du renderer, à chaque relance d'une couche. On réarme donc à CHAQUE
+ * chargement, une ligne de journal à l'appui.
+ */
+export function suivreFocus(wc: WebContents, etiquette: string): void {
+  emulerFocus(wc, etiquette)
+  wc.on('did-finish-load', () => emulerFocus(wc, `${etiquette} · rechargée`))
 }
 
 /** Codes de touches virtuelles Windows, attendus par le protocole pour `keyCode`. */
@@ -323,6 +386,13 @@ export function relayerTouche(wc: WebContents, input: Input): void {
     params = texte ? { type: 'keyDown', text: texte, unmodifiedText: texte, ...base } : { type: 'rawKeyDown', ...base }
   } else {
     params = { type: 'keyUp', ...base }
+  }
+  // Une ligne de journal à la PREMIÈRE touche relayée, et plus jamais : elle
+  // suffit à dire « le relais fonctionne » dans un rapport d'utilisateur, sans
+  // écrire un fichier de journal à chaque frappe.
+  if (!premiereRelayee) {
+    premiereRelayee = true
+    log('clavier', `première touche relayée (${input.key}) vers ${wc.getURL().split('/').pop()}`)
   }
   void wc.debugger
     .sendCommand('Input.dispatchKeyEvent', params)
