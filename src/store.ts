@@ -340,7 +340,8 @@ export interface UiState extends ObsSettings {
  * ------------------------------------------------------------------ */
 
 /** Les seuls identifiants d'outil qui existent — voir ToolId. */
-const KNOWN_TOOLS = new Set<string>([
+/** Les outils que le moteur connaît — source de vérité partagée (voir globalShortcuts). */
+export const KNOWN_TOOLS = new Set<string>([
   'pen',
   'highlight',
   'line',

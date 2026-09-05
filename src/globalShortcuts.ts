@@ -18,7 +18,8 @@
 import { useEffect, useRef } from 'react'
 import { bridge, isElectron } from './bridge'
 import { porteEncre } from './couches'
-import { useUiStore } from './store'
+import type { ToolId } from './engine/types'
+import { KNOWN_TOOLS, useUiStore } from './store'
 import {
   globalAccelerators,
   resolveKeymap,
@@ -102,11 +103,22 @@ export function isRegisteredGlobally(action: KeymapAction): boolean {
  * Exécution d'une action arrivée du processus principal
  * ------------------------------------------------------------------ */
 
-const TOOL_OF_ACTION: Partial<Record<KeymapAction, 'pen' | 'highlight' | 'eraser' | 'marker'>> = {
-  'tool.pen': 'pen',
-  'tool.highlight': 'highlight',
-  'tool.eraser': 'eraser',
-  'tool.marker': 'marker',
+/**
+ * L'outil d'une action « tool.X », DÉDUIT du nom de l'action.
+ *
+ * ⚠️ C'était une table écrite à la main, et elle a fini par mentir. Le
+ * numéroteur est devenu global (Ctrl+Maj+1) : Windows nous livrait bien la
+ * touche, le processus principal la routait bien vers la page… qui n'en
+ * faisait RIEN, parce que 'tool.badge' manquait dans la table. Pire qu'un
+ * raccourci absent : un raccourci affiché, réservé auprès de Windows — donc
+ * volé à tous les autres logiciels — et mort. Le nom de l'action porte déjà
+ * l'outil ; on le lit, et on le valide contre les outils que le moteur
+ * connaît. Aucune liste à tenir à jour, donc plus rien à oublier.
+ */
+function outilDeAction(action: KeymapAction): ToolId | null {
+  if (!action.startsWith('tool.')) return null
+  const id = action.slice('tool.'.length)
+  return KNOWN_TOOLS.has(id) ? (id as ToolId) : null
 }
 
 /**
@@ -115,7 +127,7 @@ const TOOL_OF_ACTION: Partial<Record<KeymapAction, 'pen' | 'highlight' | 'eraser
  */
 export function runGlobalAction(action: KeymapAction, engine: ShortcutEngine | null): void {
   const st = useUiStore.getState()
-  const tool = TOOL_OF_ACTION[action]
+  const tool = outilDeAction(action)
   if (tool) {
     st.setTool(tool)
     return
@@ -138,6 +150,11 @@ export function runGlobalAction(action: KeymapAction, engine: ShortcutEngine | n
       break
     case 'ui.toolbar':
       st.toggleToolbar()
+      break
+    // Masquer/remontrer les annotations : global lui aussi, et lui aussi
+    // oublié ici — il n'existait que dans le clavier local (src/App.tsx).
+    case 'ui.hideInk':
+      st.toggleAnnotationsHidden()
       break
     case 'ui.cheatsheet':
       st.setCheatsheetOpen(!st.cheatsheetOpen)
