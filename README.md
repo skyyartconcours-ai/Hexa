@@ -67,6 +67,49 @@ server {
 }
 ```
 
+### Sur spyfall.skyyarttools.fr (VPS Hetzner + Caddy)
+
+Le sous-domaine est couvert par le wildcard DNS `*.skyyarttools.fr` : **aucune
+entrée DNS à créer**. Le déploiement est *additif* — il n'installe que son
+dossier (`/opt/spyfall`), son service systemd (`spyfall`), son port et son
+propre bloc dans le Caddyfile. Les autres outils du serveur (olympe, poker,
+lecercle…) ne sont jamais touchés : le script refuse d'écraser un dossier qui
+ne porte pas son marqueur, refuse un port déjà pris par un autre service, et
+restaure le Caddyfile si sa validation échoue.
+
+Depuis le PC, dans le dossier du dépôt :
+
+```bash
+# 1. état du serveur, en lecture seule — ne modifie rien
+bash deploy/deploy-hetzner.sh inventory
+
+# 2. mise en ligne
+SPYFALL_PASSWORD=spy bash deploy/deploy-hetzner.sh deploy
+```
+
+Le jeu est alors sur **https://spyfall.skyyarttools.fr** (HTTPS émis
+automatiquement par Caddy, ~1 min la première fois).
+
+- **Changer le mot de passe** : relancer avec `SPYFALL_PASSWORD=autrechose`.
+  Le secret vit dans `/etc/spyfall.env` (chmod 600, lisible par root seul) et
+  n'apparaît jamais dans un `ps` ni dans l'unité systemd.
+- **Changer le port** : `SPYFALL_PORT=3211 bash deploy/deploy-hetzner.sh deploy`.
+- **Logs** : `journalctl -u spyfall -n 50 -f`
+- **Mettre à jour** : relancer la même commande `deploy`.
+- **Tout retirer** : `bash deploy/deploy-hetzner.sh rollback` (supprime le
+  service, le dossier, le secret et le bloc Caddy — et rien d'autre).
+
+Derrière Caddy, le service tourne avec `TRUST_PROXY=1` et `HOST=127.0.0.1` :
+Node n'est pas joignable directement depuis l'extérieur, et le rate-limit du
+mot de passe voit la vraie IP de chaque joueur plutôt que celle du proxy.
+
+#### Déploiement automatique par GitHub Actions
+
+`.github/workflows/deploy-spyfall.yml` fait la même chose depuis un runner
+GitHub, à chaque push ou à la demande. Créer d'abord les 4 secrets dans
+**Settings → Secrets and variables → Actions** : `HETZNER_HOST`,
+`HETZNER_USER`, `HETZNER_SSH_KEY`, `SPYFALL_PASSWORD`.
+
 ### Sur une plateforme (Render / Railway / Fly.io)
 
 Offres gratuites : pointez le service sur ce dépôt avec la commande de
