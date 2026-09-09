@@ -215,10 +215,20 @@ set -e
 export PATH="/usr/local/sbin:/usr/sbin:/sbin:\$PATH"   # SSH non-interactif : caddy/systemctl hors /usr/bin
 CADDY=/etc/caddy/Caddyfile
 if [ ! -f "\$CADDY" ]; then echo "❌ Caddyfile introuvable (\$CADDY) — reverse proxy inattendu."; exit 1; fi
-if grep -q "${DOMAIN}" "\$CADDY"; then
-  echo "route ${DOMAIN} déjà présente ✓ (Caddyfile inchangé)"
+if grep -q "AJOUT ${TOOL} " "\$CADDY"; then
+  # Bloc deploy deja la : on le regenere a l identique du script. Idempotent,
+  # et un alias ajoute au script arrive ainsi sur un serveur deja deploye.
+  cp "\$CADDY" "\$CADDY.deploybak"
+  sed -i "/# ========== AJOUT ${TOOL} /,/# ========== FIN AJOUT ${TOOL} /d" "\$CADDY"
+  REGEN=oui
+elif grep -q "${DOMAIN}" "\$CADDY"; then
+  echo "route ${DOMAIN} présente hors du bloc deploy : Caddyfile laissé tel quel"
+  REGEN=non
 else
   cp "\$CADDY" "\$CADDY.deploybak"
+  REGEN=oui
+fi
+if [ "\$REGEN" = "oui" ]; then
   cat >> "\$CADDY" <<CADDYBLOCK
 
 # ========== AJOUT ${TOOL} (${DOMAIN}, deploy auto) ==========
@@ -234,7 +244,7 @@ ${ALIAS} {
 CADDYBLOCK
   if command -v caddy >/dev/null && caddy validate --config "\$CADDY" --adapter caddyfile >/dev/null 2>&1; then
     systemctl reload caddy
-    echo "route ${DOMAIN} ajoutée + Caddy rechargé ✓"
+    echo "route ${DOMAIN} + alias ${ALIAS} en place, Caddy rechargé ✓"
   else
     echo "❌ Caddyfile invalide après ajout — restauration de la sauvegarde"
     mv "\$CADDY.deploybak" "\$CADDY"
