@@ -144,6 +144,9 @@ EOF
   # envoi tar (pas de dépendance à l'état du poste, et la mise à jour est atomique).
   $SSH bash -s <<EOF
 set -e
+# Le dossier appartient au compte spyfall, git tourne en root : sans cette
+# exception git refuse le depot ("dubious ownership") et la mise a jour echoue.
+git config --global --get-all safe.directory 2>/dev/null | grep -qx "${REMOTE_DIR}"   || git config --global --add safe.directory "${REMOTE_DIR}"
 if [ -d "${REMOTE_DIR}/.git" ]; then
   git -C "${REMOTE_DIR}" remote set-url origin "${REPO}"
   git -C "${REMOTE_DIR}" fetch origin "${BRANCH}"
