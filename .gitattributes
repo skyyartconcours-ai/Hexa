@@ -1,3 +1,6 @@
 # Les scripts shell doivent garder des fins de ligne LF même clonés sous Windows :
 # en CRLF, bash échoue avec « $'\r': command not found ».
 *.sh text eol=lf
+
+# Les .bat sont exécutés par cmd.exe : ils doivent rester en CRLF.
+*.bat text eol=crlf

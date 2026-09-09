@@ -67,6 +67,25 @@ server {
 }
 ```
 
+### Jouer ce soir sans rien installer ni payer : `JOUER.bat`
+
+Double-cliquez **`JOUER.bat`** à la racine du dépôt. Le script lance le jeu sur
+votre PC et ouvre un tunnel Cloudflare : il affiche une adresse publique en
+HTTPS du type `https://trois-mots-au-hasard.trycloudflare.com`, à partager aux
+joueurs. Aucun compte, aucun serveur, aucune carte bancaire — `cloudflared` est
+téléchargé automatiquement au premier lancement.
+
+Mot de passe : `spy` par défaut (`set SPYFALL_PASSWORD=autre` avant de lancer
+pour le changer).
+
+Limites à connaître : votre PC doit rester allumé et la fenêtre ouverte pendant
+la partie, l'adresse change à chaque lancement, et le tunnel gratuit plafonne à
+200 requêtes simultanées — sans souci jusqu'à 12 joueurs. Pour une adresse
+stable, passez par Render ci-dessous.
+
+Le serveur n'écoute que sur `127.0.0.1` : rien n'est exposé sur votre réseau
+local, seul le tunnel donne accès au jeu.
+
 ### Sur Render — gratuit, le plus rapide
 
 Le dépôt contient un `render.yaml` prêt à l'emploi. Sur
