@@ -133,6 +133,10 @@ if [ "\$OURS" = "0" ] && ss -tln 2>/dev/null | grep -q ":${PORT} "; then
   echo "❌ port ${PORT} déjà pris par un AUTRE service — relance avec SPYFALL_PORT=<autre>."; exit 1
 fi
 mkdir -p "${REMOTE_DIR}"; touch "${REMOTE_DIR}/.claude-deploy-owned"
+# Compte systeme dedie. Le jeu ecrit data.json et pending.json dans son propre
+# dossier : il lui faut un proprietaire stable. DynamicUser=yes en etait
+# incapable (dossier root => EROFS silencieux, edition des lieux perdue).
+id spyfall >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin spyfall
 EOF
 
   say "2/6 Code : clone/mise à jour depuis GitHub (branche ${BRANCH})"
@@ -180,11 +184,20 @@ Environment=HOST=127.0.0.1
 EnvironmentFile=${ENVFILE}
 Restart=always
 RestartSec=2
-DynamicUser=yes
+# Compte dedie non privilegie, proprietaire de ${REMOTE_DIR}, sinon l ecriture
+# de data.json echoue en silence et les lieux ajoutes sont perdus au redemarrage.
+User=spyfall
+Group=spyfall
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=${REMOTE_DIR}
 
 [Install]
 WantedBy=multi-user.target
 UNIT
+chown -R spyfall:spyfall ${REMOTE_DIR}
 systemctl daemon-reload
 systemctl enable spyfall >/dev/null 2>&1
 systemctl restart spyfall
