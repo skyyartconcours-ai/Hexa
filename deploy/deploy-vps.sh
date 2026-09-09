@@ -16,6 +16,7 @@ set -euo pipefail
 # ---------- config ----------
 TOOL="spyfall"
 DOMAIN="${SPYFALL_DOMAIN:-spyfall.skyyarttools.fr}"
+ALIAS="${SPYFALL_ALIAS:-spy.skyyarttools.fr}"      # alias court, imprime dans le partage du Casier (app.js)
 PORT="${SPYFALL_PORT:-3210}"          # port interne ; abandon s'il est pris par un AUTRE service
 SSH_HOST="${SPYFALL_SSH_HOST:-}"           # OBLIGATOIRE : user@ip du VPS
 SSH_KEY="${SPYFALL_SSH_KEY:-$HOME/.ssh/olympe_deploy}"
@@ -223,6 +224,11 @@ else
 # ========== AJOUT ${TOOL} (${DOMAIN}, deploy auto) ==========
 ${DOMAIN} {
 	reverse_proxy 127.0.0.1:${PORT}
+}
+# L alias court renvoie vers le vrai nom (redirection permanente, chemin conserve).
+# Il vit DANS ce bloc pour que rollback le retire avec le reste.
+${ALIAS} {
+	redir https://${DOMAIN}{uri} permanent
 }
 # ========== FIN AJOUT ${TOOL} ==========
 CADDYBLOCK
