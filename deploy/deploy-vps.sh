@@ -52,6 +52,45 @@ guard_domain() {
   done
 }
 
+bootstrap() {
+  require_ssh
+  say "PRÉPARATION D'UN VPS NEUF (Node + Caddy)"
+  echo "N'installe que ce qui manque. Si Caddy est déjà là, sa configuration n'est pas touchée."
+  $SSH bash -s <<'EOF'
+set -e
+export DEBIAN_FRONTEND=noninteractive
+if ! command -v curl >/dev/null; then apt-get update -qq && apt-get install -y -qq curl; fi
+
+if command -v node >/dev/null && [ "$(node -v | cut -d. -f1 | tr -d v)" -ge 18 ]; then
+  echo "node $(node -v) déjà présent ✓"
+else
+  echo "-> installation de Node.js 20"
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  apt-get install -y -qq nodejs
+fi
+
+if command -v caddy >/dev/null; then
+  echo "caddy $(caddy version | head -1) déjà présent ✓ (configuration inchangée)"
+else
+  echo "-> installation de Caddy (dépôt officiel)"
+  apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https gnupg
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+    | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
+    | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
+  apt-get update -qq
+  apt-get install -y -qq caddy
+  systemctl enable --now caddy
+fi
+
+echo "--- récapitulatif ---"
+node -v; caddy version | head -1; systemctl is-active caddy
+EOF
+  echo ""
+  echo "Serveur prêt. Étape suivante :"
+  echo "  SPYFALL_SSH_HOST=$SSH_HOST bash deploy/deploy-vps.sh deploy"
+}
+
 inventory() {
   require_ssh
   say "INVENTAIRE (lecture seule) — rien n'est modifié"
@@ -81,7 +120,7 @@ deploy() {
   say "1/6 Vérifications distantes (node, port libre, dossier non-étranger)"
   $SSH bash -s <<EOF
 set -e
-command -v node >/dev/null || { echo "❌ node absent sur le serveur."; exit 1; }
+command -v node >/dev/null || { echo "❌ node absent — lancez d'abord : bash deploy/deploy-vps.sh bootstrap"; exit 1; }
 command -v git  >/dev/null || { echo "❌ git absent sur le serveur."; exit 1; }
 # Refus absolu d'écraser un dossier qui n'a pas été créé par ce pipeline.
 if [ -d "${REMOTE_DIR}" ] && [ ! -f "${REMOTE_DIR}/.claude-deploy-owned" ]; then
@@ -218,8 +257,9 @@ EOF
 }
 
 case "${1:-}" in
+  bootstrap) bootstrap ;;
   inventory) inventory ;;
   deploy)    deploy ;;
   rollback)  rollback ;;
-  *) echo "usage: SPYFALL_SSH_HOST=user@ip bash deploy/deploy-vps.sh [inventory|deploy|rollback]"; exit 2 ;;
+  *) echo "usage: SPYFALL_SSH_HOST=user@ip bash deploy/deploy-vps.sh [bootstrap|inventory|deploy|rollback]"; exit 2 ;;
 esac

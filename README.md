@@ -126,12 +126,20 @@ si la validation échoue — les autres sites hébergés ne sont jamais touchés
 Depuis un terminal **Git Bash** (pas PowerShell : le script est du shell) :
 
 ```bash
+# VPS fraîchement commandé : installe Node 20 + Caddy (rien d'autre)
+SPYFALL_SSH_HOST=root@1.2.3.4 bash deploy/deploy-vps.sh bootstrap
+
 # état du serveur, lecture seule — ne modifie rien
 SPYFALL_SSH_HOST=root@1.2.3.4 bash deploy/deploy-vps.sh inventory
 
 # mise en ligne (mot de passe « spy » par défaut)
 SPYFALL_SSH_HOST=root@1.2.3.4 bash deploy/deploy-vps.sh deploy
 ```
+
+`bootstrap` n'installe que ce qui manque : si Caddy est déjà présent, sa
+configuration n'est pas touchée. Sur un serveur qui héberge déjà des sites, on
+peut donc le lancer sans risque — ou le sauter et aller directement à
+`inventory`.
 
 Variables : `SPYFALL_SSH_HOST` (obligatoire), `SPYFALL_DOMAIN`,
 `SPYFALL_PORT`, `SPYFALL_PASSWORD`, `SPYFALL_SSH_KEY`, `SPYFALL_BRANCH`.
