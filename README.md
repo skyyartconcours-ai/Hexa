@@ -67,54 +67,74 @@ server {
 }
 ```
 
-### Sur spyfall.skyyarttools.fr (VPS Hetzner + Caddy)
+### Sur Render — gratuit, le plus rapide
 
-Le sous-domaine est couvert par le wildcard DNS `*.skyyarttools.fr` : **aucune
-entrée DNS à créer**. Le déploiement est *additif* — il n'installe que son
-dossier (`/opt/spyfall`), son service systemd (`spyfall`), son port et son
-propre bloc dans le Caddyfile. Les autres outils du serveur (olympe, poker,
-lecercle…) ne sont jamais touchés : le script refuse d'écraser un dossier qui
-ne porte pas son marqueur, refuse un port déjà pris par un autre service, et
-restaure le Caddyfile si sa validation échoue.
+Le dépôt contient un `render.yaml` prêt à l'emploi. Sur
+[dashboard.render.com](https://dashboard.render.com) → **New → Blueprint** →
+choisir ce dépôt : Render lit le fichier, crée le service et demande la seule
+valeur manquante, **`SPYFALL_PASSWORD`** (le secret n'est jamais stocké dans
+le dépôt). Le jeu est en ligne en HTTPS quelques minutes plus tard.
 
-Depuis le PC, dans le dossier du dépôt :
+Le plan gratuit met le service en veille après 15 min sans trafic et met
+environ une minute à se réveiller. Sans importance pendant une partie : les
+téléphones interrogent le serveur en continu, il reste donc éveillé. Prévoir
+juste d'ouvrir la page une minute avant de lancer la soirée.
+
+Deux variables sont déjà fixées dans `render.yaml` et ne doivent pas être
+retirées : `TRUST_PROXY=1` (pour que le rate-limit du mot de passe distingue
+les joueurs au lieu de voir la seule IP du load balancer) et `HOST=0.0.0.0`
+(sans quoi Node n'écouterait que la loopback et Render ne détecterait aucun
+port ouvert).
+
+À savoir : le disque est éphémère. Les lieux et rôles modifiés en ligne via
+« Modifier les lieux & rôles » sont perdus à chaque redéploiement ou réveil —
+le jeu repart alors de `locations.js`. Pour conserver des modifications,
+éditer `locations.js` et pousser.
+
+Pour une adresse personnalisée type `spyfall.mondomaine.fr`, ajouter le
+domaine dans Render (Settings → Custom Domain) puis créer chez le registrar
+un enregistrement **CNAME** `spyfall` vers le nom `…onrender.com` fourni.
+
+### Sur un VPS avec Caddy (script fourni)
+
+`deploy/deploy-vps.sh` installe le jeu sur un VPS Debian/Ubuntu déjà équipé de
+Caddy. Le déploiement est *additif* : il ne crée que son dossier
+(`/opt/spyfall`), son service systemd (`spyfall`), son port et son propre bloc
+délimité dans le Caddyfile. Il refuse d'écraser un dossier ne portant pas son
+marqueur, refuse un port tenu par un autre service, et restaure le Caddyfile
+si la validation échoue — les autres sites hébergés ne sont jamais touchés.
+
+Depuis un terminal **Git Bash** (pas PowerShell : le script est du shell) :
 
 ```bash
-# 1. état du serveur, en lecture seule — ne modifie rien
-bash deploy/deploy-hetzner.sh inventory
+# état du serveur, lecture seule — ne modifie rien
+SPYFALL_SSH_HOST=root@1.2.3.4 bash deploy/deploy-vps.sh inventory
 
-# 2. mise en ligne
-SPYFALL_PASSWORD=spy bash deploy/deploy-hetzner.sh deploy
+# mise en ligne (mot de passe « spy » par défaut)
+SPYFALL_SSH_HOST=root@1.2.3.4 bash deploy/deploy-vps.sh deploy
 ```
 
-Le jeu est alors sur **https://spyfall.skyyarttools.fr** (HTTPS émis
-automatiquement par Caddy, ~1 min la première fois).
+Variables : `SPYFALL_SSH_HOST` (obligatoire), `SPYFALL_DOMAIN`,
+`SPYFALL_PORT`, `SPYFALL_PASSWORD`, `SPYFALL_SSH_KEY`, `SPYFALL_BRANCH`.
 
-- **Changer le mot de passe** : relancer avec `SPYFALL_PASSWORD=autrechose`.
-  Le secret vit dans `/etc/spyfall.env` (chmod 600, lisible par root seul) et
-  n'apparaît jamais dans un `ps` ni dans l'unité systemd.
-- **Changer le port** : `SPYFALL_PORT=3211 bash deploy/deploy-hetzner.sh deploy`.
 - **Logs** : `journalctl -u spyfall -n 50 -f`
-- **Mettre à jour** : relancer la même commande `deploy`.
-- **Tout retirer** : `bash deploy/deploy-hetzner.sh rollback` (supprime le
-  service, le dossier, le secret et le bloc Caddy — et rien d'autre).
+- **Mettre à jour** : relancer `deploy`
+- **Tout retirer** : `bash deploy/deploy-vps.sh rollback` (service, dossier,
+  secret et bloc Caddy — et rien d'autre)
 
-Derrière Caddy, le service tourne avec `TRUST_PROXY=1` et `HOST=127.0.0.1` :
-Node n'est pas joignable directement depuis l'extérieur, et le rate-limit du
-mot de passe voit la vraie IP de chaque joueur plutôt que celle du proxy.
+Le secret vit dans `/etc/spyfall.env` (chmod 600) et n'apparaît ni dans un
+`ps` ni dans l'unité systemd. Le service tourne avec `TRUST_PROXY=1` et
+`HOST=127.0.0.1` : Node n'est pas joignable directement depuis l'extérieur.
 
-#### Déploiement automatique par GitHub Actions
+Un workflow `.github/workflows/deploy-spyfall.yml` fait le même déploiement
+depuis GitHub Actions ; il attend les secrets `VPS_HOST`, `VPS_USER`,
+`VPS_SSH_KEY` et `SPYFALL_PASSWORD`.
 
-`.github/workflows/deploy-spyfall.yml` fait la même chose depuis un runner
-GitHub, à chaque push ou à la demande. Créer d'abord les 4 secrets dans
-**Settings → Secrets and variables → Actions** : `HETZNER_HOST`,
-`HETZNER_USER`, `HETZNER_SSH_KEY`, `SPYFALL_PASSWORD`.
+### Sur une autre plateforme (Railway, Fly.io…)
 
-### Sur une plateforme (Render / Railway / Fly.io)
-
-Offres gratuites : pointez le service sur ce dépôt avec la commande de
-démarrage `node server.js`. Le port est lu depuis la variable
-d'environnement `PORT` automatiquement.
+Pointez le service sur ce dépôt avec la commande de démarrage
+`node server.js` ; le port est lu depuis la variable `PORT`. Pensez à définir
+`SPYFALL_PASSWORD`, et `HOST=0.0.0.0` si la plateforme place un proxy devant.
 
 Les parties sont stockées en mémoire et expirent après 3 h d'inactivité.
 

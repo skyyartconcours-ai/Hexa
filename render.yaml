@@ -1,0 +1,26 @@
+# Déploiement sur Render (plan gratuit).
+# À l'import du Blueprint, Render demande la valeur de SPYFALL_PASSWORD
+# (sync: false = le secret n'est jamais écrit dans le dépôt).
+services:
+  - type: web
+    name: spyfall
+    runtime: node
+    plan: free
+    branch: claude/deploy-spyfall-skyy-wtj43p
+    buildCommand: npm install --omit=dev --no-audit --no-fund
+    startCommand: node server.js
+    # /api/config est la seule route JSON accessible sans mot de passe :
+    # elle répond {"gate":true}, ce qui en fait le bon point de contrôle.
+    healthCheckPath: /api/config
+    envVars:
+      - key: SPYFALL_PASSWORD
+        sync: false
+      # Derrière le load balancer de Render, on lit X-Forwarded-For pour que le
+      # rate-limit du mot de passe distingue les joueurs au lieu de voir une
+      # seule IP (celle du proxy).
+      - key: TRUST_PROXY
+        value: "1"
+      # TRUST_PROXY=1 ferait écouter Node sur la loopback par défaut : Render ne
+      # détecterait alors aucun port ouvert et le déploiement échouerait.
+      - key: HOST
+        value: "0.0.0.0"

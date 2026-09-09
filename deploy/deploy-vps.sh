@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# Déploiement de Spyfall sur spyfall.skyyarttools.fr (VPS Hetzner + Caddy).
+# Déploiement de Spyfall sur un VPS avec Caddy en reverse proxy.
 #
 # ADDITIF & SÛR : ne touche QUE ses propres ressources (son dossier, son port,
 # son service systemd, son bloc Caddy délimité). Les autres outils hébergés sur
 # le serveur (olympe, poker, lecercle…) ne sont jamais modifiés.
 #
 # Usage, depuis le PC (Git Bash) :
-#   bash deploy/deploy-hetzner.sh inventory   # lecture seule : état du serveur, ne change rien
-#   bash deploy/deploy-hetzner.sh deploy      # déploie (git + systemd + route Caddy ; HTTPS auto)
-#   bash deploy/deploy-hetzner.sh rollback    # retire proprement CE service uniquement
+#   SPYFALL_SSH_HOST=root@1.2.3.4 bash deploy/deploy-vps.sh inventory   # lecture seule
+#   SPYFALL_SSH_HOST=root@1.2.3.4 bash deploy/deploy-vps.sh deploy      # déploie
+#   SPYFALL_SSH_HOST=root@1.2.3.4 bash deploy/deploy-vps.sh rollback    # retire ce service
 #
 # Mot de passe du jeu : SPYFALL_PASSWORD=xxx bash deploy/deploy-hetzner.sh deploy
 set -euo pipefail
 
 # ---------- config ----------
 TOOL="spyfall"
-DOMAIN="spyfall.skyyarttools.fr"
+DOMAIN="${SPYFALL_DOMAIN:-spyfall.skyyarttools.fr}"
 PORT="${SPYFALL_PORT:-3210}"          # port interne ; abandon s'il est pris par un AUTRE service
-SSH_HOST="${SPYFALL_SSH_HOST:-root@46.224.136.247}"
+SSH_HOST="${SPYFALL_SSH_HOST:-}"           # OBLIGATOIRE : user@ip du VPS
 SSH_KEY="${SPYFALL_SSH_KEY:-$HOME/.ssh/olympe_deploy}"
 REMOTE_DIR="/opt/spyfall"
 ENVFILE="/etc/spyfall.env"
@@ -32,6 +32,11 @@ PROTECTED_SUBDOMAINS="olympe poker lecercle www ftp skyyarttools.fr"
 say() { printf '\n\033[1;33m== %s\033[0m\n' "$*"; }
 
 require_ssh() {
+  if [ -z "$SSH_HOST" ]; then
+    echo "❌ SPYFALL_SSH_HOST non défini. Exemple :"
+    echo "   SPYFALL_SSH_HOST=root@1.2.3.4 bash deploy/deploy-vps.sh inventory"
+    exit 1
+  fi
   if ! $SSH 'echo ok' >/dev/null 2>&1; then
     echo "❌ SSH impossible (clé non autorisée ?). Autorise d'abord la clé :"
     echo "   Get-Content \$env:USERPROFILE\\.ssh\\olympe_deploy.pub | ssh $SSH_HOST \"mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys\""
@@ -216,5 +221,5 @@ case "${1:-}" in
   inventory) inventory ;;
   deploy)    deploy ;;
   rollback)  rollback ;;
-  *) echo "usage: bash deploy/deploy-hetzner.sh [inventory|deploy|rollback]"; exit 2 ;;
+  *) echo "usage: SPYFALL_SSH_HOST=user@ip bash deploy/deploy-vps.sh [inventory|deploy|rollback]"; exit 2 ;;
 esac

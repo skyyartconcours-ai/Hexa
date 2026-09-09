@@ -1,9 +1,9 @@
-# Déploiement automatique de spyfall.skyyarttools.fr sur le VPS Hetzner.
+# Déploiement automatique de spyfall.skyyarttools.fr sur le VPS.
 #
 # Secrets à créer dans Settings → Secrets and variables → Actions :
-#   HETZNER_HOST      IP du VPS (ex. 46.224.136.247)
-#   HETZNER_USER      utilisateur SSH (ex. root)
-#   HETZNER_SSH_KEY   clé privée SSH autorisée sur le VPS (contenu de ~/.ssh/olympe_deploy)
+#   VPS_HOST      IP du VPS
+#   VPS_USER      utilisateur SSH (ex. root)
+#   VPS_SSH_KEY   clé privée SSH autorisée sur le VPS
 #   SPYFALL_PASSWORD  mot de passe du jeu (ex. spy)
 #
 # Déploiement ADDITIF : ne touche que /opt/spyfall, le service systemd `spyfall`
@@ -33,10 +33,10 @@ jobs:
       - name: Préparer la clé SSH
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.HETZNER_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
-          echo "SSH_CMD=ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o ConnectTimeout=15 ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }}" >> "$GITHUB_ENV"
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          echo "SSH_CMD=ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o ConnectTimeout=15 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" >> "$GITHUB_ENV"
 
       - name: Vérifications (refus d'écraser un dossier étranger)
         run: |
