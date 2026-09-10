@@ -153,9 +153,11 @@ Le secret vit dans `/etc/spyfall.env` (chmod 600) et n'apparaît ni dans un
 `ps` ni dans l'unité systemd. Le service tourne avec `TRUST_PROXY=1` et
 `HOST=127.0.0.1` : Node n'est pas joignable directement depuis l'extérieur.
 
-Un workflow `.github/workflows/deploy-spyfall.yml` fait le même déploiement
-depuis GitHub Actions ; il attend les secrets `VPS_HOST`, `VPS_USER`,
-`VPS_SSH_KEY` et `SPYFALL_PASSWORD`.
+Un workflow `.github/workflows/deploy-spyfall.yml` rejoue exactement ce même
+script depuis GitHub Actions à chaque push — il ne réimplémente rien, il
+appelle `deploy-vps.sh`, ce qui évite toute divergence entre les deux chemins.
+Il attend les secrets `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` et
+`SPYFALL_PASSWORD`.
 
 ### Sur une autre plateforme (Railway, Fly.io…)
 

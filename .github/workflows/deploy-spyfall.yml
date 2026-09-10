@@ -1,13 +1,15 @@
-# Déploiement automatique de spyfall.skyyarttools.fr sur le VPS.
+# Déploiement automatique de spyfall.skyyarttools.fr.
+#
+# Ce workflow ne contient AUCUNE logique de déploiement : il appelle
+# deploy/deploy-vps.sh, seule source de vérité. Toute correction apportée au
+# script (compte dédié, alias Caddy, safe.directory...) profite donc aussi au
+# déploiement automatique, sans risque de divergence entre les deux chemins.
 #
 # Secrets à créer dans Settings → Secrets and variables → Actions :
-#   VPS_HOST      IP du VPS
-#   VPS_USER      utilisateur SSH (ex. root)
-#   VPS_SSH_KEY   clé privée SSH autorisée sur le VPS
+#   VPS_HOST          IP ou nom du VPS
+#   VPS_USER          utilisateur SSH (ex. root)
+#   VPS_SSH_KEY       clé privée SSH autorisée sur le VPS
 #   SPYFALL_PASSWORD  mot de passe du jeu (ex. spy)
-#
-# Déploiement ADDITIF : ne touche que /opt/spyfall, le service systemd `spyfall`
-# et son propre bloc Caddy délimité. Les autres outils du serveur sont intacts.
 name: Deploy spyfall.skyyarttools.fr
 
 on:
@@ -22,99 +24,18 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      DOMAIN: spyfall.skyyarttools.fr
-      PORT: "3210"
-      REMOTE_DIR: /opt/spyfall
-      ENVFILE: /etc/spyfall.env
-      BRANCH: claude/deploy-spyfall-skyy-wtj43p
-      REPO: https://github.com/skyyartconcours-ai/Hexa.git
     steps:
+      - uses: actions/checkout@v4
+
       - name: Préparer la clé SSH
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
-          echo "SSH_CMD=ssh -i $HOME/.ssh/deploy_key -o BatchMode=yes -o ConnectTimeout=15 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" >> "$GITHUB_ENV"
 
-      - name: Vérifications (refus d'écraser un dossier étranger)
-        run: |
-          $SSH_CMD bash -s <<EOF
-          set -e
-          command -v node >/dev/null || { echo "node absent"; exit 1; }
-          if [ -d "$REMOTE_DIR" ] && [ ! -f "$REMOTE_DIR/.claude-deploy-owned" ]; then
-            echo "REFUS : $REMOTE_DIR existe sans marqueur"; exit 1
-          fi
-          OURS=0; [ -f "$REMOTE_DIR/.claude-deploy-owned" ] && OURS=1
-          if [ "\$OURS" = "0" ] && ss -tln | grep -q ":$PORT "; then
-            echo "port $PORT déjà pris par un autre service"; exit 1
-          fi
-          mkdir -p "$REMOTE_DIR"; touch "$REMOTE_DIR/.claude-deploy-owned"
-          EOF
-
-      - name: Mettre à jour le code
-        run: |
-          $SSH_CMD bash -s <<EOF
-          set -e
-          if [ -d "$REMOTE_DIR/.git" ]; then
-            git -C "$REMOTE_DIR" fetch origin "$BRANCH"
-            git -C "$REMOTE_DIR" checkout -B "$BRANCH" "origin/$BRANCH"
-            git -C "$REMOTE_DIR" reset --hard "origin/$BRANCH"
-          else
-            git clone -b "$BRANCH" "$REPO" "$REMOTE_DIR.tmp"
-            mv "$REMOTE_DIR.tmp/.git" "$REMOTE_DIR/.git"
-            rm -rf "$REMOTE_DIR.tmp"
-            git -C "$REMOTE_DIR" checkout -f "$BRANCH"
-          fi
-          EOF
-
-      - name: Écrire le secret et (re)démarrer le service
-        run: |
-          printf '%s' '${{ secrets.SPYFALL_PASSWORD }}' | $SSH_CMD "umask 077 && { printf 'SPYFALL_PASSWORD='; cat; echo; } > $ENVFILE && chmod 600 $ENVFILE"
-          $SSH_CMD bash -s <<EOF
-          set -e
-          cat > /etc/systemd/system/spyfall.service <<UNIT
-          [Unit]
-          Description=Spyfall FR (spyfall.skyyarttools.fr)
-          After=network.target
-
-          [Service]
-          WorkingDirectory=$REMOTE_DIR
-          ExecStart=\$(command -v node) server.js
-          Environment=PORT=$PORT
-          Environment=TRUST_PROXY=1
-          Environment=HOST=127.0.0.1
-          EnvironmentFile=$ENVFILE
-          Restart=always
-          RestartSec=2
-          DynamicUser=yes
-
-          [Install]
-          WantedBy=multi-user.target
-          UNIT
-          sed -i 's/^          //' /etc/systemd/system/spyfall.service
-          systemctl daemon-reload
-          systemctl enable spyfall >/dev/null 2>&1
-          systemctl restart spyfall
-          EOF
-
-      - name: Route Caddy (idempotente) et vérification
-        run: |
-          $SSH_CMD bash -s <<EOF
-          set -e
-          export PATH="/usr/local/sbin:/usr/sbin:/sbin:\$PATH"
-          CADDY=/etc/caddy/Caddyfile
-          [ -f "\$CADDY" ] || { echo "Caddyfile introuvable"; exit 1; }
-          if ! grep -q "$DOMAIN" "\$CADDY"; then
-            cp "\$CADDY" "\$CADDY.deploybak"
-            printf '\n# ========== AJOUT spyfall ==========\n%s {\n\treverse_proxy 127.0.0.1:%s\n}\n# ========== FIN AJOUT spyfall ==========\n' "$DOMAIN" "$PORT" >> "\$CADDY"
-            if caddy validate --config "\$CADDY" --adapter caddyfile >/dev/null 2>&1; then
-              systemctl reload caddy
-            else
-              mv "\$CADDY.deploybak" "\$CADDY"; echo "Caddyfile invalide — restauré"; exit 1
-            fi
-          fi
-          sleep 2
-          curl -s -o /dev/null -w 'interne %{http_code}\n' http://127.0.0.1:$PORT/api/config
-          EOF
+      - name: Déployer
+        env:
+          SPYFALL_SSH_HOST: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          SPYFALL_SSH_KEY: /home/runner/.ssh/deploy_key
+          SPYFALL_PASSWORD: ${{ secrets.SPYFALL_PASSWORD }}
+        run: bash deploy/deploy-vps.sh deploy
