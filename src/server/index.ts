@@ -8,6 +8,33 @@ import { log } from '../log.js';
 import type { RoastQueue } from '../roast/queue.js';
 import type { RoastTrigger } from '../types.js';
 
+const TEST_TYPES = ['sub', 'resub', 'gift', 'gift_recipient', 'cheer', 'donation'] as const;
+type TestType = (typeof TEST_TYPES)[number];
+
+function isTestType(value: string): value is TestType {
+  return (TEST_TYPES as readonly string[]).includes(value);
+}
+
+function buildTestTrigger(
+  type: TestType,
+  base: Pick<RoastTrigger, 'userId' | 'userLogin' | 'userName'>,
+): RoastTrigger {
+  switch (type) {
+    case 'resub':
+      return { ...base, type, tier: '1000', cumulativeMonths: 14, streakMonths: 3, message: 'toujours la, toujours en retard' };
+    case 'gift':
+      return { ...base, type, tier: '1000', giftCount: 5, giftTotal: 42 };
+    case 'gift_recipient':
+      return { ...base, type, tier: '1000', gifterName: 'un_genereux' };
+    case 'cheer':
+      return { ...base, type, bits: 500, message: 'tiens, pour le cafe' };
+    case 'donation':
+      return { ...base, type, amount: 10, currency: 'EUR', message: 'pour la soupe' };
+    case 'sub':
+      return { ...base, type, tier: '1000' };
+  }
+}
+
 export interface ServerHandle {
   server: http.Server;
   /** Signale a la regie que des souscriptions Twitch ont echoue. */
@@ -70,24 +97,62 @@ export function startServer(queue: RoastQueue): ServerHandle {
     res.json({ ok: queue.skipCurrent() });
   });
 
+  app.post('/api/roast/:id/reroll', (req, res) => {
+    const id = queue.reroll(String(req.params.id));
+    res.status(id ? 200 : 404).json({ id });
+  });
+
   /**
-   * Genere une vanne de test sans attendre un vrai sub.
+   * Genere une vanne de test sans attendre un vrai evenement, pour chacun des
+   * six declencheurs. Les valeurs sont volontairement realistes (un message de
+   * resub, un vrai nombre de gifts) : un test "sub tier 1 sans rien" ne montre
+   * ni la personnalisation ni ce que donne l'evenement a l'antenne.
    * On resout le pseudo vers son vrai user_id : sinon `buildProfile` ne trouve
    * jamais rien et le test ne montre jamais la personnalisation.
    */
   app.post('/api/test', (req, res) => {
     const name = String(req.body?.user ?? '').trim();
     if (!name) return res.status(400).json({ error: 'pseudo manquant' });
+    const type = String(req.body?.type ?? 'sub');
+    if (!isTestType(type)) return res.status(400).json({ error: `type inconnu : ${type}` });
 
     const known = findUserByLogin(name);
-    const trigger: RoastTrigger = {
-      type: 'sub',
+    const trigger = buildTestTrigger(type, {
       userId: known?.userId ?? `test:${name.toLowerCase()}`,
       userLogin: name.toLowerCase(),
       userName: known?.userName ?? name,
-      tier: '1000',
-    };
+    });
     const id = queue.submit(trigger, { force: true });
+    return res.json({ id, known: known !== null });
+  });
+
+  /**
+   * Dons hors Twitch (Tipeee, StreamElements, Streamlabs...).
+   *
+   * Ces services ne passent pas par EventSub et ne savent pas joindre une
+   * machine chez toi : c'est a un petit script local, branche sur leur API ou
+   * leur websocket, de poster ici. L'endpoint fait exister le type "donation"
+   * de bout en bout — prompt, regie, overlay — pour que ce branchement soit
+   * trivial. Meme niveau de confiance que /api/test : ecoute locale seulement.
+   * Pas de `force` : un vrai don respecte la session, le cooldown et l'opt-out.
+   */
+  app.post('/api/donation', (req, res) => {
+    const name = String(req.body?.userName ?? req.body?.user ?? '').trim();
+    const amount = Number(req.body?.amount);
+    if (!name) return res.status(400).json({ error: 'userName manquant' });
+    if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'amount invalide' });
+
+    const known = findUserByLogin(name);
+    const trigger: RoastTrigger = {
+      type: 'donation',
+      userId: known?.userId ?? `donation:${name.toLowerCase()}`,
+      userLogin: name.toLowerCase(),
+      userName: known?.userName ?? name,
+      amount,
+      currency: String(req.body?.currency ?? 'EUR').slice(0, 5),
+      message: typeof req.body?.message === 'string' ? req.body.message.slice(0, 300) : undefined,
+    };
+    const id = queue.submit(trigger);
     return res.json({ id, known: known !== null });
   });
 

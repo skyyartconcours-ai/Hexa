@@ -12,6 +12,8 @@
     resub: 'resub',
     gift: 'sub gifter',
     gift_recipient: 'sub offert',
+    cheer: 'bits',
+    donation: 'don',
   };
 
   /** Le temps d'affichage quand il n'y a pas d'audio (mode texte seul). */

@@ -200,6 +200,15 @@ export class RoastQueue extends EventEmitter {
     // Un donateur anonyme n'a ni pseudo ni historique : rien a roaster.
     if (trigger.anonymous) return 'donateur anonyme';
 
+    // Planchers : voir config.cheer / config.donation. Un cheer d'un bit est un
+    // vecteur de spam, pas un don.
+    if (trigger.type === 'cheer' && (trigger.bits ?? 0) < config.cheer.minBits) {
+      return `${trigger.bits ?? 0} bits, sous le plancher de ${config.cheer.minBits}`;
+    }
+    if (trigger.type === 'donation' && (trigger.amount ?? 0) < config.donation.minAmount) {
+      return `don sous le plancher de ${config.donation.minAmount}`;
+    }
+
     const previous = lastRoastAt(trigger.userId);
     if (previous && Date.now() - previous < config.session.userCooldownMs) {
       return 'deja roast recemment';
@@ -409,6 +418,42 @@ export class RoastQueue extends EventEmitter {
     });
     this.drop(item, 'rejetee par le streamer');
     return true;
+  }
+
+  /**
+   * Une autre vanne pour la meme personne.
+   *
+   * Refuser une vanne voulait dire que la personne — qui venait de payer —
+   * n'avait rien. Ici la vanne refusee est archivee comme telle : le modele la
+   * recoit dans <deja_dit> et doit partir sur un autre angle. Marche aussi sur
+   * une vanne jetee par le filtre ou le juge, tant qu'elle est encore affichee.
+   *
+   * `force` saute le cooldown et le dedoublonnage, qui repondraient sinon
+   * "deja roast a l'instant" ; l'opt-out, lui, reste verifie dans submit().
+   */
+  reroll(id: string): string | null {
+    const item = this.items.get(id);
+    if (!item) return null;
+    if (item.status !== 'pending' && item.status !== 'failed') return null;
+    // Hors session, la generation aboutirait puis serait jetee par prepare().
+    if (!this.session.active) return null;
+
+    if (item.text) {
+      saveRoast({
+        id: item.id,
+        userId: item.trigger.userId,
+        userName: item.trigger.userName,
+        eventType: item.trigger.type,
+        text: item.text,
+        severity: item.severity,
+        status: 'rejected',
+        createdAt: item.createdAt,
+      });
+    }
+    deleteAudio(item.audioPath);
+    this.items.delete(item.id);
+    log.info(`Vanne relancee pour ${item.trigger.userName}.`);
+    return this.submit(item.trigger, { force: true });
   }
 
   /** Le viewer a demande a passer : on jette tout ce qui le concerne. */

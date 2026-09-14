@@ -42,8 +42,12 @@ export const config = {
      * - channel:read:subscriptions : channel.subscribe / .gift / .message
      * - user:read:chat             : channel.chat.message (log de l'historique)
      * - user:write:chat            : reposter la vanne en chat (optionnel)
+     * - bits:read                  : channel.cheer (dons en bits)
+     *
+     * Ajouter un scope impose un `npm run login` : le token existant ne le
+     * porte pas, et Twitch refuse la souscription EventSub correspondante.
      */
-    scopes: ['channel:read:subscriptions', 'user:read:chat', 'user:write:chat'],
+    scopes: ['channel:read:subscriptions', 'user:read:chat', 'user:write:chat', 'bits:read'],
     /**
      * Client-Id du lecteur web Twitch, utilise uniquement par l'import de VODs
      * (API GraphQL interne, voir src/twitch/vod.ts). Rien a voir avec ton app.
@@ -110,6 +114,18 @@ export const config = {
     // Un hype train peut faire partir 40 generations en parallele : sans
     // plafond, on prend un 429 et on perd toutes les vannes du pic.
     maxConcurrent: int('MAX_CONCURRENT_GENERATIONS', 3),
+  },
+
+  /**
+   * Planchers pour les dons. Un cheer d'UN bit existe : sans plancher,
+   * n'importe qui declenche trente vannes pour trente centimes — c'est un
+   * vecteur de spam, pas un don. 100 bits, c'est environ un euro.
+   */
+  cheer: {
+    minBits: int('CHEER_MIN_BITS', 100),
+  },
+  donation: {
+    minAmount: Number.parseFloat(str('DONATION_MIN_AMOUNT', '2')) || 2,
   },
 
   gifts: {

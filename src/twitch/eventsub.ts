@@ -41,6 +41,20 @@ export interface ChatMessageEvent {
  * Le badge "founder", porte par les premiers abonnes de la chaine, remplace
  * "subscriber" et transporte la meme information.
  */
+/**
+ * Le message d'un cheer contient les cheermotes eux-memes ("Cheer100 gg
+ * PogChamp500"). Lus a voix haute par le modele, ca donne "cheer cent" en
+ * plein milieu de la vanne. Un cheermote est toujours un prefixe alphabetique
+ * colle a un nombre : on retire ces jetons-la et rien d'autre.
+ */
+function stripCheermotes(message: string): string {
+  return message
+    .split(/\s+/)
+    .filter((token) => !/^[A-Za-z]+\d+$/.test(token))
+    .join(' ')
+    .trim();
+}
+
 function readSubMonths(raw: unknown): number | null {
   if (!Array.isArray(raw)) return null;
   for (const badge of raw as Array<{ set_id?: string; info?: string }>) {
@@ -189,6 +203,7 @@ export class EventSubClient extends EventEmitter {
       ['channel.subscribe', '1', condition],
       ['channel.subscription.gift', '1', condition],
       ['channel.subscription.message', '1', condition],
+      ['channel.cheer', '1', condition],
       ['channel.chat.message', '1', chatCondition],
     ];
 
@@ -262,6 +277,21 @@ export class EventSubClient extends EventEmitter {
           cumulativeMonths: num('cumulative_months'),
           streakMonths: num('streak_months'),
           message: nested?.text ?? undefined,
+        };
+        this.emit('sub', trigger);
+        break;
+      }
+
+      case 'channel.cheer': {
+        const anonymous = event['is_anonymous'] === true;
+        const trigger: RoastTrigger = {
+          type: 'cheer',
+          userId: anonymous ? 'anonymous' : str('user_id'),
+          userLogin: anonymous ? 'anonymous' : str('user_login'),
+          userName: anonymous ? 'un anonyme' : str('user_name'),
+          bits: num('bits'),
+          message: stripCheermotes(str('message')) || undefined,
+          anonymous,
         };
         this.emit('sub', trigger);
         break;

@@ -14,6 +14,7 @@
     autoplay: $('autoplay'),
     queue: $('queue'),
     testForm: $('test-form'),
+    testType: $('test-type'),
     testUser: $('test-user'),
     optout: $('optout'),
   };
@@ -23,6 +24,8 @@
     resub: 'resub',
     gift: 'sub gifter',
     gift_recipient: 'sub offert',
+    cheer: 'bits',
+    donation: 'don',
   };
 
   // Ton demandé au TTS. Uniquement interprété par les fournisseurs qui gèrent
@@ -86,6 +89,15 @@
     rerender();
   }
 
+  function rerollButton(item) {
+    const btn = document.createElement('button');
+    btn.className = 'icon-btn icon-btn--reroll';
+    btn.title = 'Relancer : une autre vanne pour la même personne';
+    btn.textContent = '↻';
+    btn.addEventListener('click', () => api(`/api/roast/${item.id}/reroll`, {}));
+    return btn;
+  }
+
   /** Redessine la file avec les dernières données connues, sans appel réseau. */
   function rerender() {
     renderQueue(lastItems);
@@ -110,6 +122,12 @@
     els.stop.hidden = !session.active;
     els.skip.hidden = !session.active;
     els.autoplay.checked = Boolean(session.autoPlay);
+    // Hors session, une vanne de test serait générée puis jetée sans être
+    // jouée : autant le dire plutôt que de laisser cliquer dans le vide.
+    els.testForm.querySelector('button').disabled = !session.active;
+    els.testUser.placeholder = session.active
+      ? "pseudo d'un viewer"
+      : "démarre une session (même 5 min) pour tester";
     renderTimer();
   }
 
@@ -208,6 +226,17 @@
       left.append(head, text);
       node.append(left);
 
+      // Une vanne jetée par le filtre ou le juge n'avait aucun bouton : la
+      // personne venait de payer et n'avait rien. Relancer est toujours
+      // préférable à jeter — le modèle reçoit la vanne refusée comme angle à
+      // éviter.
+      if (item.status === 'failed') {
+        const actions = document.createElement('div');
+        actions.className = 'item__actions';
+        actions.append(rerollButton(item));
+        node.append(actions);
+      }
+
       if (item.status === 'pending' && item.text) {
         const actions = document.createElement('div');
         actions.className = 'item__actions';
@@ -226,6 +255,8 @@
           listen.addEventListener('click', () => togglePreview(item));
           actions.append(listen);
         }
+
+        actions.append(rerollButton(item));
 
         const go = document.createElement('button');
         go.className = 'icon-btn icon-btn--go';
@@ -340,7 +371,7 @@
     event.preventDefault();
     const user = els.testUser.value.trim();
     if (!user) return;
-    await api('/api/test', { user });
+    await api('/api/test', { user, type: els.testType.value });
     els.testUser.value = '';
   });
 

@@ -19,7 +19,7 @@ Twitch EventSub ──► file d'attente ──► Claude ──► filtre sécu
 
 | | |
 |---|---|
-| **Déclencheurs** | nouveaux subs, resubs (avec le message du viewer), sub gifters, receveurs de gifts |
+| **Déclencheurs** | nouveaux subs, resubs (avec le message du viewer), sub gifters, receveurs de gifts, **bits**, et dons hors Twitch via un endpoint local |
 | **Personnalisation** | pseudo, mots récurrents, longueur des messages, heure de connexion, ancienneté, ancienneté d'abonnement, nombre de subs offerts |
 | **Sécurité** | prompt cadré + filtre déterministe + auto-notation du modèle + opt-out viewer + validation manuelle |
 | **Sortie** | voix TTS + carte animée dans OBS, ou texte seul pour tester |
@@ -45,9 +45,18 @@ Twitch EventSub ──► file d'attente ──► Claude ──► filtre sécu
 npm install
 cp .env.example .env      # puis remplis .env
 npm run login             # ouvre le flux Twitch : une URL + un code à taper
+npm run doctor            # contrôle de pré-vol : token, compte, scopes, clés, port
 npm run backfill          # importe le chat de tes VODs (voir plus bas)
 npm start
 ```
+
+**Lance `npm run doctor` avant chaque premier live.** Les pannes de cet outil
+sont silencieuses : un token qui appartient à ton compte modo plutôt qu'à la
+chaîne ne produit aucune erreur — il ne reçoit simplement jamais de sub, et tu
+le découvres à l'antenne. Le doctor attrape ça, plus les scopes manquants
+(après un ajout comme `bits:read`, il faut refaire `npm run login`), la clé
+Anthropic et les identifiants de modèle (via un appel gratuit), la config TTS,
+`channel.md`, et le port. Aucun appel payant.
 
 `npm run login` affiche une URL et un code à 6 caractères. Tu ouvres l'URL,
 tu tapes le code, c'est fini — le token est stocké en local dans `data/hexa.db`
@@ -235,6 +244,11 @@ s'affiche dans la régie, avec un bouton 🎧 pour l'écouter avant, et n'est jo
 que si tu cliques ▶. **Garde ça pour ta première session**, le temps de calibrer
 ton public.
 
+Le bouton ↻ **relance** : une autre vanne pour la même personne, la précédente
+étant transmise au modèle comme angle à éviter. Il apparaît aussi sur une vanne
+jetée par le filtre ou le juge. Refuser voulait dire que la personne — qui
+venait de payer — n'avait rien ; relancer est toujours préférable à jeter.
+
 Ce qui est filtré reste visible 20 secondes dans la régie avec le motif du rejet,
 pour que tu voies ce qui a été bloqué.
 
@@ -253,6 +267,32 @@ Tout est dans `.env` (voir `.env.example` pour la liste complète).
 | `GIFT_RECIPIENTS` | `none` = seul le donateur est chambré · `limited` = + 3 receveurs max par vague |
 | `ROAST_MODEL` | `claude-opus-5` (défaut, meilleures vannes) · `claude-sonnet-5` · `claude-haiku-4-5` |
 | `ECHO_IN_CHAT` | Reposte aussi la vanne en texte dans le chat |
+
+### Les dons : bits et Tipeee / StreamElements
+
+**Les bits sont natifs.** `channel.cheer` via EventSub, scope `bits:read`. Le
+message du cheer est transmis au modèle, débarrassé des cheermotes (`Cheer100`
+lu à voix haute donne « cheer cent » au milieu de la vanne). Plancher :
+`CHEER_MIN_BITS` (100 par défaut, soit ~1 €). Sans plancher, un cheer d'un bit
+déclencherait une vanne — trente vannes pour trente centimes, c'est du spam.
+Les cheers anonymes sont ignorés : pas de pseudo, rien à roaster.
+
+**Les dons hors Twitch ne passent pas par EventSub**, et Tipeee, StreamElements
+ou Streamlabs ne savent pas joindre une machine chez toi. Hexa expose donc un
+endpoint local :
+
+```
+POST http://127.0.0.1:4747/api/donation
+{ "userName": "pseudo", "amount": 10, "currency": "EUR", "message": "pour la soupe" }
+```
+
+C'est à un petit script tournant sur ton PC, branché sur l'API ou le websocket
+de ton service de tips, de poster ici. **Ce script n'est pas fourni** : il
+dépend du service, de ses identifiants, et je n'ai pas pu le tester. Ce qui est
+fourni, c'est tout le reste — le type `donation` existe de bout en bout
+(prompt, régie, overlay, plancher `DONATION_MIN_AMOUNT`), donc le branchement
+tient en une vingtaine de lignes. Si le pseudo du donateur correspond à un
+viewer déjà vu dans le chat, sa vanne est personnalisée comme les autres.
 
 ### Le gift bomb
 
@@ -388,14 +428,21 @@ format exact de la requête Anthropic, garde-fou effort/Haiku, sélection du
 fournisseur TTS, format de requête Fish Audio et Cartesia, acheminement des
 didascalies (transmises à Fish Audio, retirées ailleurs) et rejet de celles qui
 fuiraient dans le texte, pagination et filtrage de l'import de VODs, déduplication
-des VODs, serveur HTTP et pages.
+des VODs, serveur HTTP et pages, lecture de l'ancienneté dans les badges, juge
+indépendant (ses trois verdicts, un refus, une panne), contexte de chaîne et
+anti-répétition dans le prompt, décodage des cheers (bits, cheermotes,
+anonymes), planchers bits/dons, relance, les six types d'événement de test et
+l'endpoint de dons — tout cela contre des serveurs simulés.
 
 **Pas testé faute d'identifiants dans l'environnement de développement :** les
 appels réseau réels vers Anthropic, Fish Audio, ElevenLabs, Cartesia, et Twitch
 (EventSub comme GraphQL). Ces chemins sont écrits d'après les spécifications des
 API et leur format de requête est vérifié contre des serveurs simulés, mais aucun
-n'a encore vu de réponse réelle.
-**Prévois une session à blanc, hors stream, avant le direct.**
+n'a encore vu de réponse réelle. **La souscription `channel.cheer` et le scope
+`bits:read` sont dans le même cas.** Le script qui relie un service de tips à
+`/api/donation` n'existe pas.
+**Prévois une session à blanc, hors stream, avant le direct — en commençant par
+`npm run doctor`.**
 
 ---
 

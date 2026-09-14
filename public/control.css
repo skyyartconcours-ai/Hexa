@@ -187,7 +187,8 @@ main {
 
 input[type="number"],
 input[type="text"],
-.test input {
+.test input,
+.test select {
   background: var(--panel-2);
   border: 1px solid var(--line);
   color: var(--ink);
@@ -197,7 +198,8 @@ input[type="text"],
   width: 74px;
 }
 
-.test input {
+.test input,
+.test select {
   width: 100%;
 }
 
@@ -335,6 +337,7 @@ input[type="text"],
 .icon-btn--go { border-color: var(--go); color: var(--go); }
 .icon-btn--stop { border-color: var(--stop); color: var(--stop); }
 .icon-btn--listen { border-color: var(--accent); color: var(--accent); }
+.icon-btn--reroll { border-color: #9aa4b2; color: #c7ced8; }
 .icon-btn--listen.is-on {
   background: var(--accent);
   color: #100d18;

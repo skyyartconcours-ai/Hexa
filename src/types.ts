@@ -1,8 +1,8 @@
 import type { Delivery } from './tts/provider.js';
 
-export type RoastEventType = 'sub' | 'resub' | 'gift' | 'gift_recipient';
+export type RoastEventType = 'sub' | 'resub' | 'gift' | 'gift_recipient' | 'cheer' | 'donation';
 
-/** Ce qui declenche une vanne : un evenement d'abonnement normalise. */
+/** Ce qui declenche une vanne : un evenement d'abonnement ou de don, normalise. */
 export interface RoastTrigger {
   type: RoastEventType;
   userId: string;
@@ -14,7 +14,7 @@ export interface RoastTrigger {
   cumulativeMonths?: number;
   /** Resub : streak en cours. */
   streakMonths?: number;
-  /** Resub : le message ecrit par le viewer. */
+  /** Resub, cheer ou don : le message ecrit par le viewer. */
   message?: string;
   /** Gift : nombre de subs offerts dans cette vague. */
   giftCount?: number;
@@ -24,6 +24,11 @@ export interface RoastTrigger {
   anonymous?: boolean;
   /** Gift recipient : pseudo de celui qui a offert. */
   gifterName?: string;
+  /** Cheer : nombre de bits envoyes. */
+  bits?: number;
+  /** Don hors Twitch (Tipeee, StreamElements...) : montant et devise. */
+  amount?: number;
+  currency?: string;
 }
 
 /** Profil reconstruit depuis notre propre log de chat. */

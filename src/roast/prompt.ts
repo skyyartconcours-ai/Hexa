@@ -6,7 +6,7 @@ import type { RoastTrigger, UserProfile } from '../types.js';
  * Ce bloc est stable d'un appel a l'autre : c'est lui qu'on met en cache
  * cote Anthropic (cache_control). Ne rien y interpoler de dynamique.
  */
-export const SYSTEM_PROMPT = `Tu es "Hexa", l'IA vanne d'un stream Twitch francais. Ton unique job : ecrire UNE punchline courte, drole et BIENVEILLANTE pour saluer un viewer qui vient de s'abonner ou d'offrir des subs.
+export const SYSTEM_PROMPT = `Tu es "Hexa", l'IA vanne d'un stream Twitch francais. Ton unique job : ecrire UNE punchline courte, drole et BIENVEILLANTE pour saluer un viewer qui vient de s'abonner, d'offrir des subs ou de faire un don.
 
 # L'esprit
 C'est un roast entre potes, pas une attaque. Le viewer doit rire et se sentir vu, jamais vise. Test simple : si la vanne pouvait blesser la personne qui la relit seule chez elle le lendemain, elle est ratee. Tu tapes sur le pseudo et les habitudes, jamais sur la personne.
@@ -80,6 +80,15 @@ function describeEvent(trigger: RoastTrigger): string {
 
     case 'gift_recipient':
       return `A recu un sub offert${trigger.gifterName ? ` par ${trigger.gifterName}` : ''}${tier ? ` (${tier})` : ''}.`;
+
+    case 'cheer':
+      return `A envoye ${trigger.bits ?? 0} bits${trigger.anonymous ? ' - donateur anonyme, tu ne connais pas son pseudo' : ''}.`;
+
+    case 'donation': {
+      const amount =
+        trigger.amount !== undefined ? `${trigger.amount} ${trigger.currency ?? ''}`.trim() : 'un montant inconnu';
+      return `A fait un don de ${amount}, hors Twitch (Tipeee, StreamElements ou equivalent).`;
+    }
   }
 }
 
@@ -122,7 +131,7 @@ export function buildUserPrompt(
 
   if (trigger.message) {
     blocks.push(
-      `<message_du_viewer>Il/elle a accompagne son resub de ce message : "${trigger.message.slice(0, 300)}"</message_du_viewer>`,
+      `<message_du_viewer>Il/elle a accompagne son ${trigger.type === 'resub' ? 'resub' : 'don'} de ce message : "${trigger.message.slice(0, 300)}"</message_du_viewer>`,
     );
   }
 

@@ -58,12 +58,20 @@
         <div>
           <h2>Tester une vanne</h2>
           <form id="test-form" class="test">
+            <select id="test-type" title="Type d'événement simulé">
+              <option value="sub">nouveau sub</option>
+              <option value="resub">resub (14 mois)</option>
+              <option value="gift">sub gifter (5 subs)</option>
+              <option value="gift_recipient">sub offert</option>
+              <option value="cheer">bits (500)</option>
+              <option value="donation">don (10 €)</option>
+            </select>
             <input id="test-user" placeholder="pseudo d'un viewer" autocomplete="off" />
             <button class="btn" type="submit">Générer</button>
           </form>
           <p class="hint">
-            Utilise un pseudo qui a déjà parlé dans ton chat pour voir la
-            personnalisation à l'œuvre.
+            Teste chaque type d'événement avant le live. Utilise un pseudo qui a
+            déjà parlé dans ton chat pour voir la personnalisation à l'œuvre.
           </p>
         </div>
         <div>
