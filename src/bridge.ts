@@ -53,6 +53,8 @@ export interface BridgeEvents {
   'etat-encre': (message: EtatEncre) => void
   /** la fenêtre clavier a perdu le focus : rejoué en `blur` sur la page */
   'clavier-perdu': () => void
+  /** état RÉEL des réservations système (réservées, refusées, replis), poussé par le processus principal */
+  'raccourcis-status': (value: unknown) => void
   /** Commande adressée par la couche interface au moteur (couche encre). */
   commande: (message: CommandeEncre) => void
 }
@@ -166,7 +168,8 @@ export interface HexaDisplayInfo {
  * (src/keymap.ts) → accélérateur Electron.
  * Ex. { 'mode.draw': 'F8', 'tool.pen': 'Control+Shift+3' }
  */
-export type GlobalShortcuts = Record<string, string>
+/** action → accélérateur préféré, ou chaîne d'accélérateurs à tenter dans l'ordre */
+export type GlobalShortcuts = Record<string, string | string[]>
 
 /** résultat d'une copie de l'adresse OBS : l'adresse, et si le presse-papiers l'a prise */
 export interface AdresseObs {

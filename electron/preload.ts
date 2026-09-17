@@ -66,6 +66,8 @@ const INBOUND = [
   'etat-encre',
   /** la fenêtre clavier a perdu le focus : les touches maintenues se relâchent */
   'clavier-perdu',
+  /** réservations système : ce qui est vraiment pris, refusé, ou remplacé par un repli */
+  'raccourcis-status',
 ] as const
 type Inbound = (typeof INBOUND)[number]
 

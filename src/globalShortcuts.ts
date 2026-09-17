@@ -21,7 +21,7 @@ import { porteEncre } from './couches'
 import type { ToolId } from './engine/types'
 import { KNOWN_TOOLS, useUiStore } from './store'
 import {
-  globalAccelerators,
+  globalAcceleratorChains,
   resolveKeymap,
   type KeymapAction,
   type KeymapPresetId,
@@ -66,6 +66,8 @@ export function subscribeGlobalShortcuts(cb: () => void): () => void {
 }
 
 function publish(next: GlobalShortcutStatus): void {
+  // lisible par les campagnes de tests, comme window.hexaEngine
+  ;(window as unknown as { __hexaRaccourcis?: GlobalShortcutStatus }).__hexaRaccourcis = next
   status = next
   for (const cb of listeners) cb()
 }
@@ -183,37 +185,27 @@ export interface UseGlobalShortcutsOptions {
  * Réponse du processus principal, volontairement tolérante.
  *
  * La SOURCE DE VÉRITÉ est `accelerators` : la table réellement en vigueur côté
- * système. Elle peut différer de ce qu'on a demandé — quand Windows refuse la
- * combinaison du mode dessin, le processus principal se replie sur F8 tout seul
- * (c'est indispensable : sans mode dessin, l'utilisateur est prisonnier de son
- * jeu). Recopier la combinaison DEMANDÉE reviendrait à certifier « réservé
- * auprès de Windows » pour une touche morte, et l'utilisateur martèlerait sa
- * combinaison toute la soirée devant son chat.
+ * système, et `souhaites` : ce qu'on aurait voulu (la première combinaison de
+ * chaque chaîne). Elles peuvent différer — quand Windows refuse une
+ * combinaison, le processus principal tente la suivante (Ctrl+Alt+1 pour le
+ * numéroteur, F8 pour le mode dessin). Recopier la combinaison DEMANDÉE
+ * reviendrait à certifier « réservé auprès de Windows » pour une touche
+ * morte, et l'utilisateur martèlerait sa combinaison toute la soirée devant
+ * son chat. `failed` porte donc la combinaison VOULUE dès qu'elle n'est pas
+ * celle en vigueur ; `registered` porte ce qui répond vraiment.
  */
-function readResult(
-  value: unknown,
-  asked: Partial<Record<KeymapAction, string>>,
-): GlobalShortcutStatus {
+function readResult(value: unknown): GlobalShortcutStatus {
   const registered: Partial<Record<KeymapAction, string>> = {}
   const failed: Partial<Record<KeymapAction, string>> = {}
-  const ok = new Set<string>(
-    Array.isArray((value as { registered?: unknown })?.registered)
-      ? ((value as { registered: unknown[] }).registered.filter(
-          (a) => typeof a === 'string',
-        ) as string[])
-      : [],
-  )
-  const reels = (value as { accelerators?: Record<string, unknown> } | null)?.accelerators ?? {}
-  for (const [action, accel] of Object.entries(asked) as [KeymapAction, string][]) {
-    if (!ok.has(action)) {
-      failed[action] = accel
-      continue
-    }
+  const v = (value ?? {}) as { accelerators?: Record<string, unknown>; souhaites?: Record<string, unknown> }
+  const reels = v.accelerators ?? {}
+  const souhaites = v.souhaites ?? {}
+  for (const [action, voulu] of Object.entries(souhaites) as [KeymapAction, unknown][]) {
+    if (typeof voulu !== 'string' || voulu.length === 0) continue
     const brut = reels[action]
-    const reel = typeof brut === 'string' && brut.length > 0 ? brut : accel
-    registered[action] = reel
-    // Pris, mais PAS sur la touche demandée : l'éditeur doit le signaler.
-    if (reel !== accel) failed[action] = accel
+    const reel = typeof brut === 'string' && brut.length > 0 ? brut : ''
+    if (reel) registered[action] = reel
+    if (reel !== voulu) failed[action] = voulu
   }
   return { supported: true, registered, failed }
 }
@@ -244,6 +236,16 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
     })
   }, [])
 
+  // (3) L'ÉTAT RÉEL DES RÉSERVATIONS, poussé par le processus principal — à
+  // chaque enregistrement et quand une combinaison refusée se libère. Dans
+  // TOUTES les fenêtres : l'éditeur de raccourcis vit dans la fenêtre
+  // d'interface, qui n'enregistre rien elle-même et ne savait donc jamais ce
+  // que Windows avait vraiment accordé.
+  useEffect(() => {
+    if (!isElectron) return
+    return bridge.on('raccourcis-status', (value) => publish(readResult(value)))
+  }, [])
+
   // (2) (ré)enregistrement système à chaque changement de clavier
   useEffect(() => {
     if (!isElectron) return
@@ -254,16 +256,16 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
     if (!porteEncre) return
 
     const bindings = resolveKeymap(preset, overrides)
-    const all = globalAccelerators(bindings)
-    const asked: Partial<Record<KeymapAction, string>> = enabled
+    const all = globalAcceleratorChains(bindings)
+    const asked: Partial<Record<KeymapAction, string[]>> = enabled
       ? all
       : Object.fromEntries(
-          ALWAYS_GLOBAL.filter((a) => all[a]).map((a) => [a, all[a] as string]),
+          ALWAYS_GLOBAL.filter((a) => all[a]).map((a) => [a, all[a] as string[]]),
         )
 
     let alive = true
     void bridge.setShortcuts(asked).then((value) => {
-      if (alive) publish(readResult(value, asked))
+      if (alive) publish(readResult(value))
     })
     return () => {
       alive = false

@@ -50,6 +50,7 @@ node test/e2e/s26-trait-collant.mjs        # pointerup perdu : le trait ne doit 
 node test/e2e/s27-clavier.mjs              # la fenêtre clavier : les fenêtres transparentes ne prennent jamais le focus
 node test/e2e/s28-clavier-deux-fenetres.mjs # le clavier en VRAI mode deux fenêtres (Tab, lettres nues, Ctrl+Maj+1)
 node test/e2e/s29-actions-globales.mjs     # chaque raccourci global fait vraiment quelque chose dans la page
+node test/e2e/s30-raccourci-pris.mjs       # une combinaison tenue par un autre logiciel : repli, message, reprise
 node test/e2e/s28-clavier-deux-fenetres.mjs # Tab et les lettres dans le VRAI mode à deux fenêtres
 ```
 

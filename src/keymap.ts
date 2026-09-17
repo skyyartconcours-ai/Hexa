@@ -568,7 +568,13 @@ const EPICPEN_BINDINGS: Bindings = {
   // Le numéroteur ouvre la série : Ctrl+Maj+1, la combinaison que le coach
   // cherchait sous ses doigts. Réservée auprès de Windows, elle répond donc
   // aussi pendant une partie, comme Ctrl+Maj+3 pour le pinceau.
-  'tool.badge': ['ctrl+shift+1', 'n'],
+  //
+  // Ctrl+Alt+1 est le REPLI SYSTÈME : une réservation Windows est exclusive,
+  // et un autre logiciel peut tenir Ctrl+Maj+1 avant nous (mesuré chez
+  // l'utilisateur : le 3 marchait, le 1 jamais, même touche physique). Sans
+  // repli, le numéroteur n'avait alors AUCUN raccourci en jeu. Sur un AZERTY,
+  // Ctrl+Alt+1 se tape AltGr + &, une combinaison qui ne produit rien.
+  'tool.badge': ['ctrl+shift+1', 'ctrl+alt+1', 'n'],
   // édition
   'edit.undo': ['ctrl+shift+6', 'ctrl+z'],
   'edit.clear': ['ctrl+e', 'c'],
@@ -954,16 +960,23 @@ export function isRegistrableCombo(combo: string): boolean {
 }
 
 /**
- * Accélérateurs Electron à enregistrer : action → accélérateur.
- * On garde la PREMIÈRE combinaison enregistrable de chaque action (les autres
- * restent gérées par la page, quand elle a le focus).
+ * Accélérateurs Electron à enregistrer : action → CHAÎNE d'accélérateurs, dans
+ * l'ordre de préférence.
+ *
+ * Une réservation auprès de Windows (RegisterHotKey) est EXCLUSIVE : premier
+ * arrivé, premier servi, et l'autre logiciel avale la touche même quand Hexa
+ * est au premier plan. Le processus principal tente donc la première
+ * combinaison, puis la suivante si le système refuse — et reprend la
+ * préférée dès qu'elle se libère. Les combinaisons non enregistrables (une
+ * lettre nue) restent à la page, quand elle a le focus.
  */
-export function globalAccelerators(
+export function globalAcceleratorChains(
   bindings: ResolvedBindings,
-): Partial<Record<KeymapAction, string>> {
-  const out: Partial<Record<KeymapAction, string>> = {}
+): Partial<Record<KeymapAction, string[]>> {
+  const out: Partial<Record<KeymapAction, string[]>> = {}
   const taken = new Set<string>()
   for (const action of GLOBAL_ACTIONS) {
+    const chaine: string[] = []
     for (const combo of bindings[action]) {
       if (!isRegistrableCombo(combo)) continue
       const accel = toAccelerator(combo)
@@ -971,11 +984,27 @@ export function globalAccelerators(
       // globalShortcut.register refuserait la seconde en silence.
       if (taken.has(accel)) continue
       taken.add(accel)
-      out[action] = accel
-      break
+      chaine.push(accel)
     }
+    if (chaine.length > 0) out[action] = chaine
   }
   return out
+}
+
+/** La combinaison PRÉFÉRÉE de chaque action : ce que l'on affiche et souhaite. */
+export function globalAccelerators(
+  bindings: ResolvedBindings,
+): Partial<Record<KeymapAction, string>> {
+  const out: Partial<Record<KeymapAction, string>> = {}
+  for (const [action, chaine] of Object.entries(globalAcceleratorChains(bindings))) {
+    if (chaine && chaine[0]) out[action as KeymapAction] = chaine[0]
+  }
+  return out
+}
+
+/** Chaînes par défaut (preset Epic Pen), pour le tout premier démarrage. */
+export function defaultGlobalAcceleratorChains(): Partial<Record<KeymapAction, string[]>> {
+  return globalAcceleratorChains(resolveKeymap(DEFAULT_PRESET))
 }
 
 /** Accélérateurs par défaut (preset Epic Pen), pour le tout premier démarrage. */

@@ -409,10 +409,19 @@ export function KeymapEditor() {
                     </div>
                   </div>
                   {conflict && <div className="kme-conflict">⚠ {conflict}</div>}
-                  {failedAccel && (
+                  {failedAccel && registeredAccel && (
                     <div className="kme-conflict">
-                      ⚠ Windows refuse {formatCombo(combos[0] ?? '')} : un autre logiciel l’a déjà
-                      réservée.
+                      ⚠ {formatCombo(normalizeCombo(failedAccel))} est déjà réservée par un autre
+                      logiciel : Hexa répond à <b>{formatCombo(normalizeCombo(registeredAccel))}</b> à
+                      la place, et reprendra {formatCombo(normalizeCombo(failedAccel))} dès qu’elle
+                      sera libre.
+                    </div>
+                  )}
+                  {failedAccel && !registeredAccel && (
+                    <div className="kme-conflict">
+                      ⚠ {formatCombo(normalizeCombo(failedAccel))} est déjà réservée par un autre
+                      logiciel, et aucun repli n’est libre : clique sur la combinaison pour en
+                      choisir une autre, ou ferme le logiciel qui la tient.
                     </div>
                   )}
                   {rowWarning && <div className="kme-warn">⚠ {rowWarning}</div>}

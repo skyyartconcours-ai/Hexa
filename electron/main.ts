@@ -37,7 +37,7 @@ import {
 } from './sonde'
 // Table de raccourcis partagée avec le renderer : UNE seule source de vérité
 // pour les combinaisons d'usine (preset Epic Pen).
-import { defaultGlobalAccelerators } from '../src/keymap'
+import { KEYMAP_ENTRIES, defaultGlobalAcceleratorChains } from '../src/keymap'
 // Diagnostic de démarrage : sans fenêtre visible, le journal est le SEUL moyen
 // de comprendre pourquoi « ça ne se lance pas ».
 import {
@@ -247,6 +247,14 @@ interface Overlay {
  * La table est calculée par le renderer depuis src/keymap.ts et poussée ici.
  */
 type ShortcutMap = Record<string, string>
+/** action → accélérateurs à tenter dans l'ordre (le premier est la combinaison préférée) */
+type ShortcutChains = Record<string, string[]>
+
+function premiersDe(chains: ShortcutChains): ShortcutMap {
+  const out: ShortcutMap = {}
+  for (const [action, chaine] of Object.entries(chains)) if (chaine[0]) out[action] = chaine[0]
+  return out
+}
 
 /* ------------------------------------------------------------------ *
  * État global
@@ -267,7 +275,9 @@ const HIDE_GRACE_MS = 300
  * chargée : Ctrl+Maj+3 doit sortir le stylo dès la première seconde.
  * §12.4 : F1–F5 sont les sorts alliés dans League of Legends → jamais utilisées.
  */
-const DEFAULT_SHORTCUTS: ShortcutMap = defaultGlobalAccelerators()
+/** Chaînes d'usine : pour chaque action, les combinaisons à tenter, dans l'ordre. */
+const DEFAULT_CHAINS: ShortcutChains = defaultGlobalAcceleratorChains() as ShortcutChains
+const DEFAULT_SHORTCUTS: ShortcutMap = premiersDe(DEFAULT_CHAINS)
 
 /** Repli absolu : sans mode dessin, l'application est inutilisable. */
 const FALLBACK_DRAW = 'F8'
@@ -1413,8 +1423,10 @@ function setEclipsed(value: boolean, raison: string): void {
   rebuildOverlays(`retour de ${raison}`)
   // 2) Windows a pu perdre nos raccourcis globaux pendant la bascule de
   //    session : les réenregistrer coûte une milliseconde et évite le
-  //    « F8 ne marche plus depuis que j'ai verrouillé ».
-  registerShortcuts({ ...shortcuts })
+  //    « F8 ne marche plus depuis que j'ai verrouillé ». On repart des CHAÎNES
+  //    voulues, pas des combinaisons obtenues : une combinaison refusée avant
+  //    la veille est peut-être libre au réveil.
+  registerShortcuts(Object.keys(chainesVoulues).length > 0 ? { ...chainesVoulues } : { ...DEFAULT_CHAINS })
   // Chaque fenêtre retrouve son niveau topmost, puis sa visibilité normale :
   // une couche qui portait des annotations réapparaît, une couche vide reste
   // cachée — exactement la règle habituelle (§2.5).
@@ -2528,42 +2540,112 @@ function startSpikePump(): void {
  * un clavier physique (§8.6), donc chaque ligne de la table est pilotable
  * depuis un boîtier, sans plugin dédié.
  */
-function registerShortcuts(map: ShortcutMap): { registered: string[]; failed: string[] } {
+/**
+ * COMBINAISONS REFUSÉES PAR LE SYSTÈME, simulées pour les campagnes de tests.
+ * `HEXA_E2E_REFUSER=Control+Shift+1` fait comme si un autre logiciel tenait
+ * cette combinaison. Inerte sans la variable ; modifiable par les tests via
+ * `globalThis.__hexaRefus` pour simuler une combinaison qui se libère.
+ */
+const refusSimules = new Set<string>(
+  (process.env.HEXA_E2E_REFUSER ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean),
+)
+;(globalThis as { __hexaRefus?: Set<string> }).__hexaRefus = refusSimules
+
+/** Chaînes demandées par la page, gardées pour retenter les combinaisons refusées. */
+let chainesVoulues: ShortcutChains = {}
+/**
+ * Actions dont la combinaison PRÉFÉRÉE est tenue par un autre logiciel :
+ * ce qu'on voulait → ce qu'on a obtenu ('' si aucun repli n'a pu être pris).
+ */
+const replis = new Map<string, { voulu: string; obtenu: string }>()
+/** Dernier message affiché sur les replis : on ne le répète pas à l'identique. */
+let replisSignales = ''
+/** Nouvelle tentative sur les combinaisons refusées (voir armerReprise). */
+let repriseTimer: NodeJS.Timeout | null = null
+const REPRISE_MS = Number(process.env.HEXA_E2E_REPRISE_MS) || 30_000
+
+function etiquette(action: string): string {
+  return KEYMAP_ENTRIES.find((e) => e.action === action)?.label ?? action
+}
+
+function tenterEnregistrement(action: string, accel: string): boolean {
+  if (refusSimules.has(accel)) return false
+  try {
+    // register renvoie false quand un autre logiciel a déjà pris la
+    // combinaison ; certaines versions lèvent aussi sur un accélérateur
+    // invalide. Les deux cas sont un refus.
+    return globalShortcut.register(accel, () => dispatchGlobalAction(action))
+  } catch {
+    return false
+  }
+}
+
+/** L'état des réservations, tel que la page et l'éditeur doivent le voir. */
+function etatRaccourcis(): { registered: string[]; accelerators: ShortcutMap; souhaites: ShortcutMap } {
+  return {
+    registered: Object.keys(shortcuts).filter((a) => shortcuts[a]),
+    accelerators: { ...shortcuts },
+    souhaites: premiersDe(chainesVoulues),
+  }
+}
+
+/**
+ * Enregistre les raccourcis globaux, action par action, en tentant chaque
+ * combinaison de la chaîne jusqu'à ce que le système en accepte une.
+ *
+ * ⚠️ UN REFUS N'EST PLUS SILENCIEUX. Mesuré chez l'utilisateur : Ctrl+Maj+3
+ * sortait le pinceau, Ctrl+Maj+1 ne sortait jamais le numéroteur — même touche
+ * physique, même Maj, même Ctrl. Une réservation Windows est exclusive : un
+ * autre logiciel tenait Ctrl+Maj+1, avalait la touche même Hexa au premier
+ * plan, et Hexa, qui avait bien noté le refus dans son journal, n'en disait
+ * rien à l'écran et n'avait aucun plan B. Désormais : repli sur la combinaison
+ * suivante, message clair, et nouvelle tentative périodique — la combinaison
+ * préférée est reprise dès que l'autre logiciel la lâche.
+ */
+function registerShortcuts(chains: ShortcutChains): { registered: string[]; failed: string[] } {
   const registered: string[] = []
   const failed: string[] = []
+  const map: ShortcutMap = {}
   try {
     globalShortcut.unregisterAll()
   } catch {
     /* ignore */
   }
-  for (const [action, accel] of Object.entries(map)) {
-    if (typeof accel !== 'string' || accel.length === 0) continue
-    let ok = false
-    try {
-      // register renvoie false quand un autre logiciel a déjà pris la
-      // combinaison ; certaines versions lèvent aussi sur un accélérateur
-      // invalide. Les deux cas atterrissent dans `failed`.
-      ok = globalShortcut.register(accel, () => dispatchGlobalAction(action))
-    } catch {
-      ok = false
+  chainesVoulues = chains
+  replis.clear()
+  for (const [action, chaine] of Object.entries(chains)) {
+    const voulu = chaine[0]
+    if (!voulu) continue
+    let obtenu = ''
+    for (const accel of chaine) {
+      if (tenterEnregistrement(action, accel)) {
+        obtenu = accel
+        break
+      }
     }
-    if (ok) registered.push(action)
-    else failed.push(action)
+    if (obtenu) {
+      map[action] = obtenu
+      registered.push(action)
+    } else {
+      failed.push(action)
+    }
+    if (obtenu !== voulu) replis.set(action, { voulu, obtenu })
   }
 
   // Filet de sécurité : sans mode dessin, l'utilisateur est prisonnier de son
-  // jeu. Si sa combinaison a été refusée, on remet F8 d'office.
+  // jeu. Si toute sa chaîne a été refusée, on remet F8 d'office.
   if (!registered.includes('mode.draw')) {
-    try {
-      if (globalShortcut.register(FALLBACK_DRAW, () => toggleDrawMode())) {
-        map = { ...map, 'mode.draw': FALLBACK_DRAW }
-        registered.push('mode.draw')
-        const i = failed.indexOf('mode.draw')
-        if (i >= 0) failed.splice(i, 1)
-        log('raccourcis', 'mode dessin refusé par le système : repli sur F8')
-      }
-    } catch {
-      /* ignore */
+    if (tenterEnregistrement('mode.draw', FALLBACK_DRAW)) {
+      map['mode.draw'] = FALLBACK_DRAW
+      registered.push('mode.draw')
+      const i = failed.indexOf('mode.draw')
+      if (i >= 0) failed.splice(i, 1)
+      const voulu = chains['mode.draw']?.[0] ?? FALLBACK_DRAW
+      if (voulu !== FALLBACK_DRAW) replis.set('mode.draw', { voulu, obtenu: FALLBACK_DRAW })
+      log('raccourcis', 'mode dessin refusé par le système : repli sur F8')
     }
   }
 
@@ -2573,9 +2655,82 @@ function registerShortcuts(map: ShortcutMap): { registered: string[]; failed: st
   log('raccourcis', 'enregistrement global', {
     pris: registered.length,
     refuses: failed.length,
-    refusesDetail: failed.map((a) => `${a}=${map[a]}`).join(' '),
+    refusesDetail: failed.map((a) => `${a}=${(chains[a] ?? []).join('|')}`).join(' '),
+    replis:
+      [...replis].map(([a, r]) => `${a}: ${r.voulu} → ${r.obtenu || 'aucun'}`).join(' ; ') || 'aucun',
   })
+  signalerReplis()
+  armerReprise()
+  broadcast('raccourcis-status', etatRaccourcis())
   return { registered, failed }
+}
+
+/**
+ * Le message qui manquait : QUELLE combinaison est tenue par un autre
+ * logiciel, ce qui répond à la place, et comment retrouver la préférée.
+ */
+function signalerReplis(): void {
+  if (replis.size === 0) {
+    replisSignales = ''
+    return
+  }
+  const lignes = [...replis].map(([action, r]) =>
+    r.obtenu
+      ? `<kbd>${lisible(r.voulu)}</kbd> est déjà réservée par un autre logiciel : ${etiquette(action)} répond à <kbd>${lisible(r.obtenu)}</kbd> en attendant.`
+      : `<kbd>${lisible(r.voulu)}</kbd> est déjà réservée par un autre logiciel, et aucun repli n'est libre : ${etiquette(action)} n'a plus de raccourci système.`,
+  )
+  const signature = lignes.join('\n')
+  if (signature === replisSignales) return
+  replisSignales = signature
+  log('raccourcis', `combinaisons tenues par un autre logiciel : ${[...replis].map(([a, r]) => `${a}=${r.voulu}`).join(' ')}`)
+  showToast(
+    'Un raccourci est pris par un autre logiciel',
+    `${lignes.join('<br>')}<br>Hexa reprendra la combinaison dès qu'elle sera libre. ` +
+      `Pour savoir qui la tient : ferme tes logiciels un par un (Epic Pen, overlays LoL, Voicemod, Stream Deck…), ` +
+      `ou utilise l'outil gratuit « Hotkey Detective ». Tu peux aussi changer la touche dans Réglages → Raccourcis.`,
+    16000,
+  )
+}
+
+/**
+ * Retente périodiquement les combinaisons refusées. Coût : un appel
+ * RegisterHotKey toutes les 30 s par combinaison tenue ailleurs, et rien du
+ * tout quand tout est pris — la minuterie n'existe que s'il y a un repli.
+ */
+function armerReprise(): void {
+  if (replis.size === 0) {
+    if (repriseTimer) {
+      clearInterval(repriseTimer)
+      repriseTimer = null
+    }
+    return
+  }
+  if (repriseTimer) return
+  repriseTimer = setInterval(() => {
+    if (quitting) return
+    let change = false
+    for (const [action, r] of [...replis]) {
+      if (!tenterEnregistrement(action, r.voulu)) continue
+      if (r.obtenu) {
+        try {
+          globalShortcut.unregister(r.obtenu)
+        } catch {
+          /* ignore */
+        }
+      }
+      shortcuts[action] = r.voulu
+      replis.delete(action)
+      change = true
+      log('raccourcis', `${r.voulu} est libre de nouveau : ${etiquette(action)} y répond`)
+      showToast('Raccourci retrouvé', `<kbd>${lisible(r.voulu)}</kbd> est libre de nouveau : ${etiquette(action)} y répond.`, 6000)
+    }
+    if (!change) return
+    raccourcisPris = Object.keys(shortcuts).filter((a) => shortcuts[a]).length
+    replisSignales = ''
+    signalerReplis()
+    armerReprise()
+    broadcast('raccourcis-status', etatRaccourcis())
+  }, REPRISE_MS)
 }
 
 /* ------------------------------------------------------------------ *
@@ -3007,17 +3162,18 @@ function registerIpc(): void {
    */
   ipcMain.handle('hexa:set-shortcuts', (_e, value: unknown) => {
     const input = (value ?? {}) as Record<string, unknown>
-    const map: ShortcutMap = {}
-    for (const [action, accel] of Object.entries(input)) {
-      // Garde-fou : action et accélérateur plausibles, rien d'autre ne passe.
-      if (typeof accel !== 'string' || accel.length === 0 || accel.length > 40) continue
+    const chains: ShortcutChains = {}
+    for (const [action, brut] of Object.entries(input)) {
+      // Garde-fou : action et accélérateurs plausibles, rien d'autre ne passe.
       if (!/^[a-z]+\.[a-zA-Z]+$/.test(action)) continue
-      map[action] = accel
+      const liste = Array.isArray(brut) ? brut : [brut]
+      const propres = liste
+        .filter((a): a is string => typeof a === 'string' && a.length > 0 && a.length <= 40)
+        .slice(0, 4)
+      if (propres.length > 0) chains[action] = propres
     }
-    const result = registerShortcuts(
-      Object.keys(map).length > 0 ? map : { ...DEFAULT_SHORTCUTS },
-    )
-    return { ...result, accelerators: { ...shortcuts } }
+    const result = registerShortcuts(Object.keys(chains).length > 0 ? chains : { ...DEFAULT_CHAINS })
+    return { ...result, ...etatRaccourcis(), failed: result.failed }
   })
 
   /* ---- Miroir OBS (§10.2) ---------------------------------------- */
@@ -3334,7 +3490,7 @@ if (!gotLock) {
     // Combinaisons d'usine (preset Epic Pen) enregistrées AVANT le chargement
     // de la page : Ctrl+Maj+3 doit sortir le stylo dès la première seconde.
     // La page les repoussera aussitôt avec les réglages de l'utilisateur.
-    const raccourcis = registerShortcuts({ ...DEFAULT_SHORTCUTS })
+    const raccourcis = registerShortcuts({ ...DEFAULT_CHAINS })
     log('raccourcis', 'raccourcis globaux d’usine enregistrés', {
       pris: raccourcis.registered.join(' '),
       refuses: raccourcis.failed.join(' ') || 'aucun',
@@ -3509,6 +3665,10 @@ if (!gotLock) {
     // Un écouteur `screen`/`powerMonitor` encore branché peut rappeler du code
     // dont les fenêtres sont détruites — et surtout garder le processus vivant.
     stopWindowsGuard()
+    if (repriseTimer) {
+      clearInterval(repriseTimer)
+      repriseTimer = null
+    }
     try {
       globalShortcut.unregisterAll()
     } catch (err) {
