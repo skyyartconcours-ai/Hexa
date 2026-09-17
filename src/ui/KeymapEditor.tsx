@@ -449,6 +449,10 @@ export function KeymapEditor() {
         F1 à F5 sont volontairement évitées (sorts alliés dans League of Legends), et Hexa refuse
         les combinaisons réservées par Windows (Alt+F4, Ctrl+Alt+Suppr, Windows+L…).
         <br />
+        <b>Les chiffres se tapent sur la rangée du haut</b> (sur un AZERTY, Ctrl+Maj+1 = Ctrl + Maj + &amp;).
+        Le pavé numérique ne compte pas : Windows transforme Maj + pavé en Fin, ↓, Page… avant
+        qu’Hexa ne voie la touche.
+        <br />
         {lookup.size} combinaisons actives, {conflicts.size} conflit
         {conflicts.size > 1 ? 's' : ''}
         {isElectron

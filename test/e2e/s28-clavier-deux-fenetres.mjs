@@ -21,7 +21,7 @@
 import { KO, OK, Rapport, chargerPilote, preparerCaptures } from './harness.mjs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { rmSync, mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync } from 'node:fs'
 
 const RACINE = dirname(dirname(dirname(fileURLToPath(import.meta.url))))
 preparerCaptures()
@@ -154,6 +154,31 @@ await rapport.test(win, 's28-6-interface-inerte', 'La page d’interface ne joue
   return {
     statut: recues && k.length === 0 && a.tool === 'ellipse' ? OK : KO,
     detail: `touches reçues par l’interface : ${k.length} (0 attendu) · outil : ${a.tool}`,
+  }
+})
+
+/**
+ * CTRL + MAJ + PAVÉ 1, tel que Windows le livre : Maj relâchée fictivement, la
+ * touche devient Fin (voir signalerPaveNumerique dans electron/main.ts). Hexa ne
+ * PEUT pas en faire le numéroteur — mais il doit le dire, dans le journal et à
+ * l'écran, au lieu de laisser croire à un raccourci cassé.
+ */
+await rapport.test(win, 's28-7-pave-numerique', 'Ctrl+Maj+Pavé 1 (= Ctrl+Fin pour Windows) : pas de numéroteur, mais une explication', async () => {
+  await frapper({ keyCode: 'P' })
+  await attendre(300)
+  await app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => x.getTitle() === 'Hexa Clavier')
+    const base = { key: 'End', code: 'Numpad1', control: true, shift: false, alt: false, meta: false, isAutoRepeat: false, location: 3, modifiers: ['control'] }
+    w.webContents.emit('before-input-event', { preventDefault() {} }, { ...base, type: 'keyDown' })
+    w.webContents.emit('before-input-event', { preventDefault() {} }, { ...base, type: 'keyUp' })
+  })
+  await attendre(700)
+  const apres = await etat()
+  const journal = readFileSync(join(userData, 'hexa.log'), 'utf8')
+  const explique = /pavé numérique avec Ctrl/.test(journal)
+  return {
+    statut: apres.tool === 'pen' && explique ? OK : KO,
+    detail: `outil après la touche : ${apres.tool} (pen attendu, inchangé) · journal : ${explique ? 'explication écrite' : 'RIEN — l’utilisateur croirait Hexa cassé'}`,
   }
 })
 

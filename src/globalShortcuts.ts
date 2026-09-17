@@ -232,8 +232,15 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
     if (!porteEncre) return
     return bridge.on('action', (action) => {
       const a = action as KeymapAction
-      if (!claimAction(a, 'system')) return
+      // La SECONDE moitié de la trace : le processus principal note qu'il a
+      // reçu la touche du système ; la page note ce qu'elle en fait. Entre les
+      // deux lignes de hexa.log, plus aucun « ça ne marche pas » n'est deviné.
+      if (!claimAction(a, 'system')) {
+        bridge.log('raccourcis', `action système ignorée (déjà jouée par la page) : ${a}`)
+        return
+      }
       runGlobalAction(a, engineRef.current())
+      bridge.log('raccourcis', `action système jouée : ${a} → outil ${useUiStore.getState().tool}`)
     })
   }, [])
 

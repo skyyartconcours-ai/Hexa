@@ -20,6 +20,7 @@ import {
   type Display,
   type Rectangle,
   type WebContents,
+  type Input,
 } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -997,7 +998,49 @@ function creerClavierSurEcranAnnotation(): void {
       return o.win.webContents
     },
     surPerte: clavierPerdu,
+    surTouche: signalerPaveNumerique,
   })
+}
+
+/**
+ * LE PAVÉ NUMÉRIQUE NE FAIT PAS « CTRL + MAJ + 1 » — et c'est Windows, pas Hexa.
+ *
+ * Retour utilisateur (AZERTY) : « Ctrl+Maj+1 ne marche pas toujours, souvent
+ * pas ». Sur un clavier français, le 1 de la rangée du haut demande Maj ; le
+ * réflexe est donc de taper le chiffre au pavé numérique. Or Windows applique
+ * au pavé la règle inverse de Verr.Num quand Maj est tenue : Maj + Pavé 1
+ * devient Fin, Maj + Pavé 2 devient ↓, Maj + Pavé 3 devient Page suivante… en
+ * RELÂCHANT Maj de façon fictive le temps de la touche. Le système voit alors
+ * Ctrl + Fin : le raccourci global (Ctrl+Maj+1, réservé auprès de Windows) ne
+ * se déclenche jamais, et la page reçoit une touche qui ne correspond à rien.
+ * Aucun réglage d'Hexa ne peut changer cette conversion, faite par le pilote
+ * de clavier avant nous.
+ *
+ * On le DIT, une fois par session, au moment précis où ça arrive — sinon
+ * l'utilisateur martèle sa combinaison en pensant Hexa cassé. Et on le journalise
+ * à chaque fois : c'est la ligne qui explique un « ça ne marche pas » reçu par
+ * courriel avec hexa.log.
+ */
+let paveSignale = false
+function signalerPaveNumerique(input: Input): void {
+  if (input.type !== 'keyDown' || input.isAutoRepeat) return
+  if (!(input.control || input.meta)) return
+  const m = /^Numpad(\d)$/.exec(input.code)
+  if (!m) return
+  log(
+    'raccourcis',
+    `pavé numérique avec Ctrl : Windows a livré « ${input.key} » (code ${input.code}, Maj ${input.shift ? 'tenue' : 'relâchée par le système'}) — ` +
+      `ce n'est pas Ctrl+Maj+${m[1]} pour le système ; il faut le ${m[1]} de la rangée du haut`,
+  )
+  if (paveSignale) return
+  paveSignale = true
+  showToast(
+    'Le pavé numérique ne fait pas Ctrl + Maj + chiffre',
+    `Windows transforme <kbd>Maj</kbd> + pavé numérique en touche de navigation (Fin, ↓, Page…) avant qu’Hexa la voie. ` +
+      `Pour le numéroteur, utilise le <b>1 de la rangée du haut</b> : <kbd>Ctrl</kbd> + <kbd>Maj</kbd> + <kbd>&amp;</kbd> sur un clavier AZERTY. ` +
+      `Ou assigne une autre touche dans Réglages → Raccourcis.`,
+    12000,
+  )
 }
 
 /**

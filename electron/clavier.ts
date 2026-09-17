@@ -51,6 +51,8 @@ export interface ClavierOptions {
   cible: () => WebContents | null
   /** le clavier vient d'être perdu (Alt+Tab, clic dans le jeu sur un autre écran) */
   surPerte: () => void
+  /** chaque touche reçue, AVANT relais : sert au diagnostic (pavé numérique…) */
+  surTouche?: (input: Input) => void
 }
 
 let fenetre: BrowserWindow | null = null
@@ -119,6 +121,7 @@ export function creerFenetreClavier(display: Display, o: ClavierOptions): Browse
     // laissée à cette page-ci ni à Chromium (F11, Ctrl+P, Ctrl+F…).
     win.webContents.on('before-input-event', (e, input) => {
       e.preventDefault()
+      options?.surTouche?.(input)
       const wc = options?.cible() ?? null
       if (wc) relayerTouche(wc, input)
     })
