@@ -17,11 +17,17 @@ function emit(color: string, tag: string, args: unknown[]): void {
   console.log(`${COLORS.dim}${stamp()}${COLORS.reset} ${color}${tag}${COLORS.reset}`, ...args);
 }
 
+/** `npm run preview` n'affiche que son compte rendu : avertissements et erreurs seulement. */
+let quiet = false;
+export function setQuiet(value: boolean): void {
+  quiet = value;
+}
+
 export const log = {
-  info: (...args: unknown[]) => emit(COLORS.blue, '[info]', args),
-  ok: (...args: unknown[]) => emit(COLORS.green, '[ ok ]', args),
+  info: (...args: unknown[]) => void (quiet || emit(COLORS.blue, '[info]', args)),
+  ok: (...args: unknown[]) => void (quiet || emit(COLORS.green, '[ ok ]', args)),
   warn: (...args: unknown[]) => emit(COLORS.yellow, '[warn]', args),
   error: (...args: unknown[]) => emit(COLORS.red, '[err ]', args),
-  twitch: (...args: unknown[]) => emit(COLORS.magenta, '[twch]', args),
-  roast: (...args: unknown[]) => emit(COLORS.cyan, '[rost]', args),
+  twitch: (...args: unknown[]) => void (quiet || emit(COLORS.magenta, '[twch]', args)),
+  roast: (...args: unknown[]) => void (quiet || emit(COLORS.cyan, '[rost]', args)),
 };

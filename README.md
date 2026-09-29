@@ -55,6 +55,7 @@ cp .env.example .env      # puis remplis .env
 npm run login             # ouvre le flux Twitch : une URL + un code à taper
 npm run doctor            # contrôle de pré-vol : token, compte, scopes, clés, port
 npm run backfill          # importe le chat de tes VODs (voir plus bas)
+npm run preview           # des vannes d'exemple sur tes vrais viewers, dans le terminal
 npm start
 ```
 
@@ -88,7 +89,30 @@ chat. Coût : quelques centimes.
 **Le token Twitch meurt s'il ne sert pas pendant 30 jours.** Si Hexa n'a pas
 tourné depuis un mois, refais `npm run login` — le doctor te le dira.
 
-### 4. Dans OBS
+### 4. Voir des vannes sur tes vrais viewers
+
+`npm run preview` écrit des vannes d'exemple sur des viewers de ton chat
+enregistré (le log en direct et tes VODs importées) et les affiche dans le
+terminal : les messages que le modèle a lus, la vanne, le ton, la sévérité, et
+le verdict du filtre et du juge. C'est la même chaîne qu'en direct, mais rien ne
+part vers Twitch : pas de session, pas d'annonce, pas d'overlay, et rien dans
+l'historique des vannes ni dans les cooldowns.
+
+```bash
+npm run backfill -- --vods 5          # importe le chat de tes 5 dernières VODs
+npm run preview                       # 5 viewers tirés parmi les plus bavards
+npm run preview -- --viewers 10       # 10 viewers
+npm run preview -- pseudo1 pseudo2    # ces viewers-là
+npm run preview -- --voix             # + l'audio dans data/preview/, à écouter au casque
+```
+
+Un habitué qui porte le badge d'abonné est simulé comme un resub avec son vrai
+nombre de mois ; les autres comme un nouveau sub. Les viewers qui ont tapé
+`!noroast` sont ignorés. Coût : un appel au modèle et un au juge par viewer,
+quelques centimes pour dix. C'est le moyen le plus rapide de régler `channel.md`
+et `MAX_SEVERITY` avant le premier live.
+
+### 5. Dans OBS
 
 Ajoute une **Source navigateur** :
 
@@ -507,7 +531,8 @@ registre de `src/tts/index.ts`.
 
 Si les vannes sont trop molles ou trop dures, dans l'ordre :
 
-1. **`data/channel.md`** — dis ce qui marche et ce qui tombe à plat chez toi.
+1. **`data/channel.md`** — dis ce qui marche et ce qui tombe à plat chez toi,
+   puis relance `npm run preview` pour entendre la différence.
 2. **`MAX_SEVERITY`** — le réglage le plus direct.
 3. **La section `# Style` de `src/roast/prompt.ts`** — c'est là que se joue le
    registre. Ajouter des exemples de vannes que tu trouves réussies marche mieux
@@ -533,6 +558,7 @@ src/
   config.ts           lecture du .env
   db.ts               SQLite : chat, profils, opt-out, historique des vannes
   doctor.ts           `npm run doctor` : contrôle de pré-vol
+  preview.ts          `npm run preview` : vannes d'exemple sur ton chat enregistré
   twitch/
     auth.ts           OAuth Device Code Flow + refresh + validation horaire
     login.ts          `npm run login`

@@ -18,8 +18,8 @@ import { deleteAudio, spokenPseudo, synthesise, toSpeech } from '../tts/index.js
 import { RefusedError, generateRoast } from './generator.js';
 import { judgeRoast } from './judge.js';
 import { ANGLES } from './prompt.js';
-import { checkName, checkRoast } from './safety.js';
-import type { QueuedRoast, RoastTrigger, SessionState } from '../types.js';
+import { checkName, checkRoast, type SafetyVerdict } from './safety.js';
+import type { QueuedRoast, RoastDraft, RoastTrigger, SessionState, UserProfile } from '../types.js';
 
 const GIFT_WINDOW_MS = 60_000;
 /** Filet de securite si l'overlay ne renvoie jamais la fin de lecture. */
@@ -58,6 +58,20 @@ function peopleCitedBy(trigger: RoastTrigger, chat: string[]): string[] {
     if (token.length >= 4 && findUserByLogin(token)) found.add(token);
   }
   return [...found].filter((name) => !self.has(name.toLowerCase()));
+}
+
+/**
+ * Le filtre deterministe, avec tout ce qu'il doit savoir de la situation : ce
+ * que la voix va VRAIMENT dire (toSpeech() reecrit le pseudo et retire les
+ * emoji), les autres viewers cites, et le texte des viewers a ne pas recopier.
+ * Partage avec `npm run preview`, qui doit filtrer exactement comme le direct.
+ */
+export function screenDraft(trigger: RoastTrigger, profile: UserProfile, draft: RoastDraft): SafetyVerdict {
+  return checkRoast(draft, {
+    spoken: toSpeech(draft.roast, trigger.userName),
+    otherPeople: peopleCitedBy(trigger, profile.recentMessages),
+    viewerText: [trigger.message ?? '', ...profile.recentMessages],
+  });
 }
 
 export class RoastQueue extends EventEmitter {
@@ -433,14 +447,7 @@ export class RoastQueue extends EventEmitter {
       // !noroast / !forgetme / ban pendant la generation : on n'ecrit plus rien.
       if (this.isGone(item)) return;
 
-      // Le filtre controle ce que la voix va VRAIMENT dire, pas seulement ce
-      // qui s'affiche : toSpeech() reecrit le pseudo et retire les emoji.
-      const viewerText = [item.trigger.message ?? '', ...profile.recentMessages];
-      const verdict = checkRoast(draft, {
-        spoken: toSpeech(draft.roast, item.trigger.userName),
-        otherPeople: peopleCitedBy(item.trigger, profile.recentMessages),
-        viewerText,
-      });
+      const verdict = screenDraft(item.trigger, profile, draft);
 
       if (!verdict.ok) {
         this.fail(item, `filtre : ${verdict.reason}`);

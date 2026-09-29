@@ -14,7 +14,8 @@
     "backfill": "tsx src/twitch/backfill.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "doctor": "tsx src/doctor.ts"
+    "doctor": "tsx src/doctor.ts",
+    "preview": "tsx src/preview.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",

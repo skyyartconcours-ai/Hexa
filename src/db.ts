@@ -611,6 +611,29 @@ export function forgetUser(userId: string): number {
   return forgetTx(userId);
 }
 
+/** Les viewers qui parlent le plus dans le chat enregistre, pour `npm run preview`. */
+const stmtTopChatters = db.prepare<
+  [string, number, number],
+  { user_id: string; user_login: string; user_name: string; message_count: number }
+>(
+  `SELECT user_id, user_login, user_name, message_count FROM users
+   WHERE opted_out = 0 AND user_login != ? AND message_count >= ?
+   ORDER BY message_count DESC LIMIT ?`,
+);
+
+export function topChatters(
+  limit: number,
+  exceptLogin: string,
+  minMessages = 5,
+): Array<{ userId: string; userLogin: string; userName: string; messageCount: number }> {
+  return stmtTopChatters.all(exceptLogin.toLowerCase(), minMessages, limit).map((row) => ({
+    userId: row.user_id,
+    userLogin: row.user_login,
+    userName: row.user_name,
+    messageCount: row.message_count,
+  }));
+}
+
 /** Resolution d'un pseudo vers son user_id reel, pour le bouton de test. */
 const stmtUserByLogin = db.prepare<[string], { user_id: string; user_name: string }>(
   'SELECT user_id, user_name FROM users WHERE user_login = ?',
