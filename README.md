@@ -70,8 +70,14 @@ plutôt qu'à la chaîne ne produit aucune erreur — il ne reçoit simplement j
 de sub, et tu le découvres à l'antenne. Le doctor attrape ça, plus les scopes
 manquants (après un ajout comme `bits:read`, il faut refaire `npm run login`),
 une souscription EventSub refusée, la clé Anthropic et les identifiants de
-modèle (via un appel gratuit), la config TTS, `channel.md`, et le port. Aucun
-appel payant.
+modèle (via un appel gratuit), la clé et la voix TTS, `channel.md`, et le port.
+Un seul appel payant : cinq caractères de synthèse vocale, une fraction de
+centime — une voix mal copiée ne se voit que comme ça, et sinon c'est chaque
+vanne qui tombe en erreur à l'antenne.
+
+`npm run login` vérifie aussi que tu t'es connecté avec le compte **de la
+chaîne** : si ton navigateur était resté sur ton compte modo, il le dit et
+s'arrête au lieu d'annoncer « Prêt ».
 
 **`npm run doctor -- --live`**, au moins une fois, puis après chaque changement
 de modèle ou de voix. Il génère une vraie vanne, la fait relire par le juge et,

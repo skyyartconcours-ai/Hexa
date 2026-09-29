@@ -438,8 +438,22 @@
     els.testUser.value = '';
   });
 
+  // Le compteur « N messages / M viewers connus » n'arrive pas par le
+  // WebSocket : a 15 s, il affichait encore 0/0 bien apres les premiers
+  // messages du chat. Seul ce panneau est rafraichi aussi souvent — la file,
+  // elle, suit le WebSocket, et une reponse HTTP arrivee en retard la ferait
+  // brievement reculer.
+  async function refreshSide() {
+    try {
+      renderSide(await api('/api/state'));
+    } catch {
+      /* refreshFull signale deja un serveur injoignable */
+    }
+  }
+
   setInterval(renderTimer, 1000);
   setInterval(refreshFull, 15000);
+  setInterval(refreshSide, 3000);
   refreshFull();
   connect();
 })();

@@ -31,9 +31,9 @@ const INFO_COMMAND = '!hexa';
  * caracteres.
  */
 const INFO_TEXT =
-  '🤖 Hexa : pendant les sessions de roast, chaque sub passe à l\'antenne avec ' +
+  '🤖 Hexa : pendant les sessions de roast, chaque sub, cheer ou don passe à l\'antenne avec ' +
   'une vanne écrite et lue par une IA. Ce qui est gardé : ton pseudo et tes ' +
-  'messages du chat, 30 jours maximum, sur le PC du stream — rien n\'est revendu. ' +
+  `messages du chat, ${config.chat.retentionDays} jours maximum, sur le PC du stream — rien n'est revendu. ` +
   `${OPT_OUT_COMMAND} = aucune vanne sur toi, avant comme après. ` +
   `${FORGET_COMMAND} = tout ce qui te concerne est effacé sur-le-champ.`;
 
@@ -119,13 +119,16 @@ async function main(): Promise<void> {
       return;
     }
 
-    const open = (): void =>
+    // Minutes RESTANTES : le rappel de la 25e minute annoncait encore « pour 30 min ».
+    const open = (): void => {
+      const left = payload.endsAt ? Math.max(1, Math.round((payload.endsAt - Date.now()) / 60_000)) : 0;
       announce(
-        `🎤 SESSION DE ROAST OUVERTE${payload.minutes ? ` pour ${payload.minutes} min` : ''} — ` +
-          "chaque sub passe à l'antenne avec une vanne écrite et lue par une IA. " +
+        `🎤 SESSION DE ROAST OUVERTE${left ? ` encore ${left} min` : ''} — ` +
+          `chaque sub, cheer (dès ${config.cheer.minBits} bits) ou don passe à l'antenne avec une vanne écrite et lue par une IA. ` +
           `Tu ne veux pas ? Tape ${OPT_OUT_COMMAND} et tu es exclu, avant comme après. ` +
           `Détails : ${INFO_COMMAND}`,
       );
+    };
 
     open();
     announceTimer = setInterval(open, ANNOUNCE_EVERY_MS);
@@ -260,10 +263,14 @@ async function main(): Promise<void> {
 
   eventsub.on('down', () => setTwitchDown(true));
 
+  let listening = false;
   eventsub.on('ready', () => {
     setTwitchDown(false);
     setDegraded([]);
-    log.ok('En ecoute. Ouvre le panneau de controle pour lancer une session.');
+    // Une reconnexion Twitch (maintenance) en pleine session ne doit pas dire
+    // au streamer de « lancer une session ».
+    log.ok(listening ? 'Twitch reconnecte, souscriptions actives.' : 'En ecoute. Ouvre le panneau de controle pour lancer une session.');
+    listening = true;
   });
 
   eventsub.on('degraded', (failed) => {

@@ -88,13 +88,13 @@
     setStatus('coupé', true);
   }
 
-  function done(id) {
+  function done(id, failed = false) {
     if (!current || current.id !== id) return;
     current = null;
     currentAudio = null;
     card.classList.remove('is-visible');
     if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'ended', id }));
+      socket.send(JSON.stringify({ type: 'ended', id, failed }));
     }
   }
 
@@ -123,7 +123,8 @@
     audio.addEventListener('error', () => {
       if (!isCurrent()) return;
       setStatus('audio illisible', true);
-      setTimeout(() => done(payload.id), 1500);
+      // Signale l'echec : sinon la regie affichait « passee » pour une vanne muette.
+      setTimeout(() => done(payload.id, true), 1500);
     });
 
     audio

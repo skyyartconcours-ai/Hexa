@@ -11,8 +11,9 @@ import path from 'node:path';
  * au compte modo plutot qu'au broadcaster ne produit aucune erreur — il ne
  * recoit simplement jamais de sub. C'est ce genre de chose qu'on attrape ici.
  *
- * Aucun appel payant : la validation Twitch et le comptage de tokens Anthropic
- * sont gratuits, le TTS n'est pas appele.
+ * Un seul appel payant : cinq caracteres de synthese vocale, parce qu'une cle
+ * ou une voix mal copiee ne se voit que la. La validation Twitch et le
+ * comptage de tokens Anthropic sont gratuits.
  */
 interface Check {
   ok: boolean;
@@ -96,8 +97,12 @@ async function main(): Promise<void> {
         // Le seul test qui touche le vrai contrat EventSub : une session WebSocket
         // reelle, les vraies souscriptions, puis on ferme (elles disparaissent avec).
         const { EventSubClient } = await import('./twitch/eventsub.js');
+        // Les souscriptions de la CHAINE, celles que `npm start` demandera : avec
+        // l'id du token, le compte modo obtenait « ✓ » sur sa propre chaine.
+        const { getUserByLogin } = await import('./twitch/api.js');
+        const channelId = (await getUserByLogin(config.twitch.channel))?.id ?? info.user_id;
         await new Promise<void>((resolve) => {
-          const client = new EventSubClient(info.user_id);
+          const client = new EventSubClient(channelId);
           const done = (ok: boolean, detail: string): void => {
             clearTimeout(timer);
             client.stop();
@@ -177,7 +182,17 @@ async function main(): Promise<void> {
     } else if (!chosen.voiceId) {
       fail('TTS', `${tts.provider} : identifiant de voix absent`, 'Choisis une voix dans ton compte et colle son id');
     } else {
-      pass('TTS', `${tts.provider}, cle et voix renseignees (l\'appel reel n\'est pas teste ici)`);
+      // Une cle ou une voix mal copiee passait « ✓ » ici, puis CHAQUE vanne
+      // tombait en erreur a l'antenne. Seule une synthese le prouve : cinq
+      // caracteres, une fraction de centime.
+      try {
+        const { activeProvider } = await import('./tts/index.js');
+        const audio = await activeProvider()!.synthesise('Test.');
+        pass('TTS', `${tts.provider} : cle et voix acceptees (${Math.round(audio.length / 1024)} Ko pour 5 caracteres)`);
+      } catch (error) {
+        fail('TTS', `${tts.provider} refuse la synthese : ${error instanceof Error ? error.message : String(error)}`,
+          "Verifie la cle API et l'identifiant de voix dans .env");
+      }
     }
   }
 

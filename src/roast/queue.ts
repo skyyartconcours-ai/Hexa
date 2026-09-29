@@ -390,11 +390,6 @@ export class RoastQueue extends EventEmitter {
         return;
       }
 
-      item.text = draft.roast;
-      item.angle = draft.angle;
-      item.severity = draft.severity;
-      item.delivery = draft.delivery ?? null;
-
       // Rien n'empechait jusqu'ici la dixieme vanne de la session d'etre le
       // dixieme jeu de mots sur le pseudo. Chaque vanne est drole seule, et
       // l'ensemble sonne comme une machine. On garde les angles deja servis
@@ -409,10 +404,19 @@ export class RoastQueue extends EventEmitter {
 
       // Le texte affiche a l'overlay reste propre : la didascalie ne part
       // qu'au TTS, et seulement s'il sait l'interpreter.
-      item.audioPath = await synthesise(item.id, draft.roast, draft.delivery, item.trigger.userName);
+      const audioPath = await synthesise(item.id, draft.roast, draft.delivery, item.trigger.userName);
+      // Texte et voix publies ENSEMBLE : la regie affiche ▶ des qu'une vanne
+      // « en attente » a un texte. Publie avant la synthese, un ▶ pendant le TTS
+      // envoyait une carte muette a l'antenne (audioUrl null), puis la vanne
+      // repassait « en attente » a la fin de la synthese.
+      item.text = draft.roast;
+      item.angle = draft.angle;
+      item.severity = draft.severity;
+      item.delivery = draft.delivery ?? null;
+      item.audioPath = audioPath;
       // L'extension depend du fournisseur de voix : on la derive du fichier
       // reellement ecrit plutot que de la supposer.
-      item.audioUrl = item.audioPath ? `/audio/${path.basename(item.audioPath)}` : null;
+      item.audioUrl = audioPath ? `/audio/${path.basename(audioPath)}` : null;
       // Toute la chaine (LLM + TTS) a repondu : l'alerte de la regie s'eteint.
       this.generationFailures = 0;
       this.lastGenerationError = null;
@@ -642,7 +646,7 @@ export class RoastQueue extends EventEmitter {
   }
 
   /** Appele par l'overlay quand l'audio est termine. */
-  finishPlayback(id: string): void {
+  finishPlayback(id: string, failed = false): void {
     if (this.nowPlaying !== id) return;
     if (this.playbackTimer) clearTimeout(this.playbackTimer);
     this.playbackTimer = null;
@@ -651,7 +655,11 @@ export class RoastQueue extends EventEmitter {
 
     const item = this.items.get(id);
     const purged = this.purgedWhilePlaying.delete(id);
-    if (item) {
+    if (item && failed && !purged) {
+      // L'overlay n'a rien pu lire : « passee » serait faux, le viewer n'a rien
+      // entendu. Visible 20 s avec ↻ pour la relancer.
+      this.fail(item, "overlay : l'audio n'a pas pu etre lu, rien n'est passe a l'antenne");
+    } else if (item) {
       item.status = 'played';
       item.playedAt = Date.now();
       if (!purged) this.record(item, 'played');

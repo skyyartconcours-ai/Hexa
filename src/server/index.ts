@@ -259,7 +259,7 @@ export function startServer(queue: RoastQueue): ServerHandle {
 
     socket.on('message', (raw) => {
       try {
-        const message = JSON.parse(raw.toString()) as { type?: string; id?: string };
+        const message = JSON.parse(raw.toString()) as { type?: string; id?: string; failed?: boolean };
 
         // L'overlay s'annonce a la connexion. Sans ca, un onglet de regie ou un
         // second overlay pouvait declarer une vanne terminee a la place d'OBS —
@@ -273,7 +273,7 @@ export function startServer(queue: RoastQueue): ServerHandle {
 
         // L'overlay signale la fin de lecture : c'est ce qui debloque la vanne suivante.
         if (message.type === 'ended' && message.id && overlays.has(socket)) {
-          queue.finishPlayback(message.id);
+          queue.finishPlayback(message.id, message.failed === true);
         }
       } catch {
         /* message ignore */
