@@ -145,7 +145,7 @@ export const config = {
   },
 
   session: {
-    defaultMinutes: int('SESSION_DEFAULT_MINUTES', 30),
+    defaultMinutes: int('SESSION_DEFAULT_MINUTES', 20),
     autoPlay: bool('AUTO_PLAY', false),
     minIntervalMs: int('MIN_INTERVAL_SECONDS', 8) * 1000,
     maxQueue: int('MAX_QUEUE', 40),

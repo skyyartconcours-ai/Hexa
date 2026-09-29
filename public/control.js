@@ -368,11 +368,19 @@
     els.health.textContent = problems.join('  •  ');
   }
 
+  let minutesTouched = false;
+  els.minutes.addEventListener('input', () => {
+    minutesTouched = true;
+  });
+
   async function refreshFull() {
     try {
       const state = await api('/api/state');
       session = state.session;
       if (state.generation) generation = state.generation;
+      // La durée par défaut vient du .env (SESSION_DEFAULT_MINUTES), tant que
+      // le streamer n'a pas tapé la sienne dans le champ.
+      if (!minutesTouched && state.settings?.defaultMinutes) els.minutes.value = state.settings.defaultMinutes;
       renderSession();
       renderQueue(state.queue);
       renderSide(state);
@@ -414,7 +422,7 @@
   // ── Interactions ─────────────────────────────────────────────────────
 
   els.start.addEventListener('click', () =>
-    api('/api/session/start', { minutes: Number(els.minutes.value) || 30 }),
+    api('/api/session/start', { minutes: Number(els.minutes.value) || undefined }),
   );
   els.stop.addEventListener('click', () => api('/api/session/stop', {}));
   els.skip.addEventListener('click', () => api('/api/roast/skip', {}));
