@@ -54,14 +54,18 @@
   // streamer pendant qu'il arbitre, c'est pire que pas de pré-écoute du tout.
   const preview = { id: null, audio: null };
   let lastItems = [];
+  /** id -> { key, node } : lignes déjà rendues (voir renderQueue). */
+  const rows = new Map();
 
   function stopPreview() {
-    if (preview.audio) {
-      preview.audio.pause();
-      preview.audio.src = '';
-    }
+    const audio = preview.audio;
     preview.id = null;
     preview.audio = null;
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+    }
   }
 
   function togglePreview(item) {
@@ -74,18 +78,17 @@
     const audio = new Audio(item.audioUrl);
     preview.id = item.id;
     preview.audio = audio;
-    audio.addEventListener('ended', () => {
+    // L'arrêt de la pré-écoute précédente émet ses événements (error, rejet de
+    // play()) APRÈS le démarrage de celle-ci : sans ce test, ils la coupaient
+    // aussitôt et passer d'une vanne à l'autre ne jouait rien.
+    const finish = () => {
+      if (preview.audio !== audio) return;
       stopPreview();
       rerender();
-    });
-    audio.addEventListener('error', () => {
-      stopPreview();
-      rerender();
-    });
-    audio.play().catch(() => {
-      stopPreview();
-      rerender();
-    });
+    };
+    audio.addEventListener('ended', finish);
+    audio.addEventListener('error', finish);
+    audio.play().catch(finish);
     rerender();
   }
 
@@ -153,12 +156,38 @@
     }
 
     if (!items.length) {
+      rows.clear();
       els.queue.innerHTML = '<p class="empty">Rien pour l\'instant.</p>';
       return;
     }
 
-    els.queue.innerHTML = '';
+    // Une ligne inchangée garde son nœud DOM : recréer tous les boutons à
+    // chaque message du serveur faisait perdre un clic sur ▶ quand le rendu
+    // tombait entre l'appui et le relâchement.
+    const wanted = [];
     for (const item of items) {
+      const key = JSON.stringify([item.status, item.text, item.error, item.warning, item.severity,
+        item.delivery, item.angle, item.audioUrl, preview.id === item.id]);
+      const cached = rows.get(item.id);
+      if (cached && cached.key === key) {
+        wanted.push(cached.node);
+        continue;
+      }
+      const node = buildRow(item);
+      rows.set(item.id, { key, node });
+      wanted.push(node);
+    }
+    const ids = new Set(items.map((i) => i.id));
+    for (const id of rows.keys()) if (!ids.has(id)) rows.delete(id);
+    els.queue.querySelector('.empty')?.remove();
+    wanted.forEach((node, i) => {
+      if (els.queue.children[i] !== node) els.queue.insertBefore(node, els.queue.children[i] ?? null);
+    });
+    while (els.queue.children.length > wanted.length) els.queue.lastElementChild.remove();
+  }
+
+  function buildRow(item) {
+    {
       const node = document.createElement('article');
       node.className = 'item';
       if (item.status === 'playing') node.classList.add('is-playing');
@@ -189,6 +218,10 @@
       const status = document.createElement('span');
       status.className = item.status === 'failed' ? 'tag tag--err' : 'tag';
       status.textContent = STATUS_LABELS[item.status] ?? item.status;
+      // Une panne d'API ou une vanne périmée n'est pas une vanne « filtrée ».
+      if (item.status === 'failed' && item.error && !/^(filtre|juge|refus)/.test(item.error)) {
+        status.textContent = item.error.startsWith('perimee') ? 'périmée' : 'erreur';
+      }
       head.append(status);
 
       if (item.delivery) {
@@ -274,7 +307,7 @@
         node.append(actions);
       }
 
-      els.queue.append(node);
+      return node;
     }
   }
 
@@ -301,8 +334,23 @@
 
   // Les deux pannes les plus probables sont invisibles : l'overlay pas branché
   // dans OBS, et les souscriptions Twitch qui ont échoué au démarrage.
-  function renderHealth({ overlays, degraded }) {
+  let lastHealth = { overlays: 1, degraded: [], twitchDown: false };
+  let generation = { failures: 0, lastError: null };
+
+  function renderHealth(health = lastHealth) {
+    lastHealth = health;
+    const { overlays, degraded, twitchDown } = health;
     const problems = [];
+    if (twitchDown) {
+      problems.push(
+        'Twitch déconnecté : les subs ne sont PAS reçus en ce moment. Reconnexion automatique en cours…',
+      );
+    }
+    if (generation.failures >= 2) {
+      problems.push(
+        `Génération en échec (${generation.failures} d'affilée) : ${generation.lastError ?? 'erreur inconnue'}`,
+      );
+    }
     if (degraded && degraded.length) {
       problems.push(
         `Twitch : ${degraded.length} souscription(s) en échec (${degraded.join(', ')}). ` +
@@ -311,8 +359,9 @@
     }
     if (!overlays) {
       problems.push(
-        "Aucun overlay connecté : ajoute la source navigateur dans OBS sur /overlay, " +
-          'sinon les vannes partent dans le vide.',
+        'Aucun overlay connecté — les vannes attendent. Si la source navigateur est déjà ' +
+          "dans OBS, elle a été chargée avant Hexa : clic droit sur la source → Actualiser. " +
+          'Sinon, ajoute une source navigateur sur /overlay.',
       );
     }
     els.health.hidden = problems.length === 0;
@@ -323,9 +372,11 @@
     try {
       const state = await api('/api/state');
       session = state.session;
+      if (state.generation) generation = state.generation;
       renderSession();
       renderQueue(state.queue);
       renderSide(state);
+      renderHealth();
     } catch {
       els.health.hidden = false;
       els.health.textContent = 'Serveur injoignable — les données affichées sont périmées.';
@@ -348,6 +399,10 @@
         return;
       }
       if (payload.type !== 'state') return;
+      if (payload.generation) {
+        generation = payload.generation;
+        renderHealth();
+      }
       session = payload.session;
       renderSession();
       renderQueue(payload.queue);

@@ -34,6 +34,8 @@ export interface RoastTrigger {
   /** Don hors Twitch (Tipeee, StreamElements...) : montant et devise. */
   amount?: number;
   currency?: string;
+  /** Vanne declenchee par le bouton de test de la regie, pas par un vrai evenement. */
+  test?: boolean;
 }
 
 /** Profil reconstruit depuis notre propre log de chat. */
@@ -84,6 +86,8 @@ export interface QueuedRoast {
    */
   audioUrl: string | null;
   createdAt: number;
+  /** Validee (bouton ▶ ou lecture auto) : le delai de peremption repart de la. */
+  approvedAt?: number;
   playedAt: number | null;
   /** Vanne jetee : son texte n'est plus affiche. */
   error?: string;

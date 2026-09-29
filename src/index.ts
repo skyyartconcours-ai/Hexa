@@ -16,7 +16,6 @@ import { reportChannelContext } from './roast/channel.js';
 import { RoastQueue } from './roast/queue.js';
 import { loadCustomBlocklist, sanitiseChatMessage } from './roast/safety.js';
 import { startServer } from './server/index.js';
-import { clearAudioDir } from './tts/index.js';
 import { getCurrentUser, getUserByLogin, listSubscribers, sendChatMessage } from './twitch/api.js';
 import { hasStoredToken, validateToken } from './twitch/auth.js';
 import { EventSubClient } from './twitch/eventsub.js';
@@ -55,7 +54,6 @@ async function main(): Promise<void> {
 
   loadCustomBlocklist();
   reportChannelContext();
-  clearAudioDir();
   purgeOldMessages();
   setInterval(purgeOldMessages, 6 * 3600_000);
 
@@ -73,7 +71,7 @@ async function main(): Promise<void> {
 
   const queue = new RoastQueue();
   queue.run();
-  const { setDegraded } = startServer(queue);
+  const { setDegraded, setTwitchDown } = startServer(queue);
   setInterval(() => {
     validateToken().catch((error: unknown) => {
       const reason = error instanceof Error ? error.message : String(error);
@@ -260,12 +258,16 @@ async function main(): Promise<void> {
     queue.submit(trigger);
   });
 
+  eventsub.on('down', () => setTwitchDown(true));
+
   eventsub.on('ready', () => {
+    setTwitchDown(false);
     setDegraded([]);
     log.ok('En ecoute. Ouvre le panneau de controle pour lancer une session.');
   });
 
   eventsub.on('degraded', (failed) => {
+    setTwitchDown(false);
     setDegraded(failed);
     log.error(
       `NE PAS LANCER DE SESSION : ${failed.length} souscription(s) Twitch ont echoue ` +
@@ -283,8 +285,11 @@ async function main(): Promise<void> {
 
   const shutdown = (): void => {
     log.info('Arret...');
+    // Comme « Tout arreter » : coupe la voix, eteint le bandeau de l'overlay,
+    // annonce la fin en chat. Sans ca, le bandeau restait a l'antenne.
+    if (queue.getState().active) queue.stop('arret du programme');
     eventsub.stop();
-    process.exit(0);
+    setTimeout(() => process.exit(0), 1500); // laisse partir le broadcast et l'annonce
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
@@ -292,5 +297,7 @@ async function main(): Promise<void> {
 
 main().catch((error: unknown) => {
   log.error(error instanceof Error ? error.stack ?? error.message : error);
-  process.exitCode = 1;
+  // exitCode seul ne suffit pas : l'intervalle de purge, deja arme, gardait le
+  // processus en vie sans serveur.
+  process.exit(1);
 });

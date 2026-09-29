@@ -43,6 +43,9 @@
       setStatus('hexa connecté', true);
     });
     socket.addEventListener('close', () => {
+      // Sans serveur plus rien ne sera roasté : le bandeau ne doit pas continuer
+      // à le promettre à l'antenne. Le prochain 'state' le rallume si besoin.
+      bannerEl.classList.remove('is-visible');
       setStatus('déconnecté — nouvelle tentative…');
       setTimeout(connect, 2000);
     });
@@ -64,12 +67,22 @@
     });
   }
 
+  /**
+   * Arrête l'audio en cours sans déclencher son handler 'error' : `src = ''`
+   * lève un MEDIA_ERR_SRC_NOT_SUPPORTED, qui affichait « audio illisible » à
+   * l'antenne après chaque coupure.
+   */
+  function stopAudio() {
+    const audio = currentAudio;
+    currentAudio = null;
+    if (!audio) return;
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+  }
+
   function cut() {
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.src = '';
-      currentAudio = null;
-    }
+    stopAudio();
     current = null;
     card.classList.remove('is-visible');
     setStatus('coupé', true);
@@ -88,11 +101,7 @@
   function play(payload) {
     // Deux vannes ne doivent jamais se superposer : si l'une tourne encore
     // (double overlay, 'ended' prématuré), on la coupe avant de démarrer.
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.src = '';
-      currentAudio = null;
-    }
+    stopAudio();
     current = payload;
 
     badgeEl.textContent = BADGES[payload.eventType] ?? 'sub';
@@ -107,8 +116,12 @@
 
     const audio = new Audio(payload.audioUrl);
     currentAudio = audio;
+    // Les événements d'un audio qu'on a déjà coupé (cut, vanne suivante) ne
+    // concernent plus l'antenne.
+    const isCurrent = () => currentAudio === audio;
     audio.addEventListener('ended', () => setTimeout(() => done(payload.id), OUTRO_MS));
     audio.addEventListener('error', () => {
+      if (!isCurrent()) return;
       setStatus('audio illisible', true);
       setTimeout(() => done(payload.id), 1500);
     });
@@ -119,9 +132,12 @@
         audioUnlocked = true;
         unlockBtn.hidden = true;
       })
-      .catch(() => {
-        // Un navigateur classique bloque l'autoplay tant qu'il n'y a pas eu de
-        // clic. OBS ne passe jamais ici.
+      .catch((error) => {
+        if (!isCurrent()) return; // AbortError d'une coupure : rien à signaler
+        // Seul un vrai refus d'autoplay justifie le bouton : il recouvre toute
+        // la scène OBS, et personne ne peut cliquer dessus en direct. Un fichier
+        // illisible (NotSupportedError) est déjà traité par l'événement 'error'.
+        if (!error || error.name !== 'NotAllowedError') return;
         if (!audioUnlocked) unlockBtn.hidden = false;
         setStatus('son bloqué par le navigateur');
         setTimeout(() => done(payload.id), TEXT_ONLY_MS);

@@ -147,6 +147,9 @@ export class EventSubClient extends EventEmitter {
       this.resuming = false;
       this.retirePrevious();
       if (this.closing) return;
+      // Pendant la coupure, les subs ne sont PAS recus (Twitch ne rejoue rien) :
+      // la regie doit le savoir, pas seulement le terminal.
+      this.emit('down');
       log.warn(`EventSub ferme (code ${code}). Reconnexion dans ${this.reconnectDelayMs} ms.`);
       setTimeout(() => {
         if (!this.closing) this.connect(DEFAULT_URL);
@@ -447,9 +450,12 @@ export interface EventSubClient {
   on(event: 'moderation', listener: (m: { userId: string; messageId: string | null }) => void): this;
   /** Au moins une souscription a echoue : l'outil ne recevra pas tout. */
   on(event: 'degraded', listener: (failed: string[]) => void): this;
+  /** Connexion perdue, reconnexion en cours : aucun evenement recu d'ici la. */
+  on(event: 'down', listener: () => void): this;
   emit(event: 'chat', message: ChatMessageEvent): boolean;
   emit(event: 'sub', trigger: RoastTrigger): boolean;
   emit(event: 'ready'): boolean;
   emit(event: 'moderation', m: { userId: string; messageId: string | null }): boolean;
   emit(event: 'degraded', failed: string[]): boolean;
+  emit(event: 'down'): boolean;
 }

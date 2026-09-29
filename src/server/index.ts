@@ -6,6 +6,7 @@ import { AUDIO_DIR, PUBLIC_DIR, config } from '../config.js';
 import { chatStats, findUserByLogin, isOptedOutName, listOptedOut, nameKey } from '../db.js';
 import { log } from '../log.js';
 import type { RoastQueue } from '../roast/queue.js';
+import { clearAudioDir } from '../tts/index.js';
 import type { RoastTrigger } from '../types.js';
 
 const TEST_TYPES = ['sub', 'resub', 'gift', 'gift_recipient', 'cheer', 'donation'] as const;
@@ -39,6 +40,8 @@ export interface ServerHandle {
   server: http.Server;
   /** Signale a la regie que des souscriptions Twitch ont echoue. */
   setDegraded(failed: string[]): void;
+  /** Connexion EventSub coupee / retablie. */
+  setTwitchDown(down: boolean): void;
 }
 
 /**
@@ -89,6 +92,7 @@ export function startServer(queue: RoastQueue): ServerHandle {
     res.json({
       session: queue.getState(),
       queue: queue.getQueue(),
+      generation: queue.getGenerationHealth(),
       settings: {
         model: config.anthropic.model,
         tts: config.tts.provider,
@@ -154,7 +158,8 @@ export function startServer(queue: RoastQueue): ServerHandle {
       userLogin: name.toLowerCase(),
       userName: known?.userName ?? name,
     });
-    const id = queue.submit(trigger, { force: true });
+    // `test` : archivee a part, elle ne met pas le vrai viewer en cooldown.
+    const id = queue.submit({ ...trigger, test: true }, { force: true });
     return res.json({ id, known: known !== null });
   });
 
@@ -224,6 +229,9 @@ export function startServer(queue: RoastQueue): ServerHandle {
   /** Seuls les overlays peuvent declarer une vanne terminee (voir plus bas). */
   const overlays = new Set<WebSocket>();
   let degradedReason: string[] = [];
+  /** EventSub coupe (reseau, panne Twitch) : les subs ne sont PAS recus. */
+  let twitchDown = false;
+  const health = () => ({ type: 'health', overlays: overlayCount(), degraded: degradedReason, twitchDown });
 
   function overlayCount(): number {
     let n = 0;
@@ -241,7 +249,12 @@ export function startServer(queue: RoastQueue): ServerHandle {
   wss.on('connection', (socket) => {
     clients.add(socket);
     socket.send(
-      JSON.stringify({ type: 'state', session: queue.getState(), queue: queue.getQueue() }),
+      JSON.stringify({
+        type: 'state',
+        session: queue.getState(),
+        queue: queue.getQueue(),
+        generation: queue.getGenerationHealth(),
+      }),
     );
 
     socket.on('message', (raw) => {
@@ -253,7 +266,8 @@ export function startServer(queue: RoastQueue): ServerHandle {
         // et on se retrouvait avec deux voix simultanees a l'antenne.
         if (message.type === 'hello_overlay') {
           overlays.add(socket);
-          broadcast({ type: 'health', overlays: overlayCount(), degraded: degradedReason });
+          queue.setOutputReady(true);
+          broadcast(health());
           return;
         }
 
@@ -269,13 +283,14 @@ export function startServer(queue: RoastQueue): ServerHandle {
     const forget = (): void => {
       clients.delete(socket);
       if (overlays.delete(socket)) {
-        broadcast({ type: 'health', overlays: overlayCount(), degraded: degradedReason });
+        queue.setOutputReady(overlayCount() > 0);
+        broadcast(health());
       }
     };
     socket.on('close', forget);
     socket.on('error', forget);
 
-    socket.send(JSON.stringify({ type: 'health', overlays: overlayCount(), degraded: degradedReason }));
+    socket.send(JSON.stringify(health()));
   });
 
   queue.on('state', (payload) => broadcast({ type: 'state', ...payload }));
@@ -285,15 +300,34 @@ export function startServer(queue: RoastQueue): ServerHandle {
   /** Remonte a la regie que des souscriptions Twitch ont echoue. */
   function setDegraded(failed: string[]): void {
     degradedReason = failed;
-    broadcast({ type: 'health', overlays: overlayCount(), degraded: degradedReason });
+    broadcast(health());
+  }
+
+  function setTwitchDown(down: boolean): void {
+    if (twitchDown === down) return;
+    twitchDown = down;
+    broadcast(health());
   }
 
   // Ecoute uniquement en local : l'API de regie n'a pas d'authentification, et
   // /api/test peut faire prononcer un texte arbitraire a l'antenne.
+  // Un deuxieme `npm start` : message clair plutot qu'une pile d'appels.
+  wss.on('error', () => {});
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EADDRINUSE') {
+      log.error(`Le port ${config.server.port} est deja pris : Hexa tourne sans doute deja dans une autre fenetre.`);
+      process.exit(1);
+    }
+    throw error;
+  });
+
   server.listen(config.server.port, '127.0.0.1', () => {
+    // Seulement une fois le port obtenu : un deuxieme `npm start` effacait
+    // l'audio des vannes en attente de l'instance deja lancee avant d'echouer.
+    clearAudioDir();
     log.ok(`Panneau de controle : http://localhost:${config.server.port}/control`);
     log.ok(`Source navigateur OBS : http://localhost:${config.server.port}/overlay`);
   });
 
-  return { server, setDegraded };
+  return { server, setDegraded, setTwitchDown };
 }

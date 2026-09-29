@@ -503,8 +503,10 @@ const stmtPastRoasts = db.prepare<[string, number], { text: string }>(
   'SELECT text FROM roast_history WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
 );
 
+// Les vannes de test (event_type 'test:...') ne comptent pas : tester sur le
+// pseudo d'un habitue avant le live ne doit pas ignorer son vrai sub ensuite.
 const stmtLastRoastAt = db.prepare<[string], { created_at: number }>(
-  'SELECT created_at FROM roast_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 1',
+  "SELECT created_at FROM roast_history WHERE user_id = ? AND event_type NOT LIKE 'test:%' ORDER BY created_at DESC LIMIT 1",
 );
 
 export function saveRoast(entry: {
