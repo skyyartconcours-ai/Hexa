@@ -31,7 +31,7 @@ const INFO_COMMAND = '!hexa';
  * caracteres.
  */
 const INFO_TEXT =
-  '🤖 Hexa : pendant les sessions de roast, chaque sub, cheer ou don passe à l\'antenne avec ' +
+  '🤖 Hexa : pendant les sessions de roast, chaque sub, cheer ou don peut passer à l\'antenne avec ' +
   'une vanne écrite et lue par une IA. Ce qui est gardé : ton pseudo et tes ' +
   `messages du chat, ${config.chat.retentionDays} jours maximum, sur le PC du stream — rien n'est revendu. ` +
   `${OPT_OUT_COMMAND} = aucune vanne sur toi, avant comme après. ` +
@@ -170,12 +170,13 @@ async function main(): Promise<void> {
     }
 
     // Minutes RESTANTES, recalculees a chaque envoi : le rappel de la 25e minute
-    // annoncait encore « pour 30 min ».
+    // annoncait encore « pour 30 min ». « Peut passer » et pas « passe » : au-dela
+    // d'environ 70 vannes par fenetre de 20 min, la file ignore les suivants.
     const openText = (): string => {
       const left = payload.endsAt ? Math.max(1, Math.round((payload.endsAt - Date.now()) / 60_000)) : 0;
       return (
         `🎤 SESSION DE ROAST OUVERTE${left ? ` encore ${left} min` : ''} — ` +
-        `chaque sub, cheer (dès ${config.cheer.minBits} bits) ou don passe à l'antenne avec une vanne écrite et lue par une IA. ` +
+        `chaque sub, cheer (dès ${config.cheer.minBits} bits) ou don peut passer à l'antenne avec une vanne écrite et lue par une IA. ` +
         `Tu ne veux pas ? Tape ${OPT_OUT_COMMAND} et tu es exclu, avant comme après. ` +
         `Détails : ${INFO_COMMAND}`
       );
