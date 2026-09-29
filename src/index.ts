@@ -179,11 +179,16 @@ async function main(): Promise<void> {
   eventsub.on('chat', (message) => {
     // Premier mot seulement ("!noroast stp" doit marcher), et sans les caracteres
     // invisibles que certains clients de chat ajoutent aux messages repetes.
-    const lower = message.text
-      .replace(/[\u{E0000}-\u{E007F}\u034F\u200B-\u200D\u2060\uFEFF]/gu, '')
+    // Une reponse Twitch commence par "@pseudo " : on saute les mentions. NFKC
+    // ramene "！noroast" (clavier pleine chasse) a "!noroast", et la ponctuation
+    // finale ("!noroast!", "!noroast,") ne compte pas.
+    const words = message.text
+      .normalize('NFKC')
+      .replace(/[\u{E0000}-\u{E007F}\p{Cf}\u034F]/gu, '')
       .trim()
       .toLowerCase()
-      .split(/\s+/, 1)[0] ?? '';
+      .split(/\s+/);
+    const lower = (words.find((word) => !word.startsWith('@')) ?? '').replace(/[.,;:!?…]+$/u, '');
 
     if (lower === OPT_OUT_COMMAND) {
       setOptOut(message.userId, message.userLogin, message.userName, true);

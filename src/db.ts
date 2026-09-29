@@ -293,6 +293,28 @@ export function listOptedOut(): string[] {
   return stmtListOptedOut.all().map((row) => row.user_name);
 }
 
+/**
+ * Nom tape chez un service de dons -> forme comparable a un login Twitch :
+ * "@Kévin_QA\u200B" -> "kevin_qa". Sert a respecter un !noroast meme quand le
+ * nom du don n'est pas ecrit exactement comme le login.
+ */
+export function nameKey(name: string): string {
+  return name
+    .normalize('NFKD')
+    .replace(/[\p{M}\p{Cf}]/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '');
+}
+
+const stmtOptedOutByName = db.prepare<[string, string], { user_id: string }>(
+  'SELECT user_id FROM users WHERE opted_out = 1 AND (user_login = ? OR lower(user_name) = ?)',
+);
+
+export function isOptedOutName(name: string): boolean {
+  const key = nameKey(name);
+  return key !== '' && stmtOptedOutByName.get(key, key) !== undefined;
+}
+
 // ── Abonnes ────────────────────────────────────────────────────────────────
 
 export interface SubscriberRow {
@@ -557,8 +579,13 @@ export function purgeOldMessages(): void {
  * ca, effacer ses donnees effacerait son opposition, et son message suivant la
  * recreerait comme si elle n'avait jamais rien demande.
  */
+const stmtLoginOf = db.prepare<[string], { user_login: string }>('SELECT user_login FROM users WHERE user_id = ?');
+
 const forgetTx = db.transaction((userId: string) => {
   const wasOptedOut = stmtIsOptedOut.get(userId)?.opted_out === 1;
+  // Le login survit avec l'opposition : sans lui, un don fait sous ce nom
+  // (/api/donation) ne retrouve plus le !noroast.
+  const login = stmtLoginOf.get(userId)?.user_login ?? '';
 
   let removed = db.prepare('DELETE FROM messages WHERE user_id = ?').run(userId).changes;
   removed += db.prepare('DELETE FROM roast_history WHERE user_id = ?').run(userId).changes;
@@ -568,8 +595,8 @@ const forgetTx = db.transaction((userId: string) => {
   if (wasOptedOut) {
     db.prepare(
       `INSERT INTO users (user_id, user_login, user_name, first_seen, last_seen, message_count, opted_out)
-       VALUES (?, '', '', ?, ?, 0, 1)`,
-    ).run(userId, Date.now(), Date.now());
+       VALUES (?, ?, '', ?, ?, 0, 1)`,
+    ).run(userId, login, Date.now(), Date.now());
   }
 
   // La personne est aussi inscrite comme effacee, pour que le backfill ne la

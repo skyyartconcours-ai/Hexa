@@ -26,6 +26,11 @@ export interface RoastTrigger {
   gifterName?: string;
   /** Cheer : nombre de bits envoyes. */
   bits?: number;
+  /**
+   * Autres identites dont le cooldown s'applique aussi : un don fait sous le
+   * login d'un viewer partage son cooldown, jamais son profil.
+   */
+  cooldownIds?: string[];
   /** Don hors Twitch (Tipeee, StreamElements...) : montant et devise. */
   amount?: number;
   currency?: string;

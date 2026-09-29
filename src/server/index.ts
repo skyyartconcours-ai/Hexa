@@ -3,7 +3,7 @@ import path from 'node:path';
 import express from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { AUDIO_DIR, PUBLIC_DIR, config } from '../config.js';
-import { chatStats, findUserByLogin, listOptedOut } from '../db.js';
+import { chatStats, findUserByLogin, isOptedOutName, listOptedOut, nameKey } from '../db.js';
 import { log } from '../log.js';
 import type { RoastQueue } from '../roast/queue.js';
 import type { RoastTrigger } from '../types.js';
@@ -169,23 +169,45 @@ export function startServer(queue: RoastQueue): ServerHandle {
    * Pas de `force` : un vrai don respecte la session, le cooldown et l'opt-out.
    */
   app.post('/api/donation', (req, res) => {
-    const name = String(req.body?.userName ?? req.body?.user ?? '').trim();
+    // Le nom vient du service de dons : tape librement, jamais verifie. Il ne
+    // doit ni emprunter l'identite (et l'historique de chat) d'un viewer, ni
+    // contourner son !noroast, ni porter de l'invisible jusqu'au prompt.
+    const name = String(req.body?.userName ?? req.body?.user ?? '')
+      .normalize('NFKC')
+      .replace(/[\p{Cc}\p{Cf}\u115F\u1160\u2800\u3164\uFFA0]/gu, '')
+      // S'affiche en gros sur l'overlay : lettres, chiffres, espace et _-.' seulement.
+      .replace(/[^\p{L}\p{N}\s_\-.']/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 25);
     const amount = Number(req.body?.amount);
     if (!name) return res.status(400).json({ error: 'userName manquant' });
     if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: 'amount invalide' });
+    if (isOptedOutName(name)) return res.json({ id: null, known: false, skipped: 'opt-out' });
 
-    const known = findUserByLogin(name);
+    // Le NOM ne relie jamais le don a un viewer (profil, historique de chat) : n'importe
+    // qui peut taper n'importe quel nom. Seul l'identifiant Twitch transmis par le
+    // service de dons (donateur connecte via Twitch) le fait.
+    const key = nameKey(name) || 'anonyme';
+    const verifiedId = typeof req.body?.twitchUserId === 'string' && req.body.twitchUserId ? req.body.twitchUserId : null;
     const trigger: RoastTrigger = {
       type: 'donation',
-      userId: known?.userId ?? `donation:${name.toLowerCase()}`,
-      userLogin: name.toLowerCase(),
-      userName: known?.userName ?? name,
+      userId: verifiedId ?? `donation:${key}`,
+      userLogin: key,
+      userName: name,
+      // Meme personne probable : le cooldown du compte Twitch de ce login s'applique (pas son profil).
+      cooldownIds: (() => {
+        const twin = findUserByLogin(key);
+        return twin && twin.userId !== verifiedId ? [twin.userId] : undefined;
+      })(),
+      // Les services de dons remplacent le nom d'un don anonyme par un libelle.
+      anonymous: req.body?.anonymous === true || /^(anonym(e|ous)?|anon)$/i.test(name),
       amount,
       currency: String(req.body?.currency ?? 'EUR').slice(0, 5),
       message: typeof req.body?.message === 'string' ? req.body.message.slice(0, 300) : undefined,
     };
     const id = queue.submit(trigger);
-    return res.json({ id, known: known !== null });
+    return res.json({ id, known: false });
   });
 
   // ── WebSocket ──────────────────────────────────────────────────────────

@@ -39,10 +39,27 @@ function effort(key: string, fallback: Effort): Effort {
   return raw as Effort;
 }
 
+/**
+ * Une faute de frappe ne doit jamais eteindre un garde-fou en silence :
+ * JUDGE_ENABLED=on ou =vrai valait false, donc juge desactive. Valeur hors
+ * liste = erreur au demarrage, comme pour ROAST_EFFORT.
+ */
 function bool(key: string, fallback: boolean): boolean {
   const raw = str(key).toLowerCase();
   if (!raw) return fallback;
-  return raw === 'true' || raw === '1' || raw === 'yes' || raw === 'oui';
+  if (['true', '1', 'yes', 'oui', 'on', 'vrai'].includes(raw)) return true;
+  if (['false', '0', 'no', 'non', 'off', 'faux'].includes(raw)) return false;
+  throw new Error(`${key} invalide : "${raw}" (attendu : true | false)`);
+}
+
+/** GIFT_RECIPIENTS : seule la valeur exacte "limited" active les receveurs. Vide ou faute = none. */
+function giftRecipients(): 'none' | 'limited' {
+  const raw = str('GIFT_RECIPIENTS', 'none').toLowerCase();
+  if (raw === 'limited') return 'limited';
+  if (raw !== 'none' && raw !== '') {
+    throw new Error(`GIFT_RECIPIENTS invalide : "${raw}" (attendu : none | limited)`);
+  }
+  return 'none';
 }
 
 export const config = {
@@ -170,7 +187,7 @@ export const config = {
      * Le donateur, lui, reste roastable : il a agi. C'est aussi le meilleur
      * moment de television des deux.
      */
-    recipients: str('GIFT_RECIPIENTS', 'none') as 'none' | 'limited',
+    recipients: giftRecipients(),
     recipientsMax: int('GIFT_RECIPIENTS_MAX', 3),
   },
 

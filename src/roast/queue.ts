@@ -4,6 +4,7 @@ import path from 'node:path';
 import { config } from '../config.js';
 import {
   buildProfile,
+  findUserByLogin,
   isOptedOut,
   lastRoastAt,
   pastRoastsFor,
@@ -12,10 +13,11 @@ import {
 } from '../db.js';
 import { log } from '../log.js';
 import { reloadChannelContext } from './channel.js';
-import { deleteAudio, synthesise } from '../tts/index.js';
+import { deleteAudio, spokenPseudo, synthesise, toSpeech } from '../tts/index.js';
 import { RefusedError, generateRoast } from './generator.js';
 import { judgeRoast } from './judge.js';
-import { checkRoast } from './safety.js';
+import { ANGLES } from './prompt.js';
+import { checkName, checkRoast } from './safety.js';
 import type { QueuedRoast, RoastTrigger, SessionState } from '../types.js';
 
 const GIFT_WINDOW_MS = 60_000;
@@ -27,6 +29,24 @@ const PLAYBACK_TIMEOUT_MS = 25_000;
  * pas finir par interdire au modele tous les angles possibles.
  */
 const SESSION_ANGLE_MEMORY = 12;
+
+/**
+ * Qui d'autre le texte du viewer cite-t-il ? Les @mentions, et dans le message
+ * de l'evenement les pseudos deja vus dans le chat. La vanne ne doit viser
+ * aucun d'eux : "roast plutot mon pote @Kevin" ne doit pas marcher.
+ */
+function peopleCitedBy(trigger: RoastTrigger, chat: string[]): string[] {
+  // Le streamer n'est pas un tiers : le taquiner est permis (c'est son emission).
+  const self = new Set([trigger.userLogin.toLowerCase(), trigger.userName.toLowerCase(), config.twitch.channel]);
+  const found = new Set<string>();
+  for (const text of [trigger.message ?? '', ...chat]) {
+    for (const match of text.matchAll(/@([\p{L}\p{N}_]{2,25})/gu)) found.add(match[1]!);
+  }
+  for (const token of (trigger.message ?? '').split(/[^\p{L}\p{N}_]+/u)) {
+    if (token.length >= 4 && findUserByLogin(token)) found.add(token);
+  }
+  return [...found].filter((name) => !self.has(name.toLowerCase()));
+}
 
 export class RoastQueue extends EventEmitter {
   private readonly items = new Map<string, QueuedRoast>();
@@ -48,6 +68,15 @@ export class RoastQueue extends EventEmitter {
 
   /** Angles deja servis dans la session en cours (voir SESSION_ANGLE_MEMORY). */
   private sessionAngles: string[] = [];
+
+  /**
+   * Derniere vanne par viewer, en memoire seulement : `!forgetme` efface
+   * roast_history (c'est son role), il ne doit pas remettre le cooldown a zero.
+   */
+  private readonly recentRoasts = new Map<string, number>();
+
+  /** Vanne en cours de lecture dont le viewer a demande l'effacement : rien a reecrire en base. */
+  private readonly purgedWhilePlaying = new Set<string>();
 
   /** Plafond de generations simultanees (voir acquireSlot). */
   private running = 0;
@@ -153,6 +182,14 @@ export class RoastQueue extends EventEmitter {
       return null;
     }
 
+    // Le pseudo s'affiche en gros sur l'overlay et la voix le prononce : il
+    // passe la meme blocklist que la vanne, sous sa forme ecrite ET parlee.
+    const name = checkName(trigger.userName, spokenPseudo(trigger.userName));
+    if (!name.ok) {
+      log.warn(`Ignore ${trigger.userName} : ${name.reason}`);
+      return null;
+    }
+
     if (!opts.force) {
       const rejection = this.shouldSkip(trigger);
       if (rejection) {
@@ -176,6 +213,7 @@ export class RoastQueue extends EventEmitter {
       playedAt: null,
     };
     this.items.set(id, item);
+    for (const key of [trigger.userId, ...(trigger.cooldownIds ?? [])]) this.recentRoasts.set(key, Date.now());
     this.broadcast();
 
     void this.prepare(item);
@@ -209,7 +247,11 @@ export class RoastQueue extends EventEmitter {
       return `don sous le plancher de ${config.donation.minAmount}`;
     }
 
-    const previous = lastRoastAt(trigger.userId);
+    const previous = Math.max(
+      ...[trigger.userId, ...(trigger.cooldownIds ?? [])].map((key) =>
+        Math.max(lastRoastAt(key) ?? 0, this.recentRoasts.get(key) ?? 0),
+      ),
+    );
     if (previous && Date.now() - previous < config.session.userCooldownMs) {
       return 'deja roast recemment';
     }
@@ -229,7 +271,8 @@ export class RoastQueue extends EventEmitter {
     // en cooldown brule un slot sans produire de vanne, et on se retrouve avec
     // zero receveur roaste sur une vague de cent.
     if (trigger.type === 'gift_recipient') {
-      if (config.gifts.recipients === 'none') return 'receveurs de gift desactives';
+      // Fail-closed : seule la valeur exacte "limited" active les receveurs.
+      if (config.gifts.recipients !== 'limited') return 'receveurs de gift desactives';
       const now = Date.now();
       if (now > this.giftBudget.resetAt) {
         this.giftBudget = { remaining: config.gifts.recipientsMax, resetAt: now + GIFT_WINDOW_MS };
@@ -275,7 +318,17 @@ export class RoastQueue extends EventEmitter {
         subscriberFacts(item.trigger.userId),
         this.sessionAngles,
       );
-      const verdict = checkRoast(draft);
+      // !noroast / !forgetme / ban pendant la generation : on n'ecrit plus rien.
+      if (this.isGone(item)) return;
+
+      // Le filtre controle ce que la voix va VRAIMENT dire, pas seulement ce
+      // qui s'affiche : toSpeech() reecrit le pseudo et retire les emoji.
+      const viewerText = [item.trigger.message ?? '', ...profile.recentMessages];
+      const verdict = checkRoast(draft, {
+        spoken: toSpeech(draft.roast, item.trigger.userName),
+        otherPeople: peopleCitedBy(item.trigger, profile.recentMessages),
+        viewerText,
+      });
 
       if (!verdict.ok) {
         this.fail(item, `filtre : ${verdict.reason}`);
@@ -287,6 +340,7 @@ export class RoastQueue extends EventEmitter {
       // Deuxieme avis, avant la synthese vocale : inutile de payer un TTS pour
       // une vanne qui va etre jetee.
       const judged = await judgeRoast(item.trigger.userName, draft.roast);
+      if (this.isGone(item)) return;
       if (!judged.ok) {
         this.fail(item, `juge : ${judged.verdict} (${judged.reason})`);
         log.warn(`Vanne rejetee par le juge pour ${item.trigger.userName} — ${judged.reason}`);
@@ -303,8 +357,11 @@ export class RoastQueue extends EventEmitter {
       // dixieme jeu de mots sur le pseudo. Chaque vanne est drole seule, et
       // l'ensemble sonne comme une machine. On garde les angles deja servis
       // pour que le modele parte ailleurs.
-      if (draft.angle) {
-        this.sessionAngles.push(draft.angle);
+      // L'angle repart dans le prompt des vannes des AUTRES viewers : seule une
+      // categorie de la liste fermee passe, jamais du texte libre.
+      const angle = typeof draft.angle === 'string' ? draft.angle.trim().toLowerCase() : '';
+      if ((ANGLES as readonly string[]).includes(angle)) {
+        this.sessionAngles.push(angle);
         if (this.sessionAngles.length > SESSION_ANGLE_MEMORY) this.sessionAngles.shift();
       }
 
@@ -314,6 +371,10 @@ export class RoastQueue extends EventEmitter {
       // L'extension depend du fournisseur de voix : on la derive du fichier
       // reellement ecrit plutot que de la supposer.
       item.audioUrl = item.audioPath ? `/audio/${path.basename(item.audioPath)}` : null;
+      if (this.isGone(item)) {
+        deleteAudio(item.audioPath);
+        return;
+      }
 
       // La session a pu se terminer pendant la generation.
       if (!this.session.active) {
@@ -351,11 +412,16 @@ export class RoastQueue extends EventEmitter {
           : error instanceof Error
             ? error.message
             : String(error);
-      this.fail(item, message);
+      if (!this.isGone(item)) this.fail(item, message);
       log.error(`Generation impossible pour ${item.trigger.userName} :`, message);
     } finally {
       this.releaseSlot();
     }
+  }
+
+  /** Retiree de la file pendant sa preparation (purgeUser, stop) : plus rien a ecrire. */
+  private isGone(item: QueuedRoast): boolean {
+    return this.items.get(item.id) !== item;
   }
 
   private fail(item: QueuedRoast, reason: string): void {
@@ -461,7 +527,11 @@ export class RoastQueue extends EventEmitter {
     let removed = 0;
     for (const item of [...this.items.values()]) {
       if (item.trigger.userId !== userId) continue;
-      if (item.id === this.nowPlaying) continue;
+      if (item.id === this.nowPlaying) {
+        // Deja a l'antenne : on ne coupe pas, mais finishPlayback ne la reecrit pas en base.
+        this.purgedWhilePlaying.add(item.id);
+        continue;
+      }
       deleteAudio(item.audioPath);
       this.items.delete(item.id);
       removed += 1;
@@ -551,10 +621,11 @@ export class RoastQueue extends EventEmitter {
     this.lastPlayedAt = Date.now();
 
     const item = this.items.get(id);
+    const purged = this.purgedWhilePlaying.delete(id);
     if (item) {
       item.status = 'played';
       item.playedAt = Date.now();
-      saveRoast({
+      if (!purged) saveRoast({
         id: item.id,
         userId: item.trigger.userId,
         userName: item.trigger.userName,
