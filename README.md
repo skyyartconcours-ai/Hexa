@@ -164,6 +164,45 @@ de volume*).
 
 ---
 
+## Répétition générale, avant le premier live
+
+Hors live, un ou deux jours avant. Compte une demi-heure. Chaque étape teste un
+maillon, dans l'ordre où il servira en direct.
+
+1. **Préparation** : pour la répétition, mets `CHEER_MIN_BITS=1` dans `.env`
+   (tu le remettras à 100 à la fin).
+2. **Pré-vol** : `npm run doctor`, puis `npm run doctor -- --live`. Tout doit
+   être ✓.
+3. **Le ton** : `npm run backfill -- --vods 5`, puis `npm run preview -- --voix`.
+   Écoute les vannes au casque ; ajuste `data/channel.md` ou `MAX_SEVERITY` et
+   recommence jusqu'à ce qu'elles te fassent rire.
+4. **La chaîne complète** : `npm start`, puis OBS (dans cet ordre). Dans la
+   régie, l'alerte « Aucun overlay connecté » doit disparaître.
+5. **Une fenêtre de 5 minutes** : *Lancer la session*. L'annonce doit apparaître
+   dans ton chat et le bandeau dans OBS. Si la régie affiche « Annonce NON
+   postée », rien ne passerait en live : c'est à régler avant.
+6. **Les six types d'événement** : avec le formulaire de test, sur des pseudos
+   de ton chat. 🎧 d'abord (dans ton casque seulement), puis ▶ : la carte
+   apparaît dans OBS et le vu-mètre de la source bouge dans la table de mixage.
+7. **Le son dans le stream** : lance un enregistrement OBS pendant une vanne,
+   puis réécoute-le. C'est la seule preuve que la voix part dans le mix du
+   stream, et pas seulement dans ton casque.
+8. **Un vrai événement** : fais envoyer 1 bit par un ami ou par ton second
+   compte (un sub Prime d'un second compte marche aussi, et ne coûte rien). La
+   vanne doit arriver seule dans la régie, 5 à 15 secondes après. C'est le seul
+   test qui prouve que Twitch t'envoie bien les événements.
+9. **Les commandes** : depuis ce second compte, `!hexa` (Hexa répond dans le
+   chat), puis `!noroast` : une vanne de test sur ce pseudo ne doit plus rien
+   produire. `!roastme` pour annuler.
+10. **Une coupure** : coupe ton Wi-Fi trente secondes. La régie doit afficher
+    « Twitch déconnecté », puis revenir seule quand le réseau revient.
+11. **La fin** : *Tout arrêter*. Annonce de fin dans le chat, bandeau retiré.
+    Remets `CHEER_MIN_BITS=100` et relance Hexa.
+
+Pour le premier vrai live : lecture automatique désactivée, une fenêtre courte
+(10 minutes), un œil sur les alertes de la régie. Après, un coup d'œil au
+terminal : les lignes `[warn]` et `[err ]` disent ce qui a coincé.
+
 ## Pendant le live
 
 **Ouvrir la fenêtre** : bouton *Lancer la session* de la régie, 20 minutes par
