@@ -149,7 +149,7 @@ export const config = {
     autoPlay: bool('AUTO_PLAY', false),
     minIntervalMs: int('MIN_INTERVAL_SECONDS', 8) * 1000,
     maxQueue: int('MAX_QUEUE', 40),
-    maxSeverity: int('MAX_SEVERITY', 3),
+    maxSeverity: int('MAX_SEVERITY', 4),
     userCooldownMs: int('USER_COOLDOWN_MINUTES', 20) * 60_000,
     // Au-dela, une vanne validee n'est plus reliee au sub qui l'a declenchee :
     // on la jette plutot que de laisser la file se saturer.

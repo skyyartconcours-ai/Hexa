@@ -11,17 +11,22 @@ import type { RoastDraft } from '../types.js';
  * une vanne blessante coute un viewer.
  */
 
-/** Insultes et termes degradants courants en francais. */
+/**
+ * Insultes grossieres, et termes qui visent ce que la personne EST : origine,
+ * orientation, genre, handicap, physique, situation. Le vocabulaire du taunt
+ * (radin, abruti, no life...) n'y est pas : il vise ce qu'elle FAIT.
+ */
 const BASE_BLOCKLIST = [
   'connard', 'connasse', 'salope', 'salaud', 'pute', 'putain', 'enculé', 'encule',
-  'batard', 'bâtard', 'abruti', 'crétin', 'cretin', 'debile', 'débile', 'attardé',
-  'attarde', 'mongol', 'trisomique', 'autiste', 'schizo', 'psychopathe',
+  'batard', 'bâtard', 'debile', 'débile', 'attardé',
+  'attarde', 'mongol', 'mongolien', 'gogol', 'triso', 'trisomique', 'autiste', 'schizo', 'psychopathe',
   'gros porc', 'grosse vache', 'boudin', 'thon', 'moche', 'laideron', 'obèse', 'obese',
   'anorexique', 'nain', 'naine',
-  'pédé', 'pede', 'tapette', 'gouine', 'travelo', 'transsexuel',
-  'negre', 'nègre', 'bougnoule', 'youpin', 'bicot', 'raton', 'chinetoque', 'facho', 'nazi',
+  'pédé', 'pede', 'tapette', 'gouine', 'travelo', 'transsexuel', 'fiotte', 'tarlouze', 'tafiole', 'tantouze',
+  'negre', 'nègre', 'negro', 'bamboula', 'macaque', 'bougnoule', 'youpin', 'bicot', 'raton', 'chinetoque',
+  'chintok', 'niakoue', 'niakoué', 'facho', 'nazi',
   'terroriste', 'islamiste',
-  'puceau', 'pucelle', 'incel', 'no life', 'nolife', 'chomeur', 'chômeur', 'rmiste',
+  'puceau', 'pucelle', 'incel', 'chomeur', 'chômeur', 'rmiste', 'smicard',
   'cassos', 'clochard', 'sdf', 'alcoolique', 'drogué', 'drogue', 'toxico',
   'suicide', 'suicider', 'pends-toi', 'crève', 'creve', 'ferme ta gueule', 'ta gueule',
   'viol', 'violeur', 'pedophile', 'pédophile',
@@ -46,7 +51,6 @@ const PATTERNS: Array<{ label: string; regex: RegExp }> = [
   { label: 'mot_masque', regex: /\p{L}[*#]+\p{L}/u },
   { label: 'injection_prompt', regex: /\b(ignore|oublie)\s+(les|tes|toutes)\s+(instructions|consignes)/i },
   { label: 'apparence', regex: /\b(t'?es|tu es|vous etes|vous êtes|il est|elle est)\s+(gros|grosse|moche|laid|laide)s?\b/i },
-  { label: 'argent_dispo', regex: /\b(radin|pingre|fauché|fauche|smicard)(e|s|es)?\b/i },
 ];
 
 // ── Normalisation ─────────────────────────────────────────────────────────

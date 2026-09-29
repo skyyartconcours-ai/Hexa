@@ -164,7 +164,7 @@ async function main(): Promise<void> {
       const draft = await generateRoast(trigger, profile, pastRoastsFor(viewer.userId), facts, angles);
       const verdict = screenDraft(trigger, profile, draft);
       const judged = verdict.ok ? await judgeRoast(viewer.userName, draft.roast) : null;
-      const passes = judged !== null && (judged.ok || judged.unavailable === true);
+      const passes = judged !== null && judged.ok;
 
       console.log(`   ${passes ? '✓' : '✕'} ${quote(draft.roast, 400)}`);
       console.log(
@@ -179,6 +179,9 @@ async function main(): Promise<void> {
       } else if (judged?.unavailable) {
         tally.passe += 1;
         console.log('      juge injoignable : en direct, elle attendrait ta relecture en regie');
+      } else if (judged?.review) {
+        tally.passe += 1;
+        console.log(`      juge : incertain (${judged.reason}) : en direct, elle attendrait ta relecture en regie`);
       } else {
         tally.passe += 1;
         console.log(`      filtre : ok · juge : ${judged?.verdict} (${judged?.reason})`);
@@ -217,7 +220,7 @@ async function main(): Promise<void> {
 
   const parts = [`${tally.passe} ${tally.passe > 1 ? 'passeraient' : 'passerait'} a l'antenne`];
   if (tally.filtre) parts.push(`${tally.filtre} jetee(s) par le filtre`);
-  if (tally.juge) parts.push(`${tally.juge} par le juge`);
+  if (tally.juge) parts.push(`${tally.juge} jetee(s) par le juge`);
   if (tally.pseudo) parts.push(`${tally.pseudo} pseudo(s) refuse(s)`);
   if (tally.erreur) parts.push(`${tally.erreur} en erreur`);
   console.log(`Bilan : ${parts.join(', ')}.`);

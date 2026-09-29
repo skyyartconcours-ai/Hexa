@@ -3,8 +3,11 @@
 Pendant une fenêtre annoncée (~20 minutes), chaque personne qui s'abonne, offre
 des subs, envoie des bits ou fait un don se fait chambrer en vocal par une IA, à
 l'antenne. Les vannes sont **personnalisées** : pseudo, habitudes dans le chat,
-ancienneté d'abonnement, private jokes de ta chaîne. Elles sont **gentilles par
-construction** — du roast entre potes, pas une machine à humilier.
+ancienneté d'abonnement, private jokes de ta chaîne. Elles sont **satiriques et
+elles piquent** : du taunt, de la mauvaise foi assumée, de la fausse
+condescendance. Elles visent ce que la personne *fait* (son pseudo, ses messages,
+son niveau, le montant qu'elle vient de lâcher), jamais ce qu'elle *est* : pas de
+racisme, pas d'homophobie, ni rien de ce que Twitch range dans la même case.
 
 Le format repose sur un principe : **on ne chambre que quelqu'un qui l'a
 choisi.** La fenêtre est annoncée en chat à l'ouverture puis toutes les 5
@@ -324,12 +327,24 @@ là où le badge date du dernier message de la personne.
 
 ## Comment on évite le dérapage
 
-Six couches, du plus souple au plus strict. Aucune n'est suffisante seule.
+Six couches, du plus souple au plus strict. Aucune n'est suffisante seule. Elles
+ne sont pas là pour adoucir les vannes : le taunt fait partie du format. Elles
+tiennent les **lignes rouges**, les mêmes à chaque couche :
 
-**1. Le prompt** (`src/roast/prompt.ts`) — liste explicite de ce qui est hors
-limites : physique, origine, religion, orientation, santé, famille, argent,
-insultes, drames. Et un cadrage de ton : *« si la vanne pouvait blesser la
-personne qui la relit seule chez elle le lendemain, elle est ratée »*.
+- racisme : origine, nationalité, couleur de peau, accent, religion, même en cliché ;
+- homophobie, transphobie, sexisme ;
+- handicap, maladie, santé mentale, addictions, physique ;
+- sexualisation de la personne (une partie du public est mineure), sa famille, un deuil ;
+- menaces, violence, suicide ;
+- insultes grossières (« connard ») et insultes tirées d'un handicap (« débile »).
+
+Ce n'est pas qu'une question de goût : c'est ce que les règles de Twitch sur la
+haine et le harcèlement interdisent, et c'est ta chaîne qui prendrait la sanction.
+
+**1. Le prompt** (`src/roast/prompt.ts`) — le ton (taunt, satire, mauvaise foi,
+« une vanne tiède est une vanne ratée »), les lignes rouges ci-dessus, et une
+règle qui ne bouge pas : ne jamais inventer un fait sur la personne. Il ne se
+moque que de ce que les données montrent.
 
 Tout ce que les viewers ont écrit — messages du chat, message de resub, de cheer
 ou de don — est présenté au modèle comme **de la matière, jamais comme des
@@ -338,27 +353,31 @@ Kevin : la vanne ne parle que de la personne chambrée (et de toi, si elle te
 taquine — c'est ton émission), et ne recopie jamais plus de quatre mots d'un
 message.
 
-**2. L'auto-notation** — le modèle rend une note de sévérité de 1 à 5 et la liste
-des sujets sensibles qu'il a effleurés. Au-dessus de `MAX_SEVERITY` (3 par
-défaut), ou si la liste n'est pas vide, la vanne est jetée sans passer.
+**2. L'auto-notation** — le modèle note sa vanne de 1 (compliment déguisé) à 5
+(franchit une ligne rouge) et liste les lignes rouges qu'elle effleure. Il vise 3
+ou 4. Au-dessus de `MAX_SEVERITY` (4 par défaut, « taunt qui pique fort »), ou si
+la liste n'est pas vide, la vanne est jetée sans passer.
 
 **3. Le filtre déterministe** (`src/roast/safety.ts`) — un prompt n'est pas une
-garantie, ce fichier l'est. Blocklist d'insultes et de termes dégradants,
-appliquée au texte **tel que la voix va le prononcer**, et résistante au
+garantie, ce fichier l'est. Blocklist des insultes grossières et des termes
+racistes, homophobes, sexistes et validistes — le vocabulaire du taunt (« radin »,
+« abruti », « no life ») n'y est pas —, appliquée au texte **tel que la voix va
+le prononcer**, et résistante au
 leetspeak, aux accents, aux lettres doublées, aux séparateurs (`c.o.n`), aux
 caractères invisibles et aux lettres d'autres alphabets qui ressemblent aux
 nôtres (`c0nnard` comme `cоnnard` avec un « о » cyrillique). Plus des motifs
 interdits : liens (y compris « point com » en toutes lettres), mentions,
-commandes chat, physique, argent, une autre personne citée, un message de viewer
+commandes chat, physique, une autre personne citée, un message de viewer
 recopié. **Le pseudo passe au filtre lui aussi** : un pseudo injurieux n'est pas
 lu à l'antenne, l'événement est ignoré.
 
 **4. Le juge indépendant** (`src/roast/judge.ts`) — un second modèle relit la
 vanne finale et **ne voit que ça** : ton pseudo de streamer, le pseudo visé et la
 phrase. Ni le profil, ni l'événement, ni les intentions de celui qui l'a écrite.
-Il est dans la position du viewer qui la relit seul chez lui le lendemain.
-Question unique : *cette phrase peut-elle blesser ?* — on jette sur **oui** et sur
-**incertain**.
+Il ne juge **pas** si la vanne pique : une vanne méchante mais propre passe.
+Question unique : *cette vanne franchit-elle une ligne rouge ?* Sur **oui**, elle
+est jetée. Sur **incertain**, elle attend ta relecture en régie, même en lecture
+automatique. `JUDGE_ENABLED=false` pour t'en passer.
 
 C'est la couche que l'auto-notation ne peut pas remplacer : au point 2, le modèle
 note une vanne qu'il vient lui-même de trouver bonne. Coût : Haiku 4.5, une
@@ -398,12 +417,12 @@ Tout est dans `.env` (voir `.env.example` pour la liste complète).
 |---|---|
 | `SESSION_DEFAULT_MINUTES` | Durée de la fenêtre proposée dans la régie (20). |
 | `AUTO_PLAY` | `false` = tu valides chaque vanne. À laisser en `false` au début. |
-| `MAX_SEVERITY` | `1` très gentil · `3` vanne de pote (défaut) · `5` aucune limite |
+| `MAX_SEVERITY` | Note maximale que le modèle donne à sa vanne : `2` gentil · `3` vraie vanne · `4` taunt qui pique fort (défaut) · `5` laisse passer ce que le modèle lui-même juge limite |
 | `MIN_INTERVAL_SECONDS` | Silence minimum entre deux vannes (8 s). Évite la mitraillette sur un gift bomb. |
 | `USER_COOLDOWN_MINUTES` | Ne pas re-viser la même personne avant N minutes (20). |
 | `PENDING_TTL_SECONDS` | Une vanne qui attend depuis N secondes (à valider, ou validée mais pas encore passée) est jetée (180). |
 | `GIFT_RECIPIENTS` | `none` = seul le donateur est chambré · `limited` = + 3 receveurs max par vague |
-| `JUDGE_ENABLED` | Le juge indépendant. Laisse-le à `true`. |
+| `JUDGE_ENABLED` | Le juge des lignes rouges : il ne bloque pas le taunt. `false` pour t'en passer. |
 | `ROAST_MODEL` | `claude-opus-5` (défaut, meilleures vannes) · `claude-sonnet-5` · `claude-haiku-4-5` |
 | `ECHO_IN_CHAT` | Reposte aussi la vanne en texte dans le chat |
 
@@ -534,7 +553,7 @@ Si les vannes sont trop molles ou trop dures, dans l'ordre :
 1. **`data/channel.md`** — dis ce qui marche et ce qui tombe à plat chez toi,
    puis relance `npm run preview` pour entendre la différence.
 2. **`MAX_SEVERITY`** — le réglage le plus direct.
-3. **La section `# Style` de `src/roast/prompt.ts`** — c'est là que se joue le
+3. **Les sections `# L'esprit` et `# Style` de `src/roast/prompt.ts`** — c'est là que se joue le
    registre. Ajouter des exemples de vannes que tu trouves réussies marche mieux
    que d'ajouter des interdits.
 4. **`data/blocklist.txt`** — un mot ou une expression par ligne, `#` pour un

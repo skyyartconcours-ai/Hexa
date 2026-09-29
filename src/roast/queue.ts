@@ -519,15 +519,16 @@ export class RoastQueue extends EventEmitter {
         return;
       }
 
-      // Un juge injoignable ne vaut pas un juge satisfait : la vanne repasse par
-      // la regie meme en lecture automatique.
+      // Un juge injoignable ne vaut pas un juge satisfait, et un juge qui doute
+      // non plus : la vanne repasse par la regie meme en lecture automatique.
       // Une voix en panne n'est pas un risque : la vanne texte seul suit la regle
       // normale (lecture auto comprise), avec l'avertissement visible en regie.
       if (voiceError) item.warning = 'voix indisponible — texte seul';
-      if (judged.unavailable) {
+      if (judged.unavailable || judged.review) {
         // `warning` et pas `error` : la vanne existe et doit rester lisible en
         // regie. `error` sert aux vannes jetees, dont le texte est masque.
-        item.warning = [item.warning, 'juge injoignable — a relire'].filter(Boolean).join(' · ');
+        const why = judged.unavailable ? 'juge injoignable — a relire' : `juge incertain — a relire (${judged.reason})`;
+        item.warning = [item.warning, why].filter(Boolean).join(' · ');
         item.status = 'pending';
       } else {
         item.status = this.session.autoPlay ? 'approved' : 'pending';
