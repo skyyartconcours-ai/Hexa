@@ -26,6 +26,7 @@ export const elevenLabsProvider: TtsProvider = {
 
     const response = await fetch(`${ENDPOINT}/${voiceId}`, {
       method: 'POST',
+      signal: AbortSignal.timeout(15_000),
       headers: {
         'xi-api-key': apiKey,
         'content-type': 'application/json',

@@ -25,11 +25,13 @@ export function reloadChannelContext(): string | null {
     const raw = fs.readFileSync(CHANNEL_FILE, 'utf8').trim();
     // Un fichier qui ne contient que le gabarit d'exemple n'apporte rien et
     // couterait des tokens a chaque vanne.
-    const useful = raw
+    const lines = raw
+      .replace(/<!--[\s\S]*?-->/g, '') // commentaires du gabarit, y compris multi-lignes
       .split('\n')
-      .filter((line) => line.trim() && !line.trimStart().startsWith('<!--'))
-      .join('\n');
-    cached = useful.length > 40 ? useful : null;
+      .filter((line) => line.trim());
+    // Des titres sans rien dessous, c'est le gabarit vide : ne rien envoyer.
+    const content = lines.filter((line) => !/^#+\s/.test(line.trim())).join('\n');
+    cached = content.length > 40 ? lines.join('\n') : null;
   } catch {
     cached = null;
   }

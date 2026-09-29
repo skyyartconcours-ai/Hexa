@@ -1,7 +1,7 @@
 import { config } from '../config.js';
 import { getAccessToken } from './auth.js';
 
-const HELIX = 'https://api.twitch.tv/helix';
+const HELIX = config.twitch.helixUrl;
 
 export interface TwitchUser {
   id: string;
@@ -12,6 +12,7 @@ export interface TwitchUser {
 async function helix<T>(
   path: string,
   init: { method?: string; body?: unknown; query?: Record<string, string> } = {},
+  retried = false,
 ): Promise<T> {
   const token = await getAccessToken();
   const url = new URL(HELIX + path);
@@ -29,6 +30,12 @@ async function helix<T>(
     body: init.body ? JSON.stringify(init.body) : undefined,
   });
 
+  // Token revoque ou invalide avant son expiration locale : un refresh, un seul nouvel essai.
+  // https://dev.twitch.tv/docs/authentication/refresh-tokens/
+  if (response.status === 401 && !retried) {
+    await getAccessToken(true);
+    return helix<T>(path, init, true);
+  }
   if (response.status === 204) return undefined as T;
 
   const text = await response.text();
@@ -69,6 +76,7 @@ export interface TwitchSubscriber {
  */
 export async function listSubscribers(broadcasterId: string): Promise<TwitchSubscriber[]> {
   const subscribers: TwitchSubscriber[] = [];
+  const seenCursors = new Set<string>();
   let cursor: string | undefined;
 
   do {
@@ -100,6 +108,9 @@ export async function listSubscribers(broadcasterId: string): Promise<TwitchSubs
 
     cursor = page.pagination?.cursor;
     if (page.data.length === 0) break;
+    // Garde-fou : un curseur qui revient ferait boucler (et grossir) sans fin.
+    if (cursor && seenCursors.has(cursor)) break;
+    if (cursor) seenCursors.add(cursor);
   } while (cursor);
 
   return subscribers;
@@ -154,8 +165,16 @@ export async function sendChatMessage(
   senderId: string,
   message: string,
 ): Promise<void> {
-  await helix('/chat/messages', {
+  const result = await helix<{
+    data?: Array<{ message_id: string; is_sent: boolean; drop_reason?: { code: string; message: string } | null }>;
+  }>('/chat/messages', {
     method: 'POST',
-    body: { broadcaster_id: broadcasterId, sender_id: senderId, message: message.slice(0, 480) },
+    // Par points de code : slice() sur des unites UTF-16 peut couper un emoji en deux.
+    body: { broadcaster_id: broadcasterId, sender_id: senderId, message: [...message].slice(0, 480).join('') },
   });
+  // Twitch repond 200 meme quand le message est jete (AutoMod, mode du chat...).
+  const sent = result?.data?.[0];
+  if (sent && !sent.is_sent) {
+    throw new Error(`message jete par Twitch (${sent.drop_reason?.code ?? '?'}) : ${sent.drop_reason?.message ?? ''}`);
+  }
 }

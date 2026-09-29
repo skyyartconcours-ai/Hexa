@@ -86,6 +86,10 @@ db.exec(`
   // readSubMonths dans twitch/eventsub.ts), et date de cette lecture.
   if (!columns.has('sub_months')) db.exec('ALTER TABLE users ADD COLUMN sub_months INTEGER');
   if (!columns.has('sub_months_at')) db.exec('ALTER TABLE users ADD COLUMN sub_months_at INTEGER');
+  const messageColumns = new Set((db.pragma('table_info(messages)') as Array<{ name: string }>).map((c) => c.name));
+  // message_id Twitch, pour appliquer channel.chat.message_delete.
+  if (!messageColumns.has('msg_id')) db.exec('ALTER TABLE messages ADD COLUMN msg_id TEXT');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_messages_msg_id ON messages(msg_id)');
 }
 
 // ── Tokens OAuth ───────────────────────────────────────────────────────────
@@ -112,7 +116,7 @@ export function writeToken(key: string, value: unknown): void {
 // ── Chat ───────────────────────────────────────────────────────────────────
 
 const stmtInsertMessage = db.prepare(
-  'INSERT INTO messages (user_id, user_login, text, ts) VALUES (?, ?, ?, ?)',
+  'INSERT INTO messages (user_id, user_login, text, ts, msg_id) VALUES (?, ?, ?, ?, ?)',
 );
 
 /**
@@ -149,11 +153,13 @@ export interface ChatRecord {
    * ete regarde, `undefined` quand on n'en sait rien (import de VOD).
    */
   subMonths?: number | null;
+  /** message_id Twitch (direct uniquement). */
+  msgId?: string;
 }
 
 const recordMessageTx = db.transaction((records: ChatRecord[]) => {
   for (const record of records) {
-    stmtInsertMessage.run(record.userId, record.userLogin, record.text, record.ts);
+    stmtInsertMessage.run(record.userId, record.userLogin, record.text, record.ts, record.msgId ?? null);
     stmtUpsertUser.run({
       ...record,
       subMonths: record.subMonths ?? null,
@@ -169,8 +175,19 @@ export function recordMessage(
   text: string,
   subMonths: number | null = null,
   ts = Date.now(),
+  msgId?: string,
 ): void {
-  recordMessageTx([{ userId, userLogin, userName, text, ts, subMonths }]);
+  recordMessageTx([{ userId, userLogin, userName, text, ts, subMonths, msgId }]);
+}
+
+/** Moderation Twitch : message supprime par un modo. */
+export function deleteMessageById(msgId: string): number {
+  return db.prepare('DELETE FROM messages WHERE msg_id = ?').run(msgId).changes;
+}
+
+/** Moderation Twitch : ban ou timeout, Twitch efface tous ses messages ; nous aussi. */
+export function deleteMessagesOf(userId: string): number {
+  return db.prepare('DELETE FROM messages WHERE user_id = ?').run(userId).changes;
 }
 
 const stmtNoteSubMonths = db.prepare(`

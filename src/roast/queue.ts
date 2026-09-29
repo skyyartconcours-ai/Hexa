@@ -310,7 +310,7 @@ export class RoastQueue extends EventEmitter {
 
       // Le texte affiche a l'overlay reste propre : la didascalie ne part
       // qu'au TTS, et seulement s'il sait l'interpreter.
-      item.audioPath = await synthesise(item.id, draft.roast, draft.delivery);
+      item.audioPath = await synthesise(item.id, draft.roast, draft.delivery, item.trigger.userName);
       // L'extension depend du fournisseur de voix : on la derive du fichier
       // reellement ecrit plutot que de la supposer.
       item.audioUrl = item.audioPath ? `/audio/${path.basename(item.audioPath)}` : null;

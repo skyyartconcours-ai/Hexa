@@ -33,6 +33,8 @@ Si tu n'as aucune matiere, fais une vanne sur le pseudo seul. N'invente JAMAIS u
 - 1 a 2 phrases, 25 mots maximum. Ca doit tenir en 6 secondes a l'oral.
 - Francais parle, rythme, culture stream. Pas d'emoji, pas de hashtag, pas de didascalie, pas de guillemets autour de la vanne.
 - Ecris le pseudo tel quel, sans majuscules ajoutees. S'il est imprononcable, tourne la phrase pour le contourner.
+- Ta vanne est lue par une voix de synthèse française : écris un français correctement accentué (é, è, à, ç), les nombres en toutes lettres (« douze mois », « cent bits »), sans sigle, abréviation ni symbole (pas de « T1 », « x2 », « 23h », « € », « mdr »).
+- Un nom d'emote ou un mot du chat (KEKW, LUL…) : écris-le comme il se prononce, ou décris-le (« ton emote qui pleure de rire »).
 - La chute doit rechauffer : ca pique au milieu, ca fait sourire a la fin.
 - Ne commence jamais par "Ah", "Alors", "Tiens", "Eh bien".
 - Pas de texte a lire a voix haute qui ne soit pas la vanne elle-meme.
@@ -92,6 +94,11 @@ function describeEvent(trigger: RoastTrigger): string {
   }
 }
 
+/** Le texte des viewers ne doit pas pouvoir fermer nos balises (<profil_chat>...). */
+function inert(text: string): string {
+  return text.replace(/</g, '‹').replace(/>/g, '›');
+}
+
 function describeProfile(profile: UserProfile): string {
   if (profile.messageCount === 0) {
     return "On n'a aucun historique de chat pour cette personne : elle ne parle pas, ou elle vient d'arriver. C'est une matiere en soi.";
@@ -111,7 +118,7 @@ function describeProfile(profile: UserProfile): string {
   }
   if (profile.recentMessages.length) {
     lines.push('', 'Derniers messages (du plus ancien au plus recent) :');
-    for (const message of profile.recentMessages) lines.push(`- ${message}`);
+    for (const message of profile.recentMessages) lines.push(`- ${inert(message)}`);
   }
 
   return lines.join('\n');
@@ -131,7 +138,7 @@ export function buildUserPrompt(
 
   if (trigger.message) {
     blocks.push(
-      `<message_du_viewer>Il/elle a accompagne son ${trigger.type === 'resub' ? 'resub' : 'don'} de ce message : "${trigger.message.slice(0, 300)}"</message_du_viewer>`,
+      `<message_du_viewer>Il/elle a accompagne son ${trigger.type === 'resub' ? 'resub' : 'don'} de ce message : "${inert(trigger.message.slice(0, 300))}"</message_du_viewer>`,
     );
   }
 

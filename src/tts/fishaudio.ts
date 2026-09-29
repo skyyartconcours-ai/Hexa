@@ -1,7 +1,7 @@
 import { config } from '../config.js';
 import type { TtsProvider } from './provider.js';
 
-const ENDPOINT = 'https://api.fish.audio/v1/tts';
+const ENDPOINT = `${config.tts.fishaudio.baseUrl}/v1/tts`;
 
 /**
  * Fish Audio — le meilleur rapport qualite/prix du lot sur ce cas d'usage.
@@ -23,10 +23,11 @@ const ENDPOINT = 'https://api.fish.audio/v1/tts';
 export const fishAudioProvider: TtsProvider = {
   name: 'fishaudio',
   extension: 'mp3',
-  // S2.1 Pro accepte des didascalies libres entre crochets — `[laughing]`,
-  // `[deadpan]`. C'est la fonctionnalite qui compte le plus ici : une vanne
-  // dite pince-sans-rire et la meme dite en riant ne font pas le meme effet.
-  supportsInlineDirections: true,
+  // Crochets = syntaxe S2 / S2.1 (`[laughing]`). S1 utilise une liste fermee
+  // entre parentheses : il lirait "[deadpan]" a voix haute.
+  get supportsInlineDirections(): boolean {
+    return /^s2/.test(config.tts.fishaudio.modelId);
+  },
 
   async synthesise(text: string): Promise<Buffer> {
     const { apiKey, voiceId, modelId, speed } = config.tts.fishaudio;
@@ -36,6 +37,8 @@ export const fishAudioProvider: TtsProvider = {
 
     const response = await fetch(ENDPOINT, {
       method: 'POST',
+      // Sans signal, fetch attend 300 s les en-tetes puis 300 s le corps.
+      signal: AbortSignal.timeout(15_000),
       headers: {
         authorization: `Bearer ${apiKey}`,
         'content-type': 'application/json',
@@ -51,8 +54,11 @@ export const fishAudioProvider: TtsProvider = {
         // precedente passe a l'antenne, donc on prend la qualite plutot que la
         // latence.
         latency: 'normal',
-        // Developpe les nombres et abreviations avant la synthese ("t1" -> "tier un").
-        normalize: true,
+        // Documente pour l'anglais et le chinois seulement : rien a gagner en
+        // francais, et on ne veut pas d'un normaliseur anglais sur "12 mois".
+        normalize: false,
+        // Une vanne tient en un seul segment (<= 300 caracteres) : pas de coupure de prosodie.
+        chunk_length: 300,
         prosody: { speed, volume: 0 },
       }),
     });

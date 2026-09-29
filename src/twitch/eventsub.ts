@@ -1,17 +1,18 @@
 import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
+import { config } from '../config.js';
 import { createEventSubSubscription } from './api.js';
 import { log } from '../log.js';
 import type { RoastTrigger } from '../types.js';
 
-const DEFAULT_URL = 'wss://eventsub.wss.twitch.tv/ws';
+const DEFAULT_URL = config.twitch.eventsubUrl;
 
 interface WelcomeMessage {
-  metadata: { message_type: string; subscription_type?: string };
+  metadata: { message_id?: string; message_type: string; subscription_type?: string };
   payload: {
     session?: { id: string; keepalive_timeout_seconds: number | null; reconnect_url: string | null };
     event?: Record<string, unknown>;
-    subscription?: { type: string };
+    subscription?: { type: string; status?: string };
   };
 }
 
@@ -26,6 +27,10 @@ export interface ChatMessageEvent {
    * c'est le chiffre exact, envoye par Twitch avec chaque message.
    */
   subMonths: number | null;
+  /** Shared Chat : chaine d'origine du message, null s'il a ete ecrit ici. */
+  sourceBroadcasterId: string | null;
+  /** Identifiant Twitch du message, pour l'effacer si un modo le supprime. */
+  messageId: string;
 }
 
 /**
@@ -82,6 +87,13 @@ export class EventSubClient extends EventEmitter {
   private reconnectDelayMs = 1000;
   /** Vrai entre un session_reconnect et le welcome de la nouvelle session. */
   private resuming = false;
+  /** Ancienne socket apres un session_reconnect : fermee au welcome de la nouvelle. */
+  private previous: WebSocket | null = null;
+  private sessionId: string | null = null;
+  /** Types reellement actifs sur la chaine de sessions en cours (reprises comprises). */
+  private readonly active = new Set<string>();
+  /** Twitch livre "au moins une fois" : meme message_id = meme evenement. */
+  private readonly seen = new Map<string, number>();
 
   constructor(private readonly broadcasterId: string) {
     super();
@@ -102,6 +114,9 @@ export class EventSubClient extends EventEmitter {
   private connect(url: string): void {
     const socket = new WebSocket(url);
     this.socket = socket;
+    // Pas de welcome dans ce delai = connexion morte (sinon on attend sans fin).
+    this.keepaliveMs = 10_000;
+    this.resetKeepalive();
 
     socket.on('open', () => log.twitch('WebSocket EventSub ouvert.'));
 
@@ -124,9 +139,18 @@ export class EventSubClient extends EventEmitter {
       // de 3 connexions Twitch atteint au bout de quelques maintenances.
       if (socket !== this.socket) return;
       this.clearKeepalive();
+      this.sessionId = null;
+      this.active.clear();
+      // La socket de reprise est morte avant son welcome : la prochaine session
+      // est NEUVE et n'a aucune souscription. Sans cette ligne, elle se croyait
+      // reprise, n'abonnait rien, annoncait "ready" et Twitch la fermait en 4003.
+      this.resuming = false;
+      this.retirePrevious();
       if (this.closing) return;
       log.warn(`EventSub ferme (code ${code}). Reconnexion dans ${this.reconnectDelayMs} ms.`);
-      setTimeout(() => this.connect(DEFAULT_URL), this.reconnectDelayMs);
+      setTimeout(() => {
+        if (!this.closing) this.connect(DEFAULT_URL);
+      }, this.reconnectDelayMs);
       this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, 30_000);
     });
   }
@@ -139,16 +163,21 @@ export class EventSubClient extends EventEmitter {
         const session = message.payload.session;
         if (!session) return;
         this.reconnectDelayMs = 1000;
-        this.keepaliveMs = (session.keepalive_timeout_seconds ?? 30) * 1000;
+        this.sessionId = session.id;
+        this.keepaliveMs = (session.keepalive_timeout_seconds ?? 10) * 1000;
         this.resetKeepalive();
         // Twitch transfere les souscriptions sur la session de reconnexion :
         // les rejouer ne produirait que des 409 en pleine emission.
         if (this.resuming) {
           this.resuming = false;
+          // Doc Twitch : ne fermer l'ancienne connexion qu'apres ce welcome.
+          this.retirePrevious();
           log.twitch('Reconnexion etablie, souscriptions conservees.');
-          this.emit('ready');
+          // Complete ce qui manquait encore (echec en cours de reessai, revocation).
+          await this.subscribeAll(session.id);
           break;
         }
+        this.active.clear();
         await this.subscribeAll(session.id);
         break;
       }
@@ -161,29 +190,41 @@ export class EventSubClient extends EventEmitter {
         const nextUrl = message.payload.session?.reconnect_url;
         if (!nextUrl) return;
         log.twitch('Twitch demande une reconnexion, bascule sur la nouvelle URL.');
-        const old = this.socket;
+        // L'ancienne socket continue de recevoir les evenements jusqu'au welcome
+        // de la nouvelle : on la garde ouverte jusque-la (voir session_welcome).
+        this.retirePrevious();
+        this.previous = this.socket;
         this.resuming = true;
         this.connect(nextUrl);
-        // On garde brievement l'ancienne socket : Twitch envoie encore des
-        // evenements dessus jusqu'a ce que la nouvelle recoive son welcome.
-        // On coupe ses ecouteurs avant de la fermer, sinon elle relance une
-        // reconnexion de son cote.
-        setTimeout(() => {
-          old?.removeAllListeners();
-          old?.close();
-        }, 10_000);
         break;
       }
 
-      case 'revocation':
+      case 'revocation': {
+        const revokedType = message.payload.subscription?.type ?? 'inconnue';
         log.error(
-          `Souscription revoquee : ${message.payload.subscription?.type}. ` +
-            'Token expire ou scope retire — relance `npm run login`.',
+          `Souscription revoquee : ${revokedType} (${message.payload.subscription?.status}). ` +
+            'Autorisation retiree ou compte modifie — relance `npm run login`.',
         );
+        // Sans ca la regie reste au vert alors que ce type d'evenement n'arrivera plus.
+        this.active.delete(revokedType);
+        this.emit('degraded', [revokedType]);
+        if (this.sessionId) void this.subscribeAll(this.sessionId);
         break;
+      }
 
       case 'notification': {
         this.resetKeepalive();
+        const messageId = message.metadata.message_id;
+        if (messageId) {
+          if (this.seen.has(messageId)) return;
+          this.seen.set(messageId, Date.now());
+          if (this.seen.size > 2000) {
+            for (const [id] of this.seen) {
+              this.seen.delete(id);
+              if (this.seen.size <= 1000) break;
+            }
+          }
+        }
         const subType = message.metadata.subscription_type;
         const event = message.payload.event;
         if (subType && event) this.dispatch(subType, event);
@@ -205,21 +246,43 @@ export class EventSubClient extends EventEmitter {
       ['channel.subscription.message', '1', condition],
       ['channel.cheer', '1', condition],
       ['channel.chat.message', '1', chatCondition],
+      // Seule source qui relie un receveur de gift a son donateur (meme scope user:read:chat).
+      ['channel.chat.notification', '1', chatCondition],
+      // Moderation : un message supprime ou un ban/timeout ne doit pas finir dans une vanne.
+      ['channel.chat.message_delete', '1', chatCondition],
+      ['channel.chat.clear_user_messages', '1', chatCondition],
     ];
 
-    const failed: string[] = [];
-    for (const [type, version, cond] of wanted) {
-      try {
-        await createEventSubSubscription(type, version, cond, sessionId);
-        log.twitch(`Abonne a ${type}`);
-      } catch (error) {
-        failed.push(type);
-        log.error(
-          `Souscription ${type} refusee :`,
-          error instanceof Error ? error.message : error,
-        );
+    let pending = wanted.filter(([type]) => !this.active.has(type));
+    let failed: string[] = [];
+    for (let attempt = 1; attempt <= 3 && pending.length; attempt += 1) {
+      if (attempt > 1) await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+      // La session a pu mourir pendant l'attente : la suivante refera tout.
+      if (this.sessionId !== sessionId) return;
+      const retry: typeof wanted = [];
+      for (const entry of pending) {
+        const [type, version, cond] = entry;
+        try {
+          await createEventSubSubscription(type, version, cond, sessionId);
+          this.active.add(type);
+          log.twitch(`Abonne a ${type}`);
+        } catch (error) {
+          // 409 = deja abonne sur cette session : c'est un succes.
+          if (error instanceof Error && / -> 409 /.test(error.message)) {
+            this.active.add(type);
+            continue;
+          }
+          retry.push(entry);
+          log.error(
+            `Souscription ${type} refusee (essai ${attempt}/3) :`,
+            error instanceof Error ? error.message : error,
+          );
+        }
       }
+      pending = retry;
     }
+    failed = pending.map(([type]) => type);
+    if (this.sessionId !== sessionId) return;
 
     // Avant, "ready" partait meme avec 0 souscription sur 4 : l'outil affichait
     // "En ecoute" alors qu'il ne recevrait jamais rien, et le streamer ne le
@@ -247,16 +310,47 @@ export class EventSubClient extends EventEmitter {
           userName: str('chatter_user_name'),
           text: nested?.text ?? '',
           subMonths: readSubMonths(event['badges']),
+          sourceBroadcasterId: event['source_broadcaster_user_id'] ? String(event['source_broadcaster_user_id']) : null,
+          messageId: str('message_id'),
         };
         if (chat.userId && chat.text) this.emit('chat', chat);
         break;
       }
 
+      case 'channel.chat.message_delete':
+        this.emit('moderation', { userId: str('target_user_id'), messageId: str('message_id') });
+        break;
+
+      case 'channel.chat.clear_user_messages':
+        this.emit('moderation', { userId: str('target_user_id'), messageId: null });
+        break;
+
+      case 'channel.chat.notification': {
+        // notice_type "sub_gift" : un par receveur, avec le donateur (chatter_*)
+        // et le receveur dans le MEME evenement. "shared_chat_sub_gift" = autre chaine.
+        if (event['notice_type'] !== 'sub_gift') break;
+        const gift = event['sub_gift'] as
+          | { recipient_user_id?: string; recipient_user_login?: string; recipient_user_name?: string; sub_tier?: string }
+          | null;
+        if (!gift?.recipient_user_id) break;
+        const anonymousGifter = event['chatter_is_anonymous'] === true;
+        this.emit('sub', {
+          type: 'gift_recipient',
+          userId: gift.recipient_user_id,
+          userLogin: gift.recipient_user_login ?? '',
+          userName: gift.recipient_user_name ?? '',
+          tier: gift.sub_tier,
+          gifterName: anonymousGifter ? undefined : str('chatter_user_name') || undefined,
+        });
+        break;
+      }
+
       case 'channel.subscribe': {
-        // is_gift = true -> c'est un receveur de gift, pas un nouvel abonne spontane.
-        const isGift = event['is_gift'] === true;
+        // is_gift = true -> receveur de gift : traite via channel.chat.notification
+        // (sub_gift), qui porte aussi le donateur. Ici on ne le sait pas.
+        if (event['is_gift'] === true) break;
         const trigger: RoastTrigger = {
-          type: isGift ? 'gift_recipient' : 'sub',
+          type: 'sub',
           userId: str('user_id'),
           userLogin: str('user_login'),
           userName: str('user_name'),
@@ -276,7 +370,8 @@ export class EventSubClient extends EventEmitter {
           tier: str('tier'),
           cumulativeMonths: num('cumulative_months'),
           streakMonths: num('streak_months'),
-          message: nested?.text ?? undefined,
+          // Un resub partage sans texte arrive avec text = "" : pas de message.
+          message: nested?.text || undefined,
         };
         this.emit('sub', trigger);
         break;
@@ -318,6 +413,16 @@ export class EventSubClient extends EventEmitter {
     }
   }
 
+  /** Ferme l'ancienne socket sans qu'elle puisse relancer une reconnexion ni lever d'erreur orpheline. */
+  private retirePrevious(): void {
+    const old = this.previous;
+    this.previous = null;
+    if (!old) return;
+    old.removeAllListeners();
+    old.on('error', () => {});
+    old.close();
+  }
+
   private resetKeepalive(): void {
     this.clearKeepalive();
     // Twitch garantit un keepalive dans la fenetre annoncee ; au-dela on
@@ -338,10 +443,13 @@ export interface EventSubClient {
   on(event: 'chat', listener: (message: ChatMessageEvent) => void): this;
   on(event: 'sub', listener: (trigger: RoastTrigger) => void): this;
   on(event: 'ready', listener: () => void): this;
+  /** Message supprime (messageId) ou tous ceux d'un banni / timeout (messageId null). */
+  on(event: 'moderation', listener: (m: { userId: string; messageId: string | null }) => void): this;
   /** Au moins une souscription a echoue : l'outil ne recevra pas tout. */
   on(event: 'degraded', listener: (failed: string[]) => void): this;
   emit(event: 'chat', message: ChatMessageEvent): boolean;
   emit(event: 'sub', trigger: RoastTrigger): boolean;
   emit(event: 'ready'): boolean;
+  emit(event: 'moderation', m: { userId: string; messageId: string | null }): boolean;
   emit(event: 'degraded', failed: string[]): boolean;
 }

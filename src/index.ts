@@ -1,5 +1,7 @@
 import { config } from './config.js';
 import {
+  deleteMessageById,
+  deleteMessagesOf,
   forgetUser,
   isOptedOut,
   isSubscriber,
@@ -16,7 +18,7 @@ import { loadCustomBlocklist, sanitiseChatMessage } from './roast/safety.js';
 import { startServer } from './server/index.js';
 import { clearAudioDir } from './tts/index.js';
 import { getCurrentUser, getUserByLogin, listSubscribers, sendChatMessage } from './twitch/api.js';
-import { hasStoredToken } from './twitch/auth.js';
+import { hasStoredToken, validateToken } from './twitch/auth.js';
 import { EventSubClient } from './twitch/eventsub.js';
 
 const OPT_OUT_COMMAND = '!noroast';
@@ -46,6 +48,11 @@ async function main(): Promise<void> {
     log.warn('ANTHROPIC_API_KEY absent : la generation des vannes va echouer.');
   }
 
+  // Exigence Twitch : valider le token au demarrage, puis toutes les heures.
+  // https://dev.twitch.tv/docs/authentication/validate-tokens/
+  const validated = await validateToken();
+  log.ok(`Token Twitch valide (compte ${validated.login}).`);
+
   loadCustomBlocklist();
   reportChannelContext();
   clearAudioDir();
@@ -67,6 +74,15 @@ async function main(): Promise<void> {
   const queue = new RoastQueue();
   queue.run();
   const { setDegraded } = startServer(queue);
+  setInterval(() => {
+    validateToken().catch((error: unknown) => {
+      const reason = error instanceof Error ? error.message : String(error);
+      log.error('Validation horaire du token Twitch en echec :', reason);
+      // Coupure reseau passagere : on reessaie dans une heure. Token refuse ou
+      // refresh mort : la regie doit l'afficher, EventSub ne tiendra pas une reconnexion.
+      if (reason.includes('npm run login')) setDegraded(['token Twitch (npm run login)']);
+    });
+  }, 3600_000);
 
   if (config.echoInChat) {
     queue.on('spoken', (item) => {
@@ -158,16 +174,16 @@ async function main(): Promise<void> {
     }
   };
 
-  await syncSubs();
-  setInterval(() => void syncSubs(), 30 * 60_000);
-
   const eventsub = new EventSubClient(channel.id);
 
-  // Le nom du dernier donateur, pour l'attacher aux receveurs qui arrivent juste apres.
-  let lastGifter: { name: string; at: number } | null = null;
-
   eventsub.on('chat', (message) => {
-    const lower = message.text.trim().toLowerCase();
+    // Premier mot seulement ("!noroast stp" doit marcher), et sans les caracteres
+    // invisibles que certains clients de chat ajoutent aux messages repetes.
+    const lower = message.text
+      .replace(/[\u{E0000}-\u{E007F}\u034F\u200B-\u200D\u2060\uFEFF]/gu, '')
+      .trim()
+      .toLowerCase()
+      .split(/\s+/, 1)[0] ?? '';
 
     if (lower === OPT_OUT_COMMAND) {
       setOptOut(message.userId, message.userLogin, message.userName, true);
@@ -196,6 +212,12 @@ async function main(): Promise<void> {
       return;
     }
 
+    // Les annonces et l'echo de Hexa reviennent par channel.chat.message sous le
+    // compte de la chaine ; en Shared Chat arrivent aussi les viewers des AUTRES
+    // chaines, qui n'ont jamais vu l'annonce. Ni l'un ni l'autre n'est a profiler.
+    if (message.userId === channel.id) return;
+    if (message.sourceBroadcasterId && message.sourceBroadcasterId !== channel.id) return;
+
     // Quelqu'un qui s'est oppose ne doit plus etre enregistre du tout, pas
     // seulement epargne par les vannes : c'est le meme droit.
     if (isOptedOut(message.userId)) return;
@@ -215,16 +237,21 @@ async function main(): Promise<void> {
       }
       return;
     }
-    recordMessage(message.userId, message.userLogin, message.userName, clean, message.subMonths);
+    recordMessage(message.userId, message.userLogin, message.userName, clean, message.subMonths, Date.now(), message.messageId);
   });
 
+  eventsub.on('moderation', ({ userId, messageId }) => {
+    if (messageId) {
+      deleteMessageById(messageId);
+      return;
+    }
+    const removed = deleteMessagesOf(userId);
+    queue.purgeUser(userId);
+    log.info(`Ban/timeout Twitch : ${removed} message(s) de ${userId} retire(s) du profil.`);
+  });
+
+  // gifterName arrive deja renseigne par channel.chat.notification (sub_gift).
   eventsub.on('sub', (trigger) => {
-    if (trigger.type === 'gift' && !trigger.anonymous) {
-      lastGifter = { name: trigger.userName, at: Date.now() };
-    }
-    if (trigger.type === 'gift_recipient' && lastGifter && Date.now() - lastGifter.at < 60_000) {
-      trigger.gifterName = lastGifter.name;
-    }
     queue.submit(trigger);
   });
 
@@ -242,6 +269,12 @@ async function main(): Promise<void> {
   });
 
   eventsub.start();
+
+  // Apres le demarrage d'EventSub, et sans l'attendre : plusieurs milliers
+  // d'abonnes = des dizaines de pages Helix, pendant lesquelles aucun sub
+  // n'etait capte alors que la regie etait deja ouverte.
+  void syncSubs();
+  setInterval(() => void syncSubs(), 30 * 60_000);
 
   const shutdown = (): void => {
     log.info('Arret...');

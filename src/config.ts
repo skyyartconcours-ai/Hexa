@@ -27,6 +27,18 @@ function int(key: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export type Effort = (typeof EFFORTS)[number];
+
+/** Une valeur hors liste ferait echouer CHAQUE vanne en 400 : on refuse au demarrage. */
+function effort(key: string, fallback: Effort): Effort {
+  const raw = str(key, fallback).toLowerCase();
+  if (!(EFFORTS as readonly string[]).includes(raw)) {
+    throw new Error(`${key} invalide : "${raw}" (attendu : ${EFFORTS.join(' | ')})`);
+  }
+  return raw as Effort;
+}
+
 function bool(key: string, fallback: boolean): boolean {
   const raw = str(key).toLowerCase();
   if (!raw) return fallback;
@@ -53,12 +65,23 @@ export const config = {
      * (API GraphQL interne, voir src/twitch/vod.ts). Rien a voir avec ton app.
      */
     webClientId: str('TWITCH_WEB_CLIENT_ID', 'kimne78kx3ncx6brgo4mv6wki5h1ko'),
+    /**
+     * Points d'entree Twitch. Ne JAMAIS les changer pour un vrai live : ils
+     * n'existent que pour faire tourner l'outil contre un simulateur — le
+     * `twitch event websocket start-server` de la Twitch CLI officielle, ou le
+     * simulateur de bout en bout — sans toucher au code.
+     */
+    eventsubUrl: str('TWITCH_EVENTSUB_URL', 'wss://eventsub.wss.twitch.tv/ws'),
+    helixUrl: str('TWITCH_HELIX_URL', 'https://api.twitch.tv/helix').replace(/\/+$/, ''),
+    authUrl: str('TWITCH_AUTH_URL', 'https://id.twitch.tv').replace(/\/+$/, ''),
   },
 
   anthropic: {
     apiKey: str('ANTHROPIC_API_KEY'),
     model: str('ROAST_MODEL', 'claude-opus-5'),
-    effort: str('ROAST_EFFORT', 'low'),
+    effort: effort('ROAST_EFFORT', 'low'),
+    // Rejeu serveur des refus (beta) : coupe-circuit si l'en-tete beta evolue.
+    serverFallback: bool('ROAST_SERVER_FALLBACK', true),
   },
 
   judge: {
@@ -85,7 +108,10 @@ export const config = {
       // Le "reference_id" de la voix chez Fish Audio.
       voiceId: str('FISHAUDIO_VOICE_ID'),
       modelId: str('FISHAUDIO_MODEL_ID', 's2.1-pro'),
-      speed: Number.parseFloat(str('FISHAUDIO_SPEED', '1.0')) || 1.0,
+      // Simulateur uniquement, comme les points d'entree Twitch.
+      baseUrl: str('FISHAUDIO_BASE_URL', 'https://api.fish.audio').replace(/\/+$/, ''),
+      // L'API accepte 0.5 a 2.0.
+      speed: Math.min(2, Math.max(0.5, Number.parseFloat(str('FISHAUDIO_SPEED', '1.0')) || 1.0)),
     },
     cartesia: {
       apiKey: str('CARTESIA_API_KEY'),

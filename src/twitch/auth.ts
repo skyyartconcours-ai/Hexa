@@ -52,7 +52,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export async function loginInteractive(): Promise<StoredToken> {
   const scopes = config.twitch.scopes.join(' ');
 
-  const deviceResponse = await fetch('https://id.twitch.tv/oauth2/device', {
+  const deviceResponse = await fetch(`${config.twitch.authUrl}/oauth2/device`, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ client_id: config.twitch.clientId, scopes }),
@@ -79,7 +79,7 @@ export async function loginInteractive(): Promise<StoredToken> {
   while (Date.now() < deadline) {
     await sleep(intervalMs);
 
-    const tokenResponse = await fetch('https://id.twitch.tv/oauth2/token', {
+    const tokenResponse = await fetch(`${config.twitch.authUrl}/oauth2/token`, {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -109,7 +109,7 @@ export async function loginInteractive(): Promise<StoredToken> {
 }
 
 async function refresh(token: StoredToken): Promise<StoredToken> {
-  const response = await fetch('https://id.twitch.tv/oauth2/token', {
+  const response = await fetch(`${config.twitch.authUrl}/oauth2/token`, {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -120,6 +120,12 @@ async function refresh(token: StoredToken): Promise<StoredToken> {
   });
 
   if (!response.ok) {
+    // Refresh token a usage unique : un autre process (npm run doctor, backfill)
+    // a pu le consommer et ecrire le nouveau dans la base entre-temps.
+    const latest = readToken<StoredToken>(TOKEN_KEY);
+    if (latest && latest.refreshToken !== token.refreshToken && Date.now() < latest.expiresAt) {
+      return latest;
+    }
     throw new Error(
       `Refresh du token Twitch impossible (${response.status}). Relance \`npm run login\`.`,
     );
@@ -129,8 +135,17 @@ async function refresh(token: StoredToken): Promise<StoredToken> {
   return store((await response.json()) as TokenResponse);
 }
 
-/** Retourne un access token valide, en le rafraichissant si besoin. */
-export async function getAccessToken(): Promise<string> {
+/** Un seul refresh a la fois : le refresh token d'un client Public est a usage unique. */
+let inflight: Promise<StoredToken> | null = null;
+function refreshOnce(token: StoredToken): Promise<StoredToken> {
+  inflight ??= refresh(token).finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+
+/** Retourne un access token valide, en le rafraichissant si besoin (ou si `force`). */
+export async function getAccessToken(force = false): Promise<string> {
   const token = readToken<StoredToken>(TOKEN_KEY);
   if (!token) {
     throw new Error('Pas de token Twitch enregistre. Lance `npm run login` d\'abord.');
@@ -143,10 +158,27 @@ export async function getAccessToken(): Promise<string> {
     );
   }
 
-  if (Date.now() >= token.expiresAt) {
-    return (await refresh(token)).accessToken;
+  if (force || Date.now() >= token.expiresAt) {
+    return (await refreshOnce(token)).accessToken;
   }
   return token.accessToken;
+}
+
+/**
+ * Validation exigee par Twitch au demarrage puis toutes les heures :
+ * https://dev.twitch.tv/docs/authentication/validate-tokens/
+ * Un 401 declenche un refresh ; si le refresh echoue, l'erreur remonte.
+ */
+export async function validateToken(): Promise<{ login: string; userId: string; expiresIn: number }> {
+  const call = async (token: string) =>
+    fetch(`${config.twitch.authUrl}/oauth2/validate`, { headers: { authorization: `OAuth ${token}` } });
+  let response = await call(await getAccessToken());
+  if (response.status === 401) response = await call(await getAccessToken(true));
+  if (!response.ok) {
+    throw new Error(`Token Twitch refuse par /oauth2/validate (${response.status}). Relance \`npm run login\`.`);
+  }
+  const info = (await response.json()) as { login: string; user_id: string; expires_in: number };
+  return { login: info.login, userId: info.user_id, expiresIn: info.expires_in };
 }
 
 export function hasStoredToken(): boolean {

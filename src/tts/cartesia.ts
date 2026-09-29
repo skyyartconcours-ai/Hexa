@@ -28,8 +28,10 @@ export const cartesiaProvider: TtsProvider = {
 
     const response = await fetch(ENDPOINT, {
       method: 'POST',
+      signal: AbortSignal.timeout(15_000),
       headers: {
-        'X-API-Key': apiKey,
+        // Le SDK officiel >= 3.0 (y compris avec la version 2025-11-04) envoie Bearer.
+        authorization: `Bearer ${apiKey}`,
         'Cartesia-Version': version,
         'content-type': 'application/json',
       },

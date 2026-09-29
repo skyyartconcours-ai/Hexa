@@ -44,12 +44,14 @@ export async function synthesise(
   id: string,
   text: string,
   direction?: Delivery,
+  pseudo?: string,
 ): Promise<string | null> {
   const provider = activeProvider();
   if (!provider) return null;
 
+  const clean = toSpeech(text, pseudo);
   const spoken =
-    direction && provider.supportsInlineDirections ? `[${direction}] ${text}` : text;
+    direction && provider.supportsInlineDirections ? `[${direction}] ${clean}` : clean;
 
   const started = Date.now();
   const audio = await provider.synthesise(spoken);
@@ -79,4 +81,32 @@ export function clearAudioDir(): void {
     removed += 1;
   }
   if (removed) log.info(`${removed} fichier(s) audio residuel(s) supprime(s).`);
+}
+
+const LEET: Record<string, string> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't' };
+
+/** "xX_D4rkS0ul_Xx" -> "Dark Soul". La voix lit ceci ; l'overlay garde le pseudo brut. */
+export function spokenPseudo(name: string): string {
+  const s = name
+    .replace(/^(?:[xX]{1,3}[_\-.~]+)+/, '') // "xX_" en tete
+    .replace(/(?:[_\-.~]+[xX]{1,3})+$/, '') // "_Xx" en queue
+    // chiffres colles entre une lettre et une minuscule : leetspeak (D4rk, S0ul, N00b)
+    .replace(/(?<=\p{L})\d+(?=\p{Ll})/gu, (d) => [...d].map((c) => LEET[c] ?? c).join(''))
+    .replace(/[_\-.~]+/g, ' ')
+    .replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2') // CamelCase
+    .replace(/(\p{L})(\d)/gu, '$1 $2')
+    .replace(/(\d)(\p{L})/gu, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return s || name;
+}
+
+/** Texte envoye au TTS : pseudo prononcable, sans emoji (lus ou avales selon le modele). */
+export function toSpeech(text: string, pseudo?: string): string {
+  const withPseudo = pseudo ? text.split(pseudo).join(spokenPseudo(pseudo)) : text;
+  return withPseudo
+    .replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}\p{Regional_Indicator}\u200D\uFE0F\u20E3]+/gu, '')
+    .replace(/\s+([,.…])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }

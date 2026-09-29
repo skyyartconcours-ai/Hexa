@@ -35,7 +35,7 @@ const PATTERNS: Array<{ label: string; regex: RegExp }> = [
   { label: 'commande_chat', regex: /^\s*[!\/]\w+/ },
   // Une didascalie laissee dans le texte serait lue a voix haute par les TTS
   // qui ne les interpretent pas.
-  { label: 'didascalie', regex: /[[\]]|\*[^*]+\*/ },
+  { label: 'didascalie', regex: /[[\]()<>]|\*[^*]+\*/ },
   { label: 'injection_prompt', regex: /\b(ignore|oublie)\s+(les|tes|toutes)\s+(instructions|consignes)/i },
   { label: 'apparence', regex: /\b(t(u|')?es|il est|elle est)\s+(gros|grosse|moche|laid|laide)\b/i },
   { label: 'argent_dispo', regex: /\b(radin|pingre|fauché|fauche|smicard)\b/i },

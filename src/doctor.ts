@@ -52,7 +52,7 @@ async function main(): Promise<void> {
   } else {
     try {
       const token = await auth.getAccessToken();
-      const response = await fetch('https://id.twitch.tv/oauth2/validate', {
+      const response = await fetch(`${config.twitch.authUrl}/oauth2/validate`, {
         headers: { authorization: `OAuth ${token}` },
       });
       if (!response.ok) {
@@ -92,6 +92,24 @@ async function main(): Promise<void> {
         } else {
           pass('Scopes', config.twitch.scopes.join(', '));
         }
+
+        // Le seul test qui touche le vrai contrat EventSub : une session WebSocket
+        // reelle, les vraies souscriptions, puis on ferme (elles disparaissent avec).
+        const { EventSubClient } = await import('./twitch/eventsub.js');
+        await new Promise<void>((resolve) => {
+          const client = new EventSubClient(info.user_id);
+          const done = (ok: boolean, detail: string): void => {
+            clearTimeout(timer);
+            client.stop();
+            if (ok) pass('EventSub', detail);
+            else fail('EventSub', detail, 'Voir le message de Twitch ci-dessus ; souvent : npm run login');
+            resolve();
+          };
+          const timer = setTimeout(() => done(false, 'aucune reponse de Twitch en 25 s'), 25_000);
+          client.on('ready', () => done(true, 'toutes les souscriptions acceptees par Twitch'));
+          client.on('degraded', (failed) => done(false, `refusees : ${failed.join(', ')}`));
+          client.start();
+        });
       }
     } catch (error) {
       fail('Token Twitch', error instanceof Error ? error.message : String(error), 'npm run login');
@@ -107,11 +125,26 @@ async function main(): Promise<void> {
     const client = new Anthropic({ apiKey: anthropicKey });
     // count_tokens est gratuit et valide a la fois la cle et l'identifiant du
     // modele, sans generer une seule vanne.
+    const { SYSTEM_PROMPT, ROAST_SCHEMA } = await import('./roast/prompt.js');
     const models = [config.anthropic.model, ...(config.judge.enabled ? [config.judge.model] : [])];
     for (const model of models) {
       try {
-        await client.messages.countTokens({ model, messages: [{ role: 'user', content: 'ping' }] });
-        pass(`Anthropic · ${model}`, 'cle acceptee, modele reconnu');
+        // Meme forme que la vraie requete : valide aussi `effort` (gratuit, sans compiler le schema).
+        const isGenerator = model === config.anthropic.model;
+        const counted = await client.messages.countTokens({
+          model,
+          messages: [{ role: 'user', content: 'ping' }],
+          ...(isGenerator
+            ? {
+                system: [{ type: 'text' as const, text: SYSTEM_PROMPT }],
+                output_config: {
+                  format: { type: 'json_schema' as const, schema: ROAST_SCHEMA },
+                  ...(!/haiku|sonnet-4-5/i.test(model) ? { effort: config.anthropic.effort } : {}),
+                },
+              }
+            : {}),
+        });
+        pass(`Anthropic · ${model}`, `cle acceptee, modele reconnu (${counted.input_tokens} tokens)`);
       } catch (error) {
         if (error instanceof Anthropic.AuthenticationError) {
           fail('Anthropic', 'cle refusee', 'Verifie ANTHROPIC_API_KEY');
@@ -145,6 +178,62 @@ async function main(): Promise<void> {
       fail('TTS', `${tts.provider} : identifiant de voix absent`, 'Choisis une voix dans ton compte et colle son id');
     } else {
       pass('TTS', `${tts.provider}, cle et voix renseignees (l\'appel reel n\'est pas teste ici)`);
+    }
+  }
+
+  // ── Appels reels (payants, opt-in : npm run doctor -- --live) ───────────
+  // Rien d'autre ne valide le schema JSON, le fallback beta, ni les balises
+  // de jeu Fish Audio : sans ca, la premiere vraie requete part a l'antenne.
+  if (process.argv.includes('--live')) {
+    try {
+      const { generateRoast } = await import('./roast/generator.js');
+      const { judgeRoast } = await import('./roast/judge.js');
+      const who = { userId: '0', userLogin: 'doctor', userName: 'xX_D4rkS0ul_Xx' };
+      const t0 = Date.now();
+      const draft = await generateRoast(
+        { type: 'sub', tier: '1000', ...who },
+        { ...who, messageCount: 0, subMonths: null, daysKnown: 0, avgMessageLength: 0,
+          signatureWords: [], favouriteHour: null, recentMessages: [] },
+        [],
+      );
+      const t1 = Date.now();
+      const verdict = await judgeRoast(who.userName, draft.roast);
+      pass('Generation reelle', `${t1 - t0} ms + juge ${Date.now() - t1} ms (${verdict.verdict}) : ${draft.roast}`);
+    } catch (error) {
+      fail('Generation reelle', error instanceof Error ? error.message : String(error));
+    }
+
+    if (tts.provider === 'fishaudio' && tts.fishaudio.apiKey && tts.fishaudio.voiceId) {
+      // Chaque balise est synthetisee puis retranscrite par l'ASR de Fish : si
+      // le texte revient avec des mots en trop, la voix a LU la balise.
+      const { fishAudioProvider } = await import('./tts/fishaudio.js');
+      const { DELIVERIES } = await import('./tts/provider.js');
+      const phrase = 'Bienvenue dans le chat, champion.';
+      const words = (t: string): string[] =>
+        t.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').match(/[a-z]+/g)
+          ?.filter((w) => !/^(h?[aeio]h?)+$/.test(w)) ?? []; // rires : "haha", "hihi"
+      for (const d of DELIVERIES) {
+        try {
+          const audio = await fishAudioProvider.synthesise(`[${d}] ${phrase}`);
+          const form = new FormData();
+          form.append('audio', new Blob([new Uint8Array(audio)], { type: 'audio/mpeg' }), 'probe.mp3');
+          form.append('language', 'fr');
+          form.append('ignore_timestamps', 'true');
+          const res = await fetch(`${tts.fishaudio.baseUrl}/v1/asr`, {
+            method: 'POST',
+            headers: { authorization: `Bearer ${tts.fishaudio.apiKey}` },
+            body: form,
+            signal: AbortSignal.timeout(20_000),
+          });
+          const { text } = (await res.json()) as { text: string };
+          const heard = words(text);
+          const leaked = heard.length > words(phrase).length || d.split(' ').some((w) => heard.includes(w));
+          if (leaked) fail(`Fish · [${d}]`, `balise lue a voix haute : "${text}"`, 'retire-la de DELIVERIES');
+          else pass(`Fish · [${d}]`, `interpretee, pas lue ("${text}")`);
+        } catch (error) {
+          fail(`Fish · [${d}]`, error instanceof Error ? error.message : String(error));
+        }
+      }
     }
   }
 

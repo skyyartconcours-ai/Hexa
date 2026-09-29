@@ -2,8 +2,12 @@ import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 import { log } from '../log.js';
 
+// Haiku repond en ~1 s : au-dela de 8 s c'est une panne, et une panne du juge
+// renvoie deja la vanne en regie (unavailable). Pas la peine d'attendre 30 min.
 const client = new Anthropic({
   ...(config.anthropic.apiKey ? { apiKey: config.anthropic.apiKey } : {}),
+  timeout: 8_000,
+  maxRetries: 1,
 });
 
 /**
@@ -70,7 +74,8 @@ export async function judgeRoast(userName: string, roast: string): Promise<Verdi
   if (!config.judge.enabled) return { ok: true, verdict: 'non', reason: 'juge desactive' };
 
   try {
-    const response = await client.messages.create({
+    const response = await client.messages.create(
+      {
       model: config.judge.model,
       // Le verdict tient en deux champs : rien ne justifie plus de marge, et
       // ce plafond garde l'appel court pendant un hype train.
@@ -87,7 +92,9 @@ export async function judgeRoast(userName: string, roast: string): Promise<Verdi
           content: `<pseudo>${userName}</pseudo>\n<vanne>${roast}</vanne>\n\nCette phrase peut-elle blesser ${userName} ?`,
         },
       ],
-    } as unknown as Anthropic.MessageCreateParamsNonStreaming);
+      },
+      { signal: AbortSignal.timeout(15_000) },
+    );
 
     if (response.stop_reason === 'refusal') {
       return { ok: false, verdict: 'oui', reason: 'le juge a refuse de se prononcer' };
@@ -99,7 +106,9 @@ export async function judgeRoast(userName: string, roast: string): Promise<Verdi
     if (!block) throw new Error('reponse sans contenu');
 
     const parsed = JSON.parse(block.text) as { verdict?: string; raison?: string };
-    const verdict = parsed.verdict === 'non' || parsed.verdict === 'oui' ? parsed.verdict : 'incertain';
+    // La casse des valeurs d'enum n'est pas garantie : "Non" ne doit pas devenir "incertain".
+    const raw = typeof parsed.verdict === 'string' ? parsed.verdict.trim().toLowerCase() : '';
+    const verdict = raw === 'non' || raw === 'oui' ? raw : 'incertain';
 
     return {
       ok: verdict === 'non',
