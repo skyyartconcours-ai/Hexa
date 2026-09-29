@@ -41,8 +41,40 @@ export interface ServerHandle {
   setDegraded(failed: string[]): void;
 }
 
+/**
+ * Le serveur n'ecoute que sur 127.0.0.1, mais le navigateur du streamer, lui,
+ * visite d'autres sites. Sans ces controles, une page quelconque ouverte dans
+ * un autre onglet pouvait envoyer un POST "simple" (text/plain, sans preflight
+ * CORS) sur /api/session/start, ou ouvrir le WebSocket — le WebSocket n'est pas
+ * couvert par CORS. On n'accepte donc que ce qui vient de nos propres pages.
+ */
+function isLocalHost(host: string | undefined): boolean {
+  // Contre le DNS rebinding : un domaine externe qui se resout en 127.0.0.1
+  // arrive avec SON nom dans Host, pas le notre.
+  if (!host) return false;
+  return host === `localhost:${config.server.port}` || host === `127.0.0.1:${config.server.port}`;
+}
+
+function isLocalOrigin(origin: string | undefined): boolean {
+  // Pas d'Origin : navigation directe, OBS, curl. Une page d'un autre site en
+  // envoie toujours un sur un POST ou une ouverture de WebSocket.
+  if (!origin) return true;
+  return origin === `http://localhost:${config.server.port}` || origin === `http://127.0.0.1:${config.server.port}`;
+}
+
 export function startServer(queue: RoastQueue): ServerHandle {
   const app = express();
+
+  app.use((req, res, next) => {
+    if (!isLocalHost(req.headers.host)) return res.status(403).send('Hote refuse.');
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origine refusee' });
+      // Exiger du JSON force un preflight CORS pour toute requete venue d'ailleurs,
+      // preflight auquel on ne repond jamais favorablement.
+      if (!req.is('application/json')) return res.status(415).json({ error: 'JSON attendu' });
+    }
+    return next();
+  });
   app.use(express.json());
   app.use(express.static(PUBLIC_DIR));
   app.use('/audio', express.static(AUDIO_DIR, { maxAge: 0 }));
@@ -159,7 +191,13 @@ export function startServer(queue: RoastQueue): ServerHandle {
   // ── WebSocket ──────────────────────────────────────────────────────────
 
   const server = http.createServer(app);
-  const wss = new WebSocketServer({ server, path: '/ws' });
+  const wss = new WebSocketServer({
+    server,
+    path: '/ws',
+    // Meme regle que pour l'API : seules nos pages (regie, overlay OBS) parlent au WebSocket.
+    verifyClient: ({ origin, req }: { origin: string; req: http.IncomingMessage }) =>
+      isLocalHost(req.headers.host) && isLocalOrigin(origin || undefined),
+  });
   const clients = new Set<WebSocket>();
   /** Seuls les overlays peuvent declarer une vanne terminee (voir plus bas). */
   const overlays = new Set<WebSocket>();
