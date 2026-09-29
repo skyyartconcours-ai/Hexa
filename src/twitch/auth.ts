@@ -4,6 +4,16 @@ import { log } from '../log.js';
 
 const TOKEN_KEY = 'twitch_oauth';
 
+/** Echec d'authentification Twitch avec son statut : 400/401 = definitif, le reste = passager. */
+export class TwitchAuthError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 interface StoredToken {
   accessToken: string;
   refreshToken: string;
@@ -111,6 +121,9 @@ export async function loginInteractive(): Promise<StoredToken> {
 async function refresh(token: StoredToken): Promise<StoredToken> {
   const response = await fetch(`${config.twitch.authUrl}/oauth2/token`, {
     method: 'POST',
+    // Sans delai, un refresh pendu (id.twitch.tv qui ne repond pas) bloquait
+    // TOUS les appels Twitch 300 s : refreshOnce() partage la meme promesse.
+    signal: AbortSignal.timeout(10_000),
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: config.twitch.clientId,
@@ -126,8 +139,9 @@ async function refresh(token: StoredToken): Promise<StoredToken> {
     if (latest && latest.refreshToken !== token.refreshToken && Date.now() < latest.expiresAt) {
       return latest;
     }
-    throw new Error(
+    throw new TwitchAuthError(
       `Refresh du token Twitch impossible (${response.status}). Relance \`npm run login\`.`,
+      response.status,
     );
   }
 
@@ -171,11 +185,17 @@ export async function getAccessToken(force = false): Promise<string> {
  */
 export async function validateToken(): Promise<{ login: string; userId: string; expiresIn: number }> {
   const call = async (token: string) =>
-    fetch(`${config.twitch.authUrl}/oauth2/validate`, { headers: { authorization: `OAuth ${token}` } });
+    fetch(`${config.twitch.authUrl}/oauth2/validate`, {
+      headers: { authorization: `OAuth ${token}` },
+      signal: AbortSignal.timeout(10_000),
+    });
   let response = await call(await getAccessToken());
   if (response.status === 401) response = await call(await getAccessToken(true));
   if (!response.ok) {
-    throw new Error(`Token Twitch refuse par /oauth2/validate (${response.status}). Relance \`npm run login\`.`);
+    throw new TwitchAuthError(
+      `Token Twitch refuse par /oauth2/validate (${response.status}). Relance \`npm run login\`.`,
+      response.status,
+    );
   }
   const info = (await response.json()) as { login: string; user_id: string; expires_in: number };
   return { login: info.login, userId: info.user_id, expiresIn: info.expires_in };

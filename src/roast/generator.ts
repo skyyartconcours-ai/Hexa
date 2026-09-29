@@ -63,6 +63,7 @@ export async function generateRoast(
   pastRoasts: string[],
   facts: SubscriberFacts | null = null,
   sessionAngles: string[] = [],
+  cancel?: AbortSignal,
 ): Promise<RoastDraft> {
   const model = config.anthropic.model;
   const response = await client.beta.messages.create(
@@ -85,7 +86,11 @@ export async function generateRoast(
         { role: 'user', content: buildUserPrompt(trigger, profile, pastRoasts, facts, sessionAngles) },
       ],
     },
-    { signal: AbortSignal.timeout(GENERATION_DEADLINE_MS) },
+    {
+      signal: cancel
+        ? AbortSignal.any([AbortSignal.timeout(GENERATION_DEADLINE_MS), cancel])
+        : AbortSignal.timeout(GENERATION_DEADLINE_MS),
+    },
   );
 
   if (response.stop_reason === 'refusal') {

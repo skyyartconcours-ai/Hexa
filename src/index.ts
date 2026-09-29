@@ -17,7 +17,7 @@ import { RoastQueue } from './roast/queue.js';
 import { loadCustomBlocklist, sanitiseChatMessage } from './roast/safety.js';
 import { startServer } from './server/index.js';
 import { getCurrentUser, getUserByLogin, listSubscribers, sendChatMessage } from './twitch/api.js';
-import { hasStoredToken, validateToken } from './twitch/auth.js';
+import { TwitchAuthError, hasStoredToken, validateToken } from './twitch/auth.js';
 import { EventSubClient } from './twitch/eventsub.js';
 
 const OPT_OUT_COMMAND = '!noroast';
@@ -55,7 +55,13 @@ async function main(): Promise<void> {
   loadCustomBlocklist();
   reportChannelContext();
   purgeOldMessages();
-  setInterval(purgeOldMessages, 6 * 3600_000);
+  setInterval(() => {
+    try {
+      purgeOldMessages();
+    } catch (error) {
+      log.error('Purge impossible :', error instanceof Error ? error.message : error);
+    }
+  }, 6 * 3600_000);
 
   const channel = await getUserByLogin(config.twitch.channel);
   if (!channel) throw new Error(`Chaine Twitch introuvable : ${config.twitch.channel}`);
@@ -71,15 +77,25 @@ async function main(): Promise<void> {
 
   const queue = new RoastQueue();
   queue.run();
-  const { setDegraded, setTwitchDown } = startServer(queue);
+  const { setDegraded, setTwitchDown, setProblem } = startServer(queue);
   setInterval(() => {
-    validateToken().catch((error: unknown) => {
-      const reason = error instanceof Error ? error.message : String(error);
-      log.error('Validation horaire du token Twitch en echec :', reason);
-      // Coupure reseau passagere : on reessaie dans une heure. Token refuse ou
-      // refresh mort : la regie doit l'afficher, EventSub ne tiendra pas une reconnexion.
-      if (reason.includes('npm run login')) setDegraded(['token Twitch (npm run login)']);
-    });
+    validateToken()
+      .then(() => setProblem('token', null))
+      .catch((error: unknown) => {
+        const reason = error instanceof Error ? error.message : String(error);
+        log.error('Validation horaire du token Twitch en echec :', reason);
+        // Seul un refus (400/401 : refresh token mort, autorisation retiree) impose
+        // `npm run login`. Un 5xx ou une coupure reseau passent a l'essai suivant :
+        // avant, un seul 500 affichait « Aucun sub ne sera détecté » pour le reste
+        // du live alors que les subs arrivaient.
+        if (error instanceof TwitchAuthError && (error.status === 400 || error.status === 401)) {
+          setProblem(
+            'token',
+            'Token Twitch refusé : les subs arrivent tant que la connexion tient, mais la prochaine ' +
+              'reconnexion échouera. Relance `npm run login` dès que possible.',
+          );
+        }
+      });
   }, 3600_000);
 
   if (config.echoInChat) {
@@ -104,10 +120,43 @@ async function main(): Promise<void> {
   let announceTimer: NodeJS.Timeout | null = null;
   let lastInfoAt = 0;
 
-  const announce = (text: string): void => {
-    sendChatMessage(channel.id, me.id, text).catch((error: unknown) => {
-      log.warn('Annonce en chat impossible :', error instanceof Error ? error.message : error);
-    });
+  const announce = (text: string): Promise<boolean> =>
+    sendChatMessage(channel.id, me.id, text).then(
+      () => true,
+      (error: unknown) => {
+        log.warn('Annonce en chat impossible :', error instanceof Error ? error.message : error);
+        return false;
+      },
+    );
+
+  /**
+   * L'annonce d'ouverture conditionne la diffusion : un refresh de token rate
+   * une fois suffisait a lancer la session sans que le chat soit prevenu, et
+   * les vannes passaient cinq minutes avant le premier rappel. Tant qu'elle
+   * n'est pas postee, les vannes attendent ; nouvel essai toutes les 5 s,
+   * alerte en regie des le deuxieme echec.
+   */
+  const openWindow = async (text: () => string, startedAt: number | null): Promise<void> => {
+    queue.setAnnounced(false);
+    for (let attempt = 1; ; attempt += 1) {
+      const state = queue.getState();
+      if (!state.active || state.startedAt !== startedAt) return;
+      if (await announce(text())) {
+        // Session relancee pendant l'envoi : c'est la nouvelle boucle qui ouvre.
+        if (queue.getState().startedAt !== startedAt) return;
+        setProblem('announce', null);
+        queue.setAnnounced(true);
+        return;
+      }
+      if (attempt >= 2) {
+        setProblem(
+          'announce',
+          "Annonce de la session NON postée dans le chat : les vannes attendent qu'elle passe " +
+            '(nouvel essai toutes les 5 s). Coupe la session si ça dure.',
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
   };
 
   queue.on('session', (payload) => {
@@ -115,23 +164,25 @@ async function main(): Promise<void> {
     announceTimer = null;
 
     if (!payload.active) {
-      announce('🎤 Session de roast terminée. Merci à tous ceux qui sont passés !');
+      setProblem('announce', null);
+      void announce('🎤 Session de roast terminée. Merci à tous ceux qui sont passés !');
       return;
     }
 
-    // Minutes RESTANTES : le rappel de la 25e minute annoncait encore « pour 30 min ».
-    const open = (): void => {
+    // Minutes RESTANTES, recalculees a chaque envoi : le rappel de la 25e minute
+    // annoncait encore « pour 30 min ».
+    const openText = (): string => {
       const left = payload.endsAt ? Math.max(1, Math.round((payload.endsAt - Date.now()) / 60_000)) : 0;
-      announce(
+      return (
         `🎤 SESSION DE ROAST OUVERTE${left ? ` encore ${left} min` : ''} — ` +
-          `chaque sub, cheer (dès ${config.cheer.minBits} bits) ou don passe à l'antenne avec une vanne écrite et lue par une IA. ` +
-          `Tu ne veux pas ? Tape ${OPT_OUT_COMMAND} et tu es exclu, avant comme après. ` +
-          `Détails : ${INFO_COMMAND}`,
+        `chaque sub, cheer (dès ${config.cheer.minBits} bits) ou don passe à l'antenne avec une vanne écrite et lue par une IA. ` +
+        `Tu ne veux pas ? Tape ${OPT_OUT_COMMAND} et tu es exclu, avant comme après. ` +
+        `Détails : ${INFO_COMMAND}`
       );
     };
 
-    open();
-    announceTimer = setInterval(open, ANNOUNCE_EVERY_MS);
+    void openWindow(openText, queue.getState().startedAt);
+    announceTimer = setInterval(() => void announce(openText()), ANNOUNCE_EVERY_MS);
   });
 
   /**
@@ -213,7 +264,7 @@ async function main(): Promise<void> {
       // trolls suffisent a faire rate-limiter le compte du stream.
       if (Date.now() - lastInfoAt > INFO_COOLDOWN_MS) {
         lastInfoAt = Date.now();
-        announce(INFO_TEXT);
+        void announce(INFO_TEXT);
       }
       return;
     }
@@ -301,6 +352,11 @@ async function main(): Promise<void> {
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 }
+
+// Filet de securite : une promesse oubliee ne doit pas couper le direct.
+process.on('unhandledRejection', (reason) => {
+  log.error('Promesse rejetee non geree :', reason instanceof Error ? reason.stack ?? reason.message : reason);
+});
 
 main().catch((error: unknown) => {
   log.error(error instanceof Error ? error.stack ?? error.message : error);

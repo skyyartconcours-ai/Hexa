@@ -42,6 +42,8 @@ export interface ServerHandle {
   setDegraded(failed: string[]): void;
   /** Connexion EventSub coupee / retablie. */
   setTwitchDown(down: boolean): void;
+  /** Alerte nommee affichee en regie (annonce non postee, token refuse) ; null l'efface. */
+  setProblem(key: string, message: string | null): void;
 }
 
 /**
@@ -231,7 +233,14 @@ export function startServer(queue: RoastQueue): ServerHandle {
   let degradedReason: string[] = [];
   /** EventSub coupe (reseau, panne Twitch) : les subs ne sont PAS recus. */
   let twitchDown = false;
-  const health = () => ({ type: 'health', overlays: overlayCount(), degraded: degradedReason, twitchDown });
+  const problems = new Map<string, string>();
+  const health = () => ({
+    type: 'health',
+    overlays: overlayCount(),
+    degraded: degradedReason,
+    twitchDown,
+    problems: [...problems.values()],
+  });
 
   function overlayCount(): number {
     let n = 0;
@@ -303,6 +312,12 @@ export function startServer(queue: RoastQueue): ServerHandle {
     broadcast(health());
   }
 
+  function setProblem(key: string, message: string | null): void {
+    if (message === null ? !problems.delete(key) : problems.get(key) === message) return;
+    if (message !== null) problems.set(key, message);
+    broadcast(health());
+  }
+
   function setTwitchDown(down: boolean): void {
     if (twitchDown === down) return;
     twitchDown = down;
@@ -329,5 +344,5 @@ export function startServer(queue: RoastQueue): ServerHandle {
     log.ok(`Source navigateur OBS : http://localhost:${config.server.port}/overlay`);
   });
 
-  return { server, setDegraded, setTwitchDown };
+  return { server, setDegraded, setTwitchDown, setProblem };
 }

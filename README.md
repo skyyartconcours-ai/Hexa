@@ -141,7 +141,9 @@ de volume*).
 
 **Ouvrir la fenêtre** : bouton *Lancer la session* de la régie, 20 minutes par
 défaut (`SESSION_DEFAULT_MINUTES`). Hexa poste l'annonce en chat, la répète
-toutes les 5 minutes, et allume le bandeau de l'overlay.
+toutes les 5 minutes, et allume le bandeau de l'overlay. **Aucune vanne ne passe
+tant que l'annonce n'est pas arrivée dans le chat** : si Twitch la refuse, Hexa
+réessaie toutes les 5 secondes et la régie l'affiche.
 
 **À la fin du minuteur**, plus aucune nouvelle vanne n'est acceptée, celle qui
 passe à l'antenne va jusqu'au bout, puis Hexa annonce la fin et éteint le
@@ -154,19 +156,35 @@ synthèse), plus le temps de ta validation si tu valides à la main.
 **Débit** : une vanne dure 6 à 10 secondes à l'oral, suivies de 8 secondes de
 silence minimum (`MIN_INTERVAL_SECONDS`). Ça fait **environ 70 vannes au
 maximum sur 20 minutes** en lecture automatique, nettement moins en validation
-manuelle. Au-delà, la file (40 vannes) se remplit, et une vanne qui attend
-depuis 3 minutes — sans avoir été validée, ou validée sans être passée — est
-jetée et marquée « périmée » : elle n'a plus de lien avec le moment qui l'a
-déclenchée.
+manuelle. Une vanne qui attend depuis 3 minutes — sans avoir été validée, ou
+validée sans être passée — est jetée et marquée « périmée » : elle n'a plus de
+lien avec le moment qui l'a déclenchée. Hexa n'accepte donc d'avance que ce qu'il
+peut diffuser avant ce délai (11 vannes avec les réglages par défaut) : pendant
+un gift bomb, les événements suivants sont ignorés tant que la file ne s'est pas
+vidée, au lieu d'être écrits, payés, puis jetés.
+
+**Quand un service tombe, la vanne n'est pas perdue** :
+
+- l'IA répond « surchargée » ou ne répond plus : la vanne réessaie toutes les
+  15 secondes tant qu'elle peut encore passer à temps ;
+- la voix tombe en panne : la vanne, déjà écrite et relue, passe en **texte
+  seul** sur l'overlay, marquée « voix indisponible — texte seul » en régie ;
+- l'overlay se recharge en pleine vanne (*Actualiser* dans OBS) : elle repart du
+  début dès qu'il revient ;
+- l'overlay n'arrive pas à lire le son : la vanne s'affiche en erreur avec ↻ au
+  lieu d'être comptée comme passée.
 
 **Les bandeaux d'alerte de la régie**, du plus grave au moins grave :
 
 | Bandeau | Ce qui se passe | Quoi faire |
 |---|---|---|
+| Annonce NON postée | le chat n'a pas été prévenu : les vannes attendent | rien si ça passe au nouvel essai ; sinon coupe la session |
 | Twitch déconnecté | les subs ne sont **pas reçus**, et Twitch ne les renverra pas | rien, la reconnexion est automatique ; les subs de la coupure sont perdus |
-| Génération en échec | deux vannes de suite n'ont pas pu être écrites | le message donne la cause : clé, crédit, panne Anthropic |
+| Génération en échec | deux vannes de suite n'ont pas pu être écrites ou dites | le message donne la cause : clé, crédit, panne Anthropic ou de la voix |
 | Souscription(s) en échec | Hexa ne reçoit pas tous les événements | ne lance pas la fenêtre ; `npm run login` puis `npm start` |
+| Token Twitch refusé | tout marche encore, mais la prochaine reconnexion échouera | `npm run login` dès la fin du segment |
 | Aucun overlay connecté | la source OBS n'est pas branchée | clic droit sur la source → *Actualiser* |
+| 2 overlays connectés | chaque vanne est jouée deux fois | ferme l'onglet `/overlay` qui n'est pas dans OBS |
 
 ---
 
@@ -333,7 +351,10 @@ vannes. `!hexa` explique tout ça en chat.
 **6. La validation manuelle** — `AUTO_PLAY=false` (défaut) : chaque vanne
 s'affiche dans la régie, avec un bouton 🎧 pour l'écouter avant, et n'est jouée
 que si tu cliques ▶. **Garde ça pour ta première session**, le temps de calibrer
-ton public.
+ton public. Si tu passes en lecture automatique puis que tu la coupes, les
+vannes qu'elle avait validées et qui ne sont pas encore passées reviennent en
+attente de ta validation. Une vanne validée garde un ✕ pour la retirer ; sur
+celle qui est à l'antenne, ✕ coupe la voix.
 
 Le bouton ↻ **relance** : une autre vanne pour la même personne, la précédente
 étant transmise au modèle comme angle à éviter. Il apparaît aussi sur une vanne
@@ -560,6 +581,14 @@ l'environnement de développement :
   caractères invisibles, séparateurs, pseudos piégés, consignes glissées dans un
   message de resub, de cheer ou de don) : toutes bloquées. Un faux positif
   connu : « fauché ».
+- **Pannes en direct** : IA surchargée (429/529) ou muette, juge injoignable,
+  voix en panne ou qui renvoie autre chose que de l'audio, coupure réseau,
+  reconnexion Twitch en plein gift bomb, refresh de token qui ne répond pas, base
+  verrouillée par un autre programme, overlay rechargé ou fermé, deux régies,
+  gift bomb de 100 subs, et trois heures de chat rejouées en accéléré.
+- **Un live complet de bout en bout** : `npm run login`, `npm run doctor`,
+  `npm start`, chat, sub, resub, gift, cheer, don, régie et overlay dans un vrai
+  navigateur, arrêt — 41 étapes, toutes vertes.
 - **Serveur local** : refus des requêtes venues d'un autre site ou d'un autre nom
   d'hôte.
 - Plus : profils, ancienneté par les badges, décodage des cheers, planchers
@@ -603,5 +632,8 @@ Et le reste :
   préavis (voir l'avertissement plus haut).
 - **Donateurs anonymes ignorés.** Pas de pseudo, pas d'historique, pas de matière.
 - **Une seule chaîne** par instance.
+- **N'ouvre pas `data/hexa.db` avec un autre programme pendant le live** (DB
+  Browser, `sqlite3`…) : tant qu'il garde la base verrouillée, Hexa se fige. Il
+  repart tout seul quand elle est libérée, mais les secondes de gel sont perdues.
 - **Le TTS coûte au caractère.** Une soirée à beaucoup de subs représente
   quelques milliers de caractères — c'est là que le choix du fournisseur pèse.

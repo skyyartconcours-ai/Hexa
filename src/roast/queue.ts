@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { APIConnectionError, APIError, APIUserAbortError } from '@anthropic-ai/sdk';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { config } from '../config.js';
@@ -29,6 +30,17 @@ const PLAYBACK_TIMEOUT_MS = 25_000;
  * pas finir par interdire au modele tous les angles possibles.
  */
 const SESSION_ANGLE_MEMORY = 12;
+/** Attente avant de relancer une generation tombee sur une panne passagere. */
+const RETRY_DELAY_MS = 15_000;
+
+/** 429, 5xx, coupure reseau, delai depasse : ca vaut un nouvel essai, pas une vanne perdue. */
+function isTransient(error: unknown): boolean {
+  if (error instanceof APIConnectionError || error instanceof APIUserAbortError) return true;
+  return error instanceof APIError && (error.status === 429 || (error.status ?? 0) >= 500);
+}
+
+/** Duree moyenne d'une vanne a l'antenne : voix ~6 s + sortie de carte + tick. */
+const AVG_PLAYBACK_MS = 8_000;
 
 /**
  * Qui d'autre le texte du viewer cite-t-il ? Les @mentions, et dans le message
@@ -81,12 +93,17 @@ export class RoastQueue extends EventEmitter {
   /** Plafond de generations simultanees (voir acquireSlot). */
   private running = 0;
   private waiting: Array<() => void> = [];
+  /** Generations en vol : coupees quand leur vanne est retiree (arret, !noroast). */
+  private readonly inflight = new Map<string, AbortController>();
 
   /** Minuteur ecoule, vanne a l'antenne en train de finir (voir closeWindow). */
   private closing = false;
 
   /** Au moins un overlay connecte : sinon la vanne partirait dans le vide. */
   private outputReady = false;
+
+  /** Faux entre l'ouverture d'une session et la confirmation de son annonce en chat. */
+  private announced = true;
 
   /** Echecs de generation consecutifs (API, reseau, TTS) : remonte en regie. */
   private generationFailures = 0;
@@ -130,6 +147,9 @@ export class RoastQueue extends EventEmitter {
    * il doit couper.
    */
   stop(reason = 'manuel'): SessionState {
+    // Deuxieme « Tout arreter » (onglet de regie en retard, Ctrl+C apres la fin) :
+    // rien a couper, et surtout pas une seconde annonce de fin dans le chat.
+    const wasActive = this.session.active;
     if (this.sessionTimer) clearTimeout(this.sessionTimer);
     this.sessionTimer = null;
     this.closing = false;
@@ -145,6 +165,8 @@ export class RoastQueue extends EventEmitter {
       if (item.status === 'played' || item.status === 'rejected') continue;
       deleteAudio(item.audioPath);
       this.items.delete(item.id);
+      // Sinon elle garde son slot jusqu'a 45 s : la session relancee attend derriere.
+      this.inflight.get(item.id)?.abort();
       dropped += 1;
     }
 
@@ -152,7 +174,7 @@ export class RoastQueue extends EventEmitter {
       `Session de roast terminee (${reason})` +
         (dropped ? ` — ${dropped} vanne(s) en attente jetee(s).` : '.'),
     );
-    this.emitSafely('session', { active: false, reason });
+    if (wasActive) this.emitSafely('session', { active: false, reason });
     this.broadcast();
     return this.session;
   }
@@ -190,11 +212,45 @@ export class RoastQueue extends EventEmitter {
     if (this.outputReady === ready) return;
     this.outputReady = ready;
     log.info(ready ? 'Overlay connecte.' : 'Aucun overlay connecte : lecture suspendue.');
+    // L'overlay a disparu en pleine vanne (source OBS rechargee, changement de
+    // scene) : elle n'a pas ete entendue en entier. Elle repasse en tete de file
+    // au lieu d'etre comptee « passee » par le filet de 25 s, apres un blanc.
+    if (!ready && this.nowPlaying) {
+      const item = this.items.get(this.nowPlaying);
+      if (this.playbackTimer) clearTimeout(this.playbackTimer);
+      this.playbackTimer = null;
+      this.nowPlaying = null;
+      if (item?.status === 'playing') {
+        item.status = 'approved';
+        item.approvedAt = Date.now();
+        this.session.roastsPlayed = Math.max(0, this.session.roastsPlayed - 1);
+      }
+      if (this.closing) this.stop('minuteur');
+      else this.broadcast();
+    }
     if (ready) this.pump();
+  }
+
+  /** Pas de vanne a l'antenne tant que le chat n'a pas ete prevenu (voir index.ts). */
+  setAnnounced(value: boolean): void {
+    if (this.announced === value) return;
+    this.announced = value;
+    log.info(value ? 'Annonce postee en chat.' : "Lecture suspendue jusqu'a l'annonce en chat.");
+    if (value) this.pump();
   }
 
   setAutoPlay(value: boolean): void {
     this.session.autoPlay = value;
+    // Couper la lecture automatique doit rendre la main sur ce qu'elle a deja
+    // valide : sinon toute la file prete part quand meme, sans relecture.
+    if (!value) {
+      for (const item of this.items.values()) {
+        if (item.status === 'approved' && item.autoApproved) {
+          item.status = 'pending';
+          item.autoApproved = false;
+        }
+      }
+    }
     log.info(`Lecture automatique : ${value ? 'ON' : 'OFF'}.`);
     this.broadcast();
   }
@@ -270,9 +326,20 @@ export class RoastQueue extends EventEmitter {
     return count;
   }
 
+  /**
+   * Ce que la file peut reellement diffuser avant peremption : une vanne toutes
+   * les MIN_INTERVAL + ~8 s. Au-dela de ce rang, la vanne etait generee, payee
+   * (LLM + juge + TTS), puis jetee « perimee » — pendant que les subs suivants,
+   * eux, trouvaient la file pleine.
+   */
+  private capacity(): number {
+    const cycleMs = config.session.minIntervalMs + AVG_PLAYBACK_MS;
+    return Math.max(3, Math.min(config.session.maxQueue, Math.floor(config.session.pendingTtlMs / cycleMs)));
+  }
+
   private shouldSkip(trigger: RoastTrigger): string | null {
     if (!this.session.active || this.closing) return 'session inactive';
-    if (this.pendingCount() >= config.session.maxQueue) return 'file pleine';
+    if (this.pendingCount() >= this.capacity()) return 'file pleine';
 
     // Un donateur anonyme n'a ni pseudo ni historique : rien a roaster.
     if (trigger.anonymous) return 'donateur anonyme';
@@ -343,9 +410,11 @@ export class RoastQueue extends EventEmitter {
 
   private async prepare(item: QueuedRoast): Promise<void> {
     await this.acquireSlot();
+    const controller = new AbortController();
     try {
       // Plus personne n'attend cette vanne : ne pas payer LLM + TTS pour rien.
       if (this.isGone(item)) return;
+      this.inflight.set(item.id, controller);
       const profile = buildProfile(
         item.trigger.userId,
         item.trigger.userLogin,
@@ -359,6 +428,7 @@ export class RoastQueue extends EventEmitter {
         history,
         subscriberFacts(item.trigger.userId),
         this.sessionAngles,
+        controller.signal,
       );
       // !noroast / !forgetme / ban pendant la generation : on n'ecrit plus rien.
       if (this.isGone(item)) return;
@@ -404,7 +474,16 @@ export class RoastQueue extends EventEmitter {
 
       // Le texte affiche a l'overlay reste propre : la didascalie ne part
       // qu'au TTS, et seulement s'il sait l'interpreter.
-      const audioPath = await synthesise(item.id, draft.roast, draft.delivery, item.trigger.userName);
+      // La vanne est ecrite et jugee : une voix en panne (delai, 5xx, reponse qui
+      // n'est pas de l'audio) ne doit pas la jeter : elle passe en texte seul.
+      let audioPath: string | null = null;
+      let voiceError: string | null = null;
+      try {
+        audioPath = await synthesise(item.id, draft.roast, draft.delivery, item.trigger.userName);
+      } catch (error) {
+        voiceError = error instanceof Error ? error.message : String(error);
+        log.warn(`Voix impossible pour ${item.trigger.userName}, texte seul :`, voiceError);
+      }
       // Texte et voix publies ENSEMBLE : la regie affiche ▶ des qu'une vanne
       // « en attente » a un texte. Publie avant la synthese, un ▶ pendant le TTS
       // envoyait une carte muette a l'antenne (audioUrl null), puis la vanne
@@ -417,9 +496,14 @@ export class RoastQueue extends EventEmitter {
       // L'extension depend du fournisseur de voix : on la derive du fichier
       // reellement ecrit plutot que de la supposer.
       item.audioUrl = audioPath ? `/audio/${path.basename(audioPath)}` : null;
-      // Toute la chaine (LLM + TTS) a repondu : l'alerte de la regie s'eteint.
-      this.generationFailures = 0;
-      this.lastGenerationError = null;
+      if (voiceError) {
+        this.generationFailures += 1;
+        this.lastGenerationError = `voix : ${voiceError.slice(0, 180)}`;
+      } else {
+        // Toute la chaine (LLM + TTS) a repondu : l'alerte de la regie s'eteint.
+        this.generationFailures = 0;
+        this.lastGenerationError = null;
+      }
 
       // La session a pu se terminer, ou la vanne etre retiree, pendant la
       // generation. drop() efface aussi le fichier audio, sinon orphelin.
@@ -430,14 +514,20 @@ export class RoastQueue extends EventEmitter {
 
       // Un juge injoignable ne vaut pas un juge satisfait : la vanne repasse par
       // la regie meme en lecture automatique.
+      // Une voix en panne n'est pas un risque : la vanne texte seul suit la regle
+      // normale (lecture auto comprise), avec l'avertissement visible en regie.
+      if (voiceError) item.warning = 'voix indisponible — texte seul';
       if (judged.unavailable) {
         // `warning` et pas `error` : la vanne existe et doit rester lisible en
         // regie. `error` sert aux vannes jetees, dont le texte est masque.
-        item.warning = 'juge injoignable — a relire';
+        item.warning = [item.warning, 'juge injoignable — a relire'].filter(Boolean).join(' · ');
         item.status = 'pending';
       } else {
         item.status = this.session.autoPlay ? 'approved' : 'pending';
-        if (item.status === 'approved') item.approvedAt = Date.now();
+        if (item.status === 'approved') {
+          item.approvedAt = Date.now();
+          item.autoApproved = true;
+        }
       }
       this.record(item, item.status);
 
@@ -450,6 +540,8 @@ export class RoastQueue extends EventEmitter {
           : error instanceof Error
             ? error.message
             : String(error);
+      // Coupee parce que retiree (arret, !noroast) : ni erreur, ni alerte en regie.
+      if (controller.signal.aborted) return;
       log.error(`Generation impossible pour ${item.trigger.userName} :`, message);
       if (!(error instanceof RefusedError)) {
         this.generationFailures += 1;
@@ -461,8 +553,22 @@ export class RoastQueue extends EventEmitter {
         this.broadcast();
         return;
       }
+      // Panne passagere : la vanne attend et repart tant qu'elle peut encore passer
+      // avant peremption. Avant, un 429 ou un 529 de 30 s perdait pour de bon la
+      // vanne de chaque viewer arrive pendant la panne (ligne effacee au bout de 20 s).
+      if (isTransient(error) && Date.now() - item.createdAt + RETRY_DELAY_MS < config.session.pendingTtlMs) {
+        item.warning = `API indisponible — nouvel essai dans ${RETRY_DELAY_MS / 1000} s`;
+        this.broadcast();
+        setTimeout(() => {
+          if (this.isGone(item)) return;
+          item.warning = undefined;
+          void this.prepare(item);
+        }, RETRY_DELAY_MS);
+        return;
+      }
       this.fail(item, message);
     } finally {
+      this.inflight.delete(item.id);
       this.releaseSlot();
     }
   }
@@ -493,6 +599,8 @@ export class RoastQueue extends EventEmitter {
     log.info(`Vanne abandonnee (${reason}).`);
     deleteAudio(item.audioPath);
     this.items.delete(item.id);
+    // Jetee pendant sa generation (✕ en regie) : elle ne garde pas son slot.
+    this.inflight.get(item.id)?.abort();
     this.broadcast();
   }
 
@@ -511,6 +619,9 @@ export class RoastQueue extends EventEmitter {
   reject(id: string): boolean {
     const item = this.items.get(id);
     if (!item) return false;
+    // Deja partie a l'antenne (lecture auto, autre onglet, double clic) : « jeter »
+    // doit couper la voix, pas seulement effacer la ligne de la regie.
+    if (id === this.nowPlaying) this.skipCurrent();
     item.status = 'rejected';
     this.record(item, 'rejected');
     this.drop(item, 'rejetee par le streamer');
@@ -538,6 +649,7 @@ export class RoastQueue extends EventEmitter {
     if (item.text) this.record(item, 'rejected');
     deleteAudio(item.audioPath);
     this.items.delete(item.id);
+    this.inflight.get(item.id)?.abort();
     log.info(`Vanne relancee pour ${item.trigger.userName}.`);
     return this.submit(item.trigger, { force: true });
   }
@@ -560,6 +672,7 @@ export class RoastQueue extends EventEmitter {
       }
       deleteAudio(item.audioPath);
       this.items.delete(item.id);
+      this.inflight.get(item.id)?.abort();
       removed += 1;
     }
     if (removed) this.broadcast();
@@ -578,6 +691,7 @@ export class RoastQueue extends EventEmitter {
     // Sans ce test, arreter la session ne faisait rien : la file continuait de
     // partir a l'antenne.
     if (!this.session.active || this.closing) return;
+    if (!this.announced) return;
     if (this.nowPlaying) return;
     // Sans overlay, la vanne etait marquee « passee » 25 s plus tard sans avoir
     // ete ni vue ni entendue : on la garde jusqu'au retour de l'overlay.
@@ -694,16 +808,22 @@ export class RoastQueue extends EventEmitter {
    * met pas le vrai viewer en cooldown pour son vrai sub.
    */
   private record(item: QueuedRoast, status: string, text = item.text): void {
-    saveRoast({
-      id: item.id,
-      userId: item.trigger.userId,
-      userName: item.trigger.userName,
-      eventType: item.trigger.test ? `test:${item.trigger.type}` : item.trigger.type,
-      text,
-      severity: item.severity,
-      status,
-      createdAt: item.createdAt,
-    });
+    // Appele depuis un minuteur (fin de lecture) et depuis le catch de prepare() :
+    // une base verrouillee par un autre programme ne doit pas tuer le process.
+    try {
+      saveRoast({
+        id: item.id,
+        userId: item.trigger.userId,
+        userName: item.trigger.userName,
+        eventType: item.trigger.test ? `test:${item.trigger.type}` : item.trigger.type,
+        text,
+        severity: item.severity,
+        status,
+        createdAt: item.createdAt,
+      });
+    } catch (error) {
+      log.error('Historique des vannes non enregistre :', error instanceof Error ? error.message : error);
+    }
   }
 
   private broadcast(): void {

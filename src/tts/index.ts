@@ -55,6 +55,10 @@ export async function synthesise(
 
   const started = Date.now();
   const audio = await provider.synthesise(spoken);
+  // Un 200 qui porte du JSON ou une page HTML partait a l'antenne : carte muette 1,5 s.
+  if (!looksLikeAudio(audio, provider.extension)) {
+    throw new Error(`${provider.name} a renvoye ${audio.length} octets qui ne sont pas de l'audio`);
+  }
   const filePath = path.join(AUDIO_DIR, `${id}.${provider.extension}`);
   await fs.promises.writeFile(filePath, audio);
 
@@ -63,6 +67,13 @@ export async function synthesise(
       `(${text.length} caracteres, ${Math.round(audio.length / 1024)} Ko).`,
   );
   return filePath;
+}
+
+/** MP3 : balise ID3 ou mot de synchro MPEG. WAV : en-tete RIFF/WAVE. */
+export function looksLikeAudio(audio: Buffer, extension: 'mp3' | 'wav'): boolean {
+  if (audio.length < 128) return false;
+  if (extension === 'wav') return audio.toString('latin1', 0, 4) === 'RIFF' && audio.toString('latin1', 8, 12) === 'WAVE';
+  return audio.toString('latin1', 0, 3) === 'ID3' || (audio[0] === 0xff && ((audio[1] ?? 0) & 0xe0) === 0xe0);
 }
 
 export function deleteAudio(filePath: string | null): void {

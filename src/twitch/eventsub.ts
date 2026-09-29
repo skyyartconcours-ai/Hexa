@@ -127,7 +127,11 @@ export class EventSubClient extends EventEmitter {
       } catch {
         return;
       }
-      void this.handleMessage(message);
+      // Un auditeur qui leve (base verrouillee par un autre programme, disque plein)
+      // devenait une promesse rejetee non geree : Node tuait tout le process en direct.
+      this.handleMessage(message).catch((error: unknown) => {
+        log.error('EventSub : evenement non traite :', error instanceof Error ? error.message : error);
+      });
     });
 
     socket.on('error', (error) => log.error('EventSub :', error.message));
@@ -154,7 +158,9 @@ export class EventSubClient extends EventEmitter {
       setTimeout(() => {
         if (!this.closing) this.connect(DEFAULT_URL);
       }, this.reconnectDelayMs);
-      this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, 30_000);
+      // Plafond court : apres une coupure reseau, chaque seconde d'attente est une
+      // seconde de subs perdus (30 s de plafond = jusqu'a 30 s de trou en plus).
+      this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, 5_000);
     });
   }
 

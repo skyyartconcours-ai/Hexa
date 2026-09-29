@@ -270,6 +270,20 @@
         node.append(actions);
       }
 
+      // Une vanne validée (par la lecture auto ou un clic) doit pouvoir être
+      // retirée avant son passage : sans bouton, le seul recours était de tout arrêter.
+      if (item.status === 'approved') {
+        const actions = document.createElement('div');
+        actions.className = 'item__actions';
+        const kill = document.createElement('button');
+        kill.className = 'icon-btn icon-btn--stop';
+        kill.title = 'Retirer de la file';
+        kill.textContent = '✕';
+        kill.addEventListener('click', () => api(`/api/roast/${item.id}/reject`, {}));
+        actions.append(kill);
+        node.append(actions);
+      }
+
       if (item.status === 'pending' && item.text) {
         const actions = document.createElement('div');
         actions.className = 'item__actions';
@@ -340,7 +354,7 @@
   function renderHealth(health = lastHealth) {
     lastHealth = health;
     const { overlays, degraded, twitchDown } = health;
-    const problems = [];
+    const problems = [...(health.problems ?? [])];
     if (twitchDown) {
       problems.push(
         'Twitch déconnecté : les subs ne sont PAS reçus en ce moment. Reconnexion automatique en cours…',
@@ -355,6 +369,12 @@
       problems.push(
         `Twitch : ${degraded.length} souscription(s) en échec (${degraded.join(', ')}). ` +
           'Aucun sub ne sera détecté — relance npm run login puis npm start.',
+      );
+    }
+    if (overlays > 1) {
+      problems.push(
+        `${overlays} overlays connectés : chaque vanne est jouée ${overlays} fois (un onglet /overlay ` +
+          "ouvert en plus d'OBS ?). Ferme ceux qui ne sont pas dans la scène.",
       );
     }
     if (!overlays) {

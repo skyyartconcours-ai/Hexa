@@ -88,6 +88,8 @@ export interface QueuedRoast {
   createdAt: number;
   /** Validee (bouton ▶ ou lecture auto) : le delai de peremption repart de la. */
   approvedAt?: number;
+  /** Validee par la lecture automatique et non par le streamer (voir setAutoPlay). */
+  autoApproved?: boolean;
   playedAt: number | null;
   /** Vanne jetee : son texte n'est plus affiche. */
   error?: string;

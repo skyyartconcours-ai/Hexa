@@ -186,8 +186,14 @@ async function main(): Promise<void> {
       // tombait en erreur a l'antenne. Seule une synthese le prouve : cinq
       // caracteres, une fraction de centime.
       try {
-        const { activeProvider } = await import('./tts/index.js');
-        const audio = await activeProvider()!.synthesise('Test.');
+        const { activeProvider, looksLikeAudio } = await import('./tts/index.js');
+        const provider = activeProvider()!;
+        const audio = await provider.synthesise('Test.');
+        // Meme controle qu'en direct : une URL de service mal reglee peut repondre
+        // 200 avec une page HTML, que la file refuserait a chaque vanne.
+        if (!looksLikeAudio(audio, provider.extension)) {
+          throw new Error(`reponse de ${audio.length} octets qui n'est pas de l'audio`);
+        }
         pass('TTS', `${tts.provider} : cle et voix acceptees (${Math.round(audio.length / 1024)} Ko pour 5 caracteres)`);
       } catch (error) {
         fail('TTS', `${tts.provider} refuse la synthese : ${error instanceof Error ? error.message : String(error)}`,

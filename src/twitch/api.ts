@@ -22,6 +22,8 @@ async function helix<T>(
 
   const response = await fetch(url, {
     method: init.method ?? 'GET',
+    // Un appel pendu gelait subscribeAll() : ni « ready » ni « degraded ».
+    signal: AbortSignal.timeout(10_000),
     headers: {
       authorization: `Bearer ${token}`,
       'client-id': config.twitch.clientId,
