@@ -248,6 +248,16 @@ class ScreenFeed {
   private video: RvfcVideo | null = null
   private stream: MediaStream | null = null
   private pending: Promise<boolean> | null = null
+  /**
+   * Une extinction demandée PENDANT l'ouverture (A tapé puis relâché en moins
+   * de 300 ms) était perdue : `release()` voyait `stream` encore vide et ne
+   * faisait rien, puis l'ouverture aboutissait et la capture du bureau à
+   * 30 i/s tournait pour rien, en concurrence avec celle d'OBS. On retient la
+   * demande, et chaque `stop()` change de génération pour qu'une ouverture
+   * devenue inutile ferme elle-même son flux.
+   */
+  private releaseAfterOpen = false
+  private gen = 0
   private releaseTimer: ReturnType<typeof setTimeout> | null = null
   private rvfc: number | null = null
   private fallbackTimer: ReturnType<typeof setTimeout> | null = null
@@ -285,6 +295,7 @@ class ScreenFeed {
    * utilisateur : en démo navigateur, `getDisplayMedia` n'est autorisé que là.
    */
   request(gesture: boolean): Promise<boolean> {
+    this.releaseAfterOpen = false
     if (this.stream) {
       this.keepAlive()
       return Promise.resolve(true)
@@ -298,6 +309,7 @@ class ScreenFeed {
 
   private async open(gesture: boolean): Promise<boolean> {
     this.cancelRelease()
+    const gen = this.gen
     try {
       let stream: MediaStream | null = this.injected
       if (!stream) {
@@ -330,6 +342,11 @@ class ScreenFeed {
         this.refusal = 'Hexa ne peut pas lire l’écran ici (partage d’écran indisponible).'
         return false
       }
+      if (gen !== this.gen) {
+        // Coupé pendant l'ouverture : ce flux n'a plus de raison d'exister.
+        if (stream !== this.injected) for (const t of stream.getTracks()) t.stop()
+        return false
+      }
       const video = document.createElement('video') as RvfcVideo
       video.className = 'fx-feed'
       video.muted = true
@@ -337,9 +354,19 @@ class ScreenFeed {
       video.srcObject = stream
       document.body.appendChild(video)
       await video.play().catch(() => undefined)
+      if (gen !== this.gen) {
+        video.srcObject = null
+        video.remove()
+        if (stream !== this.injected) for (const t of stream.getTracks()) t.stop()
+        return false
+      }
       this.stream = stream
       this.video = video
       this.refusal = null
+      if (this.releaseAfterOpen) {
+        this.releaseAfterOpen = false
+        this.release()
+      }
       return true
     } catch (err) {
       this.refusal =
@@ -351,11 +378,16 @@ class ScreenFeed {
 
   /** Le flux sert encore : on annule toute extinction programmée. */
   keepAlive(): void {
+    this.releaseAfterOpen = false
     this.cancelRelease()
   }
 
   /** Plus personne ne regarde : extinction réelle après un court sursis. */
   release(): void {
+    if (!this.stream && this.pending) {
+      this.releaseAfterOpen = true
+      return
+    }
     if (!this.stream || this.releaseTimer) return
     this.releaseTimer = setTimeout(() => {
       this.releaseTimer = null
@@ -372,6 +404,8 @@ class ScreenFeed {
 
   /** Coupe tout : pistes stoppées, srcObject vidé, élément retiré du DOM. */
   stop(): void {
+    this.gen++
+    this.releaseAfterOpen = false
     this.cancelRefresh()
     this.cancelRelease()
     const v = this.video
@@ -655,6 +689,7 @@ export class FxLayer {
       this.freezing = false
       if (!still) {
         this.flash(this.feed.refusal ?? 'Hexa n’a pas pu photographier l’écran.')
+        this.syncFeedNeed()
         return
       }
       this.frozen = still
@@ -695,6 +730,7 @@ export class FxLayer {
         this.freezing = false
         if (!still) {
           this.flash(this.feed.refusal ?? 'Hexa n’a pas pu photographier l’écran.')
+          this.syncFeedNeed()
           return
         }
         this.frozen = still

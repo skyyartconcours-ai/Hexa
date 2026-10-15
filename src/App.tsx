@@ -1140,6 +1140,10 @@ export default function App() {
           break
         case 'color.swap':
           e.preventDefault()
+          // Tab MAINTENU : la répétition clavier basculait bleu/rouge ~30 fois
+          // par seconde, chaque bascule écrivant les réglages, resynchronisant
+          // les deux fenêtres et réveillant le rendu. Un appui = une bascule.
+          if (e.repeat) break
           st().swapColor()
           break
         case 'page.next':

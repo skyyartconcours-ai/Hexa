@@ -115,6 +115,10 @@ interface Entry {
 function peser(s: Stroke): number {
   let n = s.points.length + (s.raw?.length ?? 0)
   if (s.ink) for (const k of s.ink) n += k.points.length
+  // Une image collée (Ctrl+V) pèse jusqu'à 3 Mo de data URL : comptée à
+  // raison d'un « point » par 64 octets, sinon dix captures collées
+  // tenaient 30 Mo hors budget toute la soirée.
+  if (s.image) n += Math.ceil(s.image.length / 64)
   return n
 }
 

@@ -30,6 +30,8 @@ import {
 import { IconCross, IconPause, IconPlay, IconReset } from './icons'
 import './stage-widgets.css'
 
+const CLOCK_TICK_MS = 100
+
 /* ------------------------------------------------------------------ *
  * Création (appelée par la barre d'outils et par le clavier)
  * ------------------------------------------------------------------ */
@@ -180,7 +182,12 @@ function ClockCard({ clock }: { clock: StageClock }) {
       return running
     }
     if (!paint()) return
+    // 10 images par seconde, pas 60 : un chrono lancé pour toute une partie
+    // repeignait la fenêtre d'encre à chaque image de l'écran, pendant des
+    // heures, sous la capture d'OBS. Les centièmes défilent encore assez vite
+    // pour qu'on les voie courir.
     const loop = () => {
+      raf = 0
       if (!paint()) {
         // Le compte à rebours vient d'atteindre zéro : on le RANGE dans l'état
         // (arrêté, cumul figé). Plus rien ne tourne ensuite.
@@ -189,10 +196,10 @@ function ClockCard({ clock }: { clock: StageClock }) {
         }
         return
       }
-      raf = requestAnimationFrame(loop)
+      raf = window.setTimeout(loop, CLOCK_TICK_MS)
     }
-    raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
+    raf = window.setTimeout(loop, CLOCK_TICK_MS)
+    return () => clearTimeout(raf)
   }, [clock, updateClock, box])
 
   const running = clock.startedAt != null

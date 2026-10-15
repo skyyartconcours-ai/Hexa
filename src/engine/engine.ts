@@ -673,6 +673,16 @@ export class HexaEngine {
         this.salir(s)
       }
     }
+    // Les guides d'alignement ne s'effaçaient qu'au clic : changer d'outil ou
+    // masquer les annotations les laissait à l'antenne, boucle de rendu
+    // allumée à 60 i/s jusqu'au trait suivant.
+    if (
+      this.opts.tool !== prevTool ||
+      (patch.annotationsHidden !== undefined && patch.annotationsHidden !== prevHidden)
+    ) {
+      this.overlay.clear(performance.now())
+      this.wake()
+    }
     if (patch.annotationsHidden !== undefined && patch.annotationsHidden !== prevHidden) {
       this.staticDirty = true
       this.emitActivity()
@@ -1134,6 +1144,7 @@ export class HexaEngine {
    */
   clear(): void {
     const now = performance.now()
+    this.overlay.clear(now)
     const efface: { s: Stroke; i: number }[] = []
     let n = 0
     for (let i = 0; i < this.strokes.length; i++) {
@@ -1198,9 +1209,23 @@ export class HexaEngine {
     if (actif === this.actif) return
     this.actif = actif
     if (!actif) {
-      // Un geste en cours sur un écran qu'on éteint n'a plus de sens.
-      this.current = null
+      // Un geste en cours sur un écran qu'on éteint n'a plus de sens. Il est
+      // RETIRÉ proprement (miroir prévenu) : sans ça la source OBS gardait un
+      // trait jamais fini et tournait à 60 i/s jusqu'au prochain état complet.
+      if (this.current) {
+        this.sortir(this.current)
+        this.current = null
+        this.delta.strokes = this.reveal == null ? this.strokes : this.visibles
+        this.delta.current = null
+        this.onMirror?.(this.delta)
+        this.sales.clear()
+        this.partis.clear()
+      }
       this.grabbed = null
+      this.erasing = false
+      this.eraseLot = null
+      this.spotDraw = null
+      this.overlay.clear(performance.now())
       this.laser.length = 0
       this.particles.length = 0
       if (this.raf) cancelAnimationFrame(this.raf)
@@ -1697,10 +1722,18 @@ export class HexaEngine {
      * le relâchement s'est perdu. On le rejoue ici, et le trait se termine
      * proprement là où il en était.
      */
-    if ((this.current || this.grabbed) && e.buttons === 0) {
+    // La gomme et le tracé de zone spotlight y passent aussi : une gomme
+    // restée « enfoncée » gardait la boucle à 60 i/s pour toujours et effaçait
+    // les annotations à chaque mouvement de souris en jeu.
+    if ((this.current || this.grabbed || this.erasing || this.spotDraw) && e.buttons === 0) {
       this.onUp(e)
       return
     }
+    // En jeu (souris rendue au jeu), le curseur bouge sans arrêt : aucun
+    // aperçu de guide ne doit s'y calculer, ni réveiller le rendu à chaque
+    // pixel — c'était un rendu plein écran continu pendant toute la partie
+    // dès que le numéroteur restait sélectionné.
+    const enJeu = document.body.classList.contains('passthrough')
     this.shiftHeld = e.shiftKey
     if (e.shiftKey) this.shiftDansTrace = true
     this.altHeld = e.altKey
@@ -1748,7 +1781,7 @@ export class HexaEngine {
         this.pushLaser(pt, (e.buttons & 1) === 1)
       } else if (CLICK_TOOLS.has(this.opts.tool)) {
         // aperçu des guides sous le curseur avant même de cliquer
-        if (this.guidesOn()) this.snapClick(pt)
+        if (this.guidesOn() && !enJeu) this.snapClick(pt)
         else this.overlay.clear(pt.t)
       }
     }
@@ -1768,7 +1801,7 @@ export class HexaEngine {
       this.opts.tool === 'laser' ||
       // le spotlight suit le curseur SANS clic (§5.2), donc même en traversant
       this.opts.tool === 'spotlight' ||
-      CLICK_TOOLS.has(this.opts.tool)
+      (CLICK_TOOLS.has(this.opts.tool) && (!enJeu || this.overlay.active(performance.now())))
     ) {
       this.wake()
     }
