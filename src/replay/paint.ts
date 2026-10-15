@@ -60,8 +60,16 @@ export function paintSettled(
   s: Stroke,
   now: number,
   opts: PaintOptions = {},
+  strokes?: readonly Stroke[],
 ): void {
-  renderStroke(ctx, s, { alpha: 1, from: 0, glowBoost: (opts.glow ?? 1) * fxIntensity, now })
+  renderStroke(ctx, s, {
+    alpha: 1,
+    from: 0,
+    glowBoost: (opts.glow ?? 1) * fxIntensity,
+    now,
+    // une pastille liée garde sa flèche une fois consolidée
+    link: strokes ? linkAnchor(strokes, s) : null,
+  })
 }
 
 /** Centre de la pastille précédente, pour la flèche de liaison du numéroteur. */

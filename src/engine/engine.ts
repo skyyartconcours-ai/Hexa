@@ -2641,7 +2641,8 @@ export class HexaEngine {
       now,
       glow,
       hot: (s) => s === this.grabbed || this.morphs.has(s.id) || this.grabAnim?.id === s.id,
-      paint: (c, s) => renderStroke(c, s, { alpha: 1, from: 0, glowBoost: glow, now }),
+      paint: (c, s) =>
+        renderStroke(c, s, { alpha: 1, from: 0, glowBoost: glow, now, link: this.linkAnchor(s) }),
     })
     // ---- fin du calque consolidé -----------------------------------------
     for (const s of scene) {

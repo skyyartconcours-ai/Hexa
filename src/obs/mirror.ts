@@ -404,7 +404,7 @@ export class ObsMirror {
         const t = this.touched.get(s.id)
         return t != null && now - t < HOT_MS
       },
-      paint: (c, s) => paintSettled(c, s, now),
+      paint: (c, s) => paintSettled(c, s, now, {}, list),
     })
     // ---- fin du calque ----------------------------------------------------
     paintStrokes(ctx, list, now, { skip: settled })

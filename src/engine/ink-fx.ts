@@ -55,9 +55,29 @@ const DUST_BUDGET = 900
 const PULSE_MS = 1750
 
 /** outils que le calque consolidé sait mettre en cache.
- *  Volontairement conservateur : pastilles (flèche de liaison qui bouge),
- *  tampons (image chargée en différé) et textes en sont exclus. */
-const LAYERABLE = new Set(['pen', 'highlight', 'line', 'arrow', 'rect', 'ellipse', 'glyph'])
+ *  Tampons (image chargée en différé) et textes (éditables sur place) en
+ *  restent exclus.
+ *
+ *  ⚠️ LES PASTILLES Y SONT, ET C'ÉTAIT LE GOUFFRE DU DIRECT. Exclues, chaque
+ *  pastille du numéroteur (≈ 75 appels de dessin) était repeinte à CHAQUE
+ *  image animée — dans l'overlay ET dans la source OBS — et chacune cherchait
+ *  sa voisine dans toute la scène. Mesuré : 400 pastilles en mode ∞ = 30 000
+ *  appels par image côté overlay, 2,1 millions côté OBS pour UN trait posé.
+ *  Une soirée de cast à poser des numéros bleus et rouges suffisait à mettre
+ *  le PC à genoux. Leur flèche de liaison dépend de la pastille source : une
+ *  pastille liée n'entre au calque que si sa source y est déjà (voir
+ *  `compose`), donc tout déplacement ou départ de la source la ressort. */
+const LAYERABLE = new Set([
+  'pen',
+  'highlight',
+  'line',
+  'arrow',
+  'rect',
+  'ellipse',
+  'glyph',
+  'badge',
+  'marker',
+])
 
 /* ------------------------------------------------------------------ */
 /*  Réglages globaux                                                    */
@@ -793,7 +813,24 @@ export class InkLayer {
 
     // 1. qui est « posé » à cette image, et dans quel ordre
     const want: Stroke[] = []
-    for (const s of strokes) if (this.settled(s, o)) want.push(s)
+    // Pastille liée : sa flèche part du centre de la pastille SOURCE. Elle
+    // n'est posée que si la source l'est aussi (immobile, déjà au calque) ou a
+    // disparu de la scène (plus de flèche du tout). La source la précède
+    // toujours dans l'ordre, donc `posees` la connaît déjà.
+    let posees: Set<number> | null = null
+    let presents: Set<number> | null = null
+    for (const s of strokes) {
+      if (!this.settled(s, o)) continue
+      if (s.tool === 'badge' && s.linkFrom != null) {
+        if (!presents) {
+          presents = new Set<number>()
+          for (const x of strokes) presents.add(x.id)
+        }
+        if (presents.has(s.linkFrom) && !posees?.has(s.linkFrom)) continue
+      }
+      want.push(s)
+      if (s.tool === 'badge') (posees ??= new Set<number>()).add(s.id)
+    }
 
     // 2. le calque est-il un préfixe de ce qu'on veut ? (cas normal : on a
     //    seulement ajouté des traits par la fin)
