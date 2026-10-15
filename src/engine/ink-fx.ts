@@ -746,7 +746,10 @@ export class InkLayer {
    * false — puis la boucle peut s'endormir comme avant.
    */
   get enCours(): boolean {
-    return this.etale
+    // Le fondu de la touche panique compte aussi : sans lui, un changement de
+    // page pendant le fondu laissait la boucle s'endormir sur une image à 86 %
+    // d'opacité, figée à l'écran.
+    return this.etale || this.fondu != null
   }
 
   /**

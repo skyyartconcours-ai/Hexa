@@ -114,6 +114,11 @@ export class ObsMirror {
         this.mode = msg.mode
         break
       case 'state:full': {
+        // Balayage progressif SEULEMENT pour une vue vide (première connexion,
+        // changement de scène). Une vue qui affiche déjà la scène (rattrapage,
+        // réalignement, arrivée d'une autre vue) ne doit pas voir ses
+        // annotations s'éteindre puis revenir en balayage, à l'antenne.
+        this.balayage = this.map.size === 0
         this.order = []
         this.map.clear()
         // On repart d'une liste neuve : les traits portent les mêmes
@@ -128,7 +133,10 @@ export class ObsMirror {
         // `frais = false` : un état complet décrit une scène DÉJÀ stable. La
         // garder chaude condamnerait la source à repeindre toute la session à
         // la main pendant une demi-seconde à chaque changement de scène OBS.
-        for (const s of msg.strokes) this.putStable(s)
+        for (const s of msg.strokes) {
+          if (this.balayage) this.putStable(s)
+          else this.put(s, false)
+        }
         break
       }
       // Suite d'un état complet DÉCOUPÉ EN LOTS : on AJOUTE, on n'efface rien.
@@ -136,7 +144,10 @@ export class ObsMirror {
       // le relais IPC la refuse — elle arrive donc en plusieurs fois. Mêmes
       // règles que ci-dessus : ces traits-là sont déjà stables.
       case 'state:more':
-        for (const s of msg.strokes) this.putStable(s)
+        for (const s of msg.strokes) {
+          if (this.balayage) this.putStable(s)
+          else this.put(s, false)
+        }
         break
       case 'viewport':
         this.setSource(msg.w, msg.h)
@@ -289,6 +300,9 @@ export class ObsMirror {
    * reconnexion, DANS OBS. La scène apparaît donc en un court balayage ; ce
    * qui était déjà visible reste peint à la main, jamais escamoté.
    */
+  /** l'état complet en cours d'arrivée peut-il apparaître en balayage ? */
+  private balayage = true
+
   private putStable(s: Stroke): void {
     this.put(s, false)
     this.layer.differer(s.id)
