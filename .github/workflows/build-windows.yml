@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - claude/stream-annotation-tool-nw1om0
+      - ccr-0f5b38f3-a4wk3x
     paths-ignore:
       - '**.md'
       - 'docs/**'
