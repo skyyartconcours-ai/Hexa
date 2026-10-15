@@ -59,7 +59,57 @@ function readable(value: unknown): string {
   }
 }
 
+/** Octets écrits dans le fichier depuis l'ouverture (rotation en cours de session). */
+let written = 0
+/** Dernière ligne écrite, SANS son horodatage, et ses répétitions avalées. */
+let lastBody = ''
+let repeats = 0
+/** Fenêtre d'une seconde : au-delà de LINES_PER_SEC lignes, on se tait. */
+let windowStart = 0
+let windowLines = 0
+let windowDropped = 0
+const LINES_PER_SEC = 40
+
+/**
+ * ⚠️ Le journal écrit en SYNCHRONE sur le fil principal — celui qui porte aussi
+ * le crochet souris de Windows. Une erreur répétée à chaque image (deux
+ * écritures disque par image, pendant des heures) faisait donc ramer la souris
+ * de tout le PC et gonfler le fichier sans fin : la rotation n'avait lieu qu'au
+ * démarrage. Désormais : les lignes identiques consécutives sont comptées au
+ * lieu d'être écrites, le débit est plafonné, et le fichier tourne dès qu'il
+ * dépasse sa taille, même au milieu d'un direct.
+ */
 function write(line: string): void {
+  const body = line.replace(/^\d\d:\d\d:\d\d\.\d{3} /, '')
+  if (body === lastBody) {
+    repeats++
+    return
+  }
+  const now = Date.now()
+  if (now - windowStart >= 1000) {
+    if (windowDropped > 0) {
+      const n = windowDropped
+      windowDropped = 0
+      windowStart = now
+      windowLines = 0
+      writeRaw(`${stamp()} [journal] ${n} ligne(s) omise(s) (débit plafonné)`)
+    }
+    windowStart = now
+    windowLines = 0
+  }
+  if (++windowLines > LINES_PER_SEC) {
+    windowDropped++
+    return
+  }
+  if (repeats > 0) {
+    writeRaw(`${stamp()} [journal] ligne précédente répétée ${repeats} fois`)
+    repeats = 0
+  }
+  lastBody = body
+  writeRaw(line)
+}
+
+function writeRaw(line: string): void {
   // Toujours sur la sortie standard : visible avec `npm run app` et dans les
   // tests automatisés, même si l'écriture disque échoue.
   try {
@@ -74,7 +124,13 @@ function write(line: string): void {
     return
   }
   try {
-    fs.appendFileSync(filePath, `${line}\n`, 'utf8')
+    if (written > MAX_BYTES * 4) {
+      written = 0
+      fs.renameSync(filePath, path.join(path.dirname(filePath), 'hexa.log.old'))
+    }
+    const out = `${line}\n`
+    fs.appendFileSync(filePath, out, 'utf8')
+    written += out.length
   } catch {
     /* disque plein ou dossier verrouillé : on continue sans journal */
   }

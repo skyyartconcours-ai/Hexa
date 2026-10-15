@@ -167,6 +167,8 @@ interface SentInfo {
   dyingAt: number
   dyingMode: string
   animAt: number
+  /** l'image du tampon telle qu'envoyée (même chaîne = même image) */
+  image: string
 }
 
 /** Arrondi tolérant l'absence, pour comparer des nombres et jamais `undefined`. */
@@ -229,6 +231,7 @@ function noter(prev: SentInfo, s: Stroke): void {
   prev.badge = s.badge ?? -1
   prev.linkFrom = s.linkFrom ?? -1
   prev.w = s.w ?? -1
+  prev.image = s.image ?? ''
   prev.dieAt = num(s.dieAt)
   prev.dyingAt = num(s.dying?.start)
   prev.dyingMode = s.dying?.mode ?? ''
@@ -256,6 +259,7 @@ function empreinte(s: Stroke): SentInfo {
     dyingAt: -1,
     dyingMode: '',
     animAt: -1,
+    image: '',
   } as SentInfo
   noter(info, s)
   return info
@@ -742,8 +746,14 @@ export class ObsLink {
       noter(prev, s)
       return
     }
-    // déplacement, redressement, édition d'un texte… : on renvoie le trait
-    this.send({ t: 'stroke:update', now, stroke: pourLeFil(s) })
+    // déplacement, redressement, édition d'un texte… : on renvoie le trait.
+    // L'IMAGE d'un tampon (jusqu'à 3 Mo) ne repart pas si elle n'a pas
+    // changé : déplacer une capture collée l'envoyait 30 fois par seconde,
+    // soit ~90 Mo/s à travers le processus principal jusque dans OBS. La vue
+    // garde celle qu'elle a déjà (voir mirror.ts, `put`).
+    const fil = pourLeFil(s)
+    const memeImage = s.image != null && prev.image === s.image
+    this.send({ t: 'stroke:update', now, stroke: memeImage ? { ...fil, image: undefined } : fil })
     noter(prev, s)
   }
 

@@ -92,6 +92,13 @@ const RETARD_OCTETS = 1024 * 1024
 const RETARD_MS = 1000
 const ABANDON_MS = 10_000
 const RATTRAPAGE_MS = 5000
+/**
+ * Plafond du recul entre deux rattrapages d'une MÊME vue. Une vue qui n'arrive
+ * jamais à avaler l'état complet (OBS chargé, scène de plusieurs Mo) coûtait
+ * une sérialisation complète toutes les secondes et demie, sans fin : 5 s,
+ * puis 10, 20, 40, 60 s — le coût devient négligeable, la vue finit à jour.
+ */
+const RATTRAPAGE_MAX_MS = 60_000
 
 /**
  * Le dernier état complet mémorisé est gardé QUELQUES SECONDES après le départ
@@ -226,6 +233,23 @@ interface Client {
   sautes: number
   /** pas de nouvel état complet de rattrapage avant cet instant */
   prochainRattrapage: number
+  /** rattrapages consécutifs : chacun double le délai du suivant */
+  rattrapages: number
+  /** rattrapage différé (recul en cours), une seule minuterie par vue */
+  rattrapageTimer: ReturnType<typeof setTimeout> | null
+  /**
+   * Un état complet découpé est en train de lui être écrit : ses lots ne sont
+   * JAMAIS sautés. Sauter le milieu laissait une scène tronquée, qui
+   * réclamait un nouvel état complet, tronqué à son tour — en boucle.
+   */
+  enCours: boolean
+  /**
+   * Un état complet vient de lui être écrit et sa socket ne s'est pas encore
+   * vidée : le retard est NORMAL, pas un décrochage. Les petits différentiels
+   * qui suivent passent derrière lui au lieu d'être sautés — sinon chaque état
+   * complet en réclamait un autre.
+   */
+  vidange: boolean
   /** cette vue a un état complet (réserve servie, ou état frais reçu) */
   servi: boolean
   /** minuterie de secours : sert la réserve si la couche encre reste muette */
@@ -541,9 +565,41 @@ function fermerSocket(socket: Duplex, code?: number): void {
   }
 }
 
+function desarmerRattrapage(c: Client): void {
+  if (c.rattrapageTimer == null) return
+  clearTimeout(c.rattrapageTimer)
+  c.rattrapageTimer = null
+}
+
+/**
+ * Cette vue a sauté des messages : il lui faut un état complet, mais au plus
+ * tôt à `prochainRattrapage`, avec un délai qui double à chaque récidive.
+ * Rend vrai si la demande peut partir tout de suite.
+ */
+function planifierRattrapage(c: Client, maintenant: number): boolean {
+  if (maintenant >= c.prochainRattrapage) {
+    desarmerRattrapage(c)
+    c.sautes = 0
+    const recul = Math.min(RATTRAPAGE_MAX_MS, RATTRAPAGE_MS * 2 ** Math.min(c.rattrapages, 4))
+    c.rattrapages++
+    c.prochainRattrapage = maintenant + recul
+    return true
+  }
+  if (c.rattrapageTimer == null) {
+    c.rattrapageTimer = setTimeout(() => {
+      c.rattrapageTimer = null
+      if (!clients.has(c) || c.sautes === 0) return
+      if (c.socket.writableLength > 0) return // le prochain 'drain' reprendra la main
+      if (planifierRattrapage(c, Date.now())) reclamerEtatFrais()
+    }, c.prochainRattrapage - maintenant)
+  }
+  return false
+}
+
 function dropClient(c: Client, code?: number): void {
   if (!clients.delete(c)) return
   desarmerSecours(c)
+  desarmerRattrapage(c)
   totalCoupures++
   fermerSocket(c.socket, code)
   if (clients.size === 0) armerGrace()
@@ -914,6 +970,10 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
       engorgeeDepuis: 0,
       sautes: 0,
       prochainRattrapage: 0,
+      rattrapages: 0,
+      rattrapageTimer: null,
+      enCours: false,
+      vidange: false,
       servi: false,
       secours: null,
     }
@@ -936,6 +996,7 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
     const drop = (): void => {
       if (!clients.delete(client)) return
       desarmerSecours(client)
+      desarmerRattrapage(client)
       // On DÉTRUIT : recevoir le FIN du client ne referme pas notre moitié
       // (voir fermerSocket). Sans ça, une socket fantôme par changement de scène.
       fermerSocket(socket)
@@ -954,11 +1015,16 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
     socket.on('end', drop)
     // La vue avait décroché et vient de tout avaler : elle repart sur un état
     // complet frais plutôt que sur les différentiels qu'on lui a sautés.
+    //
+    // ⚠️ Jamais IMMÉDIATEMENT : ce chemin court-circuitait RATTRAPAGE_MS, et une
+    // vue trop lente pour la scène entrait dans une boucle sans fin —
+    // sérialisation complète, engorgement, lots sautés, vidange, nouvelle
+    // sérialisation… (mesuré : 40 états complets par minute, tous tronqués).
     socket.on('drain', () => {
       client.engorgeeDepuis = 0
+      client.vidange = false
       if (client.sautes === 0) return
-      client.sautes = 0
-      reclamerEtatFrais()
+      if (planifierRattrapage(client, Date.now())) reclamerEtatFrais()
     })
 
     // On réclame l'état frais tout de suite, sans attendre le « obs:hello » de
@@ -1040,7 +1106,11 @@ export function broadcastObs(payload: string): void {
   // Un `state:full` ouvre une nouvelle suite, chaque `state:more` la complète.
   // Un `state:more` orphelin (la vue s'est connectée au milieu d'un envoi) est
   // ignoré : elle recevra de toute façon un état frais grâce à son « hello ».
-  if (estType(payload, 'state:full')) {
+  const estFull = estType(payload, 'state:full')
+  const estSuite = !estFull && estType(payload, 'state:more')
+  // `more` est la DERNIÈRE clé de chaque lot (voir src/obs/link.ts).
+  const encoreDesLots = (estFull || estSuite) && payload.endsWith('"more":true}')
+  if (estFull) {
     // L'état frais est arrivé : la demande en cours est honorée, et toutes les
     // vues connectées vont le recevoir — inutile de leur servir la réserve.
     demandeEnCours = false
@@ -1053,7 +1123,7 @@ export function broadcastObs(payload: string): void {
       c.servi = true
       desarmerSecours(c)
     }
-  } else if (estType(payload, 'state:more') && lastFullState.length > 0) {
+  } else if (estSuite && lastFullState.length > 0) {
     lastFullState.push(payload)
     lastFullOctets += payload.length
   }
@@ -1070,17 +1140,42 @@ export function broadcastObs(payload: string): void {
   let rattrapage = false
   for (const c of [...clients]) {
     const attente = c.socket.writableLength
+    // Un état complet qui commence remet la vue à zéro : ce qu'on lui avait
+    // sauté avant est couvert, et ses lots suivants passeront tous.
+    if (estFull) {
+      c.enCours = encoreDesLots
+      c.sautes = 0
+      desarmerRattrapage(c)
+    } else if (estSuite) {
+      // suite orpheline (vue arrivée en cours d'envoi) : elle n'a pas le début
+      if (!c.enCours) continue
+      if (!encoreDesLots) c.enCours = false
+    }
+    if (estFull || estSuite) c.vidange = true
     if (attente === 0) {
       // Elle suit. Si on lui avait sauté des messages, elle ne peut pas
       // reprendre sur un différentiel : un seul état complet la remet d'aplomb.
       c.engorgeeDepuis = 0
-      if (c.sautes > 0) {
-        c.sautes = 0
-        if (maintenant >= c.prochainRattrapage) {
-          c.prochainRattrapage = maintenant + RATTRAPAGE_MS
-          rattrapage = true
-          continue
-        }
+      if (!estFull && !estSuite) c.vidange = false
+      // Rattrapage pas encore permis (recul) : on continue de la nourrir en
+      // différentiels — une vue presque juste vaut mieux qu'une vue figée —
+      // et la minuterie de recul enverra l'état complet le moment venu.
+      if (c.sautes > 0 && planifierRattrapage(c, maintenant)) {
+        rattrapage = true
+        continue
+      }
+      // longtemps à jour depuis le dernier rattrapage : le recul repart de zéro
+      if (c.rattrapages > 0 && maintenant > c.prochainRattrapage + RATTRAPAGE_MAX_MS) {
+        c.rattrapages = 0
+      }
+    } else if (estFull || estSuite || c.vidange) {
+      // Les lots d'un état complet passent toujours (la scène entière est
+      // bornée) ; seule la règle d'abandon s'applique.
+      if (c.engorgeeDepuis === 0) c.engorgeeDepuis = maintenant
+      if (maintenant - c.engorgeeDepuis > ABANDON_MS) {
+        log(`vue OBS injoignable (${Math.round(attente / 1024)} Ko en attente), déconnectée`)
+        dropClient(c, 1013)
+        continue
       }
     } else {
       // Première fois qu'on la trouve non vide : c'est le cas NORMAL juste

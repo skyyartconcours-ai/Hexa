@@ -2530,8 +2530,14 @@ export class HexaEngine {
     this.running = false
     // programmer le prochain réveil si un fondu auto est en attente
     let next = Infinity
-    for (const s of this.strokes) {
-      if (!s.dying && !s.pinned && s.dieAt != null) next = Math.min(next, s.dieAt)
+    // Annotations masquées : le fondu est SUSPENDU (il est réarmé au retour),
+    // donc aucune échéance à surveiller. Sans cette garde, les échéances déjà
+    // passées relançaient un réveil toutes les 16 ms — 60 tours de boucle par
+    // seconde, miroir OBS compris, aussi longtemps que tout restait masqué.
+    if (!this.opts.annotationsHidden) {
+      for (const s of this.strokes) {
+        if (!s.dying && !s.pinned && s.dieAt != null) next = Math.min(next, s.dieAt)
+      }
     }
     // …ou si une transcription d'écriture est programmée (mode écriture)
     const hwDue = this.hw.nextDue()

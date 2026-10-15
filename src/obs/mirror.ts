@@ -186,8 +186,21 @@ export class ObsMirror {
       this.gotState = true
       this.onFirstState?.()
     }
+    // Source masquée dans OBS : le navigateur ne donne plus d'images, donc la
+    // boucle — seule à purger les traits dissous — ne tourne plus, et chaque
+    // trait dessiné restait en mémoire DANS OBS jusqu'au retour de la scène.
+    // On purge ici, au plus une fois par seconde, sans rien peindre.
+    if (typeof document !== 'undefined' && document.hidden) {
+      const now = performance.now()
+      if (now - this.dernierePurgeCachee >= 1000) {
+        this.dernierePurgeCachee = now
+        this.purger(now)
+      }
+    }
     this.wake()
   }
+
+  private dernierePurgeCachee = 0
 
   /** Mémorise la taille de l'écran annoté (source des coordonnées). */
   private setSource(w: number, h: number): void {
@@ -244,7 +257,11 @@ export class ObsMirror {
 
   private put(s: Stroke, frais = true): void {
     const stroke = this.localize(s)
-    if (!this.map.has(stroke.id)) this.order.push(stroke.id)
+    const avant = this.map.get(stroke.id)
+    // Un tampon déplacé arrive SANS son image (inchangée, donc pas renvoyée) :
+    // on garde celle qu'on a déjà.
+    if (stroke.image == null && avant?.image != null) stroke.image = avant.image
+    if (!avant) this.order.push(stroke.id)
     this.map.set(stroke.id, stroke)
     if (frais) this.retoucher(stroke.id)
   }
@@ -281,25 +298,18 @@ export class ObsMirror {
     if (!this.raf) this.raf = requestAnimationFrame(this.loop)
   }
 
-  private loop = (): void => {
-    this.raf = 0
-    const now = performance.now()
-    // fin de la période chaude : les traits retouchés peuvent rejoindre le
-    // calque. On vide la table d'un bloc — elle ne sert plus à rien.
-    if (this.hotUntil !== 0 && now >= this.hotUntil) {
-      this.touched.clear()
-      this.hotUntil = 0
-    }
-
-    // fondu automatique : dieAt → dissolution (au cas où le message d'update
-    // se perdrait, le miroir reste juste tout seul)
+  /**
+   * Fondu automatique (dieAt → dissolution, au cas où le message d'update se
+   * perdrait, le miroir reste juste tout seul) puis purge des traits
+   * entièrement dissous. Vrai si quelque chose a été retiré.
+   */
+  private purger(now: number): boolean {
     for (const id of this.order) {
       const s = this.map.get(id)
       if (s && !s.dying && s.dieAt != null && now >= s.dieAt) {
         s.dying = { start: now, duration: dissolveDuration(s), mode: 'dissolve', cause: 'fade' }
       }
     }
-    // purge des traits entièrement dissous
     let purged = false
     for (let i = this.order.length - 1; i >= 0; i--) {
       const s = this.map.get(this.order[i])
@@ -313,6 +323,20 @@ export class ObsMirror {
         purged = true
       }
     }
+    return purged
+  }
+
+  private loop = (): void => {
+    this.raf = 0
+    const now = performance.now()
+    // fin de la période chaude : les traits retouchés peuvent rejoindre le
+    // calque. On vide la table d'un bloc — elle ne sert plus à rien.
+    if (this.hotUntil !== 0 && now >= this.hotUntil) {
+      this.touched.clear()
+      this.hotUntil = 0
+    }
+
+    const purged = this.purger(now)
 
     this.render(now)
 

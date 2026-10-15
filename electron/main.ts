@@ -3125,7 +3125,12 @@ function registerIpc(): void {
       const match =
         sources.find((s) => String(s.display_id) === String(display.id)) ?? sources[0] ?? null
       if (!match || match.thumbnail.isEmpty()) return null
-      return match.thumbnail.toDataURL()
+      // JPEG, pas PNG : l'encodage PNG plein écran prenait 250 ms (1080p) à
+      // 950 ms (4K) sur le fil principal — celui qui porte le crochet souris
+      // global de Windows. Pendant ce temps, la souris du JEU attendait. Le
+      // JPEG s'encode plusieurs fois plus vite et pèse dix fois moins lourd à
+      // travers l'IPC ; à 90 %, la photo gelée est indiscernable.
+      return `data:image/jpeg;base64,${match.thumbnail.toJPEG(90).toString('base64')}`
     } catch {
       // §12.6 : sur certaines configurations le partage d'écran est refusé.
       // On renvoie null, jamais une exception : l'appelant dégrade proprement.
