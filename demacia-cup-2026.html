@@ -1,0 +1,192 @@
+<title>Demacia Cup 2026 Stats</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap">
+<style>
+/* Layout : fiche de tournoi — en-tête, encadré réponse (champions uniques), chiffres clés, comparaison des bans sur 3 tournois, picks par rôle, bracket, sources. Thème sombre unique, même famille visuelle que la page Crystal Ball. */
+:root {
+  --void: #010a13; --deep: #091428; --deep-2: #0e1d36; --edge: #1e2d45;
+  --gold: #c8aa6e; --gold-hi: #f0e6d2; --gold-lo: #785a28; --teal: #0ac8b9; --muted: #8b97ab;
+  --ok: #3ccf8e; --warn: #f2b445; --unk: #7d879a;
+  --lck: #4aa3ff; --lpl: #ff6b5e; --dc: #0ac8b9;
+  --display: "Cinzel", Georgia, serif; --num: "Barlow Condensed", "Arial Narrow", sans-serif; --body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box }
+html, body { background: var(--void); color: var(--gold-hi) }
+body { font-family: var(--body); font-size: 15px; line-height: 1.5; margin: 0 }
+a { color: var(--teal) }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; display: grid; gap: 36px }
+header { display: grid; gap: 8px }
+section, header { min-width: 0 }
+.eyebrow { font: 600 12px var(--body); letter-spacing: .16em; text-transform: uppercase; color: var(--gold) }
+h1 { font: 700 clamp(28px, 4.4vw, 46px)/1.05 var(--display); margin: 0; letter-spacing: .03em; text-wrap: balance }
+.lede { color: var(--muted); max-width: 68ch; margin: 0 }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px }
+.chip { font: 600 12px var(--body); letter-spacing: .06em; padding: 4px 10px; border: 1px solid var(--edge); background: var(--deep); color: var(--gold-hi) }
+.chip.live { border-color: var(--teal); color: var(--teal) }
+h2 { font: 700 15px var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin: 0 0 14px; display: flex; gap: 12px; align-items: center }
+h2::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--gold-lo), transparent) }
+.note { font-size: 13px; color: var(--muted); margin: 10px 0 0; max-width: 75ch }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px }
+
+/* réponse */
+.answer { border: 1px solid var(--gold-lo); background: linear-gradient(180deg, var(--deep-2), var(--deep)); padding: 18px; display: grid; gap: 16px }
+.answer .q { font: 600 18px var(--body) }
+.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px }
+.tile { border: 1px solid var(--edge); border-top: 3px solid var(--c); background: var(--void); padding: 14px; display: grid; gap: 4px; align-content: start; min-width: 0 }
+.tile .t { font: 700 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--c) }
+.tile .v { font: 700 40px/1 var(--num); color: var(--muted) }
+.tile .v small { font: 600 14px var(--body); letter-spacing: .04em; text-transform: uppercase }
+.tile .s { font-size: 13px; color: var(--muted) }
+.tile .s b { color: var(--gold-hi); font-weight: 600 }
+.bench { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted) }
+.bench b { font: 700 18px var(--num); color: var(--gold-hi); margin-right: 4px }
+
+/* chiffres */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 10px }
+.kpi { border: 1px solid var(--edge); background: var(--deep); padding: 14px; display: grid; gap: 2px; text-decoration: none; color: inherit; min-width: 0 }
+a.kpi:hover { border-color: var(--teal) }
+.kpi .v { font: 700 34px/1 var(--num); font-variant-numeric: tabular-nums }
+.kpi .l { font-size: 13px; color: var(--muted) }
+.kpi .src { font: 600 10px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--gold); margin-top: 4px }
+
+/* tableau bans */
+.tbl { overflow-x: auto; border: 1px solid var(--edge) }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; min-width: 560px }
+th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--edge) }
+th { font: 600 11px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: var(--deep) }
+th.c { color: var(--c) }
+td.ch { font: 700 17px var(--num); text-transform: uppercase; letter-spacing: .02em }
+td .n { font: 700 17px var(--num) }
+td .p { font-size: 12px; color: var(--muted); margin-left: 6px }
+td .bar { display: block; height: 3px; background: var(--edge); margin-top: 4px; max-width: 120px } td .bar i { display: block; height: 100%; background: var(--c) }
+td.na { color: var(--unk); font-size: 13px }
+
+/* rôles */
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px }
+.role { border: 1px solid var(--edge); background: var(--deep); padding: 14px; display: grid; gap: 8px; align-content: start }
+.role h3 { margin: 0; font: 700 13px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--gold) }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: baseline }
+.row .nm { font: 700 18px var(--num); text-transform: uppercase }
+.row .ct { font: 600 15px var(--num); color: var(--gold-hi) }
+.row .ct small { color: var(--muted); font: 500 12px var(--body); margin-left: 4px }
+
+/* bracket */
+.bracket { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px }
+.col { display: grid; gap: 10px; align-content: start }
+.col h3 { margin: 0; font: 600 11px var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted) }
+.m { border: 1px solid var(--edge); background: var(--deep); display: grid }
+.m .tm { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; font: 600 15px var(--body) }
+.m .tm + .tm { border-top: 1px solid var(--edge) }
+.m .tm.w { color: #fff } .m .tm.w b { color: var(--teal) }
+.m .tm.l { color: var(--muted) }
+.m .tm b { font: 700 17px var(--num) }
+.m .meta { font-size: 11px; color: var(--muted); padding: 4px 10px; border-top: 1px dashed var(--edge) }
+
+.sources { display: grid; gap: 6px; font-size: 13px; padding-left: 18px; margin: 0 }
+.sources li { overflow-wrap: anywhere }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted) }
+@media (max-width: 760px) { .trio, .bracket { grid-template-columns: minmax(0, 1fr) } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Tournoi en cours · Pékin</span>
+    <h1>Demacia Cup Global Invitational 2026</h1>
+    <p class="lede">12 équipes de 6 régions qui ont manqué les Worlds. Swiss en ligne du 3 au 8 octobre, phase finale à Pékin du 12 au 17 octobre, en Fearless Draft. C'est le tournoi le plus récent sur le patch des Worlds : un bon miroir pour le Crystal Ball.</p>
+    <div class="chips"><span class="chip live">Demi-finales en cours</span><span class="chip">Finale le 17 oct.</span><span class="chip">Fearless Draft</span><span class="chip">62 games jouées</span><span class="chip">Cash prize ~223 000 $</span></div>
+  </header>
+
+  <section>
+    <h2>Champions uniques pickés</h2>
+    <div class="answer">
+      <div class="q">Combien de champions différents ont été pickés ?</div>
+      <div class="trio">
+        <div class="tile" style="--c:var(--dc)"><span class="t">Demacia Cup 2026</span><span class="v">— <small>non publié</small></span><span class="s"><b>62 games</b> à date. FlyQuest seule a joué <b>46 champions</b> différents (dpm.lol).</span></div>
+        <div class="tile" style="--c:var(--lck)"><span class="t">Playoffs LCK 2026</span><span class="v">— <small>non publié</small></span><span class="s"><b>41 games</b>. gol.gg affiche « Total : 100 », mais ce total compte les champions <b>pickés ou bannis</b>, pas les seuls picks.</span></div>
+        <div class="tile" style="--c:var(--lpl)"><span class="t">Playoffs LPL 2026</span><span class="v">— <small>non publié</small></span><span class="s"><b>55 games</b> (LPL 2026 Grand Finals, Fearless, patch 16.17).</span></div>
+      </div>
+      <div class="bench"><span><b>101</b>MSI 2026 (71 games)</span><span><b>100</b>LCS Summer 2026</span><span><b>94</b>LEC Summer 2026</span><span><b>95</b>Worlds 2025</span><span><b>79</b>EWC 2026</span></div>
+      <p class="note" style="margin:0">Repères pem.lol (« Unique champions played »). Aucune source ne publie ce chiffre pour les trois tournois demandés, et les pages gol.gg n'ont pas pu être ouvertes pour compter les lignes du tableau des picks. Le compte exact se lit sur les pages Picks &amp; Bans liées en bas.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Chiffres clés de la Demacia Cup</h2>
+    <div class="kpis">
+      <a class="kpi" href="https://gol.gg/tournament/tournament-stats/Demacia%20Cup%20Global%20Invitational%202026/" target="_blank" rel="noopener"><span class="v">62</span><span class="l">games jouées (à date)</span><span class="src">gol.gg ↗</span></a>
+      <a class="kpi" href="https://gol.gg/tournament/tournament-stats/Demacia%20Cup%20Global%20Invitational%202026/" target="_blank" rel="noopener"><span class="v">30:16</span><span class="l">durée moyenne d'une game</span><span class="src">gol.gg ↗</span></a>
+      <a class="kpi" href="https://gol.gg/tournament/tournament-stats/Demacia%20Cup%20Global%20Invitational%202026/" target="_blank" rel="noopener"><span class="v">~29</span><span class="l">kills par game</span><span class="src">gol.gg ↗</span></a>
+      <a class="kpi" href="https://gol.gg/tournament/tournament-stats/Demacia%20Cup%20Global%20Invitational%202026/" target="_blank" rel="noopener"><span class="v">22:46</span><span class="l">game la plus courte (GAM contre FlyQuest)</span><span class="src">gol.gg ↗</span></a>
+      <a class="kpi" href="https://gol.gg/tournament/tournament-stats/Demacia%20Cup%20Global%20Invitational%202026/" target="_blank" rel="noopener"><span class="v">41:54</span><span class="l">game la plus longue (WE contre FlyQuest)</span><span class="src">gol.gg ↗</span></a>
+      <a class="kpi" href="https://gol.gg/game/stats/83531/page-fullstats/" target="_blank" rel="noopener"><span class="v">50</span><span class="l">kills dans une game (SR contre GAM, 39:10)</span><span class="src">gol.gg ↗</span></a>
+      <a class="kpi" href="https://gol.gg/tournament/tournament-stats/Demacia%20Cup%20Global%20Invitational%202026/" target="_blank" rel="noopener"><span class="v">14</span><span class="l">kills de Taeyoon dans une game (record)</span><span class="src">gol.gg ↗</span></a>
+      <a class="kpi" href="https://gol.gg/tournament/tournament-stats/Demacia%20Cup%20Global%20Invitational%202026/" target="_blank" rel="noopener"><span class="v">10.96</span><span class="l">CS/min de Teddy (1er)</span><span class="src">gol.gg ↗</span></a>
+    </div>
+    <p class="note">Chiffres relevés pendant le tournoi : ils bougeront avec les demi-finales et la finale.</p>
+  </section>
+
+  <section>
+    <h2>Bans : Demacia Cup contre playoffs LCK et LPL</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Champion</th><th class="c" style="--c:var(--dc)">Demacia Cup · 62 games</th><th class="c" style="--c:var(--lck)">Playoffs LCK · 41 games</th><th class="c" style="--c:var(--lpl)">Playoffs LPL · 55 games</th></tr></thead>
+      <tbody id="bans"></tbody>
+    </table></div>
+    <p class="note">Le % est la part des games où le champion a été banni (bans seuls, picks non comptés). « — » : hors du top relevé dans l'extrait gol.gg, valeur inconnue. Cassiopeia est la plus bannie dans les trois tournois, et Nocturne et Vi suivent partout : c'est le trio à surveiller pour la question de présence du Crystal Ball.</p>
+  </section>
+
+  <section>
+    <h2>Picks les plus joués par rôle · Demacia Cup</h2>
+    <div class="roles">
+      <div class="role"><h3>Mid</h3><div class="row"><span class="nm">Ryze</span><span class="ct">22<small>picks · 9V-13D</small></span></div><div class="row"><span class="nm">Orianna</span><span class="ct">17<small>picks</small></span></div><div class="row"><span class="nm">Viktor</span><span class="ct">12<small>picks</small></span></div></div>
+      <div class="role"><h3>Bot</h3><div class="row"><span class="nm">Yunara</span><span class="ct">18<small>picks</small></span></div><div class="row"><span class="nm">Lucian</span><span class="ct">17<small>picks</small></span></div><div class="row"><span class="nm">Jhin</span><span class="ct">12<small>picks</small></span></div></div>
+      <div class="role"><h3>Jungle</h3><div class="row"><span class="nm">Jarvan IV</span><span class="ct">14<small>picks</small></span></div><div class="row"><span class="nm">Lee Sin</span><span class="ct">14<small>picks</small></span></div></div>
+      <div class="role"><h3>Flex</h3><div class="row"><span class="nm">Rumble</span><span class="ct">20<small>picks · 10V-10D</small></span></div></div>
+    </div>
+    <p class="note">Picks par rôle : extrait gol.gg. Bilans de Ryze et Rumble : Liquipedia (dpm.lol compte 23 picks pour Ryze et 22 pour Rumble, l'écart vient de la date du relevé). En comparaison, en playoffs LCK : Ryze 10 en mid, Jayce 9 en top, Kalista, Ashe, Yunara, Lucian et Jhin 8 chacun en bot.</p>
+  </section>
+
+  <section>
+    <h2>Phase finale</h2>
+    <div class="bracket">
+      <div class="col"><h3>Quarts · 12-13 oct.</h3>
+        <div class="m"><div class="tm w">BNK FEARX <b>3</b></div><div class="tm l">JD Gaming <b>2</b></div></div>
+        <div class="m"><div class="tm w">KT Rolster <b>3</b></div><div class="tm l">Team Vitality <b>2</b></div><div class="meta">3-2 déduit de la game 5 sur gol.gg</div></div>
+        <div class="m"><div class="tm w">Team WE <b>3</b></div><div class="tm l">FlyQuest <b>2</b></div></div>
+        <div class="m"><div class="tm w">HANJIN BRION <b>3</b></div><div class="tm l">LGD Gaming <b>1</b></div></div>
+      </div>
+      <div class="col"><h3>Demi-finales · Bo5</h3>
+        <div class="m"><div class="tm w">BNK FEARX <b>✓</b></div><div class="tm l">KT Rolster <b></b></div><div class="meta">14 oct. · FEARX en finale selon Liquipedia (source unique, score inconnu)</div></div>
+        <div class="m"><div class="tm">Team WE <b></b></div><div class="tm">HANJIN BRION <b></b></div><div class="meta">15 oct. · en cours</div></div>
+      </div>
+      <div class="col"><h3>Finale · 17 oct.</h3>
+        <div class="m"><div class="tm">BNK FEARX <b></b></div><div class="tm">WE ou BRION <b></b></div><div class="meta">Bo5 · Pékin</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Sources</h2>
+    <ul class="sources">
+      <li>gol.gg : <a href="https://gol.gg/tournament/tournament-stats/Demacia%20Cup%20Global%20Invitational%202026/" target="_blank" rel="noopener">stats</a> · <a href="https://gol.gg/tournament/tournament-picksandbans/Demacia%20Cup%20Global%20Invitational%202026/" target="_blank" rel="noopener">picks &amp; bans</a> de la Demacia Cup</li>
+      <li>gol.gg : <a href="https://gol.gg/tournament/tournament-picksandbans/LCK%202026%20Season%20Playoffs/" target="_blank" rel="noopener">picks &amp; bans des playoffs LCK 2026</a> · <a href="https://gol.gg/tournament/tournament-matchlist/LCK%202026%20Season%20Playoffs/" target="_blank" rel="noopener">liste des matchs</a></li>
+      <li>gol.gg : <a href="https://gol.gg/tournament/tournament-picksandbans/LPL%202026%20Grand%20Finals/" target="_blank" rel="noopener">picks &amp; bans des LPL 2026 Grand Finals</a> · <a href="https://gol.gg/tournament/tournament-stats/LPL%202026%20Grand%20Finals/" target="_blank" rel="noopener">stats</a></li>
+      <li>Liquipedia : <a href="https://liquipedia.net/leagueoflegends/Demacia_Cup_Global_Invitational/2026" target="_blank" rel="noopener">Demacia Cup Global Invitational 2026</a> · <a href="https://liquipedia.net/leagueoflegends/Demacia_Cup_Global_Invitational/2026/Statistics" target="_blank" rel="noopener">statistiques</a></li>
+      <li>dpm.lol : <a href="https://dpm.lol/esports/events/4881-demacia-cup-global-invitational-2026" target="_blank" rel="noopener">page de l'événement</a></li>
+      <li>esports.gg : <a href="https://esports.gg/news/league-of-legends/demacia-cup-global-invitational-2026-format-schedule-results/" target="_blank" rel="noopener">format, calendrier, résultats</a> · Insider Gaming : <a href="https://insider-gaming.com/demacia-cup-global-invitational-schedule-teams-and-format/" target="_blank" rel="noopener">équipes et format</a></li>
+      <li>pem.lol (repères de champions uniques) : <a href="https://pem.lol/msi/2026" target="_blank" rel="noopener">MSI 2026</a> · <a href="https://pem.lol/lcs/2026/summer" target="_blank" rel="noopener">LCS Summer</a> · <a href="https://pem.lol/lec/2026/summer" target="_blank" rel="noopener">LEC Summer</a> · <a href="https://pem.lol/worlds/2025/pickems" target="_blank" rel="noopener">Worlds 2025</a> · <a href="https://pem.lol/ewc/2026" target="_blank" rel="noopener">EWC 2026</a></li>
+    </ul>
+    <p class="note">Les chiffres viennent des extraits de résultats de recherche de ces pages, relevés le 15 octobre 2026 : les pages n'ont pas pu être ouvertes directement.</p>
+  </section>
+</div>
+
+<script>
+const BANS = [
+  ['Cassiopeia', 53, 35, 49], ['Nocturne', 51, 26, 36], ['Vi', 40, 21, 46], ['Qiyana', 35, null, null], ['Syndra', 29, null, null],
+  ['Olaf', 28, null, 22], ['Ezreal', 25, null, null], ['Lee Sin', 22, null, null], ['Orianna', null, 18, null], ['Jarvan IV', null, null, 22],
+];
+const G = [62, 41, 55], C = ['var(--dc)', 'var(--lck)', 'var(--lpl)'];
+document.getElementById('bans').innerHTML = BANS.map(([n, ...v]) => `<tr><td class="ch">${n}</td>${v.map((x, i) => x == null ? '<td class="na">—</td>' : `<td style="--c:${C[i]}"><span class="n">${x}</span><span class="p">${Math.round(x / G[i] * 100)} %</span><span class="bar"><i style="width:${Math.min(100, x / G[i] * 100)}%"></i></span></td>`).join('')}</tr>`).join('');
+</script>
