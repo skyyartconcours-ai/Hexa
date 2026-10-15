@@ -1,0 +1,296 @@
+<title>Crystal Ball Worlds 2026</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap">
+<style>
+/* Layout : écran de pronostics façon client — bandeau de verrouillage, onglets de catégories, grille de cartes-questions avec emplacement de pick ; un clic ouvre le panneau de stats à droite (feuille en bas sur mobile). Thème sombre unique, assumé. */
+:root {
+  --void: #010a13;       /* fond */
+  --deep: #091428;       /* cartes */
+  --deep-2: #0e1d36;
+  --edge: #1e2d45;
+  --gold: #c8aa6e;       /* filet or */
+  --gold-hi: #f0e6d2;    /* texte clair or */
+  --gold-lo: #785a28;
+  --teal: #0ac8b9;       /* accent magie */
+  --muted: #8b97ab;
+  --ok: #3ccf8e; --warn: #f2b445; --unk: #7d879a;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --num: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box }
+html, body { background: var(--void); color: var(--gold-hi) }
+body { font-family: var(--body); font-size: 15px; line-height: 1.5; margin: 0; min-height: 100% }
+body::before { content: ""; position: fixed; inset: 0; pointer-events: none; background: radial-gradient(70% 50% at 50% -10%, rgba(10, 200, 185, .10), transparent 70%), radial-gradient(60% 40% at 100% 0%, rgba(200, 170, 110, .08), transparent 70%) }
+button { font: inherit; color: inherit }
+a { color: var(--teal) }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px }
+.wrap { position: relative; max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+
+/* bandeau */
+.hero { padding-block: 28px 8px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px 24px; align-items: center }
+.orb { width: 74px; aspect-ratio: 1; border-radius: 50%; position: relative; background: radial-gradient(circle at 35% 30%, #fff 0 5%, #9ff3ea 10%, #0ac8b9 30%, #0b4f6c 62%, #04121f 100%); box-shadow: 0 0 40px rgba(10, 200, 185, .35), inset -8px -10px 22px rgba(0, 0, 0, .6) }
+.orb::after { content: ""; position: absolute; left: 50%; bottom: -9px; width: 56px; height: 13px; transform: translateX(-50%); border-radius: 50%; background: linear-gradient(var(--gold), var(--gold-lo)) }
+@media (prefers-reduced-motion: no-preference) { .orb { animation: glow 5s ease-in-out infinite } @keyframes glow { 50% { box-shadow: 0 0 64px rgba(10, 200, 185, .5), inset -8px -10px 22px rgba(0, 0, 0, .6) } } }
+.hero h1 { font: 700 clamp(26px, 4vw, 40px)/1.05 var(--display); margin: 0; letter-spacing: .04em; color: var(--gold-hi); text-wrap: balance }
+.hero p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; font-size: 14px }
+.lockbox { border: 1px solid var(--gold-lo); background: linear-gradient(180deg, var(--deep-2), var(--deep)); padding: 10px 16px; text-align: center; min-width: 190px }
+.lockbox .l { font: 600 11px var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--gold) }
+.lockbox .t { font: 700 30px/1.1 var(--num); letter-spacing: .03em; font-variant-numeric: tabular-nums }
+.lockbox .d { font-size: 12px; color: var(--muted) }
+.lockbox.closed .t { color: var(--muted) }
+
+/* barre outils */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: rgba(1, 10, 19, .92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--edge); margin-top: 14px }
+.bar .wrap { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding-block: 8px }
+.tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; min-width: 0 }
+.tabs button { background: none; border: 0; padding: 10px 14px; cursor: pointer; font: 700 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap }
+.tabs button[aria-selected="true"] { color: var(--gold-hi); border-bottom-color: var(--gold) }
+.tabs .n { font: 600 12px var(--num); color: var(--gold-lo); margin-left: 6px }
+.tools { margin-left: auto; display: flex; gap: 8px; align-items: center }
+.progress { font: 600 13px var(--num); letter-spacing: .06em; color: var(--muted); text-transform: uppercase }
+.progress b { color: var(--gold-hi); font-size: 16px }
+.btn { cursor: pointer; border: 1px solid var(--gold-lo); background: var(--deep); padding: 7px 12px; font: 600 12px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--gold-hi) }
+.btn:hover { border-color: var(--gold) }
+.btn.primary { background: linear-gradient(180deg, #1e3a5a, #0b2236); border-color: var(--teal); color: #d8fffb }
+
+/* grille */
+main { padding-block: 22px 80px; display: grid; gap: 30px }
+.cat h2 { font: 700 15px var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin: 0 0 12px; display: flex; align-items: center; gap: 12px }
+.cat h2::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--gold-lo), transparent) }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 14px }
+.card { position: relative; display: grid; grid-template-rows: auto 1fr auto; gap: 14px; text-align: left; cursor: pointer; padding: 16px; min-width: 0; background: linear-gradient(180deg, var(--deep-2), var(--deep) 70%); border: 1px solid var(--edge); transition: border-color .15s, transform .15s }
+.card::before { content: ""; position: absolute; inset: 3px; border: 1px solid rgba(200, 170, 110, .12); pointer-events: none }
+.card:hover { border-color: var(--gold-lo); transform: translateY(-2px) }
+.card.sel { border-color: var(--gold) }
+.card .top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline }
+.card .num { font: 600 12px var(--num); letter-spacing: .1em; color: var(--gold-lo) }
+.card .more { font: 600 11px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--teal); white-space: nowrap }
+.card h3 { font: 600 17px/1.3 var(--body); margin: 0; color: var(--gold-hi); text-wrap: balance }
+
+/* emplacement pick (choix libre) */
+.slot { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: center }
+.ring { width: 64px; height: 64px; border-radius: 50%; padding: 3px; background: conic-gradient(var(--gold), var(--gold-lo), var(--gold), var(--gold-lo), var(--gold)) }
+.ring span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: radial-gradient(circle at 40% 35%, #23406a, #0a1830 70%); font: 700 20px var(--display); color: var(--gold-hi) }
+.ring img { width: 100%; height: 100%; object-fit: cover }
+.slot .nm { font: 700 24px/1.05 var(--num); text-transform: uppercase; letter-spacing: .02em; overflow-wrap: anywhere }
+.slot .meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); margin-top: 4px; flex-wrap: wrap }
+.tag { font: 600 10px var(--body); letter-spacing: .1em; text-transform: uppercase; padding: 2px 6px; border: 1px solid currentColor }
+.tag.reco { color: var(--teal) } .tag.mine { color: var(--gold) }
+
+/* options (duel / tranches) */
+.opts { display: grid; gap: 8px }
+.opts.duel { grid-template-columns: 1fr 1fr }
+.opt { position: relative; overflow: hidden; cursor: pointer; padding: 10px 12px; text-align: left; background: rgba(1, 10, 19, .6); border: 1px solid var(--edge); display: grid; gap: 2px; min-width: 0 }
+.opt .fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, rgba(10, 200, 185, .14), rgba(10, 200, 185, .04)); pointer-events: none }
+.opt .o { position: relative; font: 700 18px/1.1 var(--num); text-transform: uppercase; letter-spacing: .02em; overflow-wrap: anywhere }
+.opt .p { position: relative; font: 600 13px var(--num); color: var(--muted); font-variant-numeric: tabular-nums }
+.opt.on { border-color: var(--gold); background: linear-gradient(180deg, rgba(200, 170, 110, .16), rgba(1, 10, 19, .6)) }
+.opt.on .o { color: #fff }
+.opt.on::after { content: "✓"; position: absolute; top: 6px; right: 8px; font: 700 12px var(--body); color: var(--gold) }
+.opt.isreco .p::after { content: " · reco"; color: var(--teal) }
+.card .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted) }
+.conf { display: flex; align-items: center; gap: 8px; flex: 1 }
+.conf i { flex: 1; height: 4px; background: var(--edge); position: relative; max-width: 120px }
+.conf i b { position: absolute; inset: 0 auto 0 0; background: var(--teal) }
+
+/* panneau */
+.scrim { position: fixed; inset: 0; background: rgba(0, 4, 10, .6); z-index: 40; opacity: 0; pointer-events: none; transition: opacity .2s }
+.scrim.open { opacity: 1; pointer-events: auto }
+.panel { position: fixed; z-index: 50; top: 0; right: 0; bottom: 0; width: min(620px, 100%); background: linear-gradient(180deg, #0b1830, var(--void) 60%); border-left: 1px solid var(--gold-lo); transform: translateX(102%); transition: transform .25s cubic-bezier(.2, .8, .2, 1); display: grid; grid-template-rows: auto minmax(0, 1fr); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px) }
+.panel.open { transform: none }
+.panel.full { width: 100%; border-left: 0 }
+.ph { padding: 16px 20px 12px; border-bottom: 1px solid var(--edge); display: grid; gap: 8px }
+.ph .row { display: flex; justify-content: space-between; align-items: center; gap: 8px }
+.ph .num { font: 600 13px var(--num); letter-spacing: .1em; color: var(--gold) }
+.ph h2 { font: 700 22px/1.25 var(--display); margin: 0; text-wrap: balance; letter-spacing: .02em }
+.ph .full-q { font-size: 13px; color: var(--muted) }
+.icon { cursor: pointer; width: 34px; height: 34px; display: grid; place-items: center; background: var(--deep); border: 1px solid var(--edge); font-size: 16px }
+.icon:hover { border-color: var(--gold) }
+.pb { overflow-y: auto; padding: 18px 20px 40px; display: grid; gap: 22px; align-content: start }
+.panel.full .pb { max-width: 1100px; width: 100%; margin: 0 auto }
+.hook { font: 600 18px/1.4 var(--body); color: var(--gold-hi); border-left: 2px solid var(--teal); padding-left: 14px; text-wrap: balance }
+.sec h3 { font: 700 12px var(--display); letter-spacing: .16em; text-transform: uppercase; color: var(--gold); margin: 0 0 10px }
+.ct { display: grid; grid-template-columns: 26px 48px minmax(0, 1fr) auto; gap: 6px 12px; align-items: center; padding: 12px; border: 1px solid var(--edge); background: rgba(9, 20, 40, .7) }
+.ct + .ct { margin-top: 8px }
+.ct.on { border-color: var(--gold) }
+.ct .rk { font: 700 22px var(--num); color: var(--gold-lo); text-align: center }
+.ct.r1 .rk { color: var(--gold) }
+.ct .ring { width: 48px; height: 48px } .ct .ring span { font-size: 15px }
+.ct .nm { font: 700 20px/1.05 var(--num); text-transform: uppercase; overflow-wrap: anywhere }
+.ct .sub { font-size: 12px; color: var(--muted) }
+.ct .pc { font: 700 26px var(--num); font-variant-numeric: tabular-nums; text-align: right }
+.ct .pb2 { grid-column: 3 / -1; height: 4px; background: var(--edge); position: relative } .ct .pb2 b { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--gold-lo), var(--gold)) }
+.ct .why { grid-column: 3 / -1; font-size: 13.5px; color: #c9cfda }
+.ct .chips { grid-column: 3 / -1; display: grid; gap: 6px }
+.ct .act { grid-column: 3 / -1; display: flex; justify-content: flex-end }
+.ct .act button { cursor: pointer; background: none; border: 1px solid var(--gold-lo); padding: 4px 10px; font: 600 11px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--gold-hi) }
+.ct.on .act button { border-color: var(--gold); background: rgba(200, 170, 110, .15) }
+.stat { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 4px 10px; align-items: start; padding: 8px 10px; background: rgba(1, 10, 19, .7); border: 1px solid var(--edge); text-decoration: none; color: inherit }
+a.stat:hover { border-color: var(--teal) }
+.stat .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px }
+.stat .lbl { font-size: 12.5px; color: var(--muted); line-height: 1.35 }
+.stat .val { font-size: 13.5px; color: var(--gold-hi); font-weight: 600; line-height: 1.35 }
+.stat .src { font: 600 10px var(--body); letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px; white-space: nowrap; align-self: start }
+.src.gg { background: var(--gold); color: #1a1205 } .src.pem { background: var(--teal); color: #02201d } .src.autre { background: var(--edge); color: var(--gold-hi) }
+.stat details, .stat .snip { grid-column: 2 / -1 }
+.stat .snip { font-size: 12px; color: var(--muted); font-style: italic; overflow-wrap: anywhere }
+.note { border: 1px solid rgba(10, 200, 185, .4); background: rgba(10, 200, 185, .06); padding: 12px 14px; font-size: 14px; display: grid; gap: 6px }
+.note b { color: var(--teal); font: 700 12px var(--display); letter-spacing: .14em; text-transform: uppercase }
+.reason p { margin: 0 0 8px; color: #c9cfda; max-width: 70ch }
+details.more-src summary { cursor: pointer; font: 600 12px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--teal) }
+details.more-src[open] summary { margin-bottom: 10px }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted) }
+.legend span { display: inline-flex; gap: 6px; align-items: center }
+.legend i { width: 8px; height: 8px; border-radius: 50% }
+.nav { display: flex; gap: 8px }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--deep-2); border: 1px solid var(--teal); padding: 10px 16px; z-index: 60; font-size: 14px }
+footer { color: var(--muted); font-size: 12px; padding-block: 0 40px; display: grid; gap: 6px }
+
+@media (max-width: 720px) {
+  .hero { grid-template-columns: auto minmax(0, 1fr) }
+  .lockbox { grid-column: 1 / -1 }
+  .orb { width: 56px }
+  .panel { top: auto; height: 88vh; height: 88dvh; width: 100%; border-left: 0; border-top: 1px solid var(--gold-lo); transform: translateY(102%); padding-left: env(safe-area-inset-left, 0px) }
+  .panel.full { height: 100%; top: 0 }
+  .tools .progress { display: none }
+  .ct { grid-template-columns: 22px 40px minmax(0, 1fr) auto } .ct .ring { width: 40px; height: 40px }
+}
+@media (prefers-reduced-motion: reduce) { .panel, .scrim, .card { transition: none } }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="orb" aria-hidden="true"></div>
+    <div><h1>Crystal Ball · Worlds 2026</h1><p>18 pronostics pour tout le tournoi. Chaque carte affiche notre recommandation ; clique pour voir les prétendants et les stats gol.gg / pem.lol qui la justifient. Tes choix sont gardés sur cet appareil.</p></div>
+    <div class="lockbox" id="lock"><div class="l">Verrouillage</div><div class="t" id="lockT">--</div><div class="d">15 oct. · 20:00 (Paris) · avant le 1er match du Play-In</div></div>
+  </header>
+</div>
+<div class="bar"><div class="wrap">
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+  <div class="tools"><span class="progress" id="prog"></span><button class="btn" id="reset" type="button">Revenir aux recos</button><button class="btn primary" id="copy" type="button">Copier mes picks</button></div>
+</div></div>
+<div class="wrap">
+  <main id="main"></main>
+  <footer id="foot"></footer>
+</div>
+<div class="scrim" id="scrim"></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="pTitle" hidden>
+  <div class="ph">
+    <div class="row"><span class="num" id="pNum"></span><div class="nav"><button class="icon" id="pPrev" type="button" aria-label="Question précédente">‹</button><button class="icon" id="pNext" type="button" aria-label="Question suivante">›</button><button class="icon" id="pFull" type="button" aria-label="Plein écran">⤢</button><button class="icon" id="pClose" type="button" aria-label="Fermer">✕</button></div></div>
+    <h2 id="pTitle"></h2>
+    <div class="full-q" id="pFullQ"></div>
+  </div>
+  <div class="pb" id="pBody"></div>
+</aside>
+
+<script id="data" type="application/json">/*__DATA__*/</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const Q = D.questions; const IMG = D.images || {};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const safe = u => /^https?:\/\//i.test(u || '') ? u : null;
+const DOT = { 'corroboré': 'var(--ok)', 'source unique': 'var(--warn)', 'non vérifiable': 'var(--unk)' };
+const CATS = [['CHAMPIONS', 'Champions'], ['JOUEURS', 'Joueurs'], ['TOURNOI', 'Tournoi'], ['EQUIPES', 'Équipes']];
+let picks = {}; try { picks = JSON.parse(localStorage.getItem('cb26') || '{}') } catch {}
+const save = () => { try { localStorage.setItem('cb26', JSON.stringify(picks)) } catch {} };
+let tab = 'ALL'; try { tab = localStorage.getItem('cb26tab') || 'ALL' } catch {}
+const sorted = q => q.contenders.slice().sort((a, b) => a.rank - b.rank);
+const choice = q => picks[q.id] ?? sorted(q)[0].name;
+const reco = q => sorted(q)[0].name;
+const mono = n => esc(String(n).replace(/\(.*?\)/g, '').replace(/[^\p{L}\p{N} ]/gu, '').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?');
+const ring = c => { const im = c && IMG[c.image_key]; return `<span class="ring"><span>${im ? `<img src="${esc(im)}" alt="">` : mono(c ? c.name : '?')}</span></span>` };
+const pct = v => Math.round(v || 0);
+
+function cardBody(q) {
+  const cs = sorted(q), ch = choice(q);
+  if (q.type === 'pick') {
+    const c = cs.find(x => x.name === ch) || cs[0];
+    return `<div class="slot">${ring(c)}<div style="min-width:0"><div class="nm">${esc(c.name)}</div><div class="meta">${c.name === reco(q) ? '<span class="tag reco">Reco</span>' : '<span class="tag mine">Mon choix</span>'}<span>${pct(c.probability_pct)} % · ${cs.length - 1} autre(s) prétendant(s)</span></div></div></div>`;
+  }
+  const list = q.type === 'duel' ? cs : cs.slice(0, 4);
+  return `<div class="opts ${q.type === 'duel' ? 'duel' : ''}">${list.map(c => `<button type="button" class="opt ${c.name === ch ? 'on' : ''} ${c.name === reco(q) ? 'isreco' : ''}" data-q="${esc(q.id)}" data-c="${esc(c.name)}"><span class="fill" style="width:${pct(c.probability_pct)}%"></span><span class="o">${esc(c.label || c.name)}</span><span class="p">${pct(c.probability_pct)} %</span></button>`).join('')}</div>`;
+}
+function card(q) {
+  return `<article class="card ${picks[q.id] && picks[q.id] !== reco(q) ? 'sel' : ''}" tabindex="0" role="button" data-open="${esc(q.id)}" aria-label="${esc(q.title)} : voir les stats">
+    <div class="top"><span class="num">${esc(q.id)}</span><span class="more">Stats ›</span></div>
+    <div style="display:grid;gap:12px;align-content:start"><h3>${esc(q.title)}</h3>${cardBody(q)}</div>
+    <div class="foot"><span class="conf">Confiance <i><b style="width:${pct(sorted(q)[0].probability_pct)}%"></b></i></span><span>${esc(q.confidence)}</span></div>
+  </article>`;
+}
+function renderTabs() {
+  $('#tabs').innerHTML = [['ALL', 'Toutes'], ...CATS].map(([k, l]) => `<button type="button" role="tab" aria-selected="${k === tab}" data-tab="${k}">${l}<span class="n">${k === 'ALL' ? Q.length : Q.filter(q => q.block === k).length}</span></button>`).join('');
+  const changed = Q.filter(q => picks[q.id] && picks[q.id] !== reco(q)).length;
+  $('#prog').innerHTML = `<b>${Q.length}</b> / ${Q.length} remplis${changed ? ` · ${changed} modifié(s)` : ''}`;
+}
+function render() {
+  renderTabs();
+  const cats = CATS.filter(([k]) => tab === 'ALL' || tab === k);
+  $('#main').innerHTML = cats.map(([k, l]) => `<section class="cat"><h2>${l}</h2><div class="grid">${Q.filter(q => q.block === k).map(card).join('')}</div></section>`).join('');
+}
+
+/* panneau */
+let cur = null;
+function stat(s) {
+  const u = safe(s.url); const cls = s.site === 'gol.gg' ? 'gg' : s.site === 'pem.lol' ? 'pem' : 'autre';
+  const inner = `<span class="dot" style="background:${DOT[s.status] || 'var(--unk)'}" title="${esc(s.status)}"></span><span><span class="lbl">${esc(s.label)}${s.scope ? ' · ' + esc(s.scope) : ''}</span><br><span class="val">${esc(s.value)}</span></span>${u ? `<span class="src ${cls}">${esc(s.site)} ↗</span>` : '<span></span>'}${s.snippet ? `<span class="snip">« ${esc(s.snippet)} »</span>` : ''}`;
+  return u ? `<a class="stat" href="${esc(u)}" target="_blank" rel="noopener">${inner}</a>` : `<div class="stat">${inner}</div>`;
+}
+function openQ(id) {
+  const q = Q.find(x => x.id === id); if (!q) return; cur = q;
+  const cs = sorted(q), ch = choice(q);
+  $('#pNum').textContent = `${q.id} · ${(CATS.find(c => c[0] === q.block) || [])[1] || ''}`;
+  $('#pTitle').textContent = q.title;
+  $('#pFullQ').textContent = q.question;
+  const pem = q.pem && (q.pem.links || []).length ? `<details class="more-src"><summary>Recoupement pem.lol (${q.pem.links.length})</summary><div style="display:grid;gap:6px">${q.pem.links.map(l => stat({ ...l, status: l.matches_golgg === 'oui' ? 'corroboré' : l.matches_golgg === 'non' ? 'source unique' : 'non vérifiable', label: l.label + (l.matches_golgg === 'oui' ? ' (concorde avec gol.gg)' : l.matches_golgg === 'non' ? ' (diffère de gol.gg)' : '') })).join('')}</div></details>` : '';
+  $('#pBody').innerHTML = `
+    ${q.video_hook ? `<div class="hook">${esc(q.video_hook)}</div>` : ''}
+    ${q.note ? `<div class="note"><b>À savoir</b><span>${esc(q.note)}</span></div>` : ''}
+    <div class="sec"><h3>Prétendants</h3>${cs.map(c => `<div class="ct ${c.rank === 1 ? 'r1' : ''} ${c.name === ch ? 'on' : ''}">
+      <span class="rk">${esc(c.rank)}</span>${ring(c)}<div style="min-width:0"><div class="nm">${esc(c.label || c.name)}</div><div class="sub">${esc([c.kind === 'option' ? '' : c.kind, c.team].filter(Boolean).join(' · '))}</div></div><span class="pc">${pct(c.probability_pct)}%</span>
+      <span class="pb2"><b style="width:${Math.min(100, pct(c.probability_pct))}%"></b></span>
+      <div class="why">${esc(c.why)}</div>
+      ${(c.stats || []).length ? `<div class="chips">${c.stats.map(stat).join('')}</div>` : ''}
+      <div class="act"><button type="button" data-q="${esc(q.id)}" data-c="${esc(c.name)}">${c.name === ch ? 'Choisi ✓' : 'Choisir'}</button></div>
+    </div>`).join('')}</div>
+    <div class="sec reason"><h3>Notre lecture</h3>${String(q.reasoning || '').split(/\n+/).filter(Boolean).map(p => `<p>${esc(p)}</p>`).join('')}</div>
+    ${(q.context_stats || []).length ? `<div class="sec"><h3>Repères historiques</h3><div style="display:grid;gap:6px">${q.context_stats.map(stat).join('')}</div></div>` : ''}
+    <div class="sec">${pem}</div>
+    <div class="legend"><span><i style="background:var(--ok)"></i>corroboré (2 sources)</span><span><i style="background:var(--warn)"></i>source unique</span><span><i style="background:var(--unk)"></i>non vérifiable</span></div>`;
+  const p = $('#panel'); p.hidden = false; requestAnimationFrame(() => { p.classList.add('open'); $('#scrim').classList.add('open') });
+  $('#pBody').scrollTop = 0; $('#pClose').focus({ preventScroll: true });
+  if (history.replaceState) try { history.replaceState(null, '', '#' + q.id) } catch {}
+}
+function closeP() { const p = $('#panel'); p.classList.remove('open', 'full'); $('#scrim').classList.remove('open'); setTimeout(() => { if (!p.classList.contains('open')) p.hidden = true }, 260); const c = cur && document.querySelector(`[data-open="${cur.id}"]`); cur = null; c && c.focus({ preventScroll: true }); try { history.replaceState(null, '', location.pathname + location.search) } catch {} }
+function step(d) { if (!cur) return; const i = Q.indexOf(cur); openQ(Q[(i + d + Q.length) % Q.length].id) }
+function choose(qid, name) { const q = Q.find(x => x.id === qid); if (!q) return; if (name === reco(q)) delete picks[qid]; else picks[qid] = name; save(); render(); if (cur && cur.id === qid) openQ(qid) }
+
+document.addEventListener('click', e => {
+  const o = e.target.closest('[data-c]'); if (o) { e.stopPropagation(); choose(o.dataset.q, o.dataset.c); return }
+  const c = e.target.closest('[data-open]'); if (c) { openQ(c.dataset.open); return }
+  const t = e.target.closest('[data-tab]'); if (t) { tab = t.dataset.tab; try { localStorage.setItem('cb26tab', tab) } catch {} render() }
+});
+document.addEventListener('keydown', e => {
+  if (cur) { if (e.key === 'Escape') closeP(); if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); return }
+  const c = e.target.closest && e.target.closest('[data-open]'); if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openQ(c.dataset.open) }
+});
+$('#scrim').addEventListener('click', closeP); $('#pClose').addEventListener('click', closeP);
+$('#pPrev').addEventListener('click', () => step(-1)); $('#pNext').addEventListener('click', () => step(1));
+$('#pFull').addEventListener('click', () => $('#panel').classList.toggle('full'));
+$('#reset').addEventListener('click', () => { picks = {}; save(); render(); toast('Recommandations rétablies') });
+$('#copy').addEventListener('click', () => {
+  const txt = 'Crystal Ball Worlds 2026\n' + Q.map(q => `${q.id} ${q.title} : ${choice(q)}`).join('\n');
+  const done = () => toast('Picks copiés');
+  try { navigator.clipboard.writeText(txt).then(done, () => fallback(txt)) } catch { fallback(txt) }
+});
+function fallback(t) { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('Picks copiés') } catch { toast('Copie impossible : sélectionne le texte') } ta.remove() }
+function toast(m) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 1800) }
+function tick() { const ms = new Date(D.lockAt) - new Date(); const el = $('#lockT'); if (ms <= 0) { el.textContent = 'Verrouillé'; $('#lock').classList.add('closed'); return } const h = Math.floor(ms / 36e5), m = Math.floor(ms % 36e5 / 6e4), s = Math.floor(ms % 6e4 / 1e3); el.textContent = `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s` }
+tick(); setInterval(tick, 1000);
+$('#foot').innerHTML = (D.footer || []).map(f => `<span>${esc(f)}</span>`).join('');
+render();
+if (/^#CB-\d+$/.test(location.hash)) openQ(location.hash.slice(1));
+</script>
