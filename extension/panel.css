@@ -1,0 +1,74 @@
+:root {
+  --bg: #ffffff;
+  --fg: #0e0e10;
+  --muted: #53535f;
+  --card: #f2f2f5;
+  --accent: #9146ff;
+  --accent-fg: #ffffff;
+  --ok: #00a36c;
+  --warn: #d97706;
+}
+body.dark {
+  --bg: #18181b;
+  --fg: #efeff1;
+  --muted: #adadb8;
+  --card: #26262c;
+  --ok: #3ddc97;
+  --warn: #fbbf24;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  font: 14px/1.4 Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  padding: 12px;
+}
+h1 { font-size: 16px; margin: 0 0 4px; }
+h2 { font-size: 20px; margin: 4px 0 8px; }
+p { margin: 6px 0; }
+a { color: var(--accent); }
+.muted { color: var(--muted); font-size: 12px; }
+.center { text-align: center; }
+.prize {
+  background: var(--card);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+.prize .label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.prize .name { font-weight: 700; font-size: 16px; }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.big { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.bar { height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; margin: 4px 0 8px; }
+.bar > div { height: 100%; background: var(--accent); transition: width .3s; }
+button {
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  padding: 10px;
+  font: inherit;
+  font-weight: 700;
+  background: var(--accent);
+  color: var(--accent-fg);
+  cursor: pointer;
+  margin: 8px 0 4px;
+}
+button:disabled { opacity: .6; cursor: default; }
+button.pulse { animation: pulse 1s infinite alternate; font-size: 16px; padding: 14px; }
+@keyframes pulse { to { transform: scale(1.03); } }
+.ok { color: var(--ok); font-weight: 700; }
+.warn { color: var(--warn); }
+.error { color: #e91916; font-size: 12px; }
+footer { display: flex; justify-content: space-between; margin-top: 12px; font-size: 12px; }
+a.button {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 6px;
+  padding: 10px;
+  font-weight: 700;
+  background: var(--accent);
+  color: var(--accent-fg);
+  margin: 8px 0 4px;
+}

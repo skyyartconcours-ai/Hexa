@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Giveaways & lives</title>
+  <meta name="theme-color" content="#9146ff">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+    <h1>🎁 Giveaways &amp; lives</h1>
+    <p class="muted" id="intro">Sois prévenu dès que le live commence, et récupère tes cadeaux ici.</p>
+
+    <section class="card" id="notif-card">
+      <h2>🔔 Notifications de live</h2>
+      <p id="notif-status" class="muted">Vérification…</p>
+      <p id="ios-hint" class="warn hidden">Sur iPhone : touche <strong>Partager</strong> puis <strong>Sur l'écran d'accueil</strong>, ouvre l'app depuis l'écran d'accueil, puis reviens activer les notifications.</p>
+      <div class="row">
+        <button id="notif-on" class="hidden">Me prévenir quand le live commence</button>
+        <button id="notif-off" class="secondary hidden">Désactiver</button>
+      </div>
+    </section>
+
+    <section class="card" id="wins-card">
+      <h2>🏆 Mes gains</h2>
+      <div id="login-box" class="hidden">
+        <p>Connecte-toi avec ton compte Twitch pour voir et récupérer tes gains.</p>
+        <a class="btn" id="login-btn" href="/auth/login">Se connecter avec Twitch</a>
+      </div>
+      <div id="wins"></div>
+    </section>
+
+    <section class="card">
+      <h2>📺 Le live</h2>
+      <p>Les giveaways se passent directement sur le live, dans l'extension sous la vidéo : clique sur <strong>« Je participe »</strong> et reste sur le live pour cumuler des tickets.</p>
+      <a class="btn" id="live-link" target="_blank" rel="noopener">Ouvrir la chaîne Twitch</a>
+    </section>
+
+    <footer>
+      <a href="/reglement">Règlement des giveaways</a>
+      <a href="#" id="logout" class="hidden">Se déconnecter</a>
+      <a href="#" id="forget" class="hidden">Supprimer mes données</a>
+    </footer>
+  </main>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

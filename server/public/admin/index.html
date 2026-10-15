@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tableau de bord giveaways</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="wide">
+    <h1>🎛️ Tableau de bord</h1>
+
+    <section id="login" class="card hidden">
+      <p>Connecte-toi avec le compte Twitch de ta chaîne.</p>
+      <a class="btn" href="/auth/login?as=admin">Se connecter avec Twitch</a>
+    </section>
+
+    <div id="dash" class="hidden">
+      <section id="warnings" class="card hidden"></section>
+
+      <section class="card">
+        <h2>Giveaway en cours</h2>
+        <div id="current"></div>
+      </section>
+
+      <section class="card" id="start-card">
+        <h2>Lancer un giveaway</h2>
+        <form id="start-form">
+          <label for="start-prize">Lot</label>
+          <input id="start-prize" name="prize" required maxlength="200">
+          <div class="grid">
+            <div><label for="start-duration">Tirage au bout de (min)</label><input id="start-duration" name="durationMin" type="number" min="5" max="600"></div>
+          </div>
+          <p class="muted">Les autres règles (tickets, bonus…) viennent des réglages ci-dessous.</p>
+          <button type="submit">🚀 Lancer</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Réglages</h2>
+        <form id="settings-form">
+          <label for="s-prize">Lot par défaut</label>
+          <input id="s-prize" name="prize" maxlength="200">
+          <div class="grid">
+            <div><label for="s-durationMin">Tirage au bout de (min)</label><input id="s-durationMin" name="durationMin" type="number" min="5" max="600"></div>
+            <div><label for="s-intervalMin">Vérification de présence toutes les (min)</label><input id="s-intervalMin" name="intervalMin" type="number" min="1" max="60"></div>
+            <div><label for="s-minTickets">Tickets minimum pour gagner</label><input id="s-minTickets" name="minTickets" type="number" min="1" max="100"></div>
+            <div><label for="s-maxTickets">Tickets de présence maximum</label><input id="s-maxTickets" name="maxTickets" type="number" min="1" max="1000"></div>
+            <div><label for="s-loyaltyBonus">Bonus fidélité (tickets)</label><input id="s-loyaltyBonus" name="loyaltyBonus" type="number" min="0" max="100"></div>
+            <div><label for="s-loyaltyLives">… si présent aux N derniers giveaways</label><input id="s-loyaltyLives" name="loyaltyLives" type="number" min="0" max="20"></div>
+            <div><label for="s-claimTimeoutSec">Temps pour confirmer (s)</label><input id="s-claimTimeoutSec" name="claimTimeoutSec" type="number" min="15" max="600"></div>
+            <div><label for="s-minAccountAgeDays">Âge minimum du compte Twitch (jours)</label><input id="s-minAccountAgeDays" name="minAccountAgeDays" type="number" min="0" max="3650"></div>
+            <div><label for="s-subMultiplier">Multiplicateur sub (1 = désactivé)</label><input id="s-subMultiplier" name="subMultiplier" type="number" min="1" max="5" step="0.1"></div>
+          </div>
+          <label class="checkbox"><input type="checkbox" name="subFreeAlternative"> Les viewers fidèles (non subs) ont droit au même multiplicateur — alternative gratuite</label>
+          <label class="checkbox"><input type="checkbox" name="autoStart"> Lancer automatiquement un giveaway quand le live démarre</label>
+          <p class="warn" id="sub-warning">⚠️ Un bonus réservé aux subs (payants) rend le giveaway moins « gratuit ». Garde l'alternative gratuite cochée et fais relire ton règlement.</p>
+          <button type="submit">Enregistrer</button> <span id="settings-saved" class="ok hidden">Enregistré ✓</span>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Gagnants</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Viewer</th><th>Lot</th><th>Coordonnées</th><th>Envoyé</th></tr></thead>
+          <tbody id="winners"></tbody>
+        </table></div>
+      </section>
+
+      <section class="card">
+        <h2>Historique</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>#</th><th>Date</th><th>Lot</th><th>Statut</th><th>Participants</th><th>Gagnant</th></tr></thead>
+          <tbody id="history"></tbody>
+        </table></div>
+      </section>
+
+      <section class="card">
+        <h2>Notifications de live</h2>
+        <p id="push-info" class="muted"></p>
+        <div class="row">
+          <button class="secondary" id="eventsub-btn">Vérifier / activer l'alerte « live démarré »</button>
+          <button class="secondary" id="push-test">Envoyer une notification de test</button>
+        </div>
+        <p id="eventsub-status" class="muted"></p>
+      </section>
+    </div>
+  </main>
+  <script src="/admin/admin.js" type="module"></script>
+</body>
+</html>
