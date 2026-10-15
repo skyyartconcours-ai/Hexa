@@ -808,7 +808,9 @@ function serveStatic(req: IncomingMessage, res: ServerResponse, root: string, po
       'content-security-policy':
         `default-src 'none'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; ` +
         `img-src 'self' data: blob:; font-src 'self' data:; ` +
-        `connect-src ws://127.0.0.1:* ws://localhost:*; ` +
+        // 'self' : la page sonde sa propre adresse pour savoir si Hexa est
+        // revenu après un redémarrage (voir ObsView, rechargement automatique)
+        `connect-src 'self' ws://127.0.0.1:* ws://localhost:*; ` +
         `base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
       'x-frame-options': 'DENY',
     })

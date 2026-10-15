@@ -81,6 +81,27 @@ export function ObsView() {
     let socket: WebSocket | null = null
     let retry = 0
     let retryTimer: ReturnType<typeof setTimeout> | null = null
+    // Hexa REDÉMARRÉ en plein direct (plantage, mise à jour) : son jeton de
+    // session change, l'ancienne adresse est refusée pour toujours, et la
+    // source OBS restait vide jusqu'à ce que quelqu'un pense à l'actualiser.
+    // Après quelques échecs, on vérifie que le serveur répond de nouveau, et
+    // on recharge la page : elle revient avec le nouveau jeton. Jamais à
+    // l'aveugle — une page rechargée sur un serveur absent resterait blanche
+    // dans OBS, qui ne réessaie pas tout seul.
+    const pageServie = query('ws') == null && /^https?:$/.test(location.protocol)
+    let sondeEnCours = false
+    const sonderEtRecharger = (): void => {
+      if (!pageServie || sondeEnCours) return
+      sondeEnCours = true
+      fetch(location.href, { cache: 'no-store' })
+        .then((r) => {
+          if (r.ok && !closed) location.reload()
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          sondeEnCours = false
+        })
+    }
     let closed = false
 
     const connect = (): void => {
@@ -124,6 +145,7 @@ export function ObsView() {
 
     const schedule = (): void => {
       if (closed || retryTimer) return
+      if (retry >= 4) sonderEtRecharger()
       const delay = BACKOFF[Math.min(retry++, BACKOFF.length - 1)]
       retryTimer = setTimeout(() => {
         retryTimer = null
