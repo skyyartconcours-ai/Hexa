@@ -511,7 +511,20 @@ export const STAMP_MAX_DATAURL = 3_000_000
 interface CacheEntry {
   img: HTMLImageElement
   ready: boolean
+  /** dernière fois que l'image a été demandée pour être peinte */
+  vu: number
 }
+
+/**
+ * Taille VISÉE du cache, pas un plafond strict : on n'évince jamais une image
+ * peinte à l'instant. Avec un plafond strict (24), un 26e tampon à l'écran
+ * chassait le premier, qui chassait le deuxième au tour suivant… : chaque
+ * image redécodait des Mo de PNG, aucun tampon ne restait prêt, et le rappel
+ * de chargement relançait la boucle de rendu sans fin.
+ */
+const IMG_CACHE = 24
+/** une image non peinte depuis ce délai peut quitter le cache */
+const IMG_OUBLI_MS = 2000
 
 const imgCache = new Map<string, CacheEntry>()
 let invalidate: (() => void) | null = null
@@ -522,11 +535,18 @@ export function setImageInvalidate(cb: (() => void) | null): void {
 }
 
 export function getImage(src: string): HTMLImageElement | null {
+  const now = performance.now()
   let e = imgCache.get(src)
   if (!e) {
-    if (imgCache.size > 24) imgCache.delete(imgCache.keys().next().value as string)
+    if (imgCache.size >= IMG_CACHE) {
+      // on ne garde au-delà de la taille visée que ce qui est encore peint
+      for (const [k, v] of imgCache) {
+        if (imgCache.size < IMG_CACHE) break
+        if (now - v.vu > IMG_OUBLI_MS) imgCache.delete(k)
+      }
+    }
     const img = new Image()
-    const entry: CacheEntry = { img, ready: false }
+    const entry: CacheEntry = { img, ready: false, vu: now }
     e = entry
     imgCache.set(src, entry)
     img.onload = () => {
@@ -535,6 +555,7 @@ export function getImage(src: string): HTMLImageElement | null {
     }
     img.src = src
   }
+  e.vu = now
   return e.ready ? e.img : null
 }
 

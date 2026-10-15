@@ -874,6 +874,10 @@ export class HexaEngine {
     // recouvraient, jamais par-dessus. La pile de rendu retrouve sa profondeur.
     const liste = this.strokes.filter((s) => !revenus.has(s))
     for (const e of [...lot.strokes].sort((a, b) => a.i - b.i)) {
+      // Ils reviennent d'un écran où ils ne sont plus (ou plus qu'en fondu) :
+      // le calque peut les reprendre en plusieurs images au lieu de geler
+      // celle-ci — 1 600 traits rendus = 400 000 appels de dessin d'un coup.
+      inkLayer.differer(e.s.id)
       e.s.dying = undefined
       e.s.anim = undefined
       e.s.dieAt = this.opts.fadeDelay == null ? undefined : now + this.opts.fadeDelay
@@ -2477,6 +2481,7 @@ export class HexaEngine {
         animActive ||
         morphActive ||
         fxActive ||
+        this.calqueActif() ||
         this.grabbed ||
         this.grabAnim
       ) {
@@ -2521,6 +2526,8 @@ export class HexaEngine {
       animActive ||
       morphActive ||
       fxActive ||
+      // relu APRÈS le rendu : c'est lui qui vient peut-être de commencer
+      this.calqueActif() ||
       hwActive ||
       guidesActive
     if (busy) {
@@ -2548,6 +2555,16 @@ export class HexaEngine {
         this.wake()
       }, Math.max(16, next - now))
     }
+  }
+
+  /**
+   * Calque consolidé en cours de reconstruction ÉTALÉE (changement d'écran,
+   * Ctrl+Z d'un grand tableau) : quelques ms par image jusqu'au bout, puis la
+   * boucle s'endort. Rien n'est peint tant que les annotations sont masquées :
+   * on n'attend donc pas.
+   */
+  private calqueActif(): boolean {
+    return inkLayer.enCours && !this.opts.annotationsHidden
   }
 
   /**

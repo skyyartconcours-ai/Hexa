@@ -23,6 +23,7 @@
 import type { Stroke } from '../engine/types'
 import { dissolveDuration, panicDying } from '../engine/dissolve'
 import { InkLayer } from '../engine/ink-fx'
+import { setImageInvalidate } from '../engine/teaching'
 import { getFxIntensity, paintSettled, paintStrokes } from '../replay/paint'
 import type { ObsMessage, ObsMode } from './protocol'
 
@@ -37,6 +38,9 @@ import type { ObsMessage, ObsMode } from './protocol'
  * elle est peinte à la main (un trait), et elle se consolide une fois posée.
  */
 const HOT_MS = 400
+
+/** un trait terminé depuis plus longtemps que ça n'est plus « frais » */
+const REVENU_MS = 2000
 
 export class ObsMirror {
   private canvas: HTMLCanvasElement
@@ -67,6 +71,11 @@ export class ObsMirror {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d')
+    // Un tampon (image collée) se décode APRÈS son arrivée : sans ce rappel, la
+    // boucle déjà endormie ne le peignait qu'au message suivant — parfois
+    // jamais, à l'antenne. Les tampons sont peints à la main (hors calque) :
+    // réveiller suffit. La page OBS n'a pas de moteur, le rappel est à nous.
+    setImageInvalidate(() => this.wake())
     this.resize()
   }
 
@@ -75,6 +84,7 @@ export class ObsMirror {
     if (this.wakeTimer) clearTimeout(this.wakeTimer)
     this.raf = 0
     this.wakeTimer = null
+    setImageInvalidate(null)
     // rend les deux canevas hors écran du calque : une source navigateur
     // détruite ne doit pas laisser ses mégaoctets dans le processus d'OBS
     this.layer.reset()
@@ -118,7 +128,7 @@ export class ObsMirror {
         // `frais = false` : un état complet décrit une scène DÉJÀ stable. La
         // garder chaude condamnerait la source à repeindre toute la session à
         // la main pendant une demi-seconde à chaque changement de scène OBS.
-        for (const s of msg.strokes) this.put(s, false)
+        for (const s of msg.strokes) this.putStable(s)
         break
       }
       // Suite d'un état complet DÉCOUPÉ EN LOTS : on AJOUTE, on n'efface rien.
@@ -126,14 +136,31 @@ export class ObsMirror {
       // le relais IPC la refuse — elle arrive donc en plusieurs fois. Mêmes
       // règles que ci-dessus : ces traits-là sont déjà stables.
       case 'state:more':
-        for (const s of msg.strokes) this.put(s, false)
+        for (const s of msg.strokes) this.putStable(s)
         break
       case 'viewport':
         this.setSource(msg.w, msg.h)
         break
-      case 'stroke:add':
-        this.put(msg.stroke)
+      case 'stroke:add': {
+        // Trait REVENU (Ctrl+Z d'un effacement ou de la touche panique,
+        // rétablir) : terminé depuis longtemps, il n'est plus retouché par
+        // l'émetteur. Le garder chaud repeignait à la main TOUT le lot rendu,
+        // à chaque image pendant HOT_MS, puis le consolidait d'un bloc : 800
+        // traits ≈ 200 000 appels de dessin par image dans OBS. Il entre au
+        // calque tout de suite, en reconstruction étalée. Si l'émetteur le
+        // retouchait quand même, `retoucher` l'en ressortirait : seul le coût
+        // est en jeu, jamais l'image.
+        const s = msg.stroke
+        const revenu =
+          s.done &&
+          !s.dying &&
+          s.endedAt != null &&
+          msg.now - s.endedAt > REVENU_MS &&
+          !this.map.has(s.id)
+        if (revenu) this.putStable(s)
+        else this.put(s)
         break
+      }
       case 'stroke:points': {
         const s = this.map.get(msg.id)
         if (!s) break
@@ -255,6 +282,18 @@ export class ObsMirror {
     return s
   }
 
+  /**
+   * Trait déjà stable qui n'est PAS encore à l'écran (état complet, trait
+   * revenu). Le calque le reprend en plusieurs images (quelques ms chacune)
+   * plutôt que d'un bloc — 2 000 traits gelaient la source 223 ms à chaque
+   * reconnexion, DANS OBS. La scène apparaît donc en un court balayage ; ce
+   * qui était déjà visible reste peint à la main, jamais escamoté.
+   */
+  private putStable(s: Stroke): void {
+    this.put(s, false)
+    this.layer.differer(s.id)
+  }
+
   private put(s: Stroke, frais = true): void {
     const stroke = this.localize(s)
     const avant = this.map.get(stroke.id)
@@ -345,6 +384,8 @@ export class ObsMirror {
       // une retouche vient d'arriver : on reste éveillé jusqu'à la remise au
       // calque, sinon le trait déplacé resterait peint à la main pour toujours
       this.hotUntil > now ||
+      // reconstruction du calque étalée sur plusieurs images (voir putStable)
+      this.layer.enCours ||
       this.order.some((id) => {
         const s = this.map.get(id)
         if (!s) return false

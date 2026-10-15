@@ -601,6 +601,8 @@ export const fxStats = {
   direct: 0,
   /** reconstructions reparties d'un point de reprise au lieu du blanc */
   reprises: 0,
+  /** touches panique rendues en un seul fondu d'image (voir `creerFondu`) */
+  fondus: 0,
   /** durée de la dernière consolidation, en ms */
   composeMs: 0,
   /** cause de la dernière reconstruction — une reconstruction coûte cher, on
@@ -617,6 +619,26 @@ const MAX_LAYER_PX = 17e6
 
 /** traits entre deux photographies du calque (voir `noterCheckpoint`) */
 const CHECKPOINT = 32
+
+/**
+ * Budget d'une reconstruction ÉTALÉE, en ms par image (voir `compose`) : le
+ * reste de l'image — traits vivants, couche vive — doit tenir à côté.
+ */
+const BUDGET_MS = 6
+
+/**
+ * Touche panique : à partir de ce nombre de traits du calque, ils partent en
+ * UN fondu d'image au lieu d'une dissolution trait par trait (voir `fondu`).
+ * En dessous, la cascade d'origine coûte peu et reste plus jolie.
+ */
+const FONDU_MIN = 40
+
+/**
+ * Traits VISIBLES qu'on accepte de peindre à la main pendant une
+ * reconstruction étalée. Au-delà, on finit tout dans l'image, comme avant :
+ * étaler coûterait alors plus cher que de payer une fois.
+ */
+const DIRECT_MAX = 24
 
 const EMPTY: ReadonlySet<number> = new Set<number>()
 
@@ -663,6 +685,8 @@ export class InkLayer {
   private h = 0
   /** signature de la matrice de l'appelant (échelle, décalage, densité) */
   private matrice = ''
+  /** la même, en nombres : sert à reposer un ancien calque à la bonne échelle */
+  private mat: Mat = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }
   private glow = -1
   private theme = ' '
   private set = new Set<number>()
@@ -673,9 +697,35 @@ export class InkLayer {
   private ckIds: number[] = []
   /** même contenu que `ckIds`, pour répondre en temps constant (voir invalider) */
   private ckSet = new Set<number>()
+  /**
+   * FONDU D'ENSEMBLE (touche panique sur un grand tableau). L'ancien calque,
+   * tel quel, s'efface d'un bloc pendant que ses traits meurent : un seul
+   * `drawImage` par image au lieu de chaque trait repeint à la main.
+   */
+  private fondu: Fondu | null = null
+  /**
+   * DOUBLURE : le dernier calque complet, montré à l'échelle pendant qu'on
+   * reconstruit le nouveau par petits bouts (changement de taille ou de DPI).
+   * Mêmes traits, même ordre : seule la netteté diffère, quelques images.
+   */
+  private ancien: Doublure | null = null
+  /** reconstruction étalée en cours : le calque n'a pas encore tout `want` */
+  private etale = false
+  /** traits qui n'étaient PAS à l'écran : ils peuvent apparaître en retard */
+  private differes = new Set<number>()
+  /** ce que l'appelant doit sauter quand ce n'est pas exactement `set` */
+  private masque = new Set<number>()
 
   /** libère le calque (destruction du moteur, ou repli en rendu direct) */
   reset(): void {
+    this.vider()
+    this.lacherAncien()
+    this.lacherFondu()
+    this.differes.clear()
+  }
+
+  /** le calque lui-même, sans la doublure ni le fondu */
+  private vider(): void {
     this.ids = []
     this.set.clear()
     if (this.cv) {
@@ -686,7 +736,27 @@ export class InkLayer {
     this.ctx = null
     this.matrice = ''
     this.refonte = false
+    this.etale = false
     this.oublierCheckpoint()
+  }
+
+  /**
+   * Reconstruction en cours, étalée sur plusieurs images : l'appelant doit
+   * continuer d'appeler `compose` à chaque image jusqu'à ce que ça repasse à
+   * false — puis la boucle peut s'endormir comme avant.
+   */
+  get enCours(): boolean {
+    return this.etale
+  }
+
+  /**
+   * Ce trait n'est PAS à l'écran en ce moment (état complet reçu par la vue
+   * OBS, lot rendu par Ctrl+Z après sa disparition) : s'il faut reconstruire,
+   * il peut n'apparaître qu'à une image suivante. C'est ce qui permet
+   * d'étaler la reconstruction sans jamais faire clignoter ce qui est visible.
+   */
+  differer(id: number): void {
+    this.differes.add(id)
   }
 
   /**
@@ -730,8 +800,7 @@ export class InkLayer {
     if (this.cv && (this.ckCv.width !== this.cv.width || this.ckCv.height !== this.cv.height)) {
       return false
     }
-    for (let i = 0; i < this.ckIds.length; i++) if (this.ckIds[i] !== want[i].id) return false
-    return true
+    return prefixe(this.ckIds, want)
   }
 
   /**
@@ -767,6 +836,95 @@ export class InkLayer {
   }
 
   /**
+   * Changement de taille ou de matrice : le calque est à refaire. S'il était
+   * COMPLET, on le garde comme doublure — il reste montré, à l'échelle, le
+   * temps que le nouveau se peigne par petits bouts (voir `compose`).
+   *
+   * ⚠️ Sans doublure, un changement d'écran ou de DPI repeignait tout le
+   * tableau dans UNE image : 2 000 traits = 732 000 appels de dessin, 122 ms
+   * de gel dans l'overlay, 223 ms dans la source OBS.
+   */
+  private changerDeTaille(m: Mat, devW: number, devH: number): void {
+    // une doublure qui ne couvre plus toute la scène laisserait un pan du
+    // tableau vide pendant la reconstruction (fenêtre d'encre rendue à 8 × 8
+    // quand elle est vide, puis rouverte) : on la lâche, et on paie comme avant
+    if (this.ancien && !couvre(this.ancien.cv, this.ancien.mat, m, devW, devH)) {
+      this.lacherAncien()
+    }
+    if (
+      !this.ancien &&
+      this.cv &&
+      !this.etale &&
+      !this.refonte &&
+      this.ids.length > 0 &&
+      droite(this.mat) &&
+      couvre(this.cv, this.mat, m, devW, devH)
+    ) {
+      this.ancien = {
+        cv: this.cv,
+        ordre: this.ids,
+        set: new Set(this.ids),
+        mat: this.mat,
+      }
+      // le canevas appartient désormais à la doublure : `vider` n'y touche pas
+      this.cv = null
+      this.ctx = null
+      this.ids = []
+    }
+    this.vider()
+  }
+
+  private lacherAncien(): void {
+    if (!this.ancien) return
+    this.ancien.cv.width = 0
+    this.ancien.cv.height = 0
+    this.ancien = null
+  }
+
+  /**
+   * Touche panique sur un grand tableau : le calque courant devient le FONDU.
+   *
+   * Avant : chaque trait effacé était repeint à la main à chaque image pendant
+   * toute sa dissolution (~470 ms, ~30 images). Mesuré en mode infini : 800
+   * traits = 177 000 appels de dessin et 43 ms PAR IMAGE, 1 600 traits = 66 ms
+   * — le geste censé nettoyer l'écran en urgence le faisait ramer.
+   * Ici, l'image déjà peinte s'efface d'un bloc avec `globalAlpha`. Les traits
+   * gardent leur `dying` (purge, rejeu, vue OBS, Ctrl+Z inchangés) : seul le
+   * DESSIN de leur départ change.
+   */
+  private creerFondu(strokes: readonly Stroke[]): void {
+    const ids = new Set<number>()
+    let t0 = Infinity
+    let t1 = -Infinity
+    for (const s of strokes) {
+      const d = s.dying
+      if (!d || d.cause !== 'panic' || !this.set.has(s.id)) continue
+      ids.add(s.id)
+      t0 = Math.min(t0, d.start)
+      t1 = Math.max(t1, d.start + d.duration)
+    }
+    if (!(t1 > t0) || !this.cv) return
+    this.fondu = { cv: this.cv, ids, t0, t1, mat: this.mat }
+    // Le calque repart d'une page neuve pour les survivants (épinglés) : le
+    // canevas photographié n'est plus le sien. Le point de reprise, qui
+    // contient les traits effacés, ne servirait plus — même règle qu'avant,
+    // où la reconstruction de la panique le jetait aussi.
+    this.cv = null
+    this.ctx = null
+    this.ids = []
+    this.set.clear()
+    this.oublierCheckpoint()
+    fxStats.fondus++
+  }
+
+  private lacherFondu(): void {
+    if (!this.fondu) return
+    this.fondu.cv.width = 0
+    this.fondu.cv.height = 0
+    this.fondu = null
+  }
+
+  /**
    * Consolide puis blitte. Renvoie l'ensemble des identifiants déjà peints :
    * l'appelant saute simplement ces traits dans sa boucle.
    */
@@ -794,10 +952,11 @@ export class InkLayer {
     // tout ce qui change l'apparence d'un trait posé invalide le calque
     const sig = `${m.a},${m.b},${m.c},${m.d},${m.e},${m.f}`
     if (this.w !== o.w || this.h !== o.h || this.matrice !== sig) {
-      this.reset()
+      this.changerDeTaille(m, devW, devH)
       this.w = o.w
       this.h = o.h
       this.matrice = sig
+      this.mat = { a: m.a, b: m.b, c: m.c, d: m.d, e: m.e, f: m.f }
     }
     const refonte = this.refonte
     this.refonte = false
@@ -819,7 +978,16 @@ export class InkLayer {
     // toujours dans l'ordre, donc `posees` la connaît déjà.
     let posees: Set<number> | null = null
     let presents: Set<number> | null = null
+    // touche panique : traits du calque qui viennent de partir, et traits du
+    // fondu en cours qui sont revenus (Ctrl+Z) — compté au passage, sans
+    // parcours de plus
+    let paniques = 0
+    let revenus = false
+    const fondu = this.fondu
     for (const s of strokes) {
+      if (s.dying?.cause === 'panic') {
+        if (this.set.has(s.id)) paniques++
+      } else if (fondu && fondu.ids.has(s.id)) revenus = true
       if (!this.settled(s, o)) continue
       if (s.tool === 'badge' && s.linkFrom != null) {
         if (!presents) {
@@ -830,6 +998,21 @@ export class InkLayer {
       }
       want.push(s)
       if (s.tool === 'badge') (posees ??= new Set<number>()).add(s.id)
+    }
+
+    // 1 bis. fondu d'ensemble de la touche panique
+    if (fondu) {
+      // Fini, ou annulé par Ctrl+Z : les traits revenus sont de nouveau peints
+      // par le calque (ou à la main), plus par la photographie qui s'efface.
+      if (revenus || o.now >= fondu.t1) this.lacherFondu()
+    } else if (paniques >= FONDU_MIN && this.cv && !this.etale && !this.ancien && droite(this.mat)) {
+      this.creerFondu(strokes)
+    }
+
+    // 1 ter. la doublure ne vaut que tant qu'elle montre exactement le début
+    // de ce qu'on veut : un trait retiré, déplacé ou repeint la périme
+    if (this.ancien && (force || refonte || !prefixe(this.ancien.ordre, want))) {
+      this.lacherAncien()
     }
 
     // 2. le calque est-il un préfixe de ce qu'on veut ? (cas normal : on a
@@ -853,8 +1036,9 @@ export class InkLayer {
     if (want.length === 0) {
       if (this.ids.length > 0 || force) this.clearLayer()
       this.set.clear()
+      this.finEtalement()
       fxStats.composeMs = performance.now() - t0
-      return EMPTY
+      return this.restituer(ctx, false, want, 0, o.now)
     }
 
     const lctx = this.ensure(devW, devH, m)
@@ -889,27 +1073,119 @@ export class InkLayer {
         this.oublierCheckpoint()
       }
     }
-    for (let i = this.ids.length; i < want.length; i++) {
+    // ÉTALEMENT. On ne borne le travail de l'image que si rien de VISIBLE ne
+    // peut en pâtir : une doublure montre l'ancien calque, ou les traits qui
+    // restent n'étaient pas à l'écran (`differer`). Sinon, tout dans l'image,
+    // exactement comme avant.
+    const etalable = this.ancien != null || this.differes.size > 0
+    const limite = etalable ? t0 + BUDGET_MS : Infinity
+    const debut = this.ids.length
+    let i = debut
+    for (; i < want.length; i++) {
+      // toujours au moins un trait par image : la reconstruction avance
+      if (i > debut && performance.now() >= limite) break
       o.paint(lctx, want[i])
       this.ids.push(want[i].id)
       fxStats.appends++
     }
+    // Ce qui reste et n'est couvert par rien sera peint à la main par
+    // l'appelant. Trop de traits dans ce cas : on finit dans l'image.
+    if (i < want.length) {
+      const couvert = this.ancien != null ? Math.max(i, this.ancien.ordre.length) : i
+      let visibles = 0
+      for (let j = couvert; j < want.length; j++) {
+        if (!this.differes.has(want[j].id)) visibles++
+      }
+      if (visibles > DIRECT_MAX) {
+        for (; i < want.length; i++) {
+          o.paint(lctx, want[i])
+          this.ids.push(want[i].id)
+          fxStats.appends++
+        }
+      }
+    }
     this.noterCheckpoint(devW, devH)
-
-    // 3. restitution : un seul appel, en pixels périphériques, donc exacte
-    ctx.save()
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.globalCompositeOperation = 'source-over'
-    ctx.globalAlpha = 1
-    ctx.drawImage(this.cv as HTMLCanvasElement, 0, 0)
-    ctx.restore()
-
     this.set.clear()
     for (const id of this.ids) this.set.add(id)
+    if (i < want.length) this.etale = true
+    else this.finEtalement()
+
+    // 3. restitution
+    const res = this.restituer(ctx, true, want, i, o.now)
     fxStats.layered = this.set.size
-    fxStats.direct = strokes.length - this.set.size
+    fxStats.direct = strokes.length - res.size
     fxStats.composeMs = performance.now() - t0
-    return this.set
+    return res
+  }
+
+  /** reconstruction terminée : la doublure et les marques n'ont plus d'objet */
+  private finEtalement(): void {
+    this.etale = false
+    this.lacherAncien()
+    this.differes.clear()
+  }
+
+  /**
+   * Pose le fondu, puis la doublure ou le calque, et dit à l'appelant quels
+   * traits sauter. Hors fondu et hors étalement, c'est exactement le chemin
+   * d'avant : un blit, et `set`.
+   */
+  private restituer(
+    ctx: CanvasRenderingContext2D,
+    calque: boolean,
+    want: readonly Stroke[],
+    peints: number,
+    now: number,
+  ): ReadonlySet<number> {
+    const fondu = this.fondu
+    if (fondu) {
+      // linéaire, de l'appui sur la touche jusqu'à la fin du dernier trait :
+      // l'écran est net au même instant qu'avant
+      const a = 1 - clamp((now - fondu.t0) / (fondu.t1 - fondu.t0), 0, 1)
+      if (a > 0) this.poser(ctx, fondu.cv, fondu.mat, a)
+    }
+    const ancien = this.etale ? this.ancien : null
+    // la doublure n'est montrée que tant que le nouveau calque ne la rattrape pas
+    const doublure = ancien != null && ancien.ordre.length > peints
+    if (doublure) this.poser(ctx, ancien.cv, ancien.mat, 1)
+    else if (calque && this.cv) {
+      // un seul appel, en pixels périphériques, donc exacte
+      ctx.save()
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.globalAlpha = 1
+      ctx.drawImage(this.cv, 0, 0)
+      ctx.restore()
+    }
+    if (!fondu && !this.etale) return calque ? this.set : EMPTY
+    const masque = this.masque
+    masque.clear()
+    if (fondu) for (const id of fondu.ids) masque.add(id)
+    if (doublure) for (const id of ancien.set) masque.add(id)
+    else for (const id of this.set) masque.add(id)
+    if (this.etale) {
+      // traits pas encore repris, qui n'étaient pas à l'écran : ils attendent
+      for (let j = doublure ? ancien.ordre.length : peints; j < want.length; j++) {
+        if (this.differes.has(want[j].id)) masque.add(want[j].id)
+      }
+    }
+    return masque
+  }
+
+  /**
+   * Repose une image peinte sous une AUTRE matrice (échelle et décalage) dans
+   * la matrice courante : périphérique → scène → périphérique.
+   */
+  private poser(ctx: CanvasRenderingContext2D, cv: HTMLCanvasElement, src: Mat, alpha: number): void {
+    const m = this.mat
+    const kx = m.a / src.a
+    const ky = m.d / src.d
+    ctx.save()
+    ctx.setTransform(kx, 0, 0, ky, m.e - kx * src.e, m.f - ky * src.f)
+    ctx.globalCompositeOperation = 'source-over'
+    ctx.globalAlpha = alpha
+    ctx.drawImage(cv, 0, 0)
+    ctx.restore()
   }
 
   /** vide le calque ET la liste des identifiants : les deux vont ensemble */
@@ -953,6 +1229,63 @@ export class InkLayer {
     this.ids = []
     return ctx
   }
+}
+
+/** matrice d'un calque — échelle et décalage, jamais de rotation ici */
+interface Mat {
+  a: number
+  b: number
+  c: number
+  d: number
+  e: number
+  f: number
+}
+
+interface Fondu {
+  cv: HTMLCanvasElement
+  /** traits effacés que la photographie représente (l'appelant les saute) */
+  ids: Set<number>
+  /** du premier départ à la fin du dernier, horloge des `dying` */
+  t0: number
+  t1: number
+  mat: Mat
+}
+
+interface Doublure {
+  cv: HTMLCanvasElement
+  /** traits peints dans l'ancien calque, dans l'ordre */
+  ordre: number[]
+  set: Set<number>
+  mat: Mat
+}
+
+/** une image peinte sous cette matrice peut-elle être reposée par `poser` ? */
+function droite(m: Mat): boolean {
+  return m.b === 0 && m.c === 0 && m.a !== 0 && m.d !== 0
+}
+
+/**
+ * L'image `cv`, peinte sous `src`, couvre-t-elle toute la scène que montrera un
+ * canevas `devW` × `devH` sous `m` ? (en coordonnées de scène, à un pixel près)
+ */
+function couvre(cv: HTMLCanvasElement, src: Mat, m: Mat, devW: number, devH: number): boolean {
+  if (!droite(src) || !droite(m)) return false
+  const x0 = -src.e / src.a
+  const x1 = (cv.width - src.e) / src.a
+  const y0 = -src.f / src.d
+  const y1 = (cv.height - src.f) / src.d
+  const nx0 = -m.e / m.a
+  const nx1 = (devW - m.e) / m.a
+  const ny0 = -m.f / m.d
+  const ny1 = (devH - m.f) / m.d
+  return x0 <= nx0 + 1 && x1 >= nx1 - 1 && y0 <= ny0 + 1 && y1 >= ny1 - 1
+}
+
+/** `ids` est-il exactement le début de `want` ? */
+function prefixe(ids: readonly number[], want: readonly Stroke[]): boolean {
+  if (ids.length > want.length) return false
+  for (let i = 0; i < ids.length; i++) if (ids[i] !== want[i].id) return false
+  return true
 }
 
 export const inkLayer = new InkLayer()
