@@ -1,0 +1,1378 @@
+{
+ "lock": {
+  "playin_first_match_utc": "2026-10-15T18:00Z (jeudi 15 octobre 2026, 11:00 PDT / 20:00 CEST / 03:00 KST le 16/10). Le premier match annoncé est FURIA vs MVK Esports (Bo5), d'après Insider Gaming. Strafe précise que l'ordre des matchs n'était pas encore confirmé au moment du tirage.",
+  "crystal_ball_lock_utc": "2026-10-15T18:00Z, au plus tard. Le Crystal Ball s'est ouvert en même temps que les picks du Play-In (10/10, 16:00 PDT) et ferme avec eux, juste avant le premier match. Aucune source ne donne d'heure de fermeture distincte pour le Crystal Ball, à part esports.gg (16/10, 11:20 PDT, soit 2026-10-16T18:20Z), une valeur isolée et jugée erronée.",
+  "playin_picks_lock_utc": "2026-10-15T18:00Z : « before the first match starts on October 15 at 11 AM PDT » (Insider Gaming), « October 15th: Play-In picks lock before the first match » (Inven Global). Prudence : esportnow.gg rapporte que l'annonce de Riot demandait les picks « between now and October 14 ». Si le client affiche une heure un peu différente, c'est elle qui fait foi.",
+  "already_played": "Aucun. Il est 13:10Z le 15/10 et le premier match commence à 18:00Z. Les recherches sur les résultats (« Worlds 2026 Play-In results FURIA MVK ») ne renvoient que des articles d'avant-tournoi. Programme du jour 1 selon Insider Gaming : FURIA vs MVK Esports à 11:00 PDT (18:00Z), puis Karmine Corp vs Cloud9 vers 16:00 PDT (23:00Z, horaire indicatif qui dépend de la durée du premier Bo5).",
+  "sources": [
+   {
+    "name": "LoL Esports – Worlds 2026 Primer (officiel Riot)",
+    "url": "https://lolesports.com/news/worlds-2026-primer",
+    "snippet": "Résumé de l'outil de recherche (la page n'a pas pu être ouverte, WebFetch est en panne) : le Play-In se joue du 15 au 18 octobre à Los Angeles, et tous les matchs commencent à « 11 AM PDT / 8 PM CEST / 2 AM CST (+1) / 3 AM KST (+1) ». Tirage après la finale du CBLOL le 10 octobre."
+   },
+   {
+    "name": "Inven Global – Worlds 2026 cheat sheet",
+    "url": "https://www.invenglobal.com/articles/26821/worlds-2026-cheat-sheet-schedule-teams-format-and-pickems",
+    "snippet": "« October 15th: Play-In picks lock before the first match » ; les quatre journées commencent à 11 AM PDT, du jeudi 15 octobre au dimanche 18 octobre."
+   },
+   {
+    "name": "Insider Gaming – Worlds 2026 Play-In draw pools",
+    "url": "https://insider-gaming.com/league-of-legends-worlds-2026-teams-play-in-draw-pools/",
+    "snippet": "FURIA vs MVK Esports – 15 October, 11:00 PDT/14:00 EST/20:00 CEST ; Karmine Corp vs Cloud9 à 16:00 PDT le 15."
+   },
+   {
+    "name": "Insider Gaming – Everything we know about LoL Worlds Pick'Ems 2026",
+    "url": "https://insider-gaming.com/everything-we-know-about-lol-worlds-pickems-2026/",
+    "snippet": "« Players will then have to lock in their Play-Ins predictions before the first match starts on October 15 at 11 AM PDT (2 PM EDT). »"
+   },
+   {
+    "name": "Strafe – Worlds 2026 Play-In Draw Sets Opening Matchups",
+    "url": "https://www.strafe.com/news/read/worlds-2026-play-in-draw-sets-opening-matchups/",
+    "snippet": "« Karmine Corp will face Cloud9 in the opening round, while FURIA take on MVK Esports. » « The order of the matches has not yet been confirmed. » Le Play-In se joue du 15 au 18 octobre au Riot Games Arena."
+   },
+   {
+    "name": "esports.gg – Worlds 2026 Pick'Ems (source divergente)",
+    "url": "https://esports.gg/guides/league-of-legends/worlds-2026-pickems/",
+    "snippet": "Le Crystal Ball et les picks du Play-In « will lock on Oct. 16, 11:20 AM PDT, right before the first match of Worlds 2026 starts » (en contradiction avec toutes les autres sources)."
+   },
+   {
+    "name": "esportnow.gg – Pick'Ems, Crystal Ball, rewards, deadline",
+    "url": "https://esportnow.gg/lol/news/worlds-2026-pickems-crystal-ball-rewards-deadline",
+    "snippet": "L'annonce de Riot demande les picks « between now and October 14 », alors que le Play-In ne commence que le 15 octobre ; le site conseille de retenir le 14 comme date limite sûre."
+   },
+   {
+    "name": "gaming.net – Worlds 2026 schedule",
+    "url": "https://www.gaming.net/worlds-2026-schedule-teams-format-and-how-to-watch/",
+    "snippet": "Tableau US : Play-Ins à 11 a.m. PDT (2 p.m. EDT) ; les matchs suivants dépendent de la durée des séries précédentes."
+   }
+  ],
+  "verdict": "Le premier match du Play-In des Worlds 2026 (FURIA vs MVK Esports) a lieu le jeudi 15 octobre 2026 à 11:00 PDT, soit 18:00 UTC. Le Crystal Ball et les picks du Play-In ferment juste avant, donc au plus tard le 15/10 à 18:00 UTC. Aucun match n'a encore été joué.\n\nPlusieurs sources le confirment : le Primer officiel de lolesports.com, Inven Global, Insider Gaming, Strafe et gaming.net.\n\nLa date du 16/10 vient de deux choses :\n- **L'heure asiatique :** le match tombe le 16/10 à 03:00 KST.\n- **Une erreur d'esports.gg :** le site indique le 16/10 à 11:20 PDT.\n\nJe n'ai pas pu vérifier ce qu'affiche pem.lol : aucune de ses pages n'est apparue dans les résultats de recherche. Je ne l'ai donc pas utilisé comme source.\n\nLes extraits viennent des résumés de l'outil de recherche, et non des pages elles-mêmes, car WebFetch est en panne. Pour l'heure exacte de fermeture, l'affichage de lolesports.com/pickems ou du client fait foi."
+ },
+ "blocks": [
+  {
+   "block": "CHAMPIONS",
+   "questions": [
+    {
+     "id": "CB-1",
+     "pem_prediction": "",
+     "historical_leaders": "Mise en garde : les extraits pem.lol sont des instantanés indexés, et la page d'accueil porte une date incohérente (« Sat, 24 Oct 2026 » alors que nous sommes le 15 octobre 2026). Aucune prédiction pem.lol pour Worlds 2026 n'est visible. Les extraits de recherche de la page Pick'Ems 2025 n'ont montré ni Highest Presence ni Most Deaths, ce qui ne prouve pas leur absence. Sont visibles : Most Picked, Most Banned, Highest Win Rate (5+ Games), Lowest Win Rate et Most Kills. Worlds 2025 sur pem.lol : Yunara est la plus bannie (58), devant Azir (55) et Orianna (46). Xin Zhao est le plus joué (29), devant K'Sante (27) et Alistar (25). Sur gol.gg (Main Event seul), Yunara cumule 56 bans et 15 picks, avec une « Presence by Series » de 100 % ; la même page affiche aussi 89 % dans son tableau par ligue (WORLDS | 89% | 15 | 66.7%) ; les deux mesures diffèrent. Le résumé de l'outil de recherche donne aussi une priorité de 85,5 % (résumé, pas citation exacte). Yunara est donc la candidate la plus probable à la présence la plus forte en 2025, mais c'est une déduction : aucun chiffre de présence pem.lol ne le confirme. Aucune donnée 2024 ou antérieure n'est remontée. Pour mémoire, la page historique pem.lol cite Kalista comme la plus bannie en 2017 (114), et Aatrox et Akali ex aequo en 2018 (76 chacun). Note : pem.lol ne traite pas LEC et LCS de la même manière (LEC Summer apparemment saison régulière seule, LCS Summer saison + playoffs).",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2026 Pick'Ems : catégorie Highest Presence",
+       "value": "aucune valeur affichée (titre seul) ; aucune prédiction visible ; la page se présente comme un classement en direct (instantané indexé)",
+       "scope": "Worlds 2026 (15 oct – 14 nov 2026), avant le début de l'événement",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "Worlds 2026: the official Pick'ems, the leaders of every category and our predictions. [titres de catégories Champions : \"Highest Presence\", \"Highest Win Rate (5+ Games)\", \"Most Deaths / Game (5+ Games)\" — aucune valeur dans l'extrait]",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2025 : Most Banned",
+       "value": "Yunara 58, Azir 55, Orianna 46",
+       "scope": "Worlds 2025 (Play-In + Main Event, d'après le recoupement avec gol.gg)",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "Yunara 58 ... Azir 55",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Worlds 2025 Main Event : bans",
+       "value": "Yunara 56, Azir 51, Orianna 45 (Main Event seul)",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/tournament/tournament-picksandbans/Worlds%202025%20Main%20Event/",
+       "snippet": "Bans stats · Yunara 56 Azir 51 Orianna 45",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Worlds 2025 Play-In : bans",
+       "value": "Azir 4, Yunara 2. Main Event + Play-In = Yunara 58, Azir 55, ce qui correspond à pem.lol",
+       "scope": "Worlds 2025 Play-In",
+       "url": "https://gol.gg/tournament/tournament-picksandbans/Worlds%202025%20Play-In/",
+       "snippet": "Azir 4 Bard 4 Kaisa 4 Braum 3 Aurora 3 Yunara 2",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Yunara, Worlds 2025 Main Event : picks, bans et présence",
+       "value": "56 bans, 15 picks, Presence by Series 100 % ; la même page affiche aussi 89 % dans son tableau par ligue (WORLDS | 89% | 15 | 66.7%) ; les deux mesures diffèrent. 10V-5D (66,7 %). Priorité 85,5 % selon le résumé de l'outil de recherche. La mention (20/36) n'est pas expliquée sur la page.",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/champion/champion-stats/171/season-ALL/split-ALL/tournament-Worlds%202025%20Main%20Event/",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] 56 bans (20/36) and 15 picks (5/10), with a 10W - 5L 66.7% record. Her Presence by Series is 100%",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2025 : Most Picked",
+       "value": "Xin Zhao 29, K'Sante 27, Alistar 25",
+       "scope": "Worlds 2025 (total de l'événement)",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] Xin Zhao leads the champion picks with 29, followed by K'Sante (27) and Alistar (25)",
+       "matches_golgg": "non"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Xin Zhao, Worlds 2025 Main Event",
+       "value": "28 picks, 8 bans (Main Event seul ; l'écart de 1 pick avec pem.lol vient probablement du Play-In, non vérifié)",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/champion/champion-stats/110/season-ALL/split-ALL/tournament-Worlds%202025%20Main%20Event/",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] 8 bans (4/4) and 28 picks (16/12), with a 17W - 11L 60.7% record",
+       "matches_golgg": "non"
+      },
+      {
+       "site": "pem.lol",
+       "label": "MSI 2026 : Most Banned",
+       "value": "Poppy 39, Orianna 34, Vi 34, Jayce 32, Akali 31, Nocturne 28 (confirmés). Poppy serait la plus bannie du Play-In : l'écart avec gol.gg vient peut-être du périmètre, non vérifié",
+       "scope": "MSI 2026",
+       "url": "https://pem.lol/msi/2026",
+       "snippet": "Most Banned: Poppy 39, Orianna 34, Vi 34, Jayce 32, Akali 31",
+       "matches_golgg": "non"
+      },
+      {
+       "site": "gol.gg",
+       "label": "MSI 2026 : bans",
+       "value": "Poppy 41, Vi 38, Jayce 37 (104 drafts). Orianna 34 non revérifié",
+       "scope": "MSI 2026",
+       "url": "https://gol.gg/tournament/tournament-picksandbans/MSI%202026/",
+       "snippet": "Bans stats · Poppy 41 Vi 38 Jayce 37 Orianna 34 Akali 32 Vayne 31",
+       "matches_golgg": "non"
+      },
+      {
+       "site": "pem.lol",
+       "label": "EWC 2026 : Most Banned et Most Picked",
+       "value": "Bans : Poppy 35, Nocturne 32, Vi 27, Jayce 24, Orianna 24 (confirmés). Picks : Jarvan IV 19, Syndra 19, Camille 18",
+       "scope": "EWC 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "Poppy 35; Nocturne 32; Vi 27 / Jarvan IV 19; Syndra 19; Camille 18",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LEC 2026 Summer : Most Banned et Most Picked",
+       "value": "Bans : Jayce 69, Nocturne 63, Cassiopeia et Poppy 59. Picks : Rumble 36, Viktor 34, Jarvan IV 33. Avec les playoffs, Cassiopeia passerait à 86 et Nocturne à 89 : pem.lol ne traite pas LEC et LCS de la même manière",
+       "scope": "LEC 2026 Summer, apparemment saison régulière seule (identique à gol.gg Summer Season, sans les playoffs)",
+       "url": "https://pem.lol/lec/2026/summer",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] Jayce leads with 69 bans, then Nocturne (63), and Cassiopeia and Poppy are tied for third (59 each). Rumble leads with 36 picks",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "LEC 2026 Summer Season : bans et picks",
+       "value": "Jayce 69 bans, Nocturne 63 bans, Rumble 36 picks en top (identique à pem.lol)",
+       "scope": "LEC 2026 Summer Season (phase régulière)",
+       "url": "https://gol.gg/tournament/tournament-picksandbans/LEC%202026%20Summer%20Season/",
+       "snippet": "Bans : 69 ... Bans : 63 / TOP · Rumble 36 Ambessa 28",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "LEC 2026 Summer Playoffs : bans",
+       "value": "Cassiopeia 27, Nocturne 26, Akali 13, Rumble 13 (non inclus dans les chiffres pem.lol LEC)",
+       "scope": "LEC 2026 Summer Playoffs",
+       "url": "https://gol.gg/tournament/tournament-picksandbans/LEC%202026%20Summer%20Playoffs/",
+       "snippet": "Bans stats · Cassiopeia 27 Nocturne 26 Akali 13 Rumble 13",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LCS 2026 Summer : Most Banned et Most Picked",
+       "value": "Bans : Cassiopeia 80, Nocturne 77, Vi 61. Picks : Ezreal 32, Gnar 31, Lucian et Ryze 29",
+       "scope": "LCS 2026 Summer (saison + playoffs, contrairement à la LEC)",
+       "url": "https://pem.lol/lcs/2026/summer",
+       "snippet": "Cassiopeia 80; Nocturne 77; Vi 61 / Ezreal, 32; Gnar, 31; Lucian, 29; Ryze, 29",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "LCS 2026 Summer : bans (saison régulière)",
+       "value": "Nocturne 48, Cassiopeia 43, Vi 39. Avec les playoffs : Cassiopeia 43+37 = 80 et Nocturne 48+29 = 77, comme pem.lol",
+       "scope": "LCS 2026 Summer (saison régulière)",
+       "url": "https://gol.gg/tournament/tournament-picksandbans/LCS%202026%20Summer/",
+       "snippet": "Bans stats · Nocturne 48 Cassiopeia 43 Vi 39 / BOT · Ezreal 25 Lucian 21 Jhin 12",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "LCS 2026 Summer Playoffs : bans",
+       "value": "Cassiopeia 37, Nocturne 29, Vi 22. Ezreal : 7 picks en bot, soit 25+7 = 32 picks sur le split, comme pem.lol",
+       "scope": "LCS 2026 Summer Playoffs",
+       "url": "https://gol.gg/tournament/tournament-picksandbans/LCS%202026%20Summer%20Playoffs/",
+       "snippet": "Bans stats · Cassiopeia 37 Nocturne 29 Vi 22 / BOT · Yunara 10 Lucian 8 Kalista 7 Ezreal 7",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LCK 2026 : page hub (aucune table de stats trouvée)",
+       "value": "Dernier champion : Gen.G (Cup 2026) ; aucune stat champion 2026 dans les extraits (instantané indexé, date incohérente sur la page d'accueil)",
+       "scope": "LCK 2026",
+       "url": "https://pem.lol/lck",
+       "snippet": "Latest champion Gen.G (Cup 2026)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LPL 2026 : page hub (aucune table de stats trouvée)",
+       "value": "Dernier champion : Bilibili Gaming (Split 1 2026) ; aucune stat champion 2026 dans les extraits (instantané indexé, date incohérente sur la page d'accueil)",
+       "scope": "LPL 2026",
+       "url": "https://pem.lol/lpl",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] the most recent champion listed as Bilibili Gaming from Split 1 2026",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-2",
+     "pem_prediction": "",
+     "historical_leaders": "Worlds 2025 sur pem.lol, Highest Win Rate (5+ Games) : leader Dr. Mundo 100 % (5/0), puis Ashe, LeBlanc, Nocturne et Yone ex aequo à 80 % (4/1), puis Galio et Poppy à 76,9 % (10/3). Le chiffre de Xin Zhao (62,1 %, 18/11) n'a pas été revérifié. Pour Ashe, gol.gg confirme 4V-1D en additionnant le Main Event (3V-1D) et le Play-In (1V-0D). Aucune donnée 2024 ou antérieure n'a été trouvée sur pem.lol. Aucune prédiction pem.lol pour Worlds 2026 n'est visible (extraits = instantanés indexés).",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2026 Pick'Ems : Highest Win Rate (5+ Games)",
+       "value": "aucune valeur affichée (titre seul) ; aucune prédiction visible",
+       "scope": "Worlds 2026, avant le début de l'événement",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "Worlds 2026: the official Pick'ems, the leaders of every category and our predictions. [titre \"Highest Win Rate (5+ Games)\" sans valeur dans l'extrait]",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2025 : Highest Win Rate (5+ Games)",
+       "value": "Dr. Mundo 100 % (5/0) ; Ashe, LeBlanc, Nocturne et Yone 80 % (4/1) ; Galio et Poppy 76,9 % (10/3). Xin Zhao 62,1 % (18/11) non revérifié",
+       "scope": "Worlds 2025 (Play-In + Main Event)",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "Ashe 80% - 4/1",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Ashe, Worlds 2025 Main Event",
+       "value": "3V-1D (75 %) en Main Event, plus 1 victoire en Play-In, soit 4V-1D au total, comme pem.lol",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/champion/champion-stats/8/season-ALL/split-ALL/tournament-Worlds%202025%20Main%20Event/",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] Ashe went 3W - 1L 75% across four picks",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Ashe, Worlds 2025 Play-In",
+       "value": "1 partie, 1 victoire",
+       "scope": "Worlds 2025 Play-In",
+       "url": "https://gol.gg/champion/champion-stats/8/season-ALL/split-ALL/tournament-Worlds%202025%20Play-In/",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] it shows one Ashe game, a win, KDA: 11.0",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "pem.lol",
+       "label": "MSI 2026 : Highest Win Rate (5+ Games)",
+       "value": "Lucian 88,9 % (8/1), Milio 85,7 % (6/1), Viktor 81,8 % (9/2), Akali et Trundle ex aequo 4e à 80,0 % ; Sion dernier à 10,0 % (1/9)",
+       "scope": "MSI 2026",
+       "url": "https://pem.lol/msi/2026",
+       "snippet": "Highest Win Rate (5+ Games): Lucian 88.9% - 8/1, Milio 85.7% - 6/1, Viktor 81.8% - 9/2",
+       "matches_golgg": "non"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Lucian, MSI 2026",
+       "value": "9V-1D (90 %) sur 10 parties, 12 bans, contre 8/1 (9 parties) sur pem.lol ; écart probablement dû au périmètre ou à la mise à jour, non vérifié",
+       "scope": "MSI 2026",
+       "url": "https://gol.gg/champion/champion-stats/50/season-ALL/split-ALL/tournament-MSI%202026/",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] The gol.gg MSI 2026 Lucian page shows a 9-1 record, or 90% win rate, across 10 games",
+       "matches_golgg": "non"
+      },
+      {
+       "site": "pem.lol",
+       "label": "EWC 2026 : Highest Win Rate (5+ Games)",
+       "value": "Seraphine 100,0 % (5/0), Taliyah 87,5 % (7/1)",
+       "scope": "EWC 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "Seraphine 100.0% - 5/0; Taliyah 87.5% - 7/1",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LEC 2026 Summer : Highest Win Rate (5+ Games)",
+       "value": "Ahri 83,3 % (5/1), Ashe 83,3 % (10/2), Akali 80,0 % (12/3)",
+       "scope": "LEC 2026 Summer",
+       "url": "https://pem.lol/lec/2026/summer",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] Ahri and Ashe are tied at 83.3%, but Ahri's record is 5-1 and Ashe's is 10-2 ... Akali is third at 80.0% (12-3)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LCS 2026 Summer : Highest Win Rate (5+ Games)",
+       "value": "Renata Glasc 80,0 % (12/3), Kalista 78,6 % (11/3), Ezreal 75,0 % (24/8)",
+       "scope": "LCS 2026 Summer",
+       "url": "https://pem.lol/lcs/2026/summer",
+       "snippet": "Renata Glasc 80.0% - 12/3; Kalista 78.6% - 11/3; Ezreal 75.0% - 24/8",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-3",
+     "pem_prediction": "",
+     "historical_leaders": "Aucun leader historique de Most Deaths / Game n'est trouvé pour les Worlds. Les extraits de recherche de la page Pick'Ems 2025 n'ont montré ni Highest Presence ni Most Deaths, ce qui ne prouve pas leur absence. Les seules tables de morts trouvées sur pem.lol donnent des TOTAUX, pas des moyennes par partie, et pour d'autres compétitions (EWC 2026, LEC 2026 Summer, LCS 2026 Summer) ; ces totaux n'ont pas été revérifiés par l'adversaire. Aucun chiffre gol.gg n'a pu être retrouvé pour comparer. Aucune prédiction pem.lol pour Worlds 2026 n'est visible.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2026 Pick'Ems : Most Deaths / Game (5+ Games)",
+       "value": "aucune valeur affichée (titre seul) ; aucune prédiction visible",
+       "scope": "Worlds 2026, avant le début de l'événement",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "Worlds 2026: the official Pick'ems, the leaders of every category and our predictions. [titre \"Most Deaths / Game (5+ Games)\" sans valeur dans l'extrait]",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "EWC 2026 : Most Deaths (total)",
+       "value": "Camille 89 (total, pas une moyenne par partie ; non revérifié)",
+       "scope": "EWC 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] Camille led Most Deaths with 89",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LEC 2026 Summer : Most Deaths (total)",
+       "value": "Rell 99, Jarvan IV 98, Rumble 94 (totaux ; non revérifiés)",
+       "scope": "LEC 2026 Summer",
+       "url": "https://pem.lol/lec/2026/summer",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] Most Deaths is led by Rell (99), then Jarvan IV (98) and Rumble (94)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LCS 2026 Summer : Most Deaths (total)",
+       "value": "Ryze 88, Jarvan IV 81, Gnar 80 (totaux ; non revérifiés)",
+       "scope": "LCS 2026 Summer",
+       "url": "https://pem.lol/lcs/2026/summer",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] Most Deaths is led by Ryze (88), then Jarvan IV (81) and Gnar (80)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2025 Pick'Ems : catégories Champions",
+       "value": "Les extraits de recherche n'ont montré ni Highest Presence ni Most Deaths, ce qui ne prouve pas leur absence. Sont visibles : Most Picked, Most Banned, Highest Win Rate (5+ Games), Lowest Win Rate et Most Kills",
+       "scope": "Worlds 2025",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "[résumé de l'outil de recherche, pas de citation exacte] The \"Champions\" section lists Most Picked, Most Banned, Highest Win Rate (5+ Games), and Most Kills",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "block": "JOUEURS",
+   "questions": [
+    {
+     "id": "CB-4",
+     "pem_prediction": "",
+     "historical_leaders": "Worlds 2025 (pem.lol, page Pick'Ems 2025) : Viper (Hanwha Life Esports) 1er avec 8.07 de KDA, Bdd (KT Rolster) 2e à 6.53, Cuzz (KT Rolster) 3e à 6.52. Nombre de games non indiqué. Ruler (Gen.G) 6.0, Chovy (Gen.G) 5.65 et Faker (T1) 5.1 : non reconfirmés. gol.gg concorde (Viper 8.1, 62/14/51, 5W-4L, KP 73.1 % ; Bdd 6.5 ; Cuzz 6.5). Aucun leader KDA de Worlds 2024 n'a été trouvé sur pem.lol. Stats 2026 sur pem.lol : MSI 2026 Play-In, Peyz (T1) 5.1 (Kyeahoo (KC) 5.05 et Oner (T1) 4.55 non reconfirmés). EWC 2026, Highest KDA (joueurs) : GALA (JD Gaming) 9.57, devant Smash 8.24 et ShowMaker 8.0, Viper 4e à 6.44 (gol.gg donne Smash 8.6 et ShowMaker 8.3, écarts avec pem.lol). LEC 2026 Summer : Caliste (KC) 8.34, 2e Yike 6. LCS 2026 Summer : CoreJJ (Team Liquid) 7.55. Aucune donnée des playoffs LCK ou LPL 2026 dans les extraits. La page Worlds 2026 affiche la catégorie « Highest KDA » sans nom ni valeur, car l'événement commence le 15 oct. 2026.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2025 - Highest KDA, 1er",
+       "value": "Viper 8.07",
+       "scope": "Worlds 2025 (nombre de games non indiqué)",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "Highest KDA 1 8.07 Hanwha Life Esports Viper",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Viper - Worlds 2025 Main Event",
+       "value": "KDA 8.1 (62 K / 14 D / 51 A, soit (62+51)/14 = 8.07)",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/players/player-stats/1228/season-ALL/split-ALL/tournament-Worlds%202025%20Main%20Event/champion-ALL/",
+       "snippet": "Résumé du moteur, non verbatim : KDA 8.1, 62 kills, 14 deaths, 51 assists, 5W-4L, 73.1% de kill participation",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2025 - Highest KDA, Bdd, 2e",
+       "value": "6.53",
+       "scope": "Worlds 2025",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "Résumé du moteur, non verbatim : Bdd (KT Rolster) 6.53, Cuzz (KT Rolster) 6.52, Ruler (Gen.G) 6.0, Chovy 5.65, Faker 5.1",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Bdd - Worlds 2025 Main Event",
+       "value": "KDA 6.5, 12W-4L, KP 78.6%",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/players/player-stats/650/season-ALL/split-ALL/tournament-Worlds%202025%20Main%20Event/",
+       "snippet": "Résumé du moteur, non verbatim : KDA ratio of 6.5 ... 12W - 4L ... 78.6% kill participation",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "EWC 2026 - Highest KDA (joueurs), 1er",
+       "value": "GALA (JD Gaming) 9.57",
+       "scope": "Esports World Cup 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "Players / Highest KDA / 1st GALA JD Gaming 9.57",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "EWC 2026 - GALA",
+       "value": "9.6 (25/7/42, soit (25+42)/7 = 9.57)",
+       "scope": "Esports World Cup 2026",
+       "url": "https://gol.gg/tournament/tournament-stats/Esports%20World%20Cup%202026/",
+       "snippet": "Résumé du moteur, non verbatim : GALA at 9.6 with 25/7/42 ... Viper at 6.4 with 25/9/33",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "MSI 2026 - Highest KDA (Play-In)",
+       "value": "Peyz (T1) 5.1",
+       "scope": "MSI 2026, Play-In seulement (page live, nombre de games non indiqué)",
+       "url": "https://pem.lol/msi/2026",
+       "snippet": "### Highest KDA (Play-In) 1st Peyz T1 5.1",
+       "matches_golgg": "non"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Peyz - MSI 2026 (tout l'événement)",
+       "value": "KDA 5.2 (175/56/115)",
+       "scope": "MSI 2026 complet, périmètre différent du Play-In pem.lol",
+       "url": "https://gol.gg/players/player-stats/4247/season-ALL/split-ALL/tournament-MSI%202026/champion-ALL/",
+       "snippet": "Résumé du moteur, non verbatim : 14-3, 5.2 KDA, 75.7% kill participation ... 175/56/115",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LEC 2026 Summer - Highest KDA",
+       "value": "Caliste (Karmine Corp) 8.34 (2e Yike 6)",
+       "scope": "LEC 2026 Summer",
+       "url": "https://pem.lol/lec/2026/summer",
+       "snippet": "Players, Highest KDA: 1st Caliste, Karmine Corp, 8.34",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LCS 2026 Summer - Highest KDA",
+       "value": "CoreJJ (Team Liquid) 7.55",
+       "scope": "LCS 2026 Summer",
+       "url": "https://pem.lol/lcs/2026/summer",
+       "snippet": "Résumé du moteur, non verbatim : CoreJJ at 7.55 KDA",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2026 Pick'Ems - catégorie Highest KDA",
+       "value": "aucune valeur affichée",
+       "scope": "Worlds 2026 (15 oct. - 14 nov. 2026)",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "Worlds 2026: the official Pick'ems, the leaders of every category and our predictions.",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-5",
+     "pem_prediction": "",
+     "historical_leaders": "Le leader des dégâts moyens par game aux Worlds 2025 n'a pas été trouvé sur pem.lol. Repère gol.gg partiel (DPM, Main Event 2025, quelques joueurs seulement) : Viper 992.8, Gumayusi 864.4, Faker 768.9. Stats 2026 sur pem.lol (Avg Damage / Game) : MSI 2026, Peyz (T1) 1er à 33 242 (JackeyLove (TES) ~28 059 et Creme (TES) ~27 723 non reconfirmés ; Viper 23 213, Caliste 25 389). EWC 2026 : Viper (Bilibili Gaming) 1er à 31 826, 2e Knight 30 767, 3e Smash 30 667 ; Peyz 23 939 (13e) non reconfirmé ; Caliste 27 042. LEC 2026 Summer : Caliste 32 467, 1er (reste du classement contradictoire : Canna 23 743 selon une recherche, Jopa/Hans Sama selon une autre, à vérifier). LCS 2026 Summer : Tactical (Cloud9) 25 131, devant Loki (Cloud9) 23 467. Pas de données LCK ou LPL 2026 dans les extraits. Repère ancien : LPL 2025 Grand Finals, Shaoye (LGD) 33 258. Mise en garde : ces pages « live » peuvent ne pas refléter un instantané daté et fiable (la page d'accueil pem.lol affiche le 24 oct. 2026).",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "MSI 2026 - Avg Damage / Game, 1er",
+       "value": "Peyz (T1) 33 242",
+       "scope": "MSI 2026",
+       "url": "https://pem.lol/msi/2026",
+       "snippet": "### Avg Damage / Game 1st Peyz T1 33,242",
+       "matches_golgg": "non"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Peyz - MSI 2026, dégâts",
+       "value": "environ 909 DPM, 31.8% des dégâts de l'équipe",
+       "scope": "MSI 2026 (DPM, métrique différente de dégâts/game)",
+       "url": "https://gol.gg/players/player-stats/4247/season-ALL/split-ALL/tournament-MSI%202026/champion-ALL/",
+       "snippet": "Résumé du moteur, non verbatim : averaged about 909 damage per minute, roughly 31.8% of his team's total damage",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "EWC 2026 - Avg Damage / Game, 1er",
+       "value": "Viper (Bilibili Gaming) 31 826 (2e Knight 30 767, 3e Smash 30 667)",
+       "scope": "Esports World Cup 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "Résumé du moteur, non verbatim : the Avg Damage / Game leader is Viper (Bilibili Gaming) at 31,826",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "EWC 2026 - Avg Damage / Game, Peyz (non reconfirmé)",
+       "value": "23 939 (13e), non reconfirmé",
+       "scope": "Esports World Cup 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "Résumé du moteur, non verbatim : Peyz is listed at 23,939, placing him 13th",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LEC 2026 Summer - Avg Damage / Game",
+       "value": "Caliste (Karmine Corp) 32 467, 1er",
+       "scope": "LEC 2026 Summer",
+       "url": "https://pem.lol/lec/2026/summer",
+       "snippet": "Avg Damage / Game: 1st Caliste, Karmine Corp, 32,467",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LCS 2026 Summer - Avg Damage / Game",
+       "value": "Tactical (Cloud9) 25 131",
+       "scope": "LCS 2026 Summer",
+       "url": "https://pem.lol/lcs/2026/summer",
+       "snippet": "Résumé du moteur, non verbatim : Tactical (Cloud9) at 25,131 average damage",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Gumayusi - Worlds 2025 Main Event, DPM",
+       "value": "864.4 DPM, 29.5 % des dégâts de l'équipe, 14-6, KDA 4.1, KP 72.8%",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/players/player-stats/3247/season-ALL/split-ALL/tournament-Worlds%202025%20Main%20Event/",
+       "snippet": "Damage Per Minute: 864.4",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2026 Pick'Ems - catégorie Avg Damage / Game",
+       "value": "aucune valeur affichée",
+       "scope": "Worlds 2026",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "Résumé du moteur, non verbatim : lists the \"Highest KDA\" and \"Avg Damage / Game\" categories as headers, with no player names or numbers under them",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-6",
+     "pem_prediction": "Aucune. Catégorie présente, mais Gumayusi et Peyz y figurent à égalité à 0 (placeholder avant l'événement).",
+     "historical_leaders": "Aucun leader de kill participation (KP) aux Worlds 2025 ou 2024 n'a été trouvé sur pem.lol. Ses pages d'événements (LEC, MSI) ne semblent pas avoir de tableau KP. Repère partiel sur gol.gg, Worlds 2025 Main Event, quelques joueurs seulement : Bdd 78.6% (non reconfirmé), Viper 73.1%, Gumayusi 72.8%, Faker 72.8%. Ce n'est pas un classement complet. Stats 2026 : pas de KP sur pem.lol. gol.gg, MSI 2026 : Peyz 75.7%.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2026 Pick'Ems - Highest Kill Participation",
+       "value": "placeholder, 0 pour les deux, aucun leader",
+       "scope": "Worlds 2026",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "Résumé du moteur, non verbatim : It lists a \"Highest Kill Participation\" pick under the Champions category, with Gumayusi and Peyz shown as the category's leaders. The page layout is garbled, so I can't tell whether they're tied or how the \"1\" and \"2 tied\" labels map to them.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Bdd - Worlds 2025 Main Event, KP",
+       "value": "78.6% (non reconfirmé)",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/players/player-stats/650/season-ALL/split-ALL/tournament-Worlds%202025%20Main%20Event/",
+       "snippet": "Kill Participation: 78.6%",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Gumayusi - Worlds 2025 Main Event, KP",
+       "value": "72.8%",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/players/player-stats/3247/season-ALL/split-ALL/tournament-Worlds%202025%20Main%20Event/",
+       "snippet": "Résumé du moteur, non verbatim : Gumayusi: 864.4 DPM, with 72.8% kill participation",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Peyz - MSI 2026, KP",
+       "value": "75.7%",
+       "scope": "MSI 2026",
+       "url": "https://gol.gg/players/player-stats/4247/season-ALL/split-ALL/tournament-MSI%202026/champion-ALL/",
+       "snippet": "Résumé du moteur, non verbatim : a 75.7% kill participation rate",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-7",
+     "pem_prediction": "Aucune. Question présente, aucun résultat ni prédiction affiché.",
+     "historical_leaders": "Pas de duel Peyz/Gumayusi sur le total de kills aux Worlds 2025 trouvé sur pem.lol. La page Pick'Ems 2025 donne seulement le record de kills en une game : Bdd et Oner 12 (1ers ex aequo), Viper et Gumayusi 11 (dans le groupe 3e ex aequo). Peyz joue chez T1 en 2026 (MSI, EWC) ; l'appartenance de Gumayusi à HLE en 2026 n'est pas vérifiée. Stats 2026 sur pem.lol : EWC 2026 « Most Kills », Caliste 63, Faker 62, Peyz 60 et Oner 60. Le total de Gumayusi n'apparaît pas dans l'extrait. Faker détient la meilleure game avec 20 kills (EWC 2026 et toutes éditions). EWC toutes éditions (3 éditions depuis 2024, pem.lol) : Oner 125, Faker 114, Gumayusi 96. MSI 2026, gol.gg : Peyz 175 kills sur l'événement.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2026 Pick'Ems - Peyz vs Gumayusi: Most Kills",
+       "value": "aucun résultat ni prédiction (« 1 »/« 0 » = artefacts ou placeholders)",
+       "scope": "Worlds 2026",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "Résumé du moteur, non verbatim : The page has a \"Most Kills\" head-to-head, and the snippet shows a \"1\" and a \"0\" beside the two names. I can't tell from the snippet which number belongs to which player",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "EWC 2026 - Most Kills",
+       "value": "Caliste 63, Faker 62, Peyz 60, Oner 60",
+       "scope": "Esports World Cup 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "Esports World Cup 2026, Most Kills, 2nd, Faker, T1, 62",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Peyz - EWC 2026",
+       "value": "7-5, KDA 3.8 (pas de total de kills dans l'extrait)",
+       "scope": "Esports World Cup 2026",
+       "url": "https://gol.gg/players/player-stats/4247/season-ALL/split-ALL/tournament-Esports%20World%20Cup%202026/champion-ALL/",
+       "snippet": "Résumé du moteur, non verbatim : His EWC 2026 page lists a 7-5 record, a 3.8 KDA, and 6 solo kills",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "EWC toutes éditions - Most Kills",
+       "value": "Oner 125, Faker 114, Gumayusi 96",
+       "scope": "EWC, toutes éditions (3 depuis 2024)",
+       "url": "https://pem.lol/ewc/all-time",
+       "snippet": "Players: Most Kills — Oner 125, Faker 114, Gumayusi 96",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2025 - Most Kills (Single Game)",
+       "value": "Bdd et Oner 12 (1ers ex aequo), Viper et Gumayusi 11 (dans le groupe 3e ex aequo)",
+       "scope": "Worlds 2025, une seule game",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "3 Viper Hanwha Life Esports Viper 11",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Peyz - MSI 2026, kills",
+       "value": "175 kills (175/56/115)",
+       "scope": "MSI 2026",
+       "url": "https://gol.gg/players/player-stats/4247/season-ALL/split-ALL/tournament-MSI%202026/champion-ALL/",
+       "snippet": "Résumé du moteur, non verbatim : his overall line as 175/56/115 (kills/deaths/assists)",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-8",
+     "pem_prediction": "La page Worlds 2026 a une question « Faker: 700 Worlds Kills? » dans la section « Events », mais l'extrait ne montre ni réponse, ni chiffre, ni prédiction.",
+     "historical_leaders": "Ni pem.lol ni gol.gg n'ont donné de total de kills de Faker en carrière aux Worlds. Totaux annuels de Faker aux Worlds sur pem.lol : 80 en 2013 (4e, Piglet 1er avec 115), 82 en 2016 (2e, Bang 1er avec 87), 45 en 2017 (ex aequo avec Crown, rang incertain). Les autres années n'ont pas été trouvées, donc impossible d'additionner. Meilleurs totaux par édition relevés sur pem.lol (pas de tableau all-time Worlds trouvé) : Piglet 115 en 2013, Uzi 112 en 2014, Lwx 110 en 2019, JackeyLove 92 en 2018. Autres repères pem.lol : Faker 4171 kills en LCK toutes saisons (Ruler 3530, 46 splits depuis 2013), et 62 kills à l'EWC 2026 (2e). gol.gg, Faker Worlds 2025 Main Event : 14W-6L, KDA 5.0, KP 72.8 %, 768.9 DPM. Bilans 2024 (13W-4L, KDA 4.4) et 2023 (13W-2L, KDA 6.5) non reconfirmés.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2026 Pick'Ems - Faker: 700 Worlds Kills?",
+       "value": "question présente, sans chiffre",
+       "scope": "Worlds 2026",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "Faker: 700 Worlds Kills?",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2016 - Most Kills",
+       "value": "Faker 82 (2e)",
+       "scope": "Worlds 2016",
+       "url": "https://pem.lol/worlds/2016",
+       "snippet": "World Championship 2016, Most Kills, 2nd, Faker, SK Telecom T1, 82",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2013 - kills de Faker",
+       "value": "80 (4e)",
+       "scope": "Worlds 2013",
+       "url": "https://pem.lol/worlds/2013",
+       "snippet": "Résumé du moteur, non verbatim : Faker's per-event kills, such as 80 in 2013, 82 in 2016, and 45 in 2017",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Worlds 2017 - kills de Faker",
+       "value": "45 (ex aequo avec Crown, rang incertain)",
+       "scope": "Worlds 2017",
+       "url": "https://pem.lol/worlds/2017",
+       "snippet": "Résumé du moteur, non verbatim : Faker's per-event kills, such as 80 in 2013, 82 in 2016, and 45 in 2017",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "LCK toutes saisons - Most Kills",
+       "value": "Faker 4171",
+       "scope": "LCK, toutes saisons (pas les Worlds)",
+       "url": "https://pem.lol/lck/all-time",
+       "snippet": "Players, Most Kills: Faker 4171, Ruler 3530",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Faker - Worlds 2025 Main Event",
+       "value": "14W-6L, KDA 5.0, KP 72.8%",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/players/player-stats/48/season-ALL/split-ALL/tournament-Worlds%202025%20Main%20Event/champion-ALL/",
+       "snippet": "Record: · 14W - 6L",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "block": "TOURNOI",
+   "questions": [
+    {
+     "id": "CB-9",
+     "pem_prediction": "",
+     "historical_leaders": "pem.lol pose bien la question « Will Teemo be picked? » sur la page Pick'Ems Worlds 2026, mais aucune prédiction du site n'apparaît dans les résultats de recherche. Les pages Worlds 2025 et MSI 2026 ont une catégorie « Teemo Picks ». Pour MSI 2026, pem.lol affiche « Teemo 0 » et gol.gg donne 0 pick : c'est concordant mais fragile, car la page gol.gg n'était peut-être pas chargée et la valeur pem.lol est ambiguë. Le chiffre Teemo de Worlds 2025 n'est pas visible. Côté historique global, gol.gg compte 36 picks pro de Teemo, toutes saisons confondues, pour un bilan de 16-20 (44,4 % de victoires). En LCK all-time, pem.lol classe Teemo 1er au KDA (6,75, seuil de 5 games) et 4e au winrate (60,0 %, 3-2, lecture incertaine). Aucune donnée 2026 (LCK, LPL, LEC, LCS, EWC) ne mentionne Teemo dans les résultats. Remarque : les extraits sont des résumés renvoyés par l'outil de recherche, pas le texte brut des pages.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Question Teemo des Pick'Ems Worlds 2026",
+       "value": "Question listée, prédiction non visible",
+       "scope": "Worlds 2026 (15 oct. – 14 nov. 2026)",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "The page includes a \"Will Teemo be picked?\" event (Will Teemo be picked?), a \"15 Kills in a Game?\" event (15 Kills in a Game?), and a \"450 CS in a Game?\" event (450 CS in a Game?).",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Teemo Picks MSI 2026",
+       "value": "0 (valeur ambiguë ; concordant avec gol.gg mais fragile)",
+       "scope": "MSI 2026",
+       "url": "https://pem.lol/msi/2026",
+       "snippet": "MSI 2026: Teemo has a \"Teemo Picks\" category, and the page shows Teemo 0, so no picks had been recorded there.",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Teemo à MSI 2026 (gol.gg)",
+       "value": "0 pick, bilan 0-0 (page possiblement non chargée ; concordant mais fragile)",
+       "scope": "MSI 2026",
+       "url": "https://gol.gg/champion/champion-stats/91/season-ALL/split-Winter/tournament-MSI%202026/",
+       "snippet": "MSI 2026 page: The filtered view shows no data (0 picks, 0-0 record).",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Catégorie Teemo Picks aux Worlds 2025",
+       "value": "Catégorie présente, chiffre non visible",
+       "scope": "Worlds 2025",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "Worlds 2025: the site had a \"Teemo Picks\" category as well, but the snippet didn't include the counts.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Teemo en pro, toutes saisons",
+       "value": "36 picks, 16-20 (44,4 %)",
+       "scope": "Toutes saisons, tous tournois",
+       "url": "https://gol.gg/champion/champion-stats/91/season-ALL/split-ALL/tournament-ALL/",
+       "snippet": "The overall listing shows a 16-20 record (44.4% win rate), KDA 1.8, and 694 DPM across 36 picks. Top lane accounts for most of the games, with a 39.3% win rate there.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Teemo dans les stats LCK all-time",
+       "value": "1er au KDA (6,75, seuil de 5 games), 4e au winrate (60,0 %, 3-2, lecture incertaine)",
+       "scope": "LCK, toute l'histoire",
+       "url": "https://pem.lol/lck/all-time",
+       "snippet": "pem.lol's LCK all-time stats list Teemo near the top, with a 60.0% - 3/2 win rate and a 6.75 KDA in games with 5+ appearances.",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-10",
+     "pem_prediction": "",
+     "historical_leaders": "Champions uniques aux Worlds 2025 selon pem.lol : 95 (page Pick'Ems Worlds 2025). Les chiffres des éditions antérieures, auparavant attribués à la page d'index pem.lol/worlds, ont été retirés faute de lien source valide. Le compteur Worlds 2026 affiche « UNIQUE CHAMPIONS PLAYED 0 » (tournoi pas encore commencé) et aucune prédiction n'est visible. Repères 2026 : 79 champions uniques à l'EWC 2026, et 117 sur l'ensemble des éditions de l'EWC. Le chiffre MSI 2026 n'est pas visible. gol.gg n'a pas permis de vérifier le total de 95 pour 2025 : l'extrait de la page picks & bans du Main Event est tronqué, et cette page ne couvre pas le Play-In. Remarque : les extraits sont des résumés de recherche.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Champions uniques joués aux Worlds 2025",
+       "value": "95",
+       "scope": "Worlds 2025 (tournoi entier)",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "The page also reports UNIQUE CHAMPIONS PLAYED 95.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Picks & bans du Worlds 2025 Main Event",
+       "value": "Total non lisible (Karma, le plus pické, à 12 picks)",
+       "scope": "Worlds 2025, Main Event seulement",
+       "url": "https://gol.gg/tournament/tournament-picksandbans/Worlds%202025%20Main%20Event/",
+       "snippet": "Karma has the most picks at 12, followed by Yone at 11 (12 Karma 11 Yone 9 Annie 9 Renekton 9 Cassiopeia 9 Ezreal 9 Xayah).",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Compteur de champions uniques Worlds 2026",
+       "value": "0 (tournoi pas encore commencé)",
+       "scope": "Worlds 2026",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "the Unique Champions section shows UNIQUE CHAMPIONS PLAYED 0. Neither section includes a visible prediction.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Champions uniques à l'EWC 2026",
+       "value": "79",
+       "scope": "EWC 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "Unique champions: The page reports 79 unique champions played at EWC 2026.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Champions uniques à l'EWC, toutes éditions",
+       "value": "117",
+       "scope": "EWC, toutes éditions",
+       "url": "https://pem.lol/ewc/all-time",
+       "snippet": "reports 117 unique champions across all editions",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-11",
+     "pem_prediction": "",
+     "historical_leaders": "pem.lol affiche le marché « Games Under / Over 32:00 » sur la page Pick'Ems Worlds 2026, avec un compteur à 0 et aucune prédiction visible. pem.lol ne donne pas de durée moyenne pour les Worlds 2025 ; seule la game la plus courte est visible (24:32, KT vs CFO), et gol.gg la confirme. Pour la moyenne, il faut passer par gol.gg : 32:45 sur 80 games au Worlds 2025 Main Event, et 33:15 sur 41 games aux playoffs LCK 2026, soit deux moyennes juste au-dessus de 32:00. Côté pem.lol, la durée moyenne des games de FURIA est de 33:07. Remarque : les extraits sont des résumés de recherche.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Marché Under / Over 32:00 des Worlds 2026",
+       "value": "Compteur à 0, prédiction non visible",
+       "scope": "Worlds 2026",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "The Games Under/Over 32:00 market appears as a heading, with the \"Over Under\" option and a 0 tally",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Victoire la plus courte aux Worlds 2025",
+       "value": "24:32 (KT vs CTBC Flying Oyster)",
+       "scope": "Worlds 2025",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "The Worlds 2025 Pick'ems page lists a shortest game win of 24:32 for KT vs CTBC Flying Oyster KT vs CTBC Flying Oyster CFO. The next-shortest entries in that list are 24:50 (HLE vs 100 Thieves) and 24:55 (GEN vs Top Esports).",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Durée moyenne au Worlds 2025 Main Event",
+       "value": "32:45 sur 80 games (game la plus courte 24:32, la plus longue 58:51)",
+       "scope": "Worlds 2025, Main Event",
+       "url": "https://gol.gg/tournament/tournament-stats/Worlds%202025%20Main%20Event/",
+       "snippet": "The gol.gg Worlds 2025 Main Event stats page puts the tournament-wide average game length at 32:45 across 80 games. The page lists average kills per game at 30, with the shortest game at 24:32 (KT Rolster vs CFO) and the longest at 58:51 (GEN vs HLE).",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Durée moyenne aux playoffs LCK 2026",
+       "value": "33:15 sur 41 games",
+       "scope": "Playoffs LCK 2026",
+       "url": "https://gol.gg/tournament/tournament-stats/LCK%202026%20Season%20Playoffs/",
+       "snippet": "reports 41 games with an average game duration of 33:15 and about 29 kills per game (Average kills / game). ... The shortest game was 22:38 (BNK FearX vs Dplus KIA) and the longest was 48:09 (HLE vs T1).",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Durée moyenne des games de FURIA",
+       "value": "33:07",
+       "scope": "Profil d'équipe FURIA",
+       "url": "https://pem.lol/teams/furia",
+       "snippet": "FURIA's team profile, which lists a 33:07 game length, but that is a team-level figure",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-12",
+     "pem_prediction": "",
+     "historical_leaders": "Worlds 2025 selon pem.lol : Ruler (Gen.G) détient le record de kills en une game avec 14, devant Bdd (KT) et Oner (T1) à 12. Personne n'a donc atteint 15. gol.gg confirme Ruler à 14 (game GEN vs KT). Le maximum à 12 renvoyé par une recherche pem.lol provient de la page EWC 2025 (Ruler 12, derrière Hans Sama 15). Plusieurs joueurs ont atteint 15 kills en 2026 : Faker 20 à l'EWC 2026, ainsi que Yike et Zest à 15 ; Carzzy 21 et Caps 15 en saison régulière LEC Summer 2026. Ne sont pas allés jusqu'à 15 : Rahel 14 en LCS Summer 2026 et Peyz 14 aux playoffs LCK 2026 (gol.gg). Pour MSI 2026, gol.gg donne Peyz à 17 et BrokenBlade à 15. Le chiffre LPL Grand Finals 2025 (Kanavi et Light 15) est écarté de l'argumentaire : libellé incertain, possiblement des first bloods. Remarque : les extraits sont des résumés de recherche.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Record de kills en une game aux Worlds 2025",
+       "value": "Ruler (Gen.G) 14 ; Bdd et Oner 12",
+       "scope": "Worlds 2025",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "The Worlds 2025 Pick'ems page lists Gen.G's Ruler at the top of the Most Kills (Single Game) leaderboard with 14 kills. Bdd (KT Rolster) and Oner (T1) are next with 12 each.",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Record de kills en une game au Worlds 2025 Main Event",
+       "value": "Ruler 14 (GEN vs KT)",
+       "scope": "Worlds 2025, Main Event",
+       "url": "https://gol.gg/tournament/tournament-stats/Worlds%202025%20Main%20Event/",
+       "snippet": "The gol.gg Worlds 2025 Main Event stats page lists Ruler with the top single-game kill total at 14, in a GEN vs KT Rolster game. ... ahead of Bdd and Oner at 12 kills each.",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Record de kills en une game à l'EWC 2026",
+       "value": "Faker (T1) 20 ; Yike (KC) et Zest (MIBR.LOS) 15",
+       "scope": "EWC 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "Most kills in a single game: Faker (T1) leads with 20. Yike (Karmine Corp) and Zest (MIBR.LOS) are tied for second with 15 each.",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Record de kills en une game à l'EWC 2026",
+       "value": "Faker 20 (T1 vs GAM Esports)",
+       "scope": "EWC 2026",
+       "url": "https://gol.gg/tournament/tournament-stats/Esports%20World%20Cup%202026/",
+       "snippet": "gol.gg's Esports World Cup 2026 stats page lists Faker · 20 kills (T1 vs GAM Esports) as the top single-game kill total. The same page shows Average kills / game at 33",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Record de kills en une game en LEC Summer 2026",
+       "value": "Carzzy 21 ; Caps 15",
+       "scope": "LEC 2026 Summer",
+       "url": "https://pem.lol/lec/2026/summer",
+       "snippet": "The pem.lol LEC 2026 Summer page lists Carzzy at the top of the single-game kills leaderboard with 21 kills, ahead of Caps (15) and a tie for third between Hans Sama and Jackies (13 each).",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Record de kills en une game en LEC Summer 2026 (saison régulière)",
+       "value": "Carzzy 21 (Shifters vs VIT) ; Caps 15",
+       "scope": "LEC 2026 Summer, saison régulière",
+       "url": "https://gol.gg/tournament/tournament-stats/LEC%202026%20Summer%20Season/",
+       "snippet": "Regular season: Carzzy holds the top individual game with 21 kills (Shifters vs VIT)",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Record de kills en une game en LCS Summer 2026",
+       "value": "Rahel (Sentinels) 14",
+       "scope": "LCS 2026 Summer",
+       "url": "https://pem.lol/lcs/2026/summer",
+       "snippet": "The pem.lol LCS 2026 Summer page lists Rahel at the top of the single-game kills leaderboard with 14 kills, for Sentinels. Saint (LYON) follows with 13, and Josedeodo (Team Liquid) is third with 12.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Record de kills en une game à MSI 2026",
+       "value": "Peyz 17 (G2 vs T1) ; BrokenBlade 15",
+       "scope": "MSI 2026",
+       "url": "https://gol.gg/tournament/tournament-stats/MSI%202026/",
+       "snippet": "gol.gg lists Peyz · 17 kills (G2 Esports vs T1), followed by Peyz · 16 kills (T1 vs Team Liquid) and BrokenBlade · 15 kills (G2 Esports vs T1).",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Record de kills en une game aux playoffs LCK 2026",
+       "value": "Peyz 14 (HLE vs T1) ; Chovy 13",
+       "scope": "Playoffs LCK 2026",
+       "url": "https://gol.gg/tournament/tournament-stats/LCK%202026%20Season%20Playoffs/",
+       "snippet": "Most kills by a player in one game: Peyz leads with 14 kills in HLE vs T1, with Chovy's 13 kills in Gen.G vs HLE next.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Kills en une game en LPL Grand Finals 2025 (libellé incertain)",
+       "value": "Kanavi et Light 15 — libellé incertain (possiblement des first bloods)",
+       "scope": "LPL 2025 Grand Finals",
+       "url": "https://pem.lol/lpl/2025/grand-finals",
+       "snippet": "The closest LPL data is the 2025 Grand Finals page, where Kanavi and Light share the single-game kill lead with 15",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-13",
+     "pem_prediction": "",
+     "historical_leaders": "Le classement CS en une game des Worlds 2025 n'est pas ressorti sur pem.lol, et la prédiction 2026 n'est pas visible non plus. En 2026, la barre des 450 CS a été dépassée partout, selon pem.lol : SamD 557 en LEC Summer (non reconfirmé à la seconde recherche, non comparé à gol.gg), Peyz 516 à MSI (gol.gg retrouve ces 516 CS dans une game de 50:57), Siwoo 473, Smash 470 et Ruler 456 à l'EWC. Ce dernier classement n'a pas pu être vérifié sur gol.gg. Repères 2025 : Hope 464 CS à l'EWC 2025 et Peyz 458 en LPL Grand Finals 2025. Le chiffre de Callme (522 CS en LCS Summer 2026) a été retrouvé par le contrôle sur la page pem.lol LCS 2026 Summer ; il n'est pas recoupé par gol.gg et aucun lien ne l'accompagne ici. Remarque : les extraits sont des résumés de recherche.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Record de CS en une game en LEC Summer 2026",
+       "value": "SamD (NAVI) 557 ; Hans Sama 506 ; Upset 504 (non reconfirmé à la seconde recherche, non comparé à gol.gg)",
+       "scope": "LEC 2026 Summer",
+       "url": "https://pem.lol/lec/2026/summer",
+       "snippet": "The LEC 2026 Summer page on pem.lol lists SamD (Natus Vincere) at the top of its Most CS (Single Game) leaderboard with 557 CS. Hans Sama (G2 Esports) is second at 506, and Upset (Fnatic) is third at 504.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Record de CS en une game à MSI 2026",
+       "value": "Peyz (T1) 516 ; Berserker 462 ; Hans Sama 453",
+       "scope": "MSI 2026",
+       "url": "https://pem.lol/msi/2026",
+       "snippet": "The pem.lol MSI 2026 page ranks Peyz first for most CS in a single game, with 516 (T1). Berserker (Kim Min-cheol) of LYON (2024 American Team) is second at 462, and Hans Sama of G2 Esports is third at 453.",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Game 4 G2 vs T1 à MSI 2026",
+       "value": "Peyz 516 CS (Caitlyn, 17/3/5, game de 50:57)",
+       "scope": "MSI 2026, Round 2",
+       "url": "https://gol.gg/game/stats/79749/page-game/",
+       "snippet": "A separate G2 vs T1 game 4 page has a player table listing Peyz on Caitlyn with a 17/3/5 line and 516 CS in a 50:57 game that T1 lost.",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Record de CS en une game à l'EWC 2026",
+       "value": "Siwoo (DK) 473 ; Smash (DK) 470 ; Ruler (Gen.G) 456",
+       "scope": "EWC 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "Most CS in a single game: Siwoo (Dplus Kia) leads with 473, followed by Smash (Dplus Kia) at 470 and Ruler (Gen.G) at 456.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Stats de l'EWC 2026 (vérification CS)",
+       "value": "473 non retrouvé ; plus gros total visible : Caliste 443 CS",
+       "scope": "EWC 2026",
+       "url": "https://gol.gg/tournament/tournament-stats/Esports%20World%20Cup%202026/",
+       "snippet": "Caliste's 443 CS in a 37:53 game (AGAL vs KC) is the largest total shown. ... No Siwoo entry appeared in the results, so I can't confirm or refute the 473 figure.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Record de CS en une game à l'EWC 2025",
+       "value": "Hope (AG.AL) 464 ; Ruler 439",
+       "scope": "EWC 2025",
+       "url": "https://pem.lol/ewc/2025",
+       "snippet": "Esports World Cup 2025: Hope (AG.AL) leads with 464 CS in a single game, followed by Ruler (Gen.G) at 439.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Record de CS en une game en LPL Grand Finals 2025",
+       "value": "Peyz (JDG) 458 ; Hope 428",
+       "scope": "LPL 2025 Grand Finals",
+       "url": "https://pem.lol/lpl/2025/grand-finals",
+       "snippet": "LPL 2025 Grand Finals: Peyz (JD Gaming) leads with 458 CS in a single game, followed by Hope at 428.",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Question 450 CS des Pick'Ems Worlds 2026",
+       "value": "Question listée, prédiction non visible",
+       "scope": "Worlds 2026",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "a \"450 CS in a Game?\" event (450 CS in a Game?). Missing piece: The snippets show only the question titles.",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "block": "EQUIPES",
+   "questions": [
+    {
+     "id": "CB-14",
+     "pem_prediction": "",
+     "historical_leaders": "pem.lol a bien une catégorie « Finals MVP Role » pour 2026 (événement du 15 oct. au 14 nov. 2026 selon pem.lol), mais aucune option, valeur ni prédiction n'est visible. Worlds 2025 : pem.lol indique la finale T1 3-2 KT Rolster le 9 nov. 2025 (T1 1er, 1 000 000 $ ; KT 2e, 800 000 $). Faker (mid) et Gumayusi (bot) chez T1 : rôles non revérifiés. Aucun MVP de finale n'est nommé, ni sur pem.lol ni sur gol.gg. Rien n'est remonté pour 2024.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Catégorie Finals MVP Role (Worlds 2026)",
+       "value": "Catégorie listée, valeur non visible",
+       "scope": "Worlds 2026 Pick'Ems",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "Worlds 2026: the official Pick'ems, the leaders of every category and our predictions. (la page liste « Finals MVP Role » parmi les catégories)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Finale Worlds 2025",
+       "value": "T1 3-2 KT Rolster, 9 nov. 2025",
+       "scope": "Worlds 2025",
+       "url": "https://pem.lol/worlds/2025",
+       "snippet": "T1 beat KT Rolster 3–2 on 9 Nov 2025 (résumé de l'outil de recherche, pas une citation exacte de la page)",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Finale Worlds 2025 (match list de KT)",
+       "value": "T1 gagne 3-2, finale le 2025-11-09, pas de MVP nommé",
+       "scope": "Worlds 2025 Main Event FINALS",
+       "url": "https://gol.gg/teams/team-matchlist/2493/split-ALL/tournament-Worlds%202025%20Main%20Event/",
+       "snippet": "LOSS | 2-3 | Blue | 11 | 61.2 | 1 | 2 | T1 | 23 | 74.6 | 10 | 4 | 36:47 | T1 vs KT Rolster (5)",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-15",
+     "pem_prediction": "",
+     "historical_leaders": "Pour 2026, pem.lol affiche la catégorie « Regions in Knockouts » avec un compteur à 0, sans explication sur la page. Aucune prédiction n'est visible. Quarts des Worlds 2025 selon gol.gg (scores non revérifiés pour KT 3-0 CFO et G2 3-1 TES) : KT 3-0 CFO, GEN 3-1 HLE, G2 3-1 TES, T1 3-2 AL. Cela donne 4 régions (LCK x4, LPL x2, LEC x1, LCP x1) ; ce décompte est le mien, aucun des deux sites ne l'affiche. Le tableau pem.lol contient des lignes brouillées (TES 3 / AL 2, GEN 1 / TES 0), mais pem.lol liste aussi AL 2–3 T1 le 31 oct. 2025, ce qui concorde avec gol.gg.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Regions in Knockouts (Worlds 2026)",
+       "value": "0 (sens non expliqué par la page)",
+       "scope": "Worlds 2026 Pick'Ems",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "Its \"Regions in Knockouts\" counter currently reads 0 (résumé de l'outil de recherche)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Quart de finale GEN-HLE, Worlds 2025",
+       "value": "Gen.G 3-1 HLE, 28 oct. 2025",
+       "scope": "Worlds 2025",
+       "url": "https://pem.lol/worlds/2025",
+       "snippet": "Gen.G GEN 3–1 28 Oct 2025 Hanwha Life Esports HLE",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Match list Worlds 2025, quarts de finale",
+       "value": "KT 3-0 CFO ; GEN 3-1 HLE ; G2 3-1 TES ; T1 3-2 AL (KT-CFO et G2-TES non revérifiés)",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/tournament/tournament-matchlist/Worlds%202025%20Main%20Event/",
+       "snippet": "KT Rolster 3-0 CTBC Flying Oyster (Oct 29) ; Gen.G 3-1 Hanwha Life (Oct 28) ; G2 Esports 3-1 Top Esports (Oct 30) ; T1 3-2 Anyone's Legend (Oct 31) (résumé de l'outil de recherche)",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-16",
+     "pem_prediction": "",
+     "historical_leaders": "pem.lol pose la question « LCS team in Knockouts? » pour 2026, sans réponse ni prédiction visible. Aucune équipe LCS n'a atteint les quarts des Worlds 2025 : les 8 équipes en quarts selon gol.gg sont KT, CFO, GEN, HLE, G2, TES, T1 et AL. 100 Thieves apparaît à 20 % de victoires dans le classement gol.gg (lien non revérifié). Rien n'est remonté pour 2024. Côté 2026, pem.lol donne Team Liquid champion LCS Summer 2026, et gol.gg indique une finale TL 3-1 LYON le 2026-10-04 (non revérifié). Classement mondial pem.lol (non revérifié, date de l'instantané incohérente) : LYON 6e (1431 pts), Team Liquid 10e.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Champion LCS 2026 Summer",
+       "value": "Team Liquid",
+       "scope": "LCS 2026 Summer",
+       "url": "https://pem.lol/lcs/2026/summer",
+       "snippet": "LCS 2026 Summer — Team Liquid crowned champion. ... Champion: Team Liquid",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Finale des playoffs LCS 2026 Summer",
+       "value": "Team Liquid 3-1 LYON, 2026-10-04 (non revérifié)",
+       "scope": "LCS 2026 Summer Playoffs",
+       "url": "https://gol.gg/tournament/tournament-matchlist/LCS%202026%20Summer%20Playoffs/",
+       "snippet": "Team Liquid vs LYON | Team Liquid | 3 - 1 | LYON | FINALS | 16.17 | 2026-10-04",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Classement mondial des équipes LCS",
+       "value": "LYON 6e (1431 pts), Team Liquid 10e (non revérifié)",
+       "scope": "Power rankings pem.lol (date de l'instantané incohérente, chiffres à prendre avec prudence)",
+       "url": "https://pem.lol/",
+       "snippet": "LYON ... ranked 6th with 1431 points, and Team Liquid ... ranked 10th (résumé de l'outil de recherche)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Question LCS team in Knockouts (Worlds 2026)",
+       "value": "Question listée, pas de réponse",
+       "scope": "Worlds 2026 Pick'Ems",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "The page lists \"LCS team in Knockouts?\" and \"Regions in Knockouts\" among its Worlds 2026 prompts (résumé de l'outil de recherche)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Classement des équipes, Worlds 2025 Main Event",
+       "value": "100 Thieves à 20 %, absent des quarts (non revérifié)",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/tournament/tournament-ranking/Worlds%202025%20Main%20Event/",
+       "snippet": "Teams lower in the table include 100 Thieves, Fnatic, and PSG Talon, each at 20% (résumé de l'outil de recherche)",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-17",
+     "pem_prediction": "",
+     "historical_leaders": "pem.lol a la catégorie « Higher Placement: HLE or T1 ». L'extrait montre « 1 », « 2 tied » et « TBD » sans dire ce que ces chiffres mesurent, donc il n'y a pas de prédiction lisible. Worlds 2025 : T1 champion (1er), HLE 5e-8e (perdant en quart contre GEN 3-1, 300 000 $). Résultats 2026 (liens gol.gg non revérifiés) : HLE gagne le MSI 2026 (finale BLG 2-3 HLE le 2026-07-12 selon gol.gg ; pem.lol montre un « Latest Game » HLE 3-2, score cohérent, adversaire non affiché). À l'EWC 2026, T1 bat HLE 2-0 en quart, puis finit 4e (défaite 1-2 contre Gen.G pour la 3e place). Classement mondial pem.lol (non revérifié, date de l'instantané incohérente) : HLE 1er (1540 pts, 28-13), T1 5e (1471 pts, 29-16).",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Catégorie Higher Placement (Worlds 2026)",
+       "value": "HLE « 1 », « 2 tied », « TBD » (sens inconnu)",
+       "scope": "Worlds 2026 Pick'Ems",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "The snippet shows a \"1\" next to HLE, \"2 tied\" and \"TBD\" with the team names (résumé de l'outil de recherche)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Placement de HLE aux Worlds 2025",
+       "value": "5e-8e, 300 000 $",
+       "scope": "Worlds 2025",
+       "url": "https://pem.lol/worlds/2025",
+       "snippet": "Hanwha Life Esports 5th–8th$300,000",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "pem.lol",
+       "label": "MSI 2026, dernière game",
+       "value": "HLE 3-2 (score cohérent avec gol.gg, adversaire non affiché)",
+       "scope": "MSI 2026 (URL non revérifiée)",
+       "url": "https://pem.lol/msi/2026",
+       "snippet": "Hanwha Life Esports Hanwha Life Esports 3 - 2",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Finale du MSI 2026",
+       "value": "BLG 2-3 HLE, 2026-07-12 (HLE championne) (non revérifié)",
+       "scope": "MSI 2026",
+       "url": "https://gol.gg/tournament/tournament-matchlist/MSI%202026/",
+       "snippet": "The finals were BLG vs HLE, with a 2-3 score, on 2026-07-12 under patch 16.13 (résumé de l'outil de recherche)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "EWC 2026, dernière game de T1",
+       "value": "T1 1-2 Gen.G",
+       "scope": "EWC 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "Latest Game 1 - 2 Gen.G Gen.G",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Quart de finale EWC 2026, HLE vs T1",
+       "value": "T1 gagne 2-0 (17 juil. 2026) (non revérifié)",
+       "scope": "EWC 2026 QUARTERFINALS",
+       "url": "https://gol.gg/game/stats/79953/page-summary/",
+       "snippet": "HLE vs T1 summary - Esports World Cup 2026 QUARTERFINALS - Games of Legends",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Match list EWC 2026",
+       "value": "T1 bat KC 2-1 en demie puis perd 1-2 contre Gen.G pour la 3e place (non revérifié)",
+       "scope": "EWC 2026",
+       "url": "https://gol.gg/tournament/tournament-matchlist/Esports%20World%20Cup%202026/",
+       "snippet": "T1 vs Gen.G game 1 - Esports World Cup 2026 3RD.PALCE - Games of Legends",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    },
+    {
+     "id": "CB-18",
+     "pem_prediction": "",
+     "historical_leaders": "Chiffres issus de résumés non revérifiés. Worlds 2025 selon pem.lol : 1) KT vs CFO 24:32, 2) HLE vs 100 Thieves 24:50, 3) GEN vs TES 24:55. gol.gg donne 24:32 KT vs CFO comme la game la plus courte du Main Event. Pour 2026, la section « Shortest Game Win » de pem.lol montre « T1 Faker 616 », illisible et non exploitable ; aucune prédiction. Plus courtes victoires 2026 sur pem.lol : EWC HLE 19:20 (devant T1 22:59 et G2 24:28), LCS Summer LYON 22:16 (Cloud9 22:20), LEC Summer Vitality 23:37, MSI Play-In T1 23:36. gol.gg donne aussi 19:20, 22:59, 22:16, 22:20 et 23:36. Au MSI 2026, gol.gg donnerait HLE vs LYON 22:16 comme game la plus courte : chiffre suspect (possible confusion avec Dignitas vs LYON 22:16 en LCS), à reconfirmer et à ne pas utiliser.",
+     "links": [
+      {
+       "site": "pem.lol",
+       "label": "Plus courte victoire, Worlds 2025",
+       "value": "KT vs CFO 24:32 (non revérifié)",
+       "scope": "Worlds 2025 Pick'Ems",
+       "url": "https://pem.lol/worlds/2025/pickems",
+       "snippet": "KT vs CTBC Flying Oyster (CFO) as the shortest game win, at 24:32 ... HLE vs 100 Thieves at 24:50 ... GEN vs Top Esports at 24:55 (résumé de l'outil de recherche)",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Game la plus courte, Worlds 2025 Main Event",
+       "value": "24:32 KT Rolster vs CFO (non revérifié)",
+       "scope": "Worlds 2025 Main Event",
+       "url": "https://gol.gg/tournament/tournament-stats/Worlds%202025%20Main%20Event/",
+       "snippet": "Shortest game: · 24:32 - KT Rolster vs CFO",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Plus courte victoire, EWC 2026",
+       "value": "HLE 19:20 ; T1 22:59 ; G2 24:28 (non revérifié)",
+       "scope": "EWC 2026",
+       "url": "https://pem.lol/ewc/2026",
+       "snippet": "Hanwha Life Esports leads with a 19:20 time, ahead of T1 at 22:59 and G2 Esports at 24:28 (Shortest Game Win table) (résumé de l'outil de recherche)",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Game la plus courte, EWC 2026",
+       "value": "19:20 HLE vs Los Grandes (groupes, 2026-07-15) (non revérifié)",
+       "scope": "EWC 2026",
+       "url": "https://gol.gg/tournament/tournament-stats/Esports%20World%20Cup%202026/",
+       "snippet": "The shortest game in the 2026 Esports World Cup ... is the 19:20 match between Hanwha Life Esports (HLE) and Los Grandes (résumé de l'outil de recherche)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Game 1 HLE vs T1, quart EWC 2026",
+       "value": "22:59, victoire de T1 (non revérifié)",
+       "scope": "EWC 2026 QUARTERFINALS",
+       "url": "https://gol.gg/game/stats/79953/page-game/",
+       "snippet": "HLE vs T1 game 1 - Esports World Cup 2026 QUARTERFINALS - Games of Legends",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Plus courte victoire, MSI 2026 Play-In",
+       "value": "T1 23:36 (non revérifié)",
+       "scope": "MSI 2026 (Play-In) (URL non revérifiée)",
+       "url": "https://pem.lol/msi/2026",
+       "snippet": "T1 recorded the shortest game win in the play-in at 23:36 (résumé de l'outil de recherche)",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Stats du MSI 2026 et match list de T1",
+       "value": "Game la plus courte 22:16 HLE vs LYON (suspect, à reconfirmer) ; T1 vs TL 23:36 (PLAY-IN.DAY4) (non revérifié)",
+       "scope": "MSI 2026",
+       "url": "https://gol.gg/tournament/tournament-stats/MSI%202026/",
+       "snippet": "the shortest game was HLE vs LYON at 22:16, and the longest was G2 Esports vs T1 at 50:57 (résumé de l'outil de recherche)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Plus courte victoire, LCS 2026 Summer",
+       "value": "LYON 22:16 ; Cloud9 22:20 (non revérifié)",
+       "scope": "LCS 2026 Summer",
+       "url": "https://pem.lol/lcs/2026/summer",
+       "snippet": "LYON (2024 American Team) leads at 22:16, with Cloud9 close behind at 22:20 (Teams, Shortest Game Win) (résumé de l'outil de recherche)",
+       "matches_golgg": "oui"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Game la plus courte, LCS 2026 Summer (saison régulière)",
+       "value": "22:16 Dignitas vs LYON (non revérifié)",
+       "scope": "LCS 2026 Summer",
+       "url": "https://gol.gg/tournament/tournament-stats/LCS%202026%20Summer/",
+       "snippet": "22:16 - Dignitas vs LYON",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "gol.gg",
+       "label": "Game la plus courte, playoffs LCS 2026 Summer",
+       "value": "22:20 Cloud9 vs Team Liquid (non revérifié)",
+       "scope": "LCS 2026 Summer Playoffs",
+       "url": "https://gol.gg/tournament/tournament-stats/LCS%202026%20Summer%20Playoffs/",
+       "snippet": "22:20 - Cloud9 vs Team Liquid",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Plus courte victoire, LEC 2026 Summer",
+       "value": "Team Vitality 23:37 (non revérifié)",
+       "scope": "LEC 2026 Summer",
+       "url": "https://pem.lol/lec/2026/summer",
+       "snippet": "Team Vitality leads at 23:37 (Teams, Shortest Game Win) (résumé de l'outil de recherche)",
+       "matches_golgg": "non comparé"
+      },
+      {
+       "site": "pem.lol",
+       "label": "Shortest Game Win (Worlds 2026)",
+       "value": "« T1 Faker 616 » (illisible, non exploitable)",
+       "scope": "Worlds 2026 Pick'Ems",
+       "url": "https://pem.lol/worlds/2026/pickems",
+       "snippet": "its Shortest Game Win section lists T1 Faker with the number 616 (résumé de l'outil de recherche)",
+       "matches_golgg": "non comparé"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
