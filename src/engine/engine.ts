@@ -68,6 +68,15 @@ const SPOT_MS = 250
 const GRAB_SCALE = 1.04
 const GRAB_IN_MS = 150
 const GRAB_BACK_MS = 520
+/**
+ * Rebond du bouton droit. Mesuré chez l'utilisateur le 16/10 (« ça le
+ * désélectionne parfois très vite ») : bouton tenu, Windows livre des
+ * relâchés parasites (pastille lâchée après 25 à 80 ms) suivis d'un nouvel
+ * appui 24 à 50 ms plus tard. Aucune main ne relâche et ne réappuie aussi
+ * vite : c'est le contacteur de la souris. Un relâché n'est donc pris au mot
+ * que si aucun appui droit ne le suit dans ce délai.
+ */
+const GRAB_REBOND_MS = 120
 
 /** retour élastique (relâché d'une annotation attrapée) */
 const easeOutElastic = (t: number): number => {
@@ -278,6 +287,8 @@ export class HexaEngine {
   private laser: LaserPoint[] = []
   private grabbed: Stroke | null = null
   private grabLast = { x: 0, y: 0 }
+  /** relâché du bouton droit en attente : un rebond peut encore l'annuler */
+  private grabRelache: ReturnType<typeof setTimeout> | null = null
   private erasing = false
   private pointer = { x: -200, y: -200 }
   private shiftHeld = false
@@ -1321,6 +1332,16 @@ export class HexaEngine {
     this.altHeld = e.altKey
     this.stage.setPointerCapture(e.pointerId)
 
+    if (e.button === 2 && this.grabRelache != null) {
+      // l'appui qui suit un rebond : la pastille n'a jamais été lâchée
+      clearTimeout(this.grabRelache)
+      this.grabRelache = null
+      if (this.grabbed) {
+        this.grabLast = { x: pt.x, y: pt.y }
+        return
+      }
+    }
+
     if (e.button === 2) {
       // Priorité absolue au comportement historique : s'il y a une annotation
       // sous le curseur, le clic droit l'ATTRAPE (l'utilisateur y tient).
@@ -1845,6 +1866,28 @@ export class HexaEngine {
     return { ...pt, x: res.x, y: res.y }
   }
 
+  /** fin réelle d'un déplacement au clic droit (après le délai de rebond) */
+  private lacherGrab(): void {
+    if (!this.grabbed) return
+    const now = performance.now()
+    if (this.opts.fadeDelay != null) {
+      this.grabbed.dieAt = now + this.opts.fadeDelay
+    }
+    this.salir(this.grabbed)
+    // retour élastique du grossissement (effet de rendu uniquement)
+    this.grabAnim = {
+      id: this.grabbed.id,
+      start: now,
+      from: this.grabFactor(now),
+      back: true,
+    }
+    this.grabbed = null
+    this.cursor.classList.remove('is-grab')
+    this.anchorsDirty = true
+    this.staticDirty = true
+    this.wake()
+  }
+
   private onUp(_e: PointerEvent): void {
     if (!this.actif) return
     // relâché avant 220 ms : ni roue, ni rien. Le clic droit dans le vide
@@ -1862,23 +1905,14 @@ export class HexaEngine {
       return
     }
     if (this.grabbed) {
-      const now = performance.now()
-      if (this.opts.fadeDelay != null) {
-        this.grabbed.dieAt = now + this.opts.fadeDelay
+      // on ne lâche qu'après GRAB_REBOND_MS sans nouvel appui droit ; les
+      // mouvements sans bouton du rebond repassent ici et ne relancent rien
+      if (this.grabRelache == null) {
+        this.grabRelache = setTimeout(() => {
+          this.grabRelache = null
+          this.lacherGrab()
+        }, GRAB_REBOND_MS)
       }
-      this.salir(this.grabbed)
-      // retour élastique du grossissement (effet de rendu uniquement)
-      this.grabAnim = {
-        id: this.grabbed.id,
-        start: now,
-        from: this.grabFactor(now),
-        back: true,
-      }
-      this.grabbed = null
-      this.cursor.classList.remove('is-grab')
-      this.anchorsDirty = true
-      this.staticDirty = true
-      this.wake()
       return
     }
     this.erasing = false
