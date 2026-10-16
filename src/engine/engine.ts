@@ -1256,7 +1256,10 @@ export class HexaEngine {
         continue
       }
       if (s.tool === 'badge' || s.tool === 'marker') {
-        if (dist(x, y, pts[0].x, pts[0].y) < badgeRadius(s.size) + 4) return s
+        // la zone suit le halo et pas le seul disque : à +4 px, un clic droit
+        // un peu à côté tombait dans le vide et le chiffre ne venait pas
+        // (retour utilisateur du 16/10, « parfois ça ne déplace pas »)
+        if (dist(x, y, pts[0].x, pts[0].y) < badgeRadius(s.size) + 12) return s
         continue
       }
       if (s.tool === 'stamp') {

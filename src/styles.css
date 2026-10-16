@@ -124,8 +124,12 @@ button {
 .cursor-dot.is-grab {
   background: transparent;
   border: 1.5px solid var(--c, #fff);
-  transform-origin: center;
-  scale: 1.6;
+  /* Pas de `scale` : la propriété s'applique AVANT le transform qui place le
+     point sous la souris, elle multipliait donc aussi sa position. L'anneau
+     partait vers le bas à droite de l'écran au lieu de rester sous la souris
+     (retour utilisateur du 16/10). On agrandit la boîte elle-même. */
+  width: calc(var(--d, 12px) * 1.6);
+  height: calc(var(--d, 12px) * 1.6);
 }
 
 /* ---------- fond d'écran de la démo navigateur ---------- */
