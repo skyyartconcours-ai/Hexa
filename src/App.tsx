@@ -298,9 +298,6 @@ export default function App() {
     // la molette sur le champ texte a choisi une taille : le curseur d'épaisseur
     // de la barre doit la refléter, sinon le texte suivant repartirait de l'ancienne
     engine.onRequestSize = (size) => useUiStore.getState().setSize(size)
-    // reprise au clic droit sur un nœud d'une autre couleur : le moteur a déjà
-    // basculé de série, la barre doit montrer la bonne pastille
-    engine.onRequestColor = (c) => useUiStore.getState().setColor(c)
     // dévoilement : on ne parle que quand l'état CHANGE (le changement de page
     // rappelle ce signal à vide, et ne doit pas afficher « tout est révélé »)
     let dernierDevoilement = ''
@@ -1400,10 +1397,6 @@ export default function App() {
               <li>
                 <b>Clic droit</b> : attraper une annotation · <b>Molette</b> : taille · <b>1–7</b> :
                 couleurs
-              </li>
-              <li>
-                <b>Clic droit bref sur une pastille du numéroteur</b> : la série repart de ce
-                numéro (la suivante s'y relie) — avec un mouvement, c'est un déplacement
               </li>
               <li>
                 <b>Clic droit maintenu dans le vide</b> : menu radial — glisse vers l'outil ou la

@@ -39,18 +39,15 @@ import type { Anchor } from './guides'
 import {
   BADGE_ANIM,
   BADGE_LINK_ANIM,
-  REPRISE_CUE_MS,
   badgeRadius,
   imageFromClipboard,
   openTextInput,
   renderPinCue,
   renderPinMark,
-  renderReprise,
   setImageInvalidate,
   textBox,
   textSizeOf,
 } from './teaching'
-import type { RepriseCue } from './teaching'
 
 /** durée de vie de la traînée laser (§5.3) — une vraie comète, pas un pointillé */
 const LASER_TTL = 650
@@ -71,24 +68,6 @@ const SPOT_MS = 250
 const GRAB_SCALE = 1.04
 const GRAB_IN_MS = 150
 const GRAB_BACK_MS = 520
-
-/**
- * CLIC DROIT BREF SUR UNE PASTILLE = REPRISE DE LA NUMÉROTATION (§4.8).
- *
- * Le clic droit sert à DÉPLACER une annotation, et ce geste-là est central :
- * il n'est pas question de le sacrifier. On distingue donc les deux par ce
- * qu'ils sont réellement — un déplacement DÉPLACE, un clic ne bouge pas :
- *
- *   • relâché sous REPRISE_MS et sans avoir bougé de plus de REPRISE_SLOP
- *     → la pastille n'a pas été déplacée, c'était un clic : la série repart
- *       d'elle, et la pastille est remise à l'IMAGE PRÈS là où elle était ;
- *   • tout le reste → déplacement, exactement comme avant.
- *
- * Le seuil de durée donne en prime une porte de sortie : maintenir sans bouger
- * puis relâcher ne fait rien du tout, comme aujourd'hui.
- */
-const REPRISE_MS = 450
-const REPRISE_SLOP = 8
 
 /** retour élastique (relâché d'une annotation attrapée) */
 const easeOutElastic = (t: number): number => {
@@ -299,11 +278,6 @@ export class HexaEngine {
   private laser: LaserPoint[] = []
   private grabbed: Stroke | null = null
   private grabLast = { x: 0, y: 0 }
-  /** point et instant de l'appui : c'est ce qui sépare le clic du déplacement */
-  private grabFrom = { x: 0, y: 0 }
-  private grabAt = 0
-  /** signal « la série repart d'ici » affiché sur la pastille désignée */
-  private repriseCue: RepriseCue | null = null
   private erasing = false
   private pointer = { x: -200, y: -200 }
   private shiftHeld = false
@@ -594,9 +568,6 @@ export class HexaEngine {
 
   /** le moteur demande un changement d'épaisseur (molette sur le champ texte) */
   onRequestSize?: (size: number) => void
-  /** reprise au clic droit sur une pastille d'une AUTRE couleur : le moteur a
-   *  déjà changé de série, l'interface doit suivre (voir reprendreSerie) */
-  onRequestColor?: (color: string) => void
   /** dévoilement : (traits révélés, total) — total 0 = mode terminé */
   onReveal?: (montres: number, total: number) => void
 
@@ -1090,48 +1061,6 @@ export class HexaEngine {
   }
 
   /**
-   * §4.8 — « clic droit sur un nœud : je reprends la numérotation à partir de
-   * ce numéro ». La série repart de la pastille `s` : la prochaine portera son
-   * numéro + 1 et la flèche de liaison partira d'ELLE, pas de la dernière
-   * posée. Le changement de couleur continue, lui, de remettre à 1 (c'est le
-   * défaut voulu) — cette reprise est la façon de revenir dans une série.
-   */
-  private reprendreSerie(s: Stroke): void {
-    const suivant = (s.badge ?? 0) + 1
-    // LE NŒUD COMMANDE SA COULEUR. Reprendre « à partir du 3 bleu » alors que
-    // le rouge est actif doit continuer le PARCOURS BLEU — c'est ce que veut
-    // dire « reprendre », et la demande était explicite : « vérifie que ça
-    // continue bien sur le nœud que je déplace en clic droit quand c'est les
-    // nombres qui se suivent dans la couleur en question ». On bascule donc
-    // de série ici même, puis on prévient l'interface pour que la barre suive.
-    if (!this.opts.badgeContinuous && s.color !== this.opts.color) {
-      this.changerSerieCouleur(this.opts.color, s.color)
-      this.opts.color = s.color
-      this.onRequestColor?.(s.color)
-    }
-    if (s.tool === 'marker') {
-      // Les jalons n'ont pas de fil : il n'y a rien à rebrancher, juste un
-      // compteur à replacer.
-      this.ancreJalon = s.id
-      this.jalonSeq = suivant
-    } else {
-      this.ancreSerie = s.id
-      this.lastBadgeId = s.id
-      this.badgeSeq = suivant
-    }
-    this.repriseCue = {
-      x: s.points[0].x,
-      y: s.points[0].y,
-      r: badgeRadius(s.size),
-      color: s.color,
-      suivant,
-      start: performance.now(),
-    }
-    sfx.tick()
-    this.wake()
-  }
-
-  /**
    * Touche panique : tout part en dissolution, léger décalage en cascade.
    *
    * Deux règles non négociables ici (§169 du brief, « efface tout
@@ -1173,7 +1102,6 @@ export class HexaEngine {
     this.ancreSerie = null
     this.series.clear()
     this.reveal = null
-    this.repriseCue = null
     this.anchorsDirty = true
     // mode écriture : la file d'analyse en attente part avec le reste
     this.hwUndoing = null
@@ -1403,10 +1331,6 @@ export class HexaEngine {
       if (s) {
         this.grabbed = s
         this.grabLast = { x: pt.x, y: pt.y }
-        // point et instant de départ : au relâché, ils diront si la main a
-        // réellement déplacé quelque chose ou si c'était un simple clic
-        this.grabFrom = { x: pt.x, y: pt.y }
-        this.grabAt = performance.now()
         s.dieAt = undefined // le compte à rebours est suspendu pendant le drag
         this.salir(s)
         this.grabAnim = { id: s.id, start: performance.now(), from: 1, back: false }
@@ -1936,26 +1860,6 @@ export class HexaEngine {
     }
     if (this.grabbed) {
       const now = performance.now()
-      const g = this.grabbed
-      // §4.8 — CLIC DROIT BREF SUR UNE PASTILLE : la numérotation reprend là.
-      // La main n'a pas bougé et le bouton est déjà relâché : ce n'était pas un
-      // déplacement. On rend d'abord à la pastille le micro-décalage éventuel
-      // (jusqu'à REPRISE_SLOP pixels) — un clic ne doit RIEN déplacer.
-      const dx = this.grabLast.x - this.grabFrom.x
-      const dy = this.grabLast.y - this.grabFrom.y
-      if (
-        (g.tool === 'badge' || g.tool === 'marker') &&
-        now - this.grabAt <= REPRISE_MS &&
-        Math.hypot(dx, dy) <= REPRISE_SLOP
-      ) {
-        if (dx !== 0 || dy !== 0) {
-          for (const p of g.points) {
-            p.x -= dx
-            p.y -= dy
-          }
-        }
-        this.reprendreSerie(g)
-      }
       if (this.opts.fadeDelay != null) {
         this.grabbed.dieAt = now + this.opts.fadeDelay
       }
@@ -2519,7 +2423,6 @@ export class HexaEngine {
       this.laser.length > 0 ||
       this.pings.length > 0 ||
       this.grabAnim != null ||
-      this.repriseCue != null ||
       this.pinCue != null ||
       spotAnim ||
       dyingActive ||
@@ -2951,7 +2854,6 @@ export class HexaEngine {
     this.hwUndoing = null
     this.hw.reset()
     this.morphs.clear()
-    this.repriseCue = null
     this.pinCue = null
     // la page qu'on quitte : ses traits quittent la scène (le miroir OBS les
     // retire, l'enregistreur note l'instant), les épinglées restent
@@ -3074,15 +2976,6 @@ export class HexaEngine {
     // §5.2 — zone de spotlight en cours de tracé : un contour pointillé, le
     // temps du geste seulement (le voile montre déjà le résultat)
     if (this.spotDraw) paintSpotDraft(ctx, this.spotDraw, this.opts.color)
-    // §4.8 — « la série repart de cette pastille-là » : anneau, onde et numéro
-    // suivant, sur la couche LIVE. Elle se nettoie d'elle-même à l'image
-    // suivante, donc rien à purger et rien qui traîne à l'antenne.
-    if (this.repriseCue) {
-      if (now - this.repriseCue.start >= REPRISE_CUE_MS) this.repriseCue = null
-      // annotations masquées : la pastille désignée n'est pas à l'écran, son
-      // anneau n'a rien à y faire non plus
-      else if (!this.opts.annotationsHidden) renderReprise(ctx, this.repriseCue, now)
-    }
     // « épinglé » / « détaché » : la touche assignée par l'utilisateur
     // est invisible par nature, ce signal d'une seconde dit qu'il a été compris
     if (this.pinCue) {

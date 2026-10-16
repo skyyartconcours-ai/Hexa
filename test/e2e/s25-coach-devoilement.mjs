@@ -118,7 +118,7 @@ await rapport.test(win, 's25-2-series-par-couleur', 'Chaque couleur reprend sa n
   }
 })
 
-await rapport.test(win, 's25-3-reprise-noeud-autre-couleur', 'Clic droit bref sur un nœud bleu pendant que le rouge est actif : on repart en bleu', async () => {
+await rapport.test(win, 's25-3-clic-droit-garde-la-couleur', 'Clic droit bref sur un nœud bleu pendant que le rouge est actif : le rouge reste actif', async () => {
   await toutEffacer(win)
   await win.keyboard.press('n')
   await win.keyboard.press('1')
@@ -133,12 +133,12 @@ await rapport.test(win, 's25-3-reprise-noeud-autre-couleur', 'Clic droit bref su
   await win.mouse.up({ button: 'right' })
   await win.waitForTimeout(260)
   const couleurApres = (await etatStore()).color
-  await poser(650, 300) // doit être bleu 2
+  await poser(650, 300) // doit être rouge 2 : le clic droit ne reprend plus de série
   const t = (await traits()).filter((s) => s.tool === 'badge')
   const dernier = t[t.length - 1]
   return {
-    statut: couleurApres === '#00e5ff' && dernier?.color === '#00e5ff' && dernier?.badge === 2 ? OK : KO,
-    detail: `couleur après la reprise : ${couleurApres} (bleu attendu) · pastille posée : ${dernier?.badge} en ${dernier?.color} (2 en bleu attendu)`,
+    statut: couleurApres === '#ff3d3d' && dernier?.color === '#ff3d3d' && dernier?.badge === 2 ? OK : KO,
+    detail: `couleur après le clic droit : ${couleurApres} (rouge attendu) · pastille posée : ${dernier?.badge} en ${dernier?.color} (2 en rouge attendu)`,
   }
 })
 

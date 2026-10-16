@@ -109,13 +109,14 @@ await rapport.test(win, 's14-4-reset-couleur', 'Changer de couleur remet les jal
   }
 })
 
-await rapport.test(win, 's14-5-reprise-clic-droit', 'Clic droit bref sur un jalon : la série repart de là', async () => {
+await rapport.test(win, 's14-5-clic-droit-sans-reprise', 'Clic droit bref sur un jalon : rien ne change, la série continue', async () => {
   await toutEffacer(win)
   await win.keyboard.press('y')
   await poser(350, 300)
   await poser(450, 300)
   await poser(550, 300)
-  // clic droit BREF sur le jalon n°1 : « repars de 1 » → le suivant portera 2
+  // clic droit BREF sur le jalon n°1 : le clic droit ne sert qu'à déplacer
+  // (demande du 16/10), la série ne repart pas de là → le suivant porte 4
   await win.mouse.move(350, 300)
   await win.mouse.down({ button: 'right' })
   await win.mouse.up({ button: 'right' })
@@ -124,8 +125,8 @@ await rapport.test(win, 's14-5-reprise-clic-droit', 'Clic droit bref sur un jalo
   const t = (await traits()).filter((s) => !s.dying && s.tool === 'marker')
   const suite = t.map((s) => s.badge).join(',')
   return {
-    statut: suite === '1,2,3,2' ? OK : KO,
-    detail: `numéros posés : ${suite} (1,2,3 puis reprise après le n°1 → 2 attendu)`,
+    statut: suite === '1,2,3,4' ? OK : KO,
+    detail: `numéros posés : ${suite} (1,2,3,4 attendu : aucune reprise au clic droit)`,
   }
 })
 
