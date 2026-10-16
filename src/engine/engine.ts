@@ -72,11 +72,16 @@ const GRAB_BACK_MS = 520
  * Rebond du bouton droit. Mesuré chez l'utilisateur le 16/10 (« ça le
  * désélectionne parfois très vite ») : bouton tenu, Windows livre des
  * relâchés parasites (pastille lâchée après 25 à 80 ms) suivis d'un nouvel
- * appui 24 à 50 ms plus tard. Aucune main ne relâche et ne réappuie aussi
- * vite : c'est le contacteur de la souris. Un relâché n'est donc pris au mot
- * que si aucun appui droit ne le suit dans ce délai.
+ * appui. Aucune main ne relâche et ne réappuie aussi vite : c'est le
+ * contacteur de la souris. Un relâché n'est donc pris au mot que si aucun
+ * appui droit ne le suit dans ce délai.
+ *
+ * 120 ms ne suffisaient pas : une heure plus tard, les réappuis arrivaient
+ * 78 à 117 ms après le faux relâché, et une fois 275 ms. Le prix d'une marge
+ * large est faible : un vrai relâché laisse la pastille en place, seul le
+ * retour élastique part un peu plus tard.
  */
-const GRAB_REBOND_MS = 120
+const GRAB_REBOND_MS = 300
 
 /** retour élastique (relâché d'une annotation attrapée) */
 const easeOutElastic = (t: number): number => {
@@ -1336,10 +1341,10 @@ export class HexaEngine {
       // l'appui qui suit un rebond : la pastille n'a jamais été lâchée
       clearTimeout(this.grabRelache)
       this.grabRelache = null
-      if (this.grabbed) {
-        this.grabLast = { x: pt.x, y: pt.y }
-        return
-      }
+      // grabLast reste le point du faux relâché : le mouvement suivant
+      // rattrape ce que la main a parcouru pendant le rebond, la pastille
+      // revient sous la souris au lieu de traîner derrière
+      if (this.grabbed) return
     }
 
     if (e.button === 2) {
