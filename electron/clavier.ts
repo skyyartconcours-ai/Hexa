@@ -59,6 +59,18 @@ let fenetre: BrowserWindow | null = null
 /** une seule ligne de journal pour dire que le relais est vivant */
 let premiereRelayee = false
 let options: ClavierOptions | null = null
+/**
+ * Le clavier est-il VRAIMENT à nous ? Tenu par les événements focus/blur, et
+ * surtout pas par `isFocused()`.
+ *
+ * Mesuré chez l'utilisateur (16/10, Tab muet en numéroteur) : sous Windows,
+ * `isFocused()` lit GetActiveWindow, la fenêtre active DU FIL d'Hexa. Quand
+ * un autre logiciel reprend le premier plan, ce fil garde « Hexa Clavier »
+ * comme fenêtre active : `isFocused()` répond `true` pour toujours. Après la
+ * première perte du clavier, focusClavier croyait l'avoir déjà, ne le
+ * demandait plus, et Tab partait dans la fenêtre de devant.
+ */
+let aLeClavier = false
 
 function boundsClavier(d: Display): { x: number; y: number; width: number; height: number } {
   return {
@@ -125,9 +137,18 @@ export function creerFenetreClavier(display: Display, o: ClavierOptions): Browse
       const wc = options?.cible() ?? null
       if (wc) relayerTouche(wc, input)
     })
-    win.on('blur', () => options?.surPerte())
+    win.on('focus', () => {
+      aLeClavier = true
+    })
+    win.on('blur', () => {
+      aLeClavier = false
+      options?.surPerte()
+    })
     win.on('closed', () => {
-      if (fenetre === win) fenetre = null
+      if (fenetre === win) {
+        fenetre = null
+        aLeClavier = false
+      }
     })
     void win.loadURL(PAGE).catch((err) => logError('clavier', 'page clavier impossible', err))
     win.showInactive()
@@ -166,7 +187,12 @@ export function focusClavier(): boolean {
   const win = fenetre
   try {
     if (!win.isVisible()) win.showInactive()
-    if (win.isFocused()) return true
+    // AUCUN raccourci « déjà à nous » : la demande part à chaque fois. Même
+    // l'événement focus ment : quand Windows refuse le premier plan, il active
+    // quand même la fenêtre DANS SON FIL, et Electron émet 'focus' (mesuré le
+    // 16/10 : « clavier obtenu » au journal, jeu toujours devant). C'est le
+    // clic sur l'encre (hexa:reprendre-clavier) qui donne à Hexa le droit de
+    // passer devant ; sauter la demande à ce moment-là laissait Tab muet.
     /*
      * `app.focus({ steal: true })` D'ABORD, et c'est décisif sous Windows :
      * le système n'autorise le passage au premier plan qu'au processus qui
@@ -176,8 +202,14 @@ export function focusClavier(): boolean {
      * joueur restaient dans son jeu, et AUCUN raccourci local d'Hexa (Tab, les
      * lettres) ne répondait — seuls les raccourcis réservés au système
      * marchaient encore.
+     *
+     * Mais JAMAIS quand le clavier est déjà là : sous Windows, app.focus donne
+     * le focus à la première fenêtre d'Hexa dans l'ordre d'empilement, pas
+     * forcément celle-ci. La fenêtre clavier perdait alors le focus à un clic
+     * sur l'encre, et clavierPerdu sortait du mode dessin (mesuré le 16/10).
+     * `win.focus()`, lui, vise cette fenêtre et suffit à la remettre devant.
      */
-    if (process.platform === 'win32') {
+    if (process.platform === 'win32' && !aLeClavier) {
       try {
         app.focus({ steal: true })
       } catch {
@@ -189,14 +221,14 @@ export function focusClavier(): boolean {
     // plan à la seconde demande, juste après l'affichage de la fenêtre.
     setTimeout(() => {
       try {
-        if (win.isDestroyed() || win.isFocused()) return
+        if (win.isDestroyed() || aLeClavier) return
         log('clavier', 'clavier non obtenu du premier coup — seconde tentative')
         win.showInactive()
         if (process.platform === 'win32') app.focus({ steal: true })
         win.focus()
         setTimeout(() => {
           if (win.isDestroyed()) return
-          if (!win.isFocused()) {
+          if (!aLeClavier) {
             logError(
               'clavier',
               'CLAVIER REFUSÉ PAR LE SYSTÈME : les raccourcis locaux (Tab, lettres) ne ' +
@@ -222,7 +254,7 @@ export function focusClavier(): boolean {
 export function relacherClavier(): void {
   if (!fenetre || fenetre.isDestroyed()) return
   try {
-    if (fenetre.isFocused()) fenetre.blur()
+    if (aLeClavier) fenetre.blur()
   } catch (err) {
     logError('clavier', 'relâchement du clavier impossible', err)
   }
@@ -232,6 +264,7 @@ export function detruireClavier(): void {
   const f = fenetre
   fenetre = null
   premiereRelayee = false
+  aLeClavier = false
   options = null
   if (!f || f.isDestroyed()) return
   try {
