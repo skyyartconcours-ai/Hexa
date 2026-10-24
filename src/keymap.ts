@@ -473,7 +473,8 @@ const HEXA_BINDINGS: Bindings = {
 
   'edit.undo': 'ctrl+z',
   'edit.redo': ['ctrl+y', 'ctrl+shift+z'],
-  'edit.clear': 'c',
+  // Ctrl+Maj+E : « tout effacer » depuis le jeu (demande de l'utilisateur, 24/10).
+  'edit.clear': ['c', 'ctrl+shift+e'],
   // Ctrl+D est volontairement LOCAL (il n'est pas marqué « global ») : c'est le
   // « ajouter un favori » de tous les navigateurs, et le confisquer au système
   // le retirerait à Chrome, à Firefox et à YouTube. En mode dessin — le seul
@@ -512,7 +513,7 @@ const HEXA_BINDINGS: Bindings = {
   // Tab : le « X » de Photoshop — l'échange de deux couleurs, sous le doigt.
   'color.swap': 'tab',
   // Export image en un geste : local, comme tous les Ctrl+lettre.
-  'export.png': 'ctrl+shift+e',
+  'export.png': 'ctrl+alt+shift+e',
   // §5.8 — éléments posés à l'écran. Volontairement à l'écart des réflexes
   // Epic Pen (Ctrl+Maj+2…8) et des lettres nues : on ne pose pas un chrono par
   // accident en pleine partie.
@@ -577,7 +578,7 @@ const EPICPEN_BINDINGS: Bindings = {
   'tool.badge': ['ctrl+shift+1', 'ctrl+alt+1', 'n'],
   // édition
   'edit.undo': ['ctrl+shift+6', 'ctrl+z'],
-  'edit.clear': ['ctrl+e', 'c'],
+  'edit.clear': ['ctrl+shift+e', 'ctrl+e', 'c'],
   // épaisseur du trait : Epic Pen la règle depuis sa barre ; on prolonge la
   // série Ctrl+Maj+7/8 pour rester dans la même logique de doigts.
   'size.dec': ['ctrl+shift+7', '['],

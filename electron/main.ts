@@ -1290,6 +1290,10 @@ function dispatchGlobalAction(action: string): void {
   if (action === 'edit.clear') {
     cancelWelcome()
     broadcast('action', action)
+    // « Tout effacer » depuis le jeu (Ctrl+Maj+E) : on rend aussi la souris
+    // au jeu. Écran vide + mode traversant = couche cachée, plus rien à
+    // composer (demande de l'utilisateur, 24/10).
+    leaveDrawMode()
     return
   }
   // Même règle que F8 : on vise l'écran d'annotation, pas celui du curseur.
