@@ -20,6 +20,7 @@ import {
 import { emberSprite, fxKeepsAlive, inkLayer, setInkInvalidate } from './ink-fx'
 import { dissolveDuration, emberAt, panicDying } from './dissolve'
 import { OneEuro } from './oneEuro'
+import { INTERVALLE_MIN_MS, tropTot } from './cadence'
 import { sfx } from '../audio'
 import {
   hitShape,
@@ -2330,13 +2331,21 @@ export class HexaEngine {
     }
     if (!this.running) {
       this.running = true
-      this.lastFrame = performance.now()
+      // Antidaté d'une image : le premier rappel peint toujours, le geste qui
+      // réveille le moteur ne paie pas le plafond de cadence.
+      this.lastFrame = performance.now() - INTERVALLE_MIN_MS
       this.raf = requestAnimationFrame(this.loop)
     }
   }
 
   private loop = (): void => {
     const now = performance.now()
+    // Plafond à 60 images/s (src/engine/cadence.ts) : un rappel trop tôt —
+    // trois sur quatre sur un écran à 240 Hz — ne calcule ni ne peint rien.
+    if (tropTot(now, this.lastFrame)) {
+      this.raf = requestAnimationFrame(this.loop)
+      return
+    }
     const dt = clamp(now - this.lastFrame, 0, 48) / 1000
     this.lastFrame = now
 

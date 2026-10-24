@@ -48,6 +48,7 @@
  */
 import { bridge, isElectron } from '../bridge'
 import type { ToolId } from './types'
+import { tropTot } from './cadence'
 
 const TAU = Math.PI * 2
 
@@ -1177,10 +1178,21 @@ export class FxLayer {
   }
 
   private loop = (): void => {
+    const now = performance.now()
+    // Même plafond que le moteur (src/engine/cadence.ts) : la loupe suit la
+    // souris à 60 images/s, pas à la fréquence de l'écran.
+    if (tropTot(now, this.dernierePeinte)) {
+      this.raf = requestAnimationFrame(this.loop)
+      return
+    }
     this.raf = 0
-    const alive = this.render(performance.now())
+    this.dernierePeinte = now
+    const alive = this.render(now)
     if (alive) this.raf = requestAnimationFrame(this.loop)
   }
+
+  /** horodatage de la dernière image peinte (plafond de cadence) */
+  private dernierePeinte = -Infinity
 
   /** Une image. Renvoie `true` s'il faut en redemander une autre. */
   private render(now: number): boolean {

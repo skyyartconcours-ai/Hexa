@@ -12,10 +12,13 @@
  * même (voir ui/interactivite.ts).
  *
  * Coût : une image de rendu par mouvement de souris, jamais plus (une seule rAF
- * en vol à la fois), et strictement zéro au repos.
+ * en vol à la fois), plafonnée à 60 par seconde comme le moteur — cette fenêtre
+ * couvre tout l'écran pendant le dessin, et à 240 Hz chaque déplacement de la
+ * pastille recomposait 1920 × 1080 pixels. Strictement zéro au repos.
  */
 import { useEffect, useRef } from 'react'
 import { useUiStore } from '../store'
+import { tropTot } from '../engine/cadence'
 
 /** Même recette que le moteur (engine.syncCursor) : mêmes tailles, même rendu. */
 function diametre(tool: string, size: number): number {
@@ -34,8 +37,16 @@ export function CurseurHexa() {
     let x = 0
     let y = 0
     let frame = 0
-    const peindre = () => {
+    let derniere = -Infinity
+    const peindre = (t: number) => {
+      // Trop tôt : on garde la rAF en vol, la position la plus récente sera
+      // peinte à la prochaine image permise.
+      if (tropTot(t, derniere)) {
+        frame = requestAnimationFrame(peindre)
+        return
+      }
       frame = 0
+      derniere = t
       const el = ref.current
       if (el) el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`
     }

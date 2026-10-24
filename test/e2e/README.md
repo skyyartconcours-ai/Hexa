@@ -51,6 +51,8 @@ node test/e2e/s27-clavier.mjs              # la fenêtre clavier : les fenêtres
 node test/e2e/s28-clavier-deux-fenetres.mjs # le clavier en VRAI mode deux fenêtres (Tab, lettres nues, Ctrl+Maj+1)
 node test/e2e/s29-actions-globales.mjs     # chaque raccourci global fait vraiment quelque chose dans la page
 node test/e2e/s30-raccourci-pris.mjs       # une combinaison tenue par un autre logiciel : repli, message, reprise
+node test/e2e/s31-ecrans-utiles.mjs        # SUR LE VRAI POSTE multi-écran : overlays utiles seulement, bridage, 60 images/s
+node test/e2e/t-obs-5-redemarrage.mjs      # la source navigateur revient seule, avec le nouveau jeton, après un redémarrage
 node test/e2e/s28-clavier-deux-fenetres.mjs # Tab et les lettres dans le VRAI mode à deux fenêtres
 ```
 

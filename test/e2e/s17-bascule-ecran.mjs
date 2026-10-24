@@ -161,6 +161,12 @@ await rapport.test(win, 's17-1b-trois-ecrans', 'Trois écrans : un seul annote, 
   })
   await pause(2600)
 
+  /*
+   * ⚠️ DEPUIS LE 24/10, L'ÉCRAN DU MILIEU N'A PLUS DE FENÊTRE DU TOUT : il
+   * n'annote pas (0 est l'écran principal) et ne porte pas la barre (2880 est
+   * le plus à droite). Inerte, il ne valait qu'un coût — son overlay est
+   * libéré. Exigé : deux overlays, aucune page à 1600.
+   */
   const w = await overlays()
   const etats = []
   for (const x of [0, 1600, 2880]) {
@@ -187,15 +193,15 @@ await rapport.test(win, 's17-1b-trois-ecrans', 'Trois écrans : un seul annote, 
   const inertesPropres = etats.filter((e) => e.annote === false).every((e) => e.canevas === 0)
 
   const ok =
-    w.length === 3 &&
-    etats.every((e) => e.page) &&
+    w.length === 2 &&
+    etats.filter((e) => e.page).map((e) => e.x).join(',') === '0,2880' &&
     annotent.length === 1 &&
     barres.length === 1 &&
     inertesPropres
   return {
     statut: ok ? OK : KO,
     detail:
-      `${w.length} overlay(s) · ${annotent.length} écran(s) qui annotent (1 exigé) · ` +
+      `${w.length} overlay(s) (2 exigés) · ${annotent.length} écran(s) qui annotent (1 exigé) · ` +
       `${barres.length} écran(s) qui portent la barre (1 exigé) · ` +
       `canevas des écrans inertes tous à zéro : ${inertesPropres} · ` +
       `détail : ${JSON.stringify(etats)}`,

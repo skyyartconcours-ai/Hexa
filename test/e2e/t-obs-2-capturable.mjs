@@ -21,6 +21,13 @@
  *   8. les annotations survivent à un cycle réduit → plein écran (aucun pixel
  *      perdu après « annotations masquées » puis réaffichées).
  *
+ * ⚠️ DEPUIS LE 24/10, LA RÉDUCTION N'EST PLUS D'USINE : la fenêtre vide est
+ * cachée, et la vue OBS passe par la source navigateur (voir docs/OBS.md). Ce
+ * script ACTIVE donc le réglage avant le lancement (fichier de réglages de
+ * version 2) et vérifie qu'il tient toutes ses promesses pour qui en a besoin.
+ * Un écran branché à chaud qui n'annote pas et ne porte pas la barre n'a plus
+ * de fenêtre du tout (5.1).
+ *
  *   xvfb-run -a --server-args="-screen 0 1600x900x24" node test/e2e/t-obs-2-capturable.mjs
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -33,6 +40,12 @@ mkdirSync(OUT, { recursive: true })
 const USER = join(OUT, '.user-data')
 rmSync(USER, { recursive: true, force: true })
 mkdirSync(USER, { recursive: true })
+// Le réglage, activé comme le ferait l'utilisateur (fichier de version 2 : un
+// fichier sans version repart des valeurs d'usine, réduction coupée).
+writeFileSync(
+  join(USER, 'reglages-principal.json'),
+  JSON.stringify({ version: 2, captureFenetre: true, annotationDisplay: null }),
+)
 
 const R = []
 const dit = (n, c, d) => {
@@ -90,13 +103,20 @@ const fmt = (e) => `visible=${e.visible} ${e.b ? `${e.b.width}×${e.b.height}@${
 
 let encre = null
 let inter = null
+// Sur un poste à plusieurs écrans, la PREMIÈRE fenêtre venue peut être celle
+// d'un autre écran : on vise les deux couches de l'écran d'annotation. Chaque
+// page le sait par son argument de lancement (--hexa-annotation) ; toutes les
+// couches encre ont la même URL, et le même titre avant retitrer().
+const annote = (p) => p.evaluate(() => window.hexa?.ecranAnnotation === true).catch(() => false)
 for (let i = 0; i < 40 && !(encre && inter); i++) {
   await pause(400)
-  encre = app.windows().find((w) => w.url().includes('index.html'))
-  inter = app.windows().find((w) => w.url().includes('ui.html'))
+  for (const p of app.windows()) {
+    if (p.url().includes('index.html') && (await annote(p))) encre = p
+    if (p.url().includes('ui.html') && (await annote(p))) inter = p
+  }
 }
 await encre.waitForSelector('.stage canvas', { timeout: 20000 })
-await inter.waitForSelector('.toolbar', { timeout: 20000 })
+await inter.waitForSelector('body', { timeout: 20000 })
 for (const w of [encre, inter]) {
   await w.evaluate(() => {
     const s = JSON.parse(localStorage.getItem('hexa-ui') ?? '{}')
@@ -116,7 +136,8 @@ for (const w of [encre, inter]) {
 await encre.reload()
 await encre.waitForSelector('.stage canvas', { timeout: 20000 })
 await inter.reload()
-await inter.waitForSelector('.toolbar', { timeout: 20000 })
+// la barre n'est sur cet écran que s'il la porte (un seul écran sous Xvfb)
+await inter.waitForSelector('body', { timeout: 20000 })
 await pause(1000)
 
 const f8 = async () => {
@@ -163,7 +184,11 @@ const attendreReduite = async (max = 3000) => {
 /* --- 1. au repos : visible, 8 × 8, dans le coin ---------------------------- */
 console.log('\n--- 1. Au repos, une fois l’accueil terminé ---')
 {
-  const e = await attendreReduite(12000)
+  // La page rechargée renvoie l'écho de son état initial, qui peut être le
+  // mode dessin : on attend la fin de l'accueil, puis on rend la main au jeu.
+  await attendreReduite(12000)
+  await modeDessin(false)
+  const e = await attendreReduite(4000)
   dit(
     '1.1 la fenêtre d’encre reste VISIBLE, réduite à 8 × 8',
     e.reduite,
@@ -329,11 +354,13 @@ console.log('\n--- 5. Second écran, non désigné ---')
   })
   await pause(2200)
   const f = await fenetres()
-  const second = f.liste.find((w) => w.b.x >= 1600 && w.url === 'index.html')
+  const second = f.liste.find((w) => w.b.x === 1600 && w.b.y === 0 && w.url === 'index.html')
+  // Pas d'overlay sur un écran sans usage ; s'il porte la barre d'outils, sa
+  // couche encre existe mais reste cachée et dit « inactif ».
   dit(
-    '5.1 l’écran non désigné : fenêtre d’encre CACHÉE, titrée « inactif »',
-    !!second && second.visible === false && /inactif/.test(second.titre),
-    second ? `« ${second.titre} » visible=${second.visible}` : 'aucune fenêtre créée',
+    '5.1 l’écran non désigné : aucune fenêtre d’encre, ou cachée et « inactif »',
+    !second || (second.visible === false && /inactif/.test(second.titre)),
+    second ? `« ${second.titre} » visible=${second.visible}` : 'aucune fenêtre créée (écran sans usage)',
   )
   const principale = await etatEncre()
   const poses = (await app.evaluate(() => globalThis.__t.appels)).filter((a) => a.fen === 'Hexa Overlay' && a.m === 'setBounds')
@@ -372,7 +399,11 @@ console.log('\n--- 7. « Garder la fenêtre capturable par OBS » ---')
   dit('7.3 rétabli : elle revient, réduite', on?.on === true && revenue.reduite, fmt(revenue))
   const fichier = join(USER, 'reglages-principal.json')
   const persist = existsSync(fichier) ? JSON.parse(readFileSync(fichier, 'utf8')) : null
-  dit('7.4 persisté dans reglages-principal.json', persist?.captureFenetre === true, JSON.stringify(persist))
+  dit(
+    '7.4 persisté dans reglages-principal.json (version 2)',
+    persist?.captureFenetre === true && persist?.version === 2,
+    JSON.stringify(persist),
+  )
   // et la valeur « coupé » survit au redémarrage : on l'écrit, on relance
   await inter.evaluate(() => window.hexa.captureFenetre(false))
   await pause(300)

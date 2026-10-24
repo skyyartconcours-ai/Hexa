@@ -106,10 +106,15 @@ for (const w of app.windows()) {
     canvas: document.querySelectorAll('canvas').length,
     barre: !!document.querySelector('.toolbar'),
     stage: !!document.querySelector('.stage'),
+    annote: window.hexa?.ecranAnnotation === true,
   })).catch(() => null)
   if (d) pages.push({ w, ...d })
 }
-const encre = pages.find((p) => p.canvas > 0 && p.couche === 'hexa-encre')
+// Sur plusieurs écrans, l'encre de l'écran qui porte la barre existe aussi,
+// inerte et cachée : c'est celle de l'écran d'ANNOTATION qu'on éprouve.
+const encre =
+  pages.find((p) => p.canvas > 0 && p.couche === 'hexa-encre' && p.annote) ??
+  pages.find((p) => p.canvas > 0 && p.couche === 'hexa-encre')
 const inter = pages.find((p) => p.barre && p.couche === 'hexa-interface')
 
 verdict(

@@ -95,13 +95,20 @@ const encreVisible = async () => {
 
 let encre = null
 let inter = null
+// Sur plusieurs écrans, la première fenêtre venue peut être celle d'un autre
+// écran : on vise les couches de l'écran d'annotation, que chaque page connaît
+// par son argument de lancement (--hexa-annotation).
+const annote = (p) => p.evaluate(() => window.hexa?.ecranAnnotation === true).catch(() => false)
 for (let i = 0; i < 40 && !(encre && inter); i++) {
   await pause(400)
-  encre = app.windows().find((w) => w.url().includes('index.html'))
-  inter = app.windows().find((w) => w.url().includes('ui.html'))
+  for (const p of app.windows()) {
+    if (p.url().includes('index.html') && (await annote(p))) encre = p
+    if (p.url().includes('ui.html') && (await annote(p))) inter = p
+  }
 }
 await encre.waitForSelector('.stage canvas', { timeout: 20000 })
-await inter.waitForSelector('.toolbar', { timeout: 20000 })
+// la barre n'est sur cet écran que s'il la porte (un seul écran sous Xvfb)
+await inter.waitForSelector('body', { timeout: 20000 })
 
 // état de départ : découverte vue, fondu ∞, raccourcis système coupés
 for (const w of [encre, inter]) {
@@ -123,7 +130,7 @@ for (const w of [encre, inter]) {
 await encre.reload()
 await encre.waitForSelector('.stage canvas', { timeout: 20000 })
 await inter.reload()
-await inter.waitForSelector('.toolbar', { timeout: 20000 })
+await inter.waitForSelector('body', { timeout: 20000 })
 await pause(1200)
 
 /* --- 0. les titres : un seul « Hexa Overlay » par écran ? ----------------- */
@@ -307,10 +314,12 @@ console.log('\n--- 6. Un second écran, non désigné pour l’annotation ---')
   await pause(1800)
   const l = await fenetres()
   const second = l.filter((w) => w.b.x === 1600 && w.url === 'index.html')
+  // Depuis le 24/10 : pas d'overlay sur un écran sans usage ; s'il porte la
+  // barre d'outils, sa couche encre existe mais n'est jamais visible.
   dit(
-    '6.1 l’écran non désigné a une fenêtre d’encre, JAMAIS visible',
-    second.length === 1 && second[0].visible === false,
-    `${second.length} fenêtre(s) « ${second[0]?.titre ?? '?'} » sur l’écran 2, visible=${second[0]?.visible}`,
+    '6.1 l’écran non désigné : aucune fenêtre d’encre, ou une fenêtre JAMAIS visible',
+    second.length === 0 || (second.length === 1 && second[0].visible === false),
+    `${second.length} fenêtre(s) « ${second[0]?.titre ?? '—'} » sur l’écran 2, visible=${second[0]?.visible ?? '—'}`,
   )
   const titres = l.filter((w) => w.url === 'index.html').map((w) => w.titre)
   dit(

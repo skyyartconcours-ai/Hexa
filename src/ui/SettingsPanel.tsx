@@ -1057,27 +1057,29 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
                   label="Garder la fenêtre d'encre capturable par OBS"
                   hint={
                     captureFenetre
-                      ? `Vide, la fenêtre « ${captureFenetre.titre} » est réduite à ${captureFenetre.reduitPx} × ${captureFenetre.reduitPx} pixels dans le coin de l'écran au lieu de disparaître : OBS la garde dans sa liste et ne la perd plus. Coût : ${captureFenetre.reduitPx * captureFenetre.reduitPx} pixels composés, aucune image.`
+                      ? `Vide, la fenêtre « ${captureFenetre.titre} » est réduite à ${captureFenetre.reduitPx} × ${captureFenetre.reduitPx} pixels dans le coin de l'écran au lieu de disparaître, pour qu'une « Capture de fenêtre » d'OBS ne la perde pas. Coût réel : cette petite fenêtre reste au-dessus du jeu, et Windows doit alors recomposer chacune de ses images. Préfère la source navigateur ci-dessus.`
                       : 'Lecture du réglage…'
                   }
-                  on={captureFenetre?.on ?? true}
+                  on={captureFenetre?.on ?? false}
                   onChange={basculerCaptureFenetre}
                 />
                 <p className="hx-note">
                   {captureFenetre?.on === false ? (
                     <>
-                      <b>Coupé</b> : la fenêtre d'encre est cachée dès qu'elle est vide. Une
-                      « Capture de fenêtre » d'OBS ne la trouve alors plus dans sa liste, et une
-                      source déjà réglée reste vide jusqu'au prochain trait — sur les anciens OBS,
-                      elle peut même basculer sur une autre fenêtre du même type (ton navigateur).
-                      À ne couper que si tu n'utilises jamais la « Capture de fenêtre ».
+                      <b>Coupé (recommandé)</b> : la fenêtre d'encre est cachée dès qu'elle est
+                      vide, et ne coûte plus rien au jeu. Dans OBS, passe par la{' '}
+                      <b>source navigateur</b> (adresse ci-dessus) ou par la capture d'écran :
+                      ni l'une ni l'autre n'a besoin de ce réglage. Une « Capture de fenêtre »
+                      d'Hexa, elle, perd la fenêtre quand elle est vide — sur les anciens OBS, elle
+                      peut même basculer sur ton navigateur. Retire-la de tes scènes.
                     </>
                   ) : (
                     <>
                       <b>Actif</b> : pour capturer Hexa par « Capture de fenêtre », choisis
                       « {captureFenetre?.titre ?? 'Hexa Overlay'} » dans la liste d'OBS — c'est le
-                      seul nom qui compte, il ne change jamais. La capture d'écran et la source
-                      navigateur, elles, n'ont pas besoin de ce réglage.
+                      seul nom qui compte, il ne change jamais. À réserver au cas où ni la source
+                      navigateur ni la capture d'écran ne sont possibles : c'est la méthode qui
+                      coûte le plus au compositeur de Windows.
                     </>
                   )}
                 </p>

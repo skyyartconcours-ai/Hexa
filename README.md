@@ -176,12 +176,19 @@ permet au laser et au projecteur de suivre le curseur pendant qu'on joue.
 | Cible | Où ça se joue |
 | --- | --- |
 | 0 % de processeur au repos | aucune image n'est produite quand rien n'anime (rAF dormante) |
-| 0 image/s perdue en jeu, couche vide | la fenêtre est **cachée**, pas seulement transparente |
+| 0 image/s perdue en jeu, couche vide | la fenêtre est **cachée**, pas seulement transparente, ni réduite |
+| 60 images/s au plus, même sur un écran à 240 Hz | plafond dans les boucles (`src/engine/cadence.ts`) ; `setFrameRate` ne vaut que hors écran |
+| Une couche d'encre, sur l'écran d'annotation seulement | aucun overlay sur un écran qui n'annote pas et ne porte pas la barre |
+| Bridage de Chromium actif hors dessin | `setBackgroundThrottling(false)` seulement le temps du mode dessin |
 | Latence souris → trait < 16 ms | points coalescés, filtre One Euro, tracé sur le canvas *live* |
 | Démarrage rapide | aucune dépendance lourde, aucun accès réseau |
 
 Les chiffres en jeu réel restent **à mesurer sur une vraie machine Windows avec un jeu lancé** :
 c'est la seule mesure qui compte, et elle ne peut pas être faite en intégration continue.
+
+**Dans OBS, la vue d'Hexa passe par la source navigateur** (`http://127.0.0.1:4787/obs.html`),
+pas par une capture de fenêtre : voir [docs/OBS.md](docs/OBS.md). `HEXA_BRIDAGE_COUPE=1` rétablit
+l'ancien réglage de Chromium (occlusion et bridage coupés partout), pour comparer.
 
 Règles à ne jamais casser : pas de `setInterval`, pas de boucle permanente, pas de rasterisation
 des traits, pas de ressource réseau, pas de police externe.

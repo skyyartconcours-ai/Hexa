@@ -17,6 +17,22 @@
 | **Source navigateur** vers Hexa | Browser Source | ✅ **Oui**, quoi que tu captures par ailleurs. |
 | **Capture de jeu** | Game Capture | ❌ **Non.** Voir l'explication ci-dessous. |
 | **Capture de fenêtre** (du jeu) | Window Capture | ❌ **Non**, même raison. |
+| **Capture de fenêtre** « Hexa Overlay » | Window Capture | ⚠️ **Déconseillée.** Voir l'encadré ci-dessous. |
+
+> **La règle pour un live : la vue OBS d'Hexa passe par la source navigateur**
+> (`http://127.0.0.1:4787/obs.html`, §3), **jamais par une capture de fenêtre d'Hexa.**
+>
+> Mesuré le 23/10/2026 : pendant un live où `dwm.exe` (le compositeur de Windows) saturait un
+> cœur, la quinzaine de captures de fenêtre d'OBS était la cause principale, et la fenêtre d'encre
+> d'Hexa en faisait partie. Pour rester capturable, elle ne disparaissait jamais : réduite à 8 × 8
+> pixels quand elle était vide, elle restait **au-dessus du jeu**, ce qui oblige Windows à
+> recomposer chaque image du jeu, et elle changeait de taille à chaque trait (80 fois dans la
+> soirée). Depuis le 24/10, elle est de nouveau **cachée** quand elle est vide : une capture de
+> fenêtre d'Hexa la perd alors. La source navigateur ne dépend d'aucune fenêtre, ne coûte rien au
+> repos et se reconnecte toute seule si Hexa redémarre (§3).
+>
+> Si tu ne peux vraiment pas faire autrement, **Réglages… → OBS → « Garder la fenêtre d'encre
+> capturable par OBS »** rétablit l'ancienne fenêtre réduite, avec son coût.
 
 ### Pourquoi la « Capture de jeu » ne verra jamais Hexa
 
@@ -125,6 +141,14 @@ Côté OBS, tant qu'Hexa n'a rien envoyé, la source affiche une petite carte d'
 la connexion est établie. **Elle s'efface toute seule** au premier trait reçu, et de toute façon au
 bout de 20 secondes : elle ne peut pas rester à l'antenne.
 
+### Et si Hexa redémarre pendant le live ?
+
+La source revient **toute seule**, rien à actualiser dans OBS. Le flux est protégé par une clé tirée
+au hasard à chaque lancement d'Hexa : la page déjà ouverte dans OBS présente l'ancienne, se fait
+refuser, vérifie qu'Hexa répond de nouveau, puis se recharge et repart avec la nouvelle. Le journal
+d'Hexa en garde la trace, et c'est normal : une ligne `connexion refusée (… jeton absent ou faux)`
+suivie, dans la seconde, de `vue OBS connectée`.
+
 ---
 
 ## 4. « Écran » ou « Stream seul » ?
@@ -155,12 +179,13 @@ allume automatiquement le miroir et le serveur local.
 
 ## 5. Plusieurs écrans
 
-Hexa pose un overlay sur **chacun** de tes écrans. La source navigateur, elle, n'en montre qu'un —
-sinon les annotations des deux écrans se superposeraient n'importe où dans ta scène.
+Tu annotes sur **un seul** écran : l'écran d'annotation, choisi dans le menu de l'icône près de
+l'horloge (l'écran principal par défaut). Hexa ne pose sa couche d'encre que là. La barre
+d'outils vit sur l'écran le plus à droite, dans sa propre petite fenêtre ; les autres écrans
+n'ont **aucune** fenêtre d'Hexa, donc rien à composer.
 
-**La règle : la source navigateur suit l'écran sur lequel tu dessines.**
-Au démarrage, c'est ton écran principal ; dès que tu commences un trait sur l'autre écran, la vue
-bascule sur celui-là et se met à jour entièrement. Rien à régler.
+**La source navigateur montre l'écran d'annotation.** Change d'écran d'annotation dans le menu,
+et la vue suit au premier trait. Rien à régler dans OBS.
 
 **Résolutions différentes ?** C'est prévu : Hexa envoie la taille de l'écran annoté, et la vue met
 tout à l'échelle de ta scène en conservant les proportions. Un écran 2560 × 1440 mirroité dans une

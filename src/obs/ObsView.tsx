@@ -19,7 +19,10 @@ import { ObsMirror } from './mirror'
 import { isObsMessage, OBS_CHANNEL, OBS_HELLO, parseObsMessage, type ObsMessage } from './protocol'
 
 /** Reconnexion WebSocket : progressive, bornée, jamais agressive. */
-const BACKOFF = [500, 1000, 2000, 4000, 8000, 12_000]
+// Plafond à 3 s : c'est le délai maximal entre le retour d'Hexa et celui de la
+// source. Une tentative locale toutes les 3 s pendant qu'Hexa est fermé ne
+// coûte rien ; 12 s d'annotations perdues en direct, si.
+const BACKOFF = [500, 1000, 2000, 3000]
 
 function query(name: string): string | null {
   try {
@@ -88,14 +91,29 @@ export function ObsView() {
     // on recharge la page : elle revient avec le nouveau jeton. Jamais à
     // l'aveugle — une page rechargée sur un serveur absent resterait blanche
     // dans OBS, qui ne réessaie pas tout seul.
+    //
+    // ⚠️ À CHAQUE ÉCHEC, ET SEULEMENT SI L'ADRESSE A CHANGÉ. On attendait
+    // quatre échecs : mesuré par t-obs-5, une source rouverte 7 s après un
+    // redémarrage rapide, soit 7 s d'annotations perdues pour le direct. La
+    // page servie porte l'adresse du WebSocket, jeton compris : si celle de la
+    // page fraîche diffère, le jeton a changé et l'on recharge ; sinon le refus
+    // a une autre cause, et recharger n'y changerait rien (pas de boucle).
     const pageServie = query('ws') == null && /^https?:$/.test(location.protocol)
     let sondeEnCours = false
     const sonderEtRecharger = (): void => {
       if (!pageServie || sondeEnCours) return
       sondeEnCours = true
       fetch(location.href, { cache: 'no-store' })
-        .then((r) => {
-          if (r.ok && !closed) location.reload()
+        .then((r) => (r.ok ? r.text() : ''))
+        .then((html) => {
+          const m = /__HEXA_OBS_WS=("[^"]*")/.exec(html)
+          let neuve: unknown = null
+          try {
+            neuve = m ? JSON.parse(m[1]) : null
+          } catch {
+            neuve = null
+          }
+          if (typeof neuve === 'string' && neuve !== url && !closed) location.reload()
         })
         .catch(() => undefined)
         .finally(() => {
@@ -145,7 +163,7 @@ export function ObsView() {
 
     const schedule = (): void => {
       if (closed || retryTimer) return
-      if (retry >= 4) sonderEtRecharger()
+      sonderEtRecharger()
       const delay = BACKOFF[Math.min(retry++, BACKOFF.length - 1)]
       retryTimer = setTimeout(() => {
         retryTimer = null

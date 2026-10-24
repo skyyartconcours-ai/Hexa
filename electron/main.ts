@@ -130,14 +130,30 @@ function copierAdresseObs(origine: string): { adresse: string; copie: boolean } 
 // devient inutilisable dès qu'un jeu tourne. (Aucun appel à
 // app.disableHardwareAcceleration() ici, et il ne doit jamais y en avoir.)
 
-// Windows calcule l'« occlusion native » des fenêtres et met en veille celles
-// qu'il croit cachées : sur une fenêtre transparente plein écran posée sur un
-// jeu, ça provoque des gels de rendu aléatoires. On désactive ce calcul.
-app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
-// Empêche Chromium de brider le renderer quand la fenêtre n'a pas le focus —
-// or notre overlay n'a JAMAIS le focus (§12.2).
-app.commandLine.appendSwitch('disable-renderer-backgrounding')
-app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
+/**
+ * LE BRIDAGE DE CHROMIUM RESTE ACTIF — SAUF PENDANT LE DESSIN.
+ *
+ * Hexa coupait jusqu'ici, pour TOUTE l'application et en permanence, le calcul
+ * d'occlusion de Windows et le bridage des pages en arrière-plan. Le prix :
+ * six processus de rendu (une encre et une interface par écran) jamais mis en
+ * veille, même cachés, même sur un écran qui n'annote pas. Mesuré le 23/10 :
+ * dwm.exe saturait un cœur pendant le live, et Hexa ajoutait sa part.
+ *
+ * Le besoin réel est plus étroit : pendant un DESSIN, la boucle de rendu et le
+ * curseur ne doivent jamais être bridés, même si Windows croit la fenêtre
+ * cachée. C'est réglé fenêtre par fenêtre, à l'entrée et à la sortie du mode
+ * dessin (voir brider, plus bas) : `setBackgroundThrottling(false)` garde la
+ * page « visible » et ses images produites quoi qu'en dise l'occlusion.
+ *
+ * `HEXA_BRIDAGE_COUPE=1` rétablit l'ancien comportement (comparaisons, ou
+ * retour arrière si un gel réapparaissait chez quelqu'un).
+ */
+const bridageCoupe = process.env.HEXA_BRIDAGE_COUPE === '1'
+if (bridageCoupe) {
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
+  app.commandLine.appendSwitch('disable-renderer-backgrounding')
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
+}
 
 /* ------------------------------------------------------------------ *
  * Types internes
@@ -480,7 +496,18 @@ interface ReglagesPrincipal {
   annotationDisplay: number | null
 }
 
-let reglages: ReglagesPrincipal = { captureFenetre: true, annotationDisplay: null }
+/**
+ * Version du fichier de réglages. La 2 change la valeur d'usine de
+ * `captureFenetre`, qui passe à `false` (voir « La fenêtre d'encre RÉDUITE »).
+ *
+ * Un fichier de version 1 ne dit RIEN de l'avis de l'utilisateur sur ce point :
+ * ecrireReglages réécrit tout le fichier au moindre changement d'écran
+ * d'annotation, donc `captureFenetre: true` y figurait d'office. Seul un
+ * fichier de version 2 porte un vrai choix ; les autres repartent de l'usine.
+ */
+const VERSION_REGLAGES = 2
+
+let reglages: ReglagesPrincipal = { captureFenetre: false, annotationDisplay: null }
 
 function cheminReglages(): string {
   return path.join(app.getPath('userData'), 'reglages-principal.json')
@@ -489,8 +516,9 @@ function cheminReglages(): string {
 function lireReglages(): void {
   try {
     const brut = JSON.parse(fs.readFileSync(cheminReglages(), 'utf8')) as Record<string, unknown>
+    const choixReel = brut.version === VERSION_REGLAGES
     reglages = {
-      captureFenetre: brut.captureFenetre !== false,
+      captureFenetre: choixReel && brut.captureFenetre === true,
       annotationDisplay:
         typeof brut.annotationDisplay === 'number' && Number.isFinite(brut.annotationDisplay)
           ? brut.annotationDisplay
@@ -504,7 +532,11 @@ function lireReglages(): void {
 
 function ecrireReglages(): void {
   try {
-    fs.writeFileSync(cheminReglages(), JSON.stringify(reglages, null, 2), 'utf8')
+    fs.writeFileSync(
+      cheminReglages(),
+      JSON.stringify({ version: VERSION_REGLAGES, ...reglages }, null, 2),
+      'utf8',
+    )
   } catch (err) {
     logError('réglages', 'écriture des réglages impossible', err)
   }
@@ -548,6 +580,19 @@ function ecrireReglages(): void {
  * perdre), en « Masquer Hexa » (l'utilisateur veut Hexa absent), sur un écran
  * non désigné (inerte, rien à capturer), et si l'utilisateur coupe le réglage
  * « Garder la fenêtre capturable par OBS ».
+ *
+ * ⚠️ DEPUIS LE 24/10, LA RÉDUCTION N'EST PLUS LA VALEUR D'USINE : `win.hide()`
+ * l'est redevenu. « 64 pixels, coût nul » était faux sur deux points, mesurés
+ * le 23/10 pendant un live où dwm.exe saturait un cœur :
+ *  - une fenêtre toujours au-dessus, même de 8 × 8, CHEVAUCHE le jeu : Windows
+ *    ne peut plus lui donner l'écran en direct (« independent flip ») et
+ *    recompose chacune de ses images, à 240 Hz sur l'écran principal ;
+ *  - chaque trait la faisait passer de 8 × 8 au plein écran et retour :
+ *    80 redimensionnements dans la soirée, autant de recompositions et de
+ *    captures de fenêtre réinitialisées côté OBS.
+ * La vue OBS passe par la source navigateur (http://127.0.0.1:4787/obs.html),
+ * qui ne dépend d'aucune fenêtre. La réduction reste pour qui ne peut vraiment
+ * utiliser qu'une « Capture de fenêtre » ; les réglages le disent.
  */
 const REDUIT_PX = 8
 
@@ -573,6 +618,8 @@ function poserEncre(o: Overlay, reduire: boolean): boolean {
   if (o.win.isDestroyed()) return false
   const d = ecranDe(o)
   o.reduite = reduire
+  // AVANT la pose : la page doit être éveillée pour suivre son `resize`.
+  brider(o)
   const cible = boundsEncreAttendues(o, d)
   if (o.encreBounds && sameBounds(o.encreBounds, cible)) return true
   o.encreBounds = cible
@@ -918,6 +965,30 @@ function showOverlay(o: Overlay): void {
  * ------------------------------------------------------------------ */
 
 /**
+ * Bride (ou débride) les deux couches d'un écran, selon leur état. Débridées
+ * pendant le dessin : la boucle de rendu et le curseur suivent alors le geste
+ * même si Windows croit la fenêtre recouverte. Le reste du temps, une couche
+ * cachée est mise en veille par Chromium — c'est ce qui la rend gratuite.
+ *
+ * ⚠️ SAUF LA FENÊTRE RÉDUITE À 8 × 8 (réglage « capturable par OBS ») : posée
+ * sous la barre des tâches, Windows la juge recouverte, Chromium fige sa page,
+ * et elle ne suivait même plus son propre retour au plein écran (mesuré par
+ * t-obs-2 : viewport resté à 1920, plus un trait peint). Réduite, elle n'est
+ * donc jamais bridée.
+ */
+function brider(o: Overlay): void {
+  if (bridageCoupe) return
+  const oui = o.passthrough && !o.reduite
+  for (const win of [o.win, o.ui]) {
+    try {
+      if (win && !win.isDestroyed()) win.webContents.setBackgroundThrottling(oui)
+    } catch {
+      /* fenêtre en cours de destruction */
+    }
+  }
+}
+
+/**
  * `forward: true` est la clé de toute l'application : les CLICS partent dans le
  * jeu, mais le renderer continue de recevoir les `pointermove`. C'est ce qui
  * permet au laser, à la loupe et au spotlight de suivre le curseur pendant que
@@ -925,6 +996,7 @@ function showOverlay(o: Overlay): void {
  */
 function applyPassthrough(o: Overlay, on: boolean): void {
   o.passthrough = on
+  brider(o)
   try {
     if (o.win.isDestroyed()) return
     // ⚠️ LA FENÊTRE D'ENCRE N'EST JAMAIS FOCUSABLE, ni ici ni ailleurs. Activer
@@ -1816,7 +1888,8 @@ function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindo
         // `process.argv` (rempli par `additionalArguments`), tous disponibles
         // dans un preload confiné.
         sandbox: true,
-        backgroundThrottling: false,
+        // Bridée par défaut : débridée le temps du dessin seulement (brider).
+        backgroundThrottling: !bridageCoupe,
         devTools: !app.isPackaged,
         additionalArguments: [
           `--hexa-display=${encodeURIComponent(
@@ -2011,9 +2084,10 @@ function createOverlay(display: Display): Overlay | null {
         // à sable du système est la dernière barrière si quoi que ce soit
         // s'exécutait dans la page.
         sandbox: true,
-        // Sans ça, Chromium bride la boucle rAF d'une fenêtre non focus — donc
-        // la nôtre, en permanence.
-        backgroundThrottling: false,
+        // Bridée tant qu'on ne dessine pas : cachée, elle est mise en veille par
+        // Chromium. Le bridage ne dépend pas du focus mais de la visibilité ;
+        // l'entrée en dessin le lève (brider), quoi que dise l'occlusion.
+        backgroundThrottling: !bridageCoupe,
         devTools: !app.isPackaged,
         additionalArguments: [
           `--hexa-display=${encodeURIComponent(
@@ -2275,8 +2349,24 @@ function rebuildOverlays(raison = 'démarrage'): void {
     const dessinAvant = isDrawing()
     let cree = 0
     let repose = 0
+    /*
+     * ⚠️ UN OVERLAY SEULEMENT LÀ OÙ IL SERT : l'écran d'annotation, et l'écran
+     * qui porte la barre d'outils s'il est différent.
+     *
+     * Hexa en ouvrait un par écran : sur trois moniteurs, trois fenêtres encre
+     * transparentes plein écran et toujours au-dessus, plus trois fenêtres
+     * d'interface — six processus de rendu, alors qu'un seul écran annote et
+     * qu'un seul porte la barre. L'écran restant n'avait strictement rien à
+     * montrer (inerte, voir annotationDisplayId) : son overlay est libéré. Il
+     * revient dès qu'il devient utile (menu de l'icône, écran débranché).
+     */
+    const utiles = new Set([annotationDisplayId(), toolbarHostId()])
+    // Filet : les deux désignations rendent -1 si `screen` lève. Sans écran
+    // utile, Hexa n'aurait plus aucune couche — l'écran principal en garde une.
+    if (!displays.some((d) => utiles.has(d.id))) utiles.add(screen.getPrimaryDisplay().id)
 
     for (const d of displays) {
+      if (!utiles.has(d.id)) continue
       seen.add(d.id)
       const existing = overlays.get(d.id)
       if (!existing) {
@@ -2369,7 +2459,12 @@ function rebuildOverlays(raison = 'démarrage'): void {
         logError('écrans', `libération de l’overlay ${id} impossible`, err)
       }
       detruits++
-      log('écrans', `écran ${id} débranché — overlay libéré`)
+      log(
+        'écrans',
+        displays.some((d) => d.id === id)
+          ? `écran ${id} sans usage (ni annotation, ni barre d’outils) — overlay libéré`
+          : `écran ${id} débranché — overlay libéré`,
+      )
     }
 
     // La barre d'outils ne vit que sur UN écran (§S4.2). Débrancher l'écran de
@@ -3537,6 +3632,10 @@ if (!gotLock) {
         reglages.annotationDisplay = id
         ecrireReglages()
         log('écrans', `écran d'annotation choisi : ${id}`)
+        // Un overlay n'existe que sur les écrans utiles : le nouvel écran
+        // d'annotation reçoit le sien, l'ancien libère le sien s'il ne porte
+        // pas la barre d'outils.
+        rebuildOverlays('écran d’annotation changé')
         // Les pages doivent le savoir TOUT DE SUITE : l'ancienne couche
         // s'éteint, la nouvelle s'allume, sans redémarrer l'application.
         diffuserEcranAnnotation()

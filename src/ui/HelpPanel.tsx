@@ -520,9 +520,10 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
    * connaît que les fenêtres VISIBLES. Hexa retirait sa couche d'encre dès
    * qu'elle était vide : OBS ne la trouvait plus dans sa liste, et une source
    * déjà réglée restait vide — ou, sur les anciens OBS, sautait sur une autre
-   * fenêtre « du même type », le navigateur. C'est corrigé (la fenêtre reste,
-   * réduite à 8 pixels), mais la méthode reste la plus piégeuse des trois, et
-   * l'onglet doit le dire tel quel.
+   * fenêtre « du même type », le navigateur. La parade (la fenêtre reste,
+   * réduite à 8 pixels) existe toujours, mais coupée d'usine depuis le 24/10 :
+   * elle coûtait au compositeur à chaque image du jeu. La méthode reste la plus
+   * piégeuse des trois, et l'onglet doit le dire tel quel.
    */
   const stream = (
     <div className="hlp-steps">
@@ -563,10 +564,11 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
           <h4>3 · Capture de fenêtre (Window Capture) — la plus piégeuse</h4>
           <p>
             OBS accroche une fenêtre par son <b>titre</b>. Prends « Hexa Overlay », jamais autre
-            chose. <b>Piège n° 1 :</b> OBS ne liste que les fenêtres visibles ; Hexa gardait la
-            sienne cachée quand elle était vide, et tu ne pouvais plus la choisir — c’est corrigé,
-            la fenêtre reste présente, réduite à 8 pixels dans un coin, tant que le réglage
-            « Garder la fenêtre d’encre capturable par OBS » est actif. <b>Piège n° 2 :</b> quand
+            chose. <b>Piège n° 1 :</b> OBS ne liste que les fenêtres visibles ; Hexa cache la
+            sienne dès qu’elle est vide, et tu ne peux plus la choisir — sauf si tu actives
+            « Garder la fenêtre d’encre capturable par OBS », qui la laisse réduite à 8 pixels
+            dans un coin. Ce réglage est coupé d’usine : cette petite fenêtre reste au-dessus du
+            jeu, et Windows recompose alors chacune de ses images. <b>Piège n° 2 :</b> quand
             une fenêtre disparaît, les anciens OBS en cherchent « une du même type » : toutes les
             fenêtres Chrome, Edge et Hexa sont du même type — c’est comme ça qu’on se retrouve
             avec sa page Twitch à l’antenne. <b>Coût :</b> une capture de plus par image, en
@@ -595,8 +597,9 @@ export function HelpPanel({ onClose, onEdit, onReplayTour }: HelpPanelProps) {
         </li>
         <li>
           <b>Plusieurs écrans ?</b> Un seul est l’écran d’annotation (menu de l’icône près de
-          l’horloge). Sa fenêtre s’appelle « Hexa Overlay » ; celles des autres écrans disent
-          « inactif » et ne montrent jamais rien. Capture l’écran d’annotation.
+          l’horloge). Sa fenêtre s’appelle « Hexa Overlay » ; les autres écrans n’en ont pas,
+          sauf celui de la barre d’outils, dont la fenêtre dit « inactif » et ne montre jamais
+          rien. Capture l’écran d’annotation, ou mieux, ajoute la source navigateur.
         </li>
         <li>
           <b>Ça prend combien de ressources ?</b> Réglages → Ressources : le témoin « Coût
