@@ -33,13 +33,16 @@ La colonne de droite dit la seule chose qui compte vraiment : est-ce que la touc
 | Ce que ça fait | La touche | Marche pendant que le jeu a le focus ? |
 | --- | --- | --- |
 | Stylo (dessiner) | **Ctrl + Maj + 3** | ✅ oui |
-| Surligneur | **Ctrl + Maj + 4** | ✅ oui |
+| Numéroteur (pastilles 1, 2, 3…) | **Ctrl + Maj + 1** | ✅ oui |
+| Petites pastilles, pour la minimap (même série de numéros) | **Ctrl + Maj + 4** | ✅ oui |
+| Surligneur | **S** | ⬜ en mode dessin |
 | Gomme | **Ctrl + Maj + 5** | ✅ oui |
 | Curseur — rendre la souris au jeu | **Ctrl + Maj + 2** | ✅ oui |
 | Annuler le dernier trait | **Ctrl + Maj + 6** | ✅ oui |
 | Trait plus fin / plus épais | **Ctrl + Maj + 7** / **Ctrl + Maj + 8** | ✅ oui |
 | Entrer et sortir du mode dessin | **F8** | ✅ oui |
 | Tout effacer, même en pleine panique | **Ctrl + Maj + X** | ✅ oui |
+| Tout effacer et rendre la souris au jeu | **Ctrl + Maj + E** | ✅ oui |
 | Tout effacer | **Ctrl + E** | ⬜ en mode dessin |
 | Montrer ou cacher la barre d'outils | **Ctrl + H** | ⬜ en mode dessin |
 

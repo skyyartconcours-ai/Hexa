@@ -249,7 +249,15 @@ export function textBox(ctx: CanvasRenderingContext2D, s: Stroke): { w: number; 
 /*  Numéroteur : pastilles numérotées reliées (§4.8)                   */
 /* ------------------------------------------------------------------ */
 
-export const badgeRadius = (size: number): number => clamp(size * 2.3, 14, 30)
+/**
+ * Rayon d'une pastille. Les PETITES (minimap de League of Legends) font un peu
+ * plus de la moitié des ordinaires : 8 px de rayon à l'épaisseur par défaut,
+ * au lieu de 14 — un disque de 16 px, plus petit qu'une icône de champion sur
+ * la minimap. Essayé à 6 px : le chiffre (1,12 × le rayon) tombait sous 7 px
+ * et ne se lisait plus, on ne voyait que des points.
+ */
+export const badgeRadius = (size: number, mini = false): number =>
+  mini ? clamp(size * 1.35, 8, 12) : clamp(size * 2.3, 14, 30)
 
 /** durée totale de l'animation d'une pastille (pop + trajet du lien) */
 export const BADGE_ANIM = 220
@@ -268,7 +276,7 @@ export function renderBadge(
 ): void {
   const c = s.points[0]
   if (!c) return
-  const r = badgeRadius(s.size)
+  const r = badgeRadius(s.size, s.mini === true)
   let pop = 1
   let path = 1
   if (s.anim) {
@@ -302,7 +310,9 @@ export function renderBadge(
       }
       const drawn = partialPoly(curve, path)
       if (drawn.length >= 2) {
-        const size = Math.max(1.6, s.size * 0.42)
+        // fil plus fin entre petites pastilles : sur la minimap, le trait
+        // ordinaire serait aussi épais que la pastille elle-même
+        const size = s.mini ? Math.max(1, s.size * 0.22) : Math.max(1.6, s.size * 0.42)
         neonStroke(ctx, (cc) => tracePoly(cc, drawn, false), s.color, size, st.alpha * 0.85, st.glowBoost)
         if (path > 0.55) {
           const last = drawn[drawn.length - 1]

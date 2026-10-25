@@ -147,6 +147,7 @@ export default function App() {
   const smartShapes = useUiStore((s) => s.smartShapes)
   const guides = useUiStore((s) => s.guides)
   const linkBadges = useUiStore((s) => s.linkBadges)
+  const badgeMini = useUiStore((s) => s.badgeMini)
   const annotationsHidden = useUiStore((s) => s.annotationsHidden)
   const badgeContinuous = useUiStore((s) => s.badgeContinuous)
   const ghostPage = useUiStore((s) => s.ghostPage)
@@ -777,6 +778,7 @@ export default function App() {
       smartShapes,
       guides,
       linkBadges,
+      badgeMini,
       badgeContinuous,
       ghostPage,
       annotationsHidden,
@@ -793,6 +795,7 @@ export default function App() {
     smartShapes,
     guides,
     linkBadges,
+    badgeMini,
     badgeContinuous,
     ghostPage,
     annotationsHidden,
@@ -1089,6 +1092,14 @@ export default function App() {
         // Comme Epic Pen : choisir un outil, c'est vouloir dessiner. Si la
         // souris était rendue au jeu, on reprend la main — sinon l'utilisateur
         // presse Ctrl+Maj+3 et se demande pourquoi rien ne se dessine.
+        setPassthrough(false)
+        return
+      }
+      // Petites pastilles (minimap) : le numéroteur, en petit. Même règle :
+      // choisir l'outil, c'est vouloir dessiner.
+      if (action === 'tool.badgeMini') {
+        e.preventDefault()
+        st().setPetitesPastilles()
         setPassthrough(false)
         return
       }

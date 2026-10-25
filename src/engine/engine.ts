@@ -263,6 +263,7 @@ export class HexaEngine {
     smartShapes: true,
     guides: true,
     linkBadges: true,
+    badgeMini: false,
     badgeContinuous: false,
     annotationsHidden: false,
   }
@@ -1285,7 +1286,7 @@ export class HexaEngine {
         // la zone suit le halo et pas le seul disque : à +4 px, un clic droit
         // un peu à côté tombait dans le vide et le chiffre ne venait pas
         // (retour utilisateur du 16/10, « parfois ça ne déplace pas »)
-        if (dist(x, y, pts[0].x, pts[0].y) < badgeRadius(s.size) + 12) return s
+        if (dist(x, y, pts[0].x, pts[0].y) < badgeRadius(s.size, s.mini === true) + 12) return s
         continue
       }
       if (s.tool === 'stamp') {
@@ -1535,7 +1536,21 @@ export class HexaEngine {
 
   private placeBadge(pt: StrokePoint): void {
     const now = performance.now()
-    const link = this.opts.linkBadges ? this.lastBadgeId : null
+    const mini = this.opts.badgeMini === true
+    /*
+     * PETITES ET GRANDES PASTILLES PARTAGENT LA NUMÉROTATION, PAS LE FIL.
+     *
+     * Une seule série : Ctrl+Maj+4 se comporte exactement comme Ctrl+Maj+1
+     * (le prochain numéro reste celui qu'on attend, le clic droit, Ctrl+Z, le
+     * changement de couleur et l'effacement le gèrent déjà). Mais la flèche ne
+     * relie que deux pastilles de même taille : une grande posée sur le jeu
+     * et une petite posée sur la minimap ne font pas un trajet, et une flèche
+     * en travers de l'écran gâcherait les deux.
+     */
+    const precedente =
+      this.lastBadgeId == null ? undefined : this.strokes.find((x) => x.id === this.lastBadgeId)
+    const memeTaille = (precedente?.mini === true) === mini
+    const link = this.opts.linkBadges && memeTaille ? this.lastBadgeId : null
     const s: Stroke = {
       id: this.idSeq++,
       tool: 'badge',
@@ -1550,6 +1565,7 @@ export class HexaEngine {
       anim: { start: now, duration: link != null ? BADGE_LINK_ANIM : BADGE_ANIM },
     }
     if (link != null) s.linkFrom = link
+    if (mini) s.mini = true
     if (this.opts.fadeDelay != null) s.dieAt = now + this.opts.fadeDelay + (s.anim?.duration ?? 0)
     this.strokes.push(s)
     this.salir(s)
@@ -2719,7 +2735,7 @@ export class HexaEngine {
       return { x0, y0: y0 - box.h / 2, x1: x0 + box.w, y1: y0 + box.h / 2 }
     }
     if (s.tool === 'badge' || s.tool === 'marker') {
-      const r = badgeRadius(s.size)
+      const r = badgeRadius(s.size, s.mini === true)
       return { x0: x0 - r, y0: y0 - r, x1: x1 + r, y1: y1 + r }
     }
     if (s.tool === 'stamp' && s.w && s.h) {

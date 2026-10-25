@@ -34,8 +34,8 @@ C'est fait pour les streamers, les coachs et les profs. Pour le moment où il fa
 tout de suite, sans casser le rythme.
 
 **Tu viens d'Epic Pen ? Tes raccourcis fonctionnent déjà**, et même pendant que ton jeu a le
-focus : `Ctrl+Maj+3` stylo, `Ctrl+Maj+4` surligneur, `Ctrl+Maj+5` gomme, `Ctrl+Maj+6` annuler,
-`Ctrl+Maj+X` tout effacer. Rien à réapprendre, et tout est remplaçable si tu veux tes propres
+focus : `Ctrl+Maj+3` stylo, `Ctrl+Maj+5` gomme, `Ctrl+Maj+6` annuler,
+`Ctrl+Maj+X` tout effacer. Seule différence : `Ctrl+Maj+4` pose des petites pastilles numérotées (pour la minimap) au lieu du surligneur, qui passe sur `S`. Rien d'autre à réapprendre, et tout est remplaçable si tu veux tes propres
 touches. (`Ctrl+E` et `Ctrl+H` répondent en mode dessin seulement : Hexa refuse de les confisquer
 à ton navigateur et à VLC.)
 

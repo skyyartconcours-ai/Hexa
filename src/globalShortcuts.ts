@@ -134,6 +134,12 @@ export function runGlobalAction(action: KeymapAction, engine: ShortcutEngine | n
     st.setTool(tool)
     return
   }
+  // Ctrl+Maj+4 : le numéroteur en petites pastilles (minimap). Pas un outil à
+  // part — la même pastille, au rayon réduit (voir Stroke.mini).
+  if (action === 'tool.badgeMini') {
+    st.setPetitesPastilles()
+    return
+  }
   switch (action) {
     case 'edit.undo':
       engine?.undo()

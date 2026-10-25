@@ -97,6 +97,12 @@ export interface Stroke {
   badge?: number
   /** pastille : id de la pastille précédente, reliée par une flèche fine (§4.8) */
   linkFrom?: number
+  /**
+   * PETITE pastille (Ctrl+Maj+4) : la même pastille, au rayon réduit pour la
+   * minimap de League of Legends. Écrit seulement quand il vaut `true` : les
+   * exports des pastilles ordinaires restent identiques à l'octet près.
+   */
+  mini?: boolean
   /** tampon d'image : dataURL bornée (voir STAMP_MAX_DATAURL) et taille d'affichage */
   image?: string
   w?: number
@@ -165,6 +171,8 @@ export interface EngineOptions {
   guides: boolean
   /** numéroteur : relier automatiquement la pastille N à N+1 */
   linkBadges: boolean
+  /** numéroteur : poser de PETITES pastilles (minimap, Ctrl+Maj+4) */
+  badgeMini?: boolean
   /**
    * Masquer TOUTES les annotations sans les perdre.
    *

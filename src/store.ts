@@ -89,6 +89,11 @@ export interface UiState extends ObsSettings {
   guides: boolean
   /** numéroteur : relier automatiquement la pastille N à N+1 */
   linkBadges: boolean
+  /**
+   * Le numéroteur pose de PETITES pastilles (minimap, Ctrl+Maj+4). N'est vrai
+   * que le temps de cet outil : tout autre choix d'outil le remet à faux.
+   */
+  badgeMini: boolean
   /** annotations masquées : rien n'est perdu, le fondu est suspendu, et la
    *  couche redevenue vide laisse la fenêtre se retirer (coût nul) */
   annotationsHidden: boolean
@@ -243,6 +248,8 @@ export interface UiState extends ObsSettings {
    */
   notice: { text: string; seq: number }
   setTool: (tool: ToolId) => void
+  /** le numéroteur, en petites pastilles (minimap) */
+  setPetitesPastilles: () => void
   setColor: (color: string) => void
   /** Tab : échange couleur courante et précédente */
   swapColor: () => void
@@ -523,6 +530,7 @@ export const useUiStore = create<UiState>()(
       smartShapes: true,
       guides: true,
       linkBadges: true,
+      badgeMini: false,
       annotationsHidden: false,
       badgeContinuous: false,
       radialAllTools: false,
@@ -572,7 +580,10 @@ export const useUiStore = create<UiState>()(
       // cherche un bouton, assez court pour dégager l'image pendant qu'on parle.
       toolbarFade: 5,
       notice: { text: '', seq: 0 },
-      setTool: (tool) => set({ tool }),
+      // Choisir un outil, quel qu'il soit (le numéroteur ordinaire compris),
+      // quitte les petites pastilles.
+      setTool: (tool) => set({ tool, badgeMini: false }),
+      setPetitesPastilles: () => set({ tool: 'badge', badgeMini: true }),
       // La précédente n'est mémorisée que si la couleur CHANGE : recliquer la
       // même pastille ne doit pas écraser le duo.
       setColor: (color) =>

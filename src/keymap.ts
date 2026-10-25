@@ -26,6 +26,7 @@ export type KeymapAction =
   | 'tool.ellipse'
   | 'tool.text'
   | 'tool.badge'
+  | 'tool.badgeMini'
   | 'tool.marker'
   | 'tool.measure'
   | 'tool.stamp'
@@ -165,6 +166,16 @@ export const KEYMAP_ENTRIES: readonly KeymapEntry[] = [
     // elle, reste locale — une lettre nue ne se confisque jamais au système.
     global: true,
     hint: 'Pastilles 1, 2, 3…',
+  },
+  {
+    action: 'tool.badgeMini',
+    label: 'Petites pastilles (minimap)',
+    category: 'outils',
+    // Comme le numéroteur : réservé auprès de Windows, pour répondre en pleine
+    // partie. Demande de l'utilisateur (25/10) : des pastilles à la taille de
+    // la minimap de League of Legends.
+    global: true,
+    hint: 'Le numéroteur en petit, pour la minimap — même série de numéros',
   },
   {
     action: 'tool.marker',
@@ -451,6 +462,7 @@ const HEXA_BINDINGS: Bindings = {
   'tool.ellipse': 'o',
   'tool.text': 't',
   'tool.badge': 'n',
+  'tool.badgeMini': 'ctrl+shift+4',
   'tool.marker': 'y',
   'tool.measure': 'm',
   'tool.stamp': 'i',
@@ -562,7 +574,9 @@ const HEXA_BINDINGS: Bindings = {
 const EPICPEN_BINDINGS: Bindings = {
   // outils — Ctrl+Maj+3/4/5 comme Epic Pen
   'tool.pen': ['ctrl+shift+3', 'p'],
-  'tool.highlight': ['ctrl+shift+4', 's'],
+  // Ctrl+Maj+4 n'est plus le surligneur (demande de l'utilisateur, 25/10) :
+  // ce sont les petites pastilles, plus bas. Le surligneur garde « s ».
+  'tool.highlight': ['s'],
   'tool.eraser': ['ctrl+shift+5', 'e'],
   // Les jalons prolongent la série des doigts d'Epic Pen là où elle s'arrête.
   'tool.marker': ['ctrl+shift+9', 'y'],
@@ -576,6 +590,10 @@ const EPICPEN_BINDINGS: Bindings = {
   // repli, le numéroteur n'avait alors AUCUN raccourci en jeu. Sur un AZERTY,
   // Ctrl+Alt+1 se tape AltGr + &, une combinaison qui ne produit rien.
   'tool.badge': ['ctrl+shift+1', 'ctrl+alt+1', 'n'],
+  // Petites pastilles (minimap) : Ctrl+Maj+4, juste à côté. ⚠️ PAS de repli
+  // Ctrl+Alt+4 comme pour le numéroteur : sur AZERTY, c'est AltGr + 4, qui
+  // tape « { » — le réserver l'interdirait dans tout Windows.
+  'tool.badgeMini': ['ctrl+shift+4'],
   // édition
   'edit.undo': ['ctrl+shift+6', 'ctrl+z'],
   'edit.clear': ['ctrl+shift+e', 'ctrl+e', 'c'],
@@ -597,7 +615,7 @@ export const KEYMAP_PRESETS: readonly KeymapPreset[] = [
     id: 'epicpen',
     name: 'Epic Pen',
     description:
-      'Par défaut. Reprend les combinaisons d’Epic Pen (Ctrl+Maj+2/3/4/5/6, Ctrl+E, Ctrl+H) et prolonge la série : Ctrl+Maj+1 numéroteur, 7/8 épaisseur, 9 jalons. Les touches d’Hexa restent en second.',
+      'Par défaut. Reprend les combinaisons d’Epic Pen (Ctrl+Maj+2/3/5/6, Ctrl+E, Ctrl+H) et prolonge la série : Ctrl+Maj+1 numéroteur, Ctrl+Maj+4 petites pastilles (minimap — le surligneur passe sur S), 7/8 épaisseur, 9 jalons. Les touches d’Hexa restent en second.',
     extends: 'hexa',
     bindings: EPICPEN_BINDINGS,
   },
