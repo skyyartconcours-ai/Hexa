@@ -372,7 +372,8 @@ export function haloPaint(
  */
 export function paintInkShadow(
   ctx: CanvasRenderingContext2D,
-  trace: (c: CanvasRenderingContext2D) => void,
+  /** le chemin : une fonction qui le trace, ou un Path2D déjà construit (trait en cours) */
+  trace: ((c: CanvasRenderingContext2D) => void) | Path2D,
   color: string,
   size: number,
   alpha: number,
@@ -391,8 +392,12 @@ export function paintInkShadow(
   const pass = (w: number, a: number) => {
     ctx.strokeStyle = dark(a * alpha * k)
     ctx.lineWidth = w
-    trace(ctx)
-    ctx.stroke()
+    // Un Path2D est transformé au moment du tracé : le décalage vers le bas
+    // posé plus haut s'y applique exactement comme au chemin courant.
+    if (typeof trace === 'function') {
+      trace(ctx)
+      ctx.stroke()
+    } else ctx.stroke(trace)
   }
   // quatre passes serrées : un contour qui épouse le trait, pas une dalle
   pass(size * 2.7, 0.028)

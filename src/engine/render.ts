@@ -57,6 +57,77 @@ function tracePath(ctx: CanvasRenderingContext2D, pts: StrokePoint[], from: numb
   ctx.lineTo(last.x, last.y)
 }
 
+/* ------------------------------------------------------------------ */
+/*  Trait EN COURS : chemin et entrées du contour, prolongés, jamais     */
+/*  reconstruits                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * ⚠️ LE TRAIT EN COURS COÛTAIT DE PLUS EN PLUS CHER À CHAQUE IMAGE.
+ *
+ * Son chemin était retracé point par point SIX fois par image (quatre passes
+ * d'ombre, deux halos), et ses entrées `[x, y, p]` réallouées en entier pour
+ * le contour. Mesuré hors écran le 25/10 : `renderLive` à 0,6 ms pour un trait
+ * de 500 points, 1,4 ms à 2 000, 2,8 ms à 5 000 — la pente même du « plus je
+ * trace, plus ça rame ».
+ *
+ * Un trait en cours ne fait que GRANDIR (points ajoutés en fin, jamais
+ * modifiés) : on garde son chemin et ses entrées, et on les prolonge des
+ * seuls nouveaux points. Chaque image en tire une copie native du chemin, plus
+ * son dernier segment (qui change à chaque point), réutilisée par toutes les
+ * passes — exactement la même géométrie que `tracePath`.
+ *
+ * Seulement pour le trait EN COURS (`done` faux) : un trait posé peut être
+ * attrapé et déplacé, ses points bougent sur place. Et le cache se vérifie à
+ * chaque image (même premier point, même dernier point connu, même `from`) :
+ * au moindre écart, il repart de zéro.
+ */
+interface TraitEnCours {
+  from: number
+  /** nombre de points déjà intégrés au corps du chemin */
+  n: number
+  premier: StrokePoint
+  dernier: StrokePoint
+  /** moveTo + quadratiques jusqu'à l'avant-dernier point, sans le segment final */
+  corps: Path2D
+  /** entrées du contour (perfect-freehand), une par point depuis `from` */
+  entrees: number[][]
+}
+const enCours = new WeakMap<Stroke, TraitEnCours>()
+
+function traitEnCours(s: Stroke, from: number): TraitEnCours | null {
+  if (s.done || typeof Path2D === 'undefined') return null
+  const pts = s.points
+  const n = pts.length
+  if (n - from < 2) return null
+  let c = enCours.get(s)
+  if (!c || c.from !== from || c.premier !== pts[from] || c.n > n || pts[c.n - 1] !== c.dernier) {
+    const corps = new Path2D()
+    corps.moveTo(pts[from].x, pts[from].y)
+    c = { from, n: from + 1, premier: pts[from], dernier: pts[from], corps, entrees: [[pts[from].x, pts[from].y, pts[from].p]] }
+    enCours.set(s, c)
+  }
+  // quadratiques i = c.n .. n-2 (même formule que tracePath)
+  for (let i = c.n; i < n - 1; i++) {
+    const a = pts[i]
+    const b = pts[i + 1]
+    c.corps.quadraticCurveTo(a.x, a.y, (a.x + b.x) / 2, (a.y + b.y) / 2)
+  }
+  for (let i = c.entrees.length + from; i < n; i++) c.entrees.push([pts[i].x, pts[i].y, pts[i].p])
+  // les quadratiques jusqu'à n-2 sont acquises : elles ne dépendent que des points ≤ n-1
+  c.n = Math.max(c.n, n - 1)
+  c.dernier = pts[c.n - 1]
+  return c
+}
+
+/** Chemin complet du trait en cours pour CETTE image : le corps, plus le segment final. */
+function cheminEnCours(c: TraitEnCours, pts: StrokePoint[]): Path2D {
+  const p = new Path2D(c.corps)
+  const last = pts[pts.length - 1]
+  p.lineTo(last.x, last.y)
+  return p
+}
+
 function fillOutline(ctx: CanvasRenderingContext2D, outline: number[][]): void {
   if (outline.length < 3) return
   ctx.beginPath()
@@ -223,6 +294,16 @@ export function renderStroke(ctx: CanvasRenderingContext2D, s: Stroke, st: Rende
   if (pts.length - st.from < 1) return
   const path = pathOf(s, st.from, st.now)
   const ign = igniteAt(s, st.now)
+  // trait en cours : un seul chemin pour toutes les passes (voir TraitEnCours)
+  const cache = traitEnCours(s, st.from)
+  const chemin = cache ? cheminEnCours(cache, pts) : null
+  const tracer = (): void => {
+    if (chemin) ctx.stroke(chemin)
+    else {
+      tracePath(ctx, pts, st.from)
+      ctx.stroke()
+    }
+  }
 
   if (s.tool === 'highlight') {
     ctx.save()
@@ -231,8 +312,7 @@ export function renderStroke(ctx: CanvasRenderingContext2D, s: Stroke, st: Rende
     ctx.lineJoin = 'round'
     ctx.strokeStyle = rgba(s.color, 0.32 * st.alpha)
     ctx.lineWidth = s.size * 2.8
-    tracePath(ctx, pts, st.from)
-    ctx.stroke()
+    tracer()
     ctx.restore()
     if (path) igniteOn(ctx, s, st, path, ign)
     return
@@ -240,7 +320,7 @@ export function renderStroke(ctx: CanvasRenderingContext2D, s: Stroke, st: Rende
 
   // ombre portée colorée : SOUS l'encre, en source-over. Invisible sur fond
   // sombre, c'est elle qui détache le trait sur un fond clair.
-  if (path) paintInkShadow(ctx, path.trace, s.color, s.size, st.alpha)
+  if (path) paintInkShadow(ctx, chemin ?? path.trace, s.color, s.size, st.alpha)
 
   // stylo néon : halo additif large + halo serré + cœur chaud avec pression.
   // Les trois passes suivent un dégradé de la queue vers la tête (profondeur).
@@ -254,16 +334,14 @@ export function renderStroke(ctx: CanvasRenderingContext2D, s: Stroke, st: Rende
   const head = path ? path.head : pts[pts.length - 1]
   ctx.strokeStyle = haloPaint(ctx, tail, head, s.color, 0.13 * st.alpha * g)
   ctx.lineWidth = s.size * 3.6
-  tracePath(ctx, pts, st.from)
-  ctx.stroke()
+  tracer()
   ctx.strokeStyle = haloPaint(ctx, tail, head, s.color, 0.3 * st.alpha * g)
   ctx.lineWidth = s.size * 1.9
-  tracePath(ctx, pts, st.from)
-  ctx.stroke()
+  tracer()
 
-  const sliced = st.from > 0 ? pts.slice(st.from) : pts
+  const entrees = cache ? cache.entrees : (st.from > 0 ? pts.slice(st.from) : pts).map((p) => [p.x, p.y, p.p])
   const outline = getStroke(
-    sliced.map((p) => [p.x, p.y, p.p]),
+    entrees,
     {
       size: s.size,
       thinning: 0.52,

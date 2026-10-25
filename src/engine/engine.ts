@@ -1768,6 +1768,12 @@ export class HexaEngine {
         else this.overlay.clear(pt.t)
       }
     }
+    // flèche : un seul recalcul de la courbe pour tout le paquet (pushGesture)
+    if (this.gesteSale) {
+      const c = this.gesteSale
+      this.gesteSale = null
+      if (c === this.current) this.refreshGesture(c)
+    }
     // un vrai déplacement pendant le maintien = ce n'est plus un maintien
     if (
       this.radialTimer &&
@@ -1805,8 +1811,14 @@ export class HexaEngine {
     const last = this.gesture[this.gesture.length - 1]
     if (last && dist(last.x, last.y, fpt.x, fpt.y) <= 0.7) return
     this.gesture.push(fpt)
-    this.refreshGesture(c)
+    // La courbe embellie se recalcule UNE fois par paquet de mouvements (voir
+    // onMove), pas à chaque point coalescé : une souris à 1 000 Hz en livre
+    // une quinzaine par image, et chacun retraitait tout le geste.
+    this.gesteSale = c
   }
+
+  /** flèche dont le geste a reçu des points depuis le dernier recalcul */
+  private gesteSale: Stroke | null = null
 
   /** recalcule la courbe embellie de la flèche `c` depuis son geste brut */
   private refreshGesture(c: Stroke): void {
@@ -2277,6 +2289,19 @@ export class HexaEngine {
   }
 
   private moveCursor(): void {
+    // Caché (mode jeu, survol de l'interface, écran de la barre, laser ou
+    // projecteur : voir styles.css), il n'a pas à suivre la souris — chaque
+    // écriture de `transform` coûtait une image composée, à la fréquence de
+    // la souris. Il se replace au premier mouvement où il redevient visible.
+    const b = document.body.classList
+    if (
+      this.cursor.style.opacity === '0' ||
+      b.contains('passthrough') ||
+      b.contains('over-ui') ||
+      (b.contains('hexa-encre') && b.contains('barre-hote'))
+    ) {
+      return
+    }
     this.cursor.style.transform = `translate3d(${this.pointer.x}px, ${this.pointer.y}px, 0) translate(-50%, -50%)`
   }
 
