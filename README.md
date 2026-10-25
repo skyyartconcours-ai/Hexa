@@ -173,6 +173,10 @@ permet au laser et au projecteur de suivre le curseur pendant qu'on joue.
 
 ## Budget de performance
 
+> **Reprendre l'optimisation ?** Tout ce qui a été mesuré, fait et reste à faire sur le lag
+> pendant les lives (dwm.exe, OBS, Hexa) est dans [PASSATION-PERF.md](PASSATION-PERF.md), avec les
+> outils de mesure dans [`outils/diagnostic-dwm/`](outils/diagnostic-dwm/).
+
 | Cible | Où ça se joue |
 | --- | --- |
 | 0 % de processeur au repos | aucune image n'est produite quand rien n'anime (rAF dormante) |

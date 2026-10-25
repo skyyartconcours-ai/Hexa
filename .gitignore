@@ -12,3 +12,6 @@ test/e2e/captures-couches/
 # Arbres de travail temporaires des agents (isolation git worktree). Ils sont
 # créés et supprimés en cours de session : rien à versionner ici.
 .claude/worktrees/
+
+# journaux écrits par outils/diagnostic-dwm/garde_dwm.ps1 à côté de lui
+outils/diagnostic-dwm/*.csv
