@@ -54,6 +54,7 @@ node test/e2e/s30-raccourci-pris.mjs       # une combinaison tenue par un autre 
 node test/e2e/s31-ecrans-utiles.mjs        # SUR LE VRAI POSTE multi-écran : overlays utiles seulement, bridage, 60 images/s
 node test/e2e/t-obs-5-redemarrage.mjs      # la source navigateur revient seule, avec le nouveau jeton, après un redémarrage
 node test/e2e/s32-pastilles-stylo.mjs      # Windows : Ctrl+Maj+1/3/2/X par le vrai clavier, moteur endormi hors dessin
+node test/e2e/s33-petites-pastilles.mjs    # Ctrl+Maj+4, petites pastilles (minimap) — HORS ÉCRAN, peut tourner pendant un live
 node test/e2e/s28-clavier-deux-fenetres.mjs # Tab et les lettres dans le VRAI mode à deux fenêtres
 ```
 
