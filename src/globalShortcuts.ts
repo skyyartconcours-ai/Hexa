@@ -15,7 +15,7 @@
  *
  * Zéro boucle, zéro minuterie : tout est événementiel.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { bridge, isElectron } from './bridge'
 import { porteEncre } from './couches'
 import type { ToolId } from './engine/types'
@@ -220,6 +220,14 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
   const { preset, overrides, enabled } = options
   const engineRef = useRef(options.engine)
   engineRef.current = options.engine
+  // La fenêtre qui pilote les raccourcis est celle de l'ÉCRAN D'ANNOTATION :
+  // c'est la seule dont l'overlay existe toujours (electron/main.ts,
+  // rebuildOverlays ne garde que l'écran d'annotation et celui de la barre).
+  const [pilote, setPilote] = useState(bridge.ecranAnnotation)
+  useEffect(() => {
+    if (!isElectron) return
+    return bridge.on('ecran-annotation', (v) => setPilote(v !== false))
+  }, [])
 
   // (1) exécution des actions poussées par le processus principal
   useEffect(() => {
@@ -258,7 +266,11 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
     // Une seule fenêtre pilote les raccourcis : sinon chaque écran réécrirait
     // la même table à la suite des autres. Et parmi les deux couches d'un même
     // écran (§S11), c'est l'encre qui parle — celle qui tient le moteur.
-    if (bridge.display && !bridge.display.primary) return
+    // ⚠️ Pas l'écran PRINCIPAL : depuis que seuls les écrans utiles gardent un
+    // overlay, il peut ne plus en avoir (annotation sur un autre écran, barre
+    // sur un troisième). Plus personne n'envoyait alors la table : seules les
+    // combinaisons d'usine restaient réservées.
+    if (bridge.display && !pilote) return
     if (!porteEncre) return
 
     const bindings = resolveKeymap(preset, overrides)
@@ -276,5 +288,5 @@ export function useGlobalShortcuts(options: UseGlobalShortcutsOptions): void {
     return () => {
       alive = false
     }
-  }, [preset, overrides, enabled])
+  }, [preset, overrides, enabled, pilote])
 }
