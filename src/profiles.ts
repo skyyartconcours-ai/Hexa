@@ -152,6 +152,17 @@ export function snapshotSettings(state: Readonly<Record<string, unknown>>): Prof
 }
 
 /**
+ * Niveau d'effets d'un profil → `effectIntensity` du store (0,4 → 1,4, 1 =
+ * normal). Le store n'a jamais eu de clé `effects` : sans cette traduction, le
+ * filtre ci-dessous l'écartait et « effets sobres » ne faisait rien.
+ */
+const INTENSITE_EFFETS: Readonly<Record<NonNullable<ProfileSettings['effects']>, number>> = {
+  plein: 1,
+  sobre: 0.6,
+  minimal: 0.4,
+}
+
+/**
  * Ne garde que les réglages que le store connaît réellement.
  * C'est ce filtre qui rend les profils tolérants aux modules encore à venir :
  * un réglage inconnu est ignoré au lieu de polluer l'état.
@@ -163,6 +174,11 @@ export function pickKnownSettings(
   const patch: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(settings)) {
     if (value === undefined) continue
+    if (key === 'effects') {
+      const intensite = INTENSITE_EFFETS[value as keyof typeof INTENSITE_EFFETS]
+      if (intensite !== undefined && 'effectIntensity' in state) patch.effectIntensity = intensite
+      continue
+    }
     if (key in state) patch[key] = value
   }
   return patch
