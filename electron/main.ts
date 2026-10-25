@@ -2110,6 +2110,8 @@ function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindo
     // titre natif, c'est lui qu'OBS affiche.
     ui.on('page-title-updated', (e) => e.preventDefault())
     suivreFocus(ui.webContents, `interface écran ${display.id}`)
+    // Créée cachée, Windows la ramène à la zone de travail (voir createOverlay).
+    applyBounds(ui, bounds, `interface écran ${display.id}`)
 
     reassertTopmost(ui)
     ui.setMenuBarVisibility(false)
@@ -2307,6 +2309,15 @@ function createOverlay(display: Display): Overlay | null {
       },
     })
 
+    // ⚠️ L'ÉCRAN ENTIER, BARRE DES TÂCHES COMPRISE. Créée cachée (`show:
+    // false`), la fenêtre est ramenée par Windows à la ZONE DE TRAVAIL :
+    // 1920 × 1032 au lieu de 1080 (mesuré le 25/10). Tant qu'elle passait par
+    // la réduction 8 × 8 puis le plein écran, la première pose rattrapait ça ;
+    // cachée hors dessin, plus rien ne la reposait. Conséquences : les 48 px du
+    // bas n'étaient pas couverts, et la vue OBS, qui reçoit `innerHeight`,
+    // centrait 1032 dans 1080 — toutes les annotations 24 px trop bas à
+    // l'antenne. Une pose juste après la création suffit, et tient.
+    applyBounds(win, bounds, `encre écran ${display.id}`)
     // 'screen-saver' : le niveau le plus haut, celui qui passe au-dessus des
     // autres overlays (Discord, Steam, GeForce). Justification détaillée dans
     // windows-guard.ts → reassertTopmost, qui est aussi rappelé à chaque
