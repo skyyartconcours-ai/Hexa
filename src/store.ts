@@ -32,7 +32,31 @@ import {
  */
 export const COLORS = ['#00e5ff', '#ff3d3d', '#2f7cff', '#ff2d95', '#39ff14', '#ffe900', '#ffffff']
 
-export const FADE_STEPS: (number | null)[] = [2000, 4000, 8000, null]
+/**
+ * FONDU : 2 MINUTES AU PLUS, ET PAR DÉFAUT.
+ *
+ * Demande de l'utilisateur (25/10) : « un fade de 2 min maximum, comme ça plus
+ * de soucis », « et 2 min par défaut ». Avec ∞, une annotation oubliée gardait
+ * la couche encre plein écran au-dessus du jeu jusqu'au prochain « tout
+ * effacer » (relevé : visible de 13:35 à 13:46). Le dernier cran est donc
+ * 2 minutes, et toute durée plus longue — ∞ compris — y est ramenée, d'où
+ * qu'elle vienne : réglage persisté, profil enregistré, appel direct.
+ * Ce qui doit rester se ÉPINGLE : une annotation épinglée ne s'efface jamais.
+ */
+export const FONDU_MAX_MS = 120_000
+export const FADE_STEPS: (number | null)[] = [2000, 4000, 8000, FONDU_MAX_MS]
+
+/** Ramène une durée de fondu à ce qui est permis (∞ et au-delà : 2 minutes). */
+export function fonduPermis(v: number | null | undefined): number {
+  if (v == null || !Number.isFinite(v)) return FONDU_MAX_MS
+  return Math.min(FONDU_MAX_MS, Math.max(500, v))
+}
+
+/** « 4 s », « 2 min » : l'étiquette d'une durée de fondu. */
+export function libelleFondu(v: number | null): string {
+  const ms = fonduPermis(v)
+  return ms >= 60_000 ? `${Math.round(ms / 60_000)} min` : `${Math.round(ms / 1000)} s`
+}
 
 /** Réglages du miroir OBS (§10.2) et du client obs-websocket (§7.3). */
 export interface ObsSettings {
@@ -525,7 +549,7 @@ export const useUiStore = create<UiState>()(
       palette: 3,
       ghostPage: false,
       size: 6,
-      fadeDelay: 4000,
+      fadeDelay: FONDU_MAX_MS,
       sparkles: true,
       smartShapes: true,
       guides: true,
@@ -591,10 +615,10 @@ export const useUiStore = create<UiState>()(
       swapColor: () => set((s) => ({ color: s.prevColor, prevColor: s.color })),
       toggleGhostPage: () => set((s) => ({ ghostPage: !s.ghostPage })),
       setSize: (size) => set({ size }),
-      setFadeDelay: (fadeDelay) => set({ fadeDelay }),
+      setFadeDelay: (fadeDelay) => set({ fadeDelay: fonduPermis(fadeDelay) }),
       cycleFade: () =>
         set((s) => ({
-          fadeDelay: FADE_STEPS[(FADE_STEPS.indexOf(s.fadeDelay) + 1) % FADE_STEPS.length],
+          fadeDelay: FADE_STEPS[(FADE_STEPS.indexOf(fonduPermis(s.fadeDelay)) + 1) % FADE_STEPS.length],
         })),
       toggleSparkles: () => set((s) => ({ sparkles: !s.sparkles })),
       toggleSmartShapes: () => set((s) => ({ smartShapes: !s.smartShapes })),
@@ -675,6 +699,8 @@ export const useUiStore = create<UiState>()(
           // On n'écrit que les réglages que le store connaît : un profil peut
           // décrire des options livrées par un module encore absent.
           const patch = pickKnownSettings(profile.settings, s as unknown as Record<string, unknown>)
+          // un profil enregistré avant le plafond peut encore dire ∞
+          if ('fadeDelay' in patch) patch.fadeDelay = fonduPermis(patch.fadeDelay as number | null)
           return { ...(patch as Partial<UiState>), profileId: id }
         }),
       saveCustomProfile: (name) =>
@@ -848,12 +874,9 @@ export const useUiStore = create<UiState>()(
          */
         if (!Number.isFinite(merged.size)) merged.size = 6
         else merged.size = Math.min(18, Math.max(2, Math.round(merged.size)))
-        // Le fondu : soit ∞ (null), soit une durée qui a du sens.
-        if (merged.fadeDelay != null) {
-          merged.fadeDelay = Number.isFinite(merged.fadeDelay)
-            ? Math.min(60_000, Math.max(500, merged.fadeDelay))
-            : null
-        }
+        // Le fondu : une durée qui a du sens, 2 minutes au plus — un ∞ persisté
+        // (réglage d'avant le plafond) devient 2 minutes (voir FONDU_MAX_MS).
+        merged.fadeDelay = fonduPermis(merged.fadeDelay)
         if (typeof merged.color !== 'string' || !/^#[0-9a-f]{3,8}$/i.test(merged.color)) {
           merged.color = COLORS[0]
         }

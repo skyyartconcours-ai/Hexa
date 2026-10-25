@@ -1426,7 +1426,7 @@ export default function App() {
                 couleur, relâche, c'est pris
               </li>
               <li>
-                <b>D</b> : fondu (2s/4s/8s/∞) · <b>C</b> : tout effacer · <b>Maintenir Z</b> : laser
+                <b>D</b> : fondu (2s/4s/8s/2min) · <b>C</b> : tout effacer · <b>Maintenir Z</b> : laser
                 · <b>Q</b> : ping
               </li>
               <li>

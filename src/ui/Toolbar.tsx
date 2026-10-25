@@ -9,7 +9,7 @@ import {
 } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactElement, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { COLORS, TOOLBAR_FADE_STEPS, useUiStore } from '../store'
+import { COLORS, TOOLBAR_FADE_STEPS, libelleFondu, useUiStore } from '../store'
 import type { ToolId } from '../engine/types'
 import { GRID_LABELS } from '../engine/stream-fx'
 import {
@@ -67,7 +67,6 @@ import {
   IconNote,
   IconStopwatch,
   IconHighlight,
-  IconInfinity,
   IconLaser,
   IconLine,
   IconMagnet,
@@ -905,18 +904,16 @@ export function Toolbar({
 
       <div className="group">
         <button
-          className={`tbtn chip ${fadeDelay == null ? 'active' : ''}`}
+          className="tbtn chip"
           title={bulle(
-            fadeDelay == null
-              ? 'Fondu coupé (∞) : tes annotations restent jusqu’à ce que tu effaces. Ce bouton fait défiler 2 s, 4 s, 8 s, ∞'
-              : `Fondu : chaque trait s’efface seul après ${fadeDelay / 1000} s. Ce bouton fait défiler 2 s, 4 s, 8 s, ∞`,
+            `Fondu : chaque trait s’efface seul après ${libelleFondu(fadeDelay)}. Ce bouton fait défiler 2 s, 4 s, 8 s, 2 min. Pour garder une annotation, épingle-la.`,
             'fade.cycle',
             'D',
           )}
           onClick={cycleFade}
         >
-          {fadeDelay == null ? <IconInfinity /> : <IconTimer />}
-          <span className="chip-label">{fadeDelay == null ? '∞' : `${fadeDelay / 1000}s`}</span>
+          <IconTimer />
+          <span className="chip-label">{libelleFondu(fadeDelay).replace(' ', '')}</span>
           {rappel('Durée du fondu', 'fade.cycle', 'D')}
         </button>
         <button

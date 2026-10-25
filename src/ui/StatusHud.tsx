@@ -19,7 +19,7 @@
  * setTimeout à la fois, et strictement rien à l'écran quand tout va bien.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { COLORS, useUiStore } from '../store'
+import { COLORS, libelleFondu, useUiStore } from '../store'
 import { formatCombo, resolveKeymap, type KeymapAction } from '../keymap'
 import { exigerPleinEcran } from './fenetre-compacte'
 import './status-hud.css'
@@ -113,8 +113,7 @@ export function StatusHud({ passthrough }: StatusHudProps) {
       if (!toolbarVisible) show('Barre d’outils masquée', keyOf('ui.toolbar'))
       else show('Barre d’outils affichée')
     } else if (fadeDelay !== p.fadeDelay) {
-      if (fadeDelay == null) show('Fondu coupé (∞) — tout reste jusqu’à l’effacement')
-      else show(`Fondu : les traits s’effacent après ${fadeDelay / 1000} s`)
+      show(`Fondu : les traits s’effacent après ${libelleFondu(fadeDelay)}`)
     }
 
     prev.current = { passthrough, toolbarVisible, fadeDelay, first: false }
@@ -158,14 +157,10 @@ export function StatusHud({ passthrough }: StatusHudProps) {
           <span title="Épaisseur du trait (molette)">{size} px</span>
           <span className="hx-status-sep" aria-hidden />
           <span
-            className={`hx-status-fade${fadeDelay == null ? ' is-inf' : ''}`}
-            title={
-              fadeDelay == null
-                ? 'Fondu coupé : les annotations restent jusqu’à l’effacement'
-                : 'Les annotations s’effacent seules après ce délai'
-            }
+            className="hx-status-fade"
+            title="Les annotations s’effacent seules après ce délai (2 min au plus) ; épingle celles à garder"
           >
-            {fadeDelay == null ? '∞' : `${fadeDelay / 1000} s`}
+            {libelleFondu(fadeDelay)}
           </span>
           {keyOf('ui.toolbar') && (
             <span className="hx-status-hint">

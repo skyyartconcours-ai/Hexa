@@ -49,11 +49,12 @@ export const BUILTIN_PROFILES: readonly HexaProfile[] = [
   {
     id: 'lol',
     name: 'Analyse LoL',
-    description: 'Rien ne s’efface, formes redressées : on décortique une phase image par image.',
+    description: 'Fondu 2 min, formes redressées : on décortique une phase image par image.',
     glyph: 'LoL',
     builtin: true,
     settings: {
-      fadeDelay: null,
+      // ∞ n'existe plus : 2 minutes au plus (voir FONDU_MAX_MS dans store.ts)
+      fadeDelay: 120_000,
       smartShapes: true,
       sparkles: false,
       size: 6,

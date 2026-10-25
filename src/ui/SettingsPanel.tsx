@@ -15,7 +15,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { SessionExport } from '../engine/types'
 // `isElectron` est déjà calculé localement plus bas dans ce fichier.
 import { bridge, libelleVersion, type ProtectionCapture } from '../bridge'
-import { FADE_STEPS, useUiStore } from '../store'
+import { FADE_STEPS, libelleFondu, useUiStore } from '../store'
 import { THEMES } from '../themes'
 import { CATEGORIES } from '../engine/handwriting/mots'
 import { tailleLexique } from '../engine/handwriting/lexique'
@@ -147,7 +147,7 @@ function hoteObs(): HoteObs | undefined {
 }
 
 function fadeLabel(v: number | null): string {
-  return v == null ? '∞' : `${Math.round(v / 1000)} s`
+  return libelleFondu(v)
 }
 
 /* ------------------------------------------------------------------ *
