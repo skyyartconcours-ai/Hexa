@@ -291,6 +291,8 @@ export class HexaEngine {
   private hwUndoing: Stroke | null = null
   private current: Stroke | null = null
   private particles: Spark[] = []
+  /** horodatage de la dernière gerbe d'étincelles (voir spawnSparkles) */
+  private derniereGerbe = -Infinity
   private laser: LaserPoint[] = []
   private grabbed: Stroke | null = null
   private grabLast = { x: 0, y: 0 }
@@ -2157,9 +2159,14 @@ export class HexaEngine {
    * moins d'une demi-seconde — le trait doit rester la vedette.
    */
   private spawnSparkles(pt: StrokePoint): void {
-    // Plafond ramené de 420 à 90 : au-delà, ce n'est plus une gerbe de braises,
-    // c'est un voile qui recouvre le trait.
-    if (this.particles.length > 90) return
+    // Plafond ramené de 420 à 90, puis à 40 (allègement des directs, 25/10) :
+    // au-delà, ce n'est plus une gerbe de braises, c'est un voile qui recouvre
+    // le trait — et autant de sprites additifs à composer à chaque image.
+    if (this.particles.length > 40) return
+    // Une gerbe par image au plus. Une souris à 1 000 Hz livre plusieurs
+    // points par image : chacun crachait la sienne, pour un rendu identique.
+    if (pt.t - this.derniereGerbe < 16) return
+    this.derniereGerbe = pt.t
     const boost = this.opts.effects ?? 1
     const c = this.current
     let speed = 0
