@@ -183,6 +183,46 @@ console.log('\n--- 5. Ctrl+Maj+X ---')
   dit('5.1 plus aucune fenêtre d’Hexa sur l’écran d’annotation', fen.length === 0, fen.length ? JSON.stringify(fen) : 'aucune')
 }
 
+/* --- 6. pastilles, petites pastilles, surligneur, puis Ctrl+Maj+E --------- */
+// La séquence relevée le 25/10 : la couche doit se retirer en moins d'une
+// seconde après « tout effacer », quel que soit l'outil laissé en main.
+console.log('\n--- 6. Ctrl+Maj+1, Ctrl+Maj+4, S, puis Ctrl+Maj+E ---')
+{
+  await ctrlMaj('1')
+  await encre.mouse.click(400, 300)
+  await pause(200)
+  await ctrlMaj('4')
+  const e4 = await etat()
+  const mini = await encre.evaluate(() => JSON.parse(localStorage.getItem('hexa-ui')).state.badgeMini)
+  dit('6.1 Ctrl+Maj+4 répond, Hexa en arrière-plan : petites pastilles', e4.dessin && e4.outil === 'badge', `dessin=${e4.dessin} outil=${e4.outil} badgeMini=${mini}`)
+  await encre.mouse.click(520, 320)
+  await pause(200)
+  await encre.keyboard.press('s')
+  await pause(200)
+  dit('6.2 « s » sort le surligneur', (await etat()).outil === 'highlight', `outil=${(await etat()).outil}`)
+  const m = encre.mouse
+  await m.move(300, 650)
+  await m.down()
+  for (let k = 1; k <= 20; k++) await m.move(300 + k * 20, 650, { steps: 2 })
+  await m.up()
+  await pause(300)
+  const avant = await surEcranAnnotation()
+  execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', TOUCHE, String('E'.charCodeAt(0))])
+  const t0 = Date.now()
+  let fen = await surEcranAnnotation()
+  while (fen.length > 0 && Date.now() - t0 < 3000) {
+    await pause(50)
+    fen = await surEcranAnnotation()
+  }
+  const delai = Date.now() - t0
+  const e = await etat()
+  dit(
+    '6.3 Ctrl+Maj+E : tout effacé, souris rendue, couche retirée en moins d’une seconde',
+    fen.length === 0 && delai < 1000 && e.dessin === false,
+    `avant : ${avant.length} fenêtre(s) · retirée en ${delai} ms · dessin=${e.dessin}`,
+  )
+}
+
 await app.close().catch(() => {})
 console.log('\n=========================================')
 const kos = R.filter((r) => r[0] === 'KO')

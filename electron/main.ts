@@ -1218,6 +1218,17 @@ function applyPassthrough(o: Overlay, on: boolean): void {
     /* fenêtre en cours de destruction */
   }
   refreshVisibility(o)
+  // Retour au jeu avec des annotations à l'écran : la couche encre RESTE
+  // affichée — c'est voulu, elles partent dans le direct. On le dit au
+  // journal, sinon « une fenêtre plein écran visible au repos » ressemble à
+  // un masquage raté (relevé le 25/10 : fondu sur ∞, rien effacé depuis 13:35).
+  if (on && o.hasContent && o === overlayAnnotation()) {
+    log(
+      'fenêtre',
+      'mode jeu : la couche encre reste affichée, des annotations sont à l’écran ' +
+        '(fondu en cours, ou sur ∞) — Ctrl+Maj+E efface tout et la retire',
+    )
+  }
   // « Barre d'outils seulement en mode dessin » : la barre vit sur un AUTRE
   // écran que celui qui bascule ; elle doit suivre le mode de l'application.
   if (reglages.barreEnDessin) for (const x of overlays.values()) refreshVisibiliteInterface(x)
