@@ -3310,6 +3310,11 @@ function registerIpc(): void {
     if (!o || !o.ui || o.ui.isDestroyed() || !vientDeInterface(o, e)) return
     o.uiRect = lireRect(rect)
     appliquerBoundsInterface(o)
+    // « Barre d'outils seulement en mode dessin » : la règle dépend de uiRect.
+    // La page annonce son activité AVANT son rectangle (au lancement, à la
+    // fermeture d'un panneau, à la sortie du dessin) : évaluée sans le
+    // rectangle, la barre restait affichée jusqu'au F8 suivant.
+    if (reglages.barreEnDessin) refreshVisibiliteInterface(o)
   })
 
   /**
