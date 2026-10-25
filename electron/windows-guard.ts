@@ -102,9 +102,26 @@ const retards = new Set<NodeJS.Timeout>()
  * `setVisibleOnAllWorkspaces(visibleOnFullScreen)` est le pendant macOS : sans
  * lui, l'overlay disparaît dès qu'une application passe en plein écran natif.
  */
+/**
+ * Anti-rebond : chaque réaffirmation réordonne la pile des fenêtres et fait
+ * recomposer DWM. Le journal du 24/10 montre des rafales de Ctrl+Maj+3 / +1 /
+ * +E à quelques centaines de millisecondes d'écart : une fenêtre réaffirmée il
+ * y a moins de 250 ms est encore au-dessus, inutile de recommencer.
+ *
+ * ⚠️ SEULEMENT SI ELLE EST LA DERNIÈRE RÉAFFIRMÉE. L'ordre compte : l'encre
+ * repasse devant, puis l'interface doit repasser devant l'encre (showOverlay).
+ * Sauter l'interface parce qu'elle venait d'être réaffirmée AVANT l'encre la
+ * laisserait derrière les annotations.
+ */
+const REAFFIRMATION_MIN_MS = 250
+let derniere: { win: BrowserWindow; t: number } | null = null
+
 export function reassertTopmost(win: BrowserWindow): void {
   try {
     if (win.isDestroyed()) return
+    const maintenant = Date.now()
+    if (derniere && derniere.win === win && maintenant - derniere.t < REAFFIRMATION_MIN_MS) return
+    derniere = { win, t: maintenant }
     win.setAlwaysOnTop(true, 'screen-saver')
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   } catch (err) {

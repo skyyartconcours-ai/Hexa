@@ -429,6 +429,10 @@ export class HexaEngine {
   private renderFailed = false
   private staticDirty = true
   private lastFrame = 0
+  /** le canevas live porte-t-il encore quelque chose de l'image précédente ? */
+  private liveSale = true
+  /** attente du plafond de cadence (voir loop) : une minuterie, pas des rAF à vide */
+  private capTimer: ReturnType<typeof setTimeout> | null = null
   private idSeq = 1
   private w = 0
   private h = 0
@@ -618,6 +622,7 @@ export class HexaEngine {
     for (const fn of this.detachFns) fn()
     clearMorphs()
     cancelAnimationFrame(this.raf)
+    if (this.capTimer) clearTimeout(this.capTimer)
     if (this.wakeTimer) clearTimeout(this.wakeTimer)
     if (this.radialTimer) clearTimeout(this.radialTimer)
     this.closeText?.()
@@ -1179,6 +1184,10 @@ export class HexaEngine {
       this.particles.length = 0
       if (this.raf) cancelAnimationFrame(this.raf)
       this.raf = 0
+      if (this.capTimer) {
+        clearTimeout(this.capTimer)
+        this.capTimer = null
+      }
       this.running = false
       if (this.wakeTimer) {
         clearTimeout(this.wakeTimer)
@@ -2342,8 +2351,16 @@ export class HexaEngine {
     const now = performance.now()
     // Plafond à 60 images/s (src/engine/cadence.ts) : un rappel trop tôt —
     // trois sur quatre sur un écran à 240 Hz — ne calcule ni ne peint rien.
+    // Et il ne redemande pas d'image tout de suite : redemander à chaque
+    // rafraîchissement, c'était réveiller la page 240 fois par seconde pour
+    // n'en peindre que 60. On dort jusqu'à l'image permise, moins une marge
+    // pour l'attraper au vol.
     if (tropTot(now, this.lastFrame)) {
-      this.raf = requestAnimationFrame(this.loop)
+      const attente = Math.max(0, INTERVALLE_MIN_MS - (now - this.lastFrame) - 3)
+      this.capTimer = setTimeout(() => {
+        this.capTimer = null
+        if (this.running) this.raf = requestAnimationFrame(this.loop)
+      }, attente)
       return
     }
     const dt = clamp(now - this.lastFrame, 0, 48) / 1000
@@ -3018,6 +3035,21 @@ export class HexaEngine {
 
   private renderLive(now: number): void {
     const ctx = this.lCtx
+    // ⚠️ RIEN À PEINDRE SUR UN CANEVAS DÉJÀ VIDE : on ne l'efface pas. La
+    // boucle tourne aussi pour un fondu ou une animation du calque STATIQUE ;
+    // effacer à chaque image un canevas plein écran (1920 × 1080) qui ne
+    // contient rien, c'était autant de surface à retracer et à recomposer.
+    const aPeindre =
+      this.current != null ||
+      this.spotDraw != null ||
+      this.pinCue != null ||
+      this.particles.length > 0 ||
+      this.pings.length > 0 ||
+      this.laser.length > 0 ||
+      this.overlay.active(now) ||
+      this.hw.active(now)
+    if (!aPeindre && !this.liveSale) return
+    this.liveSale = aPeindre
     ctx.clearRect(0, 0, this.w, this.h)
     // guides magnétiques : couche LIVE uniquement, jamais dans l'export
     this.overlay.render(ctx, now, this.opts.color)

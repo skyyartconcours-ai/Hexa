@@ -78,6 +78,14 @@ interface HoteObs {
   lancerSonde?: () => Promise<unknown>
   /** « Garder la fenêtre capturable par OBS » : lecture sans argument */
   captureFenetre?: (on?: boolean) => Promise<unknown>
+  /** « Barre d'outils seulement en mode dessin » : lecture sans argument */
+  barreEnDessin?: (on?: boolean) => Promise<unknown>
+}
+
+/** `{ on: boolean }` renvoyé par le principal ; `null` si la réponse est illisible. */
+function lireOn(raw: unknown): boolean | null {
+  const on = (raw as { on?: unknown } | null)?.on
+  return typeof on === 'boolean' ? on : null
 }
 
 /** Ce que renvoie `hexa.cout()`, revalidé ici : la page n'affiche jamais un chiffre qu'elle n'a pas compris. */
@@ -388,6 +396,29 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
     const h = hoteObs()
     if (!h?.captureFenetre || !captureFenetre) return
     void h.captureFenetre(!captureFenetre.on).then((r) => setCaptureFenetre(lireCaptureFenetre(r)))
+  }
+
+  /**
+   * « BARRE D'OUTILS SEULEMENT EN MODE DESSIN » — même principe : un réglage
+   * du processus principal, qui gouverne la fenêtre de la barre. `null` tant
+   * que le principal n'a pas répondu (l'interrupteur ne s'affiche pas).
+   */
+  const [barreEnDessin, setBarreEnDessin] = useState<boolean | null>(null)
+  useEffect(() => {
+    const h = hoteObs()
+    if (!h?.barreEnDessin) return
+    let vivant = true
+    void h.barreEnDessin().then((r) => {
+      if (vivant) setBarreEnDessin(lireOn(r))
+    })
+    return () => {
+      vivant = false
+    }
+  }, [])
+  const basculerBarreEnDessin = () => {
+    const h = hoteObs()
+    if (!h?.barreEnDessin || barreEnDessin === null) return
+    void h.barreEnDessin(!barreEnDessin).then((r) => setBarreEnDessin(lireOn(r)))
   }
 
   /**
@@ -828,6 +859,14 @@ export function SettingsPanel({ getSession, loadSession, onClose }: SettingsPane
             title="Direct et captures"
             hint="Hexa affiche deux couches : tes ANNOTATIONS, que tes spectateurs doivent voir, et l'INTERFACE (barre, panneaux, curseur), qui ne regarde que toi."
           >
+            {isElectron && barreEnDessin !== null && (
+              <Switch
+                label="Barre d'outils seulement en mode dessin"
+                hint="En mode jeu, la barre d'outils se retire et ne coûte plus rien à Windows ; elle revient dès que tu sors un outil (Ctrl + Maj + 1, Ctrl + Maj + 3…) ou que tu passes en mode dessin. Coupé : la barre reste affichée en permanence."
+                on={barreEnDessin}
+                onChange={basculerBarreEnDessin}
+              />
+            )}
             <Switch
               label="Masquer l'interface de Hexa dans les captures"
               hint="Barre d'outils, panneaux, bandeaux d'état et curseur restent parfaitement visibles sur ton écran, mais disparaissent d'OBS, du partage d'écran Discord et des impressions d'écran. Tes annotations, elles, restent toujours visibles pour tes spectateurs."

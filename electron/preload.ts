@@ -66,6 +66,8 @@ const INBOUND = [
   'etat-encre',
   /** la fenêtre clavier a perdu le focus : les touches maintenues se relâchent */
   'clavier-perdu',
+  /** le pointeur a quitté la barre réduite : elle est redevenue traversante (main.ts, sortieDeBarre) */
+  'interface-sortie',
   /** réservations système : ce qui est vraiment pris, refusé, ou remplacé par un repli */
   'raccourcis-status',
 ] as const
@@ -380,6 +382,19 @@ const api = {
   },
 
   /**
+   * L'outil courant suit-il le curseur EN MODE JEU (laser, projecteur,
+   * loupe) ? Seulement alors la couche encre reçoit les mouvements de souris
+   * pendant qu'on joue — voir « suivi » dans electron/main.ts.
+   */
+  setSuiviCurseur(on: boolean): void {
+    try {
+      ipcRenderer.send('hexa:suivi-curseur', on === true)
+    } catch {
+      /* ignore */
+    }
+  },
+
+  /**
    * Masquer l'interface de Hexa dans les captures (OBS, Discord, impressions
    * d'écran). Renvoie ce qui a été RÉELLEMENT appliqué : la page doit pouvoir
    * dire la vérité à l'utilisateur, jamais promettre une protection absente.
@@ -412,6 +427,16 @@ const api = {
   captureFenetre(on?: boolean): Promise<unknown> {
     return ipcRenderer
       .invoke('hexa:capture-fenetre', typeof on === 'boolean' ? on : undefined)
+      .catch(() => null)
+  },
+
+  /**
+   * « Barre d'outils seulement en mode dessin ». Sans argument : lecture.
+   * Renvoie toujours l'état RÉEL du processus principal.
+   */
+  barreEnDessin(on?: boolean): Promise<unknown> {
+    return ipcRenderer
+      .invoke('hexa:barre-en-dessin', typeof on === 'boolean' ? on : undefined)
       .catch(() => null)
   },
 

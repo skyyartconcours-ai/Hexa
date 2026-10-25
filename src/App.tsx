@@ -696,6 +696,18 @@ export default function App() {
   ])
 
   /**
+   * Cet outil a-t-il besoin du curseur PENDANT QU'ON JOUE ? Laser, projecteur
+   * et loupe le suivent sans clic : seulement eux justifient que Windows nous
+   * livre chaque mouvement de souris en mode jeu (voir « suivi » dans
+   * electron/main.ts — c'est un crochet souris global, payé par tout le
+   * système). Les autres outils n'en font rien tant qu'on ne dessine pas.
+   */
+  useEffect(() => {
+    if (!porteEncre) return
+    bridge.setSuiviCurseur(tool === 'laser' || tool === 'spotlight' || tool === 'magnifier')
+  }, [tool])
+
+  /**
    * Le curseur personnalisé est repris par la couche interface (il renseigne le
    * streamer, pas ses spectateurs) : celui du moteur s'efface donc — mais
    * UNIQUEMENT sur l'écran qui porte la barre, seul écran où la fenêtre

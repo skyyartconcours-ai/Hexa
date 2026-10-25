@@ -255,6 +255,17 @@ interface Overlay {
    * par signal d'activité.
    */
   encreBounds: Rectangle | null
+  /**
+   * L'outil courant suit le curseur en mode jeu (laser, projecteur, loupe) :
+   * dit par la page, voir « suivi ». Seul cas où la couche encre a besoin des
+   * mouvements de souris pendant qu'on joue.
+   */
+  suiviCurseur: boolean
+  /**
+   * La fenêtre d'interface reçoit-elle les mouvements de souris en ce moment
+   * (`forward: true`) ? `null` = état inconnu, à reposer.
+   */
+  uiSuivi: boolean | null
 }
 
 /**
@@ -494,6 +505,13 @@ function broadcast(channel: string, ...args: unknown[]): void {
 interface ReglagesPrincipal {
   captureFenetre: boolean
   annotationDisplay: number | null
+  /**
+   * « Barre d'outils seulement en mode dessin » : en mode jeu, la fenêtre de
+   * la barre se retire — une fenêtre de moins à composer, et plus de lecture
+   * du pointeur (voir « suivi »). Coupé d'usine : l'utilisateur veut voir ses
+   * outils en permanence (fenetre-compacte.ts).
+   */
+  barreEnDessin: boolean
 }
 
 /**
@@ -507,7 +525,7 @@ interface ReglagesPrincipal {
  */
 const VERSION_REGLAGES = 2
 
-let reglages: ReglagesPrincipal = { captureFenetre: false, annotationDisplay: null }
+let reglages: ReglagesPrincipal = { captureFenetre: false, annotationDisplay: null, barreEnDessin: false }
 
 function cheminReglages(): string {
   return path.join(app.getPath('userData'), 'reglages-principal.json')
@@ -519,6 +537,7 @@ function lireReglages(): void {
     const choixReel = brut.version === VERSION_REGLAGES
     reglages = {
       captureFenetre: choixReel && brut.captureFenetre === true,
+      barreEnDessin: brut.barreEnDessin === true,
       annotationDisplay:
         typeof brut.annotationDisplay === 'number' && Number.isFinite(brut.annotationDisplay)
           ? brut.annotationDisplay
@@ -700,6 +719,15 @@ function setCaptureFenetre(on: boolean): void {
   reposerEncresVides()
 }
 
+/** « Barre d'outils seulement en mode dessin » : appliqué à chaud. */
+function setBarreEnDessin(on: boolean): void {
+  if (reglages.barreEnDessin === on) return
+  reglages.barreEnDessin = on
+  ecrireReglages()
+  log('interface', on ? 'barre d’outils affichée en mode dessin seulement' : 'barre d’outils affichée en permanence')
+  for (const o of overlays.values()) refreshVisibiliteInterface(o)
+}
+
 /* ------------------------------------------------------------------ *
  * Titres des fenêtres d'encre : uniques, stables, lisibles dans OBS
  * ------------------------------------------------------------------ */
@@ -812,7 +840,10 @@ function refreshVisibiliteInterface(o: Overlay): void {
     }
     return
   }
-  const shouldShow = !suspended && o.uiHasContent
+  // « Barre d'outils seulement en mode dessin » : réduite à la barre (rien
+  // d'autre à montrer) et personne ne dessine → elle se retire.
+  const barreRetiree = reglages.barreEnDessin && o.uiRect !== null && !isDrawing()
+  const shouldShow = !suspended && o.uiHasContent && !barreRetiree
   if (shouldShow) {
     if (o.uiHideTimer) {
       clearTimeout(o.uiHideTimer)
@@ -826,7 +857,13 @@ function refreshVisibiliteInterface(o: Overlay): void {
       // DWM pour rien, sous le nez d'OBS qui capture l'écran.
       if (ui.isVisible()) return
       ui.showInactive()
+      // Relevé le 25/10 : l'interface de l'écran principal avait une affinité
+      // d'affichage à 0 (donc CAPTURABLE) alors que le journal annonçait deux
+      // fenêtres protégées. On repose la protection à chaque réapparition : un
+      // appel système, et plus aucune fenêtre d'interface ne part à l'antenne.
+      appliquerProtection(ui, protectionCapture)
       reassertTopmost(ui)
+      majSuiviInterface(o)
     } catch (err) {
       logError('fenêtre', `interface non affichable (écran ${o.displayId})`, err)
     }
@@ -835,12 +872,20 @@ function refreshVisibiliteInterface(o: Overlay): void {
   if (o.uiHideTimer) return
   o.uiHideTimer = setTimeout(() => {
     o.uiHideTimer = null
-    if (!suspended && o.uiHasContent) return
+    if (
+      !suspended &&
+      o.uiHasContent &&
+      !(reglages.barreEnDessin && o.uiRect !== null && !isDrawing())
+    ) {
+      return
+    }
     try {
       if (!ui.isDestroyed() && ui.isVisible()) ui.hide()
     } catch {
       /* ignore */
     }
+    // Cachée, elle ne suit plus la souris (voir « suivi »).
+    majSuiviInterface(o)
   }, HIDE_GRACE_MS)
 }
 
@@ -905,9 +950,14 @@ function appliquerBoundsInterface(o: Overlay): void {
       height,
     }
   }
-  if (o.uiBounds && sameBounds(o.uiBounds, cible)) return
+  if (o.uiBounds && sameBounds(o.uiBounds, cible)) {
+    // Réduite ou plein écran, le suivi de la souris change (voir « suivi »).
+    majSuiviInterface(o)
+    return
+  }
   o.uiBounds = cible
   applyBounds(ui, cible, `interface écran ${o.displayId}`)
+  majSuiviInterface(o)
   log(
     'interface',
     o.uiRect
@@ -988,11 +1038,134 @@ function brider(o: Overlay): void {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * Suivi de la souris en mode jeu : seulement quand il sert
+ * ------------------------------------------------------------------ */
+
+/**
+ * ⚠️ `forward: true` N'EST PAS GRATUIT, ET IL L'ÉTAIT PARTOUT, TOUT LE TEMPS.
+ *
+ * Sous Windows, Electron le réalise avec un crochet souris GLOBAL de bas
+ * niveau (WH_MOUSE_LL) : tant qu'une seule fenêtre d'Hexa le demande, CHAQUE
+ * mouvement de souris du système — jeu compris, à 1 000 Hz — passe par le fil
+ * principal d'Hexa avant d'arriver à destination, puis réveille les pages qui
+ * le reçoivent. Mesuré le 25/10 sur l'instance de l'utilisateur, toutes
+ * fenêtres CACHÉES : une couche encre à 2,8 %, une couche interface à 2,2 % et
+ * le processus GPU à 4,8 % d'un cœur, pour des pages qui n'avaient strictement
+ * rien à faire — alors que les mêmes pages, souris immobile, ne demandaient ni
+ * image, ni minuterie.
+ *
+ * Qui en a vraiment besoin pendant qu'on joue :
+ *  - la couche encre, si l'outil suit le curseur SANS clic (laser, projecteur,
+ *    loupe) — la page le dit (hexa:suivi-curseur) ;
+ *  - la fenêtre d'interface, le temps que le pointeur survole la barre
+ *    d'outils, pour qu'elle devienne cliquable (src/ui/interactivite.ts).
+ *    Réduite à la barre, on ne lui ouvre le suivi qu'à l'APPROCHE du pointeur,
+ *    lue par `GetCursorPos` dix fois par seconde (voir armerSuiviBarre) ;
+ *    plein écran (mode dessin, panneau, roue, message), elle le garde.
+ * Tout le reste — fenêtres cachées comprises — ignore la souris sans la suivre.
+ * En mode fusionné, la fenêtre unique porte la barre : elle suit toujours.
+ */
+function traverserEncre(o: Overlay): void {
+  if (o.win.isDestroyed()) return
+  o.win.setIgnoreMouseEvents(true, fusion || o.suiviCurseur ? { forward: true } : undefined)
+}
+
+/** Le pointeur est-il sur (ou tout près de) la fenêtre d'interface réduite ? */
+function pointeurSurBarre(o: Overlay): boolean {
+  const b = o.uiBounds
+  if (!b) return false
+  const p = screen.getCursorScreenPoint()
+  const marge = 8
+  return p.x >= b.x - marge && p.x < b.x + b.width + marge && p.y >= b.y - marge && p.y < b.y + b.height + marge
+}
+
+/** Pose le suivi de la souris voulu sur la fenêtre d'interface (sans répéter). */
+function poserSourisInterface(o: Overlay): void {
+  const ui = o.ui
+  if (!ui || ui.isDestroyed() || o.uiCliquable) return
+  let voulu = false
+  try {
+    if (ui.isVisible()) voulu = o.uiRect === null || pointeurSurBarre(o)
+  } catch {
+    voulu = false
+  }
+  if (o.uiSuivi === voulu) return
+  o.uiSuivi = voulu
+  try {
+    ui.setIgnoreMouseEvents(true, voulu ? { forward: true } : undefined)
+  } catch {
+    /* fenêtre en cours de destruction */
+  }
+}
+
+/**
+ * ⚠️ LA SORTIE DE LA BARRE NE SE LIT PLUS DANS LA PAGE. Cliquable, la fenêtre
+ * réduite recevait un `mouseleave` en sortie… seulement parce qu'un crochet
+ * souris restait installé pour d'autres fenêtres. Sans lui (voir « suivi »),
+ * mesuré le 25/10 : aucun `mouseleave`, et la barre restait CLIQUABLE après le
+ * départ du pointeur — de quoi avaler un clic destiné au jeu à côté d'elle.
+ * C'est donc la même lecture du pointeur qui la rend traversante, et qui le
+ * dit à la page pour qu'elle se resynchronise.
+ */
+function sortieDeBarre(o: Overlay): void {
+  const ui = o.ui
+  if (!ui || ui.isDestroyed() || !o.uiCliquable || o.uiModale || o.uiRect === null) return
+  try {
+    if (pointeurSurBarre(o)) return
+  } catch {
+    return
+  }
+  o.uiCliquable = false
+  o.uiSuivi = null
+  poserSourisInterface(o)
+  sendTo(ui, 'interface-sortie')
+}
+
+/** Cadence de lecture du pointeur quand une barre d'outils réduite est affichée. */
+const SUIVI_BARRE_MS = 100
+let suiviBarreTimer: NodeJS.Timeout | null = null
+
+/**
+ * Arme (ou coupe) la lecture du pointeur. Elle n'existe que pendant qu'une
+ * barre d'outils RÉDUITE est affichée : un `GetCursorPos` par dixième de
+ * seconde, au lieu d'un crochet qui intercepte chaque mouvement du système.
+ * Approcher la barre lui rend le suivi en 100 ms au plus — avant même que le
+ * pointeur n'atteigne un bouton.
+ */
+function armerSuiviBarre(): void {
+  let besoin = false
+  for (const o of overlays.values()) {
+    try {
+      if (o.ui && !o.ui.isDestroyed() && o.ui.isVisible() && o.uiRect) besoin = true
+    } catch {
+      /* ignore */
+    }
+  }
+  if (besoin && !quitting && !suiviBarreTimer) {
+    suiviBarreTimer = setInterval(() => {
+      for (const o of overlays.values()) {
+        sortieDeBarre(o)
+        poserSourisInterface(o)
+      }
+    }, SUIVI_BARRE_MS)
+  } else if ((!besoin || quitting) && suiviBarreTimer) {
+    clearInterval(suiviBarreTimer)
+    suiviBarreTimer = null
+  }
+}
+
+/** Après tout changement de visibilité ou de taille de la fenêtre d'interface. */
+function majSuiviInterface(o: Overlay): void {
+  poserSourisInterface(o)
+  armerSuiviBarre()
+}
+
 /**
  * `forward: true` est la clé de toute l'application : les CLICS partent dans le
  * jeu, mais le renderer continue de recevoir les `pointermove`. C'est ce qui
  * permet au laser, à la loupe et au spotlight de suivre le curseur pendant que
- * l'utilisateur joue vraiment.
+ * l'utilisateur joue vraiment — et seulement eux (voir « suivi » ci-dessus).
  */
 function applyPassthrough(o: Overlay, on: boolean): void {
   o.passthrough = on
@@ -1004,7 +1177,7 @@ function applyPassthrough(o: Overlay, on: boolean): void {
     // YouTube » (voir electron/clavier.ts). Le clavier passe par la fenêtre
     // clavier, opaque ; la souris, elle, arrive sans activation.
     if (on) {
-      o.win.setIgnoreMouseEvents(true, { forward: true })
+      traverserEncre(o)
       // On rend le clavier au jeu — sauf si un panneau attend encore la frappe.
       if (o === overlayAnnotation() && !o.uiModale) relacherClavier()
     } else {
@@ -1045,6 +1218,9 @@ function applyPassthrough(o: Overlay, on: boolean): void {
     /* fenêtre en cours de destruction */
   }
   refreshVisibility(o)
+  // « Barre d'outils seulement en mode dessin » : la barre vit sur un AUTRE
+  // écran que celui qui bascule ; elle doit suivre le mode de l'application.
+  if (reglages.barreEnDessin) for (const x of overlays.values()) refreshVisibiliteInterface(x)
   // L'icône près de l'horloge doit TOUJOURS dire la vérité sur l'état courant.
   refreshTray()
 }
@@ -1816,7 +1992,10 @@ function relancerCoucheEncre(o: Overlay, raison: string): void {
 function libererLaSouris(win: BrowserWindow, raison: string): void {
   try {
     if (win.isDestroyed()) return
-    win.setIgnoreMouseEvents(true, { forward: true })
+    // Sans suivi : la fenêtre va être cachée, elle n'a plus rien à suivre.
+    win.setIgnoreMouseEvents(true)
+    const o = overlayFor(win)
+    if (o && o.ui === win) o.uiSuivi = null
     win.setFocusable(false)
     if (win.isVisible()) win.hide()
     log('fenêtre', `souris rendue au jeu — ${raison}`)
@@ -1926,8 +2105,10 @@ function creerFenetreInterface(display: Display, overlay: Overlay): BrowserWindo
     // LA LIGNE QUI RÈGLE LE PROBLÈME : cette fenêtre-ci disparaît des captures.
     const applique = appliquerProtection(ui, protectionCapture)
     // Traversante dès la naissance : sans ça, elle avalerait tous les clics
-    // destinés au jeu et à la couche encre.
-    ui.setIgnoreMouseEvents(true, { forward: true })
+    // destinés au jeu et à la couche encre. Sans suivi de la souris tant
+    // qu'elle est cachée (voir « suivi ») : majSuiviInterface le lui donne
+    // quand elle paraît.
+    ui.setIgnoreMouseEvents(true)
 
     ui.on('closed', () => {
       if (overlay.uiHideTimer) {
@@ -2134,7 +2315,9 @@ function createOverlay(display: Display): Overlay | null {
       /* plateforme sans protection de contenu : rien à désactiver */
     }
     // On démarre TOUJOURS en traversant : au lancement, l'utilisateur joue.
-    win.setIgnoreMouseEvents(true, { forward: true })
+    // Sans suivi de la souris, sauf en mode fusionné (voir « suivi ») : la
+    // page dira si son outil en a besoin.
+    win.setIgnoreMouseEvents(true, fusion ? { forward: true } : undefined)
     // Le <title> de la page n'écrase plus le titre natif : c'est lui qu'OBS
     // lit, et il doit rester unique et stable (voir titreEncre).
     win.on('page-title-updated', (e) => e.preventDefault())
@@ -2163,6 +2346,8 @@ function createOverlay(display: Display): Overlay | null {
       uiRelanceTimer: null,
       reduite: false,
       encreBounds: { ...bounds },
+      suiviCurseur: false,
+      uiSuivi: false,
     }
 
     win.on('closed', () => {
@@ -2933,6 +3118,13 @@ function registerIpc(): void {
     }
   })
 
+  // « Barre d'outils seulement en mode dessin » : lecture (sans argument) ou
+  // réglage. Renvoie toujours l'état RÉEL.
+  ipcMain.handle('hexa:barre-en-dessin', (_e, value: unknown) => {
+    if (typeof value === 'boolean') setBarreEnDessin(value)
+    return { on: reglages.barreEnDessin }
+  })
+
   // §2.5 : le renderer nous dit si sa couche est vivante. C'est le signal qui
   // décide de cacher la fenêtre (coût compositeur nul) ou de la rendre.
   // Les DEUX couches parlent ici, chacune pour la sienne : l'encre se cache dès
@@ -3060,10 +3252,32 @@ function registerIpc(): void {
     if (o.uiCliquable === cliquable) return
     o.uiCliquable = cliquable
     try {
-      o.ui.setIgnoreMouseEvents(!cliquable, { forward: true })
+      if (cliquable) {
+        o.ui.setIgnoreMouseEvents(false)
+        o.uiSuivi = null
+      } else {
+        // De nouveau traversante : avec ou sans suivi selon le pointeur et
+        // la taille de la fenêtre (voir « suivi »).
+        o.uiSuivi = null
+        poserSourisInterface(o)
+      }
     } catch (err) {
       logError('interface', 'bascule du clic sur la couche interface impossible', err)
     }
+  })
+
+  /**
+   * L'outil de la couche encre suit-il le curseur en mode jeu (laser,
+   * projecteur, loupe) ? Seulement alors elle reçoit les mouvements de souris
+   * pendant qu'on joue (voir « suivi »).
+   */
+  ipcMain.on('hexa:suivi-curseur', (e, value: unknown) => {
+    const o = overlayFromEvent(e)
+    if (!o || vientDeInterface(o, e)) return
+    const suivi = value === true
+    if (o.suiviCurseur === suivi) return
+    o.suiviCurseur = suivi
+    if (o.passthrough) traverserEncre(o)
   })
 
   /**
@@ -3776,6 +3990,10 @@ if (!gotLock) {
     if (repriseTimer) {
       clearInterval(repriseTimer)
       repriseTimer = null
+    }
+    if (suiviBarreTimer) {
+      clearInterval(suiviBarreTimer)
+      suiviBarreTimer = null
     }
     try {
       globalShortcut.unregisterAll()

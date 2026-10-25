@@ -151,7 +151,11 @@ export function creerFenetreClavier(display: Display, o: ClavierOptions): Browse
       }
     })
     void win.loadURL(PAGE).catch((err) => logError('clavier', 'page clavier impossible', err))
-    win.showInactive()
+    // ⚠️ PAS AFFICHÉE À LA CRÉATION. Opaque et toujours au-dessus, posée dans
+    // le coin de l'écran d'annotation, elle chevauchait le jeu en permanence :
+    // c'est le défaut de l'ancienne fenêtre d'encre réduite à 8 × 8. Elle ne
+    // paraît que le temps où elle tient le clavier (focusClavier l'affiche,
+    // relacherClavier la cache).
     fenetre = win
     log('clavier', `fenêtre clavier créée sur l’écran ${display.id}`)
     return win
@@ -255,6 +259,8 @@ export function relacherClavier(): void {
   if (!fenetre || fenetre.isDestroyed()) return
   try {
     if (aLeClavier) fenetre.blur()
+    // Rendue au jeu, elle n'a plus rien à faire à l'écran (voir la création).
+    if (fenetre.isVisible()) fenetre.hide()
   } catch (err) {
     logError('clavier', 'relâchement du clavier impossible', err)
   }

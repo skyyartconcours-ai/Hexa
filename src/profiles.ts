@@ -44,7 +44,7 @@ export interface HexaProfile {
   settings: ProfileSettings
 }
 
-/** Les quatre profils d'usine, dans l'ordre d'affichage. */
+/** Les cinq profils d'usine, dans l'ordre d'affichage. */
 export const BUILTIN_PROFILES: readonly HexaProfile[] = [
   {
     id: 'lol',
@@ -89,6 +89,25 @@ export const BUILTIN_PROFILES: readonly HexaProfile[] = [
       size: 6,
       tool: 'laser',
       effects: 'plein',
+    },
+  },
+  {
+    // Demande de l'utilisateur (25/10) : l'esprit « Coaching live », allégé
+    // pour un direct long sur un écran à 240 Hz. Rien n'est retiré : le fondu
+    // reste à 4 s, seuls les effets décoratifs (étincelles, halos pleins)
+    // cèdent la place.
+    id: 'stream-leger',
+    name: 'Stream léger',
+    description: 'Fondu 4 s, sans étincelles, effets sobres : le plus léger pour un long direct.',
+    glyph: 'S·L',
+    builtin: true,
+    settings: {
+      fadeDelay: 4000,
+      smartShapes: false,
+      sparkles: false,
+      size: 6,
+      tool: 'pen',
+      effects: 'sobre',
     },
   },
   {

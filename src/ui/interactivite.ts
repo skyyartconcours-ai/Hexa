@@ -116,7 +116,16 @@ export function useInterfaceCliquable(modale: boolean): void {
     window.addEventListener('mousedown', enfoncer, { passive: true })
     window.addEventListener('mouseup', relacher, { passive: true })
     document.addEventListener('mouseleave', sortir)
+    // Le processus principal a vu le pointeur quitter la barre réduite et l'a
+    // rendue traversante lui-même (le `mouseleave` n'arrive pas toujours) : on
+    // se resynchronise, sans quoi le prochain survol ne la rendrait plus
+    // cliquable (« déjà cliquable » pour cette page).
+    const offSortie = bridge.on('interface-sortie', () => {
+      cliquable.current = false
+      enfonce.current = false
+    })
     return () => {
+      offSortie()
       window.removeEventListener('mousemove', bouge)
       window.removeEventListener('mousedown', enfoncer)
       window.removeEventListener('mouseup', relacher)

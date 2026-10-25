@@ -22,6 +22,7 @@
  *   node test/e2e/s31-ecrans-utiles.mjs
  */
 import { mkdirSync, rmSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 import { CAPTURES, RACINE, chargerPilote } from './harness.mjs'
 
@@ -87,6 +88,11 @@ await encre.evaluate(() => {
 })
 await encre.reload()
 await encre.waitForSelector('.stage canvas', { timeout: 20000 })
+// Les pages d'interface lisent le même stockage : rechargées aussi, sinon la
+// découverte guidée y reste ouverte et la barre ne se réduit jamais.
+for (const p of app.windows().filter((w) => w.url().includes('ui.html'))) {
+  await p.reload().catch(() => {})
+}
 // La page rechargée renvoie l'écho de son état initial : on le laisse passer.
 await pause(1500)
 
@@ -238,6 +244,99 @@ console.log('\n--- 7. Retour au dessin ---')
   const px = await pixels()
   dit('7.1 après une mise en veille de la couche, le premier trait se peint', px > 50, `${px} échantillons`)
   await modeDessin(false)
+}
+
+/* --- 8 et 9. le suivi de la souris en mode jeu (crochet global) ----------- */
+// Le vrai curseur est déplacé par un mouvement INJECTÉ (mouse_event, absolu
+// sur le bureau virtuel), SANS clic ni touche. ⚠️ Pas SetCursorPos : il ne
+// produit aucun événement d'entrée, donc rien qu'un crochet souris puisse voir.
+const curseur = (x, y) =>
+  execFileSync('powershell', [
+    '-NoProfile',
+    '-Command',
+    `Add-Type -AssemblyName System.Windows.Forms; Add-Type -Name M -Namespace W -MemberDefinition '[DllImport("user32.dll")] public static extern void mouse_event(uint f, int dx, int dy, uint d, UIntPtr e);'; ` +
+      `$v=[System.Windows.Forms.SystemInformation]::VirtualScreen; $nx=[int](((${x})-$v.Left)*65535/($v.Width-1)); $ny=[int](((${y})-$v.Top)*65535/($v.Height-1)); ` +
+      `[W.M]::mouse_event(0xC001, $nx, $ny, 0, [UIntPtr]::Zero)`,
+  ])
+/** La fenêtre native ignore-t-elle la souris (WS_EX_TRANSPARENT) ? */
+const traversante = (hwnd) =>
+  String(
+    execFileSync('powershell', [
+      '-NoProfile',
+      '-Command',
+      `Add-Type -Name G -Namespace W -MemberDefinition '[DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr h, int i);'; ([W.G]::GetWindowLong([IntPtr]${hwnd}, -20) -band 0x20) -ne 0`,
+    ]),
+  ).trim() === 'True'
+
+const ecranAnnotation = await app.evaluate(({ screen }) => screen.getPrimaryDisplay().bounds)
+const mouvementsRecus = async (page, action) => {
+  await page.evaluate(() => {
+    window.__mv = 0
+    window.__mvf = () => window.__mv++
+    window.addEventListener('mousemove', window.__mvf, { passive: true })
+  })
+  await action()
+  return page.evaluate(() => {
+    window.removeEventListener('mousemove', window.__mvf)
+    return window.__mv
+  })
+}
+const balayer = async () => {
+  for (let k = 0; k < 25; k++) {
+    curseur(ecranAnnotation.x + 300 + k * 40, ecranAnnotation.y + 400 + (k % 2) * 30)
+    await pause(20)
+  }
+}
+console.log('\n--- 8. Mode jeu : la souris n’est suivie que si l’outil en a besoin ---')
+{
+  // « p » choisit le stylo… et entre en mode dessin, comme Ctrl+Maj+3 : on
+  // choisit d'abord, on rend la main au jeu ensuite.
+  await encre.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'p' })))
+  await pause(400)
+  await modeDessin(false)
+  await pause(400)
+  const stylo = await mouvementsRecus(encre, balayer)
+  dit('8.1 stylo, mode jeu : la couche encre ne reçoit AUCUN mouvement de souris', stylo === 0, `${stylo} mouvement(s) reçu(s)`)
+}
+
+console.log('\n--- 9. La barre d’outils réduite devient cliquable au survol, et le redevient plus ---')
+{
+  const barre = await app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find(
+      (x) => !x.isDestroyed() && x.isVisible() && x.webContents.getURL().includes('ui.html') && x.getBounds().width < 400,
+    )
+    if (!w) return null
+    const h = w.getNativeWindowHandle()
+    return { b: w.getBounds(), hwnd: h.length >= 8 ? h.readBigUInt64LE(0).toString() : String(h.readUInt32LE(0)) }
+  })
+  if (!barre) {
+    dit('9.1 barre d’outils réduite trouvée', false, JSON.stringify((await fenetres()).filter((w) => w.url === 'ui.html')))
+  } else {
+    const cx = barre.b.x + Math.round(barre.b.width / 2)
+    const survol = async () => {
+      for (let k = 0; k < 10; k++) {
+        curseur(cx + (k % 3), barre.b.y + 60 + k * 4)
+        await pause(120)
+      }
+    }
+    const loin = async () => {
+      curseur(ecranAnnotation.x + 500, ecranAnnotation.y + 500)
+      await pause(600)
+    }
+    const avant = traversante(barre.hwnd)
+    await survol()
+    const pendant = traversante(barre.hwnd)
+    await loin()
+    const apres = traversante(barre.hwnd)
+    await survol()
+    const encore = traversante(barre.hwnd)
+    await loin()
+    const fin = traversante(barre.hwnd)
+    const detail = `traversante : avant ${avant} · survol ${pendant} · départ ${apres} · second survol ${encore} · second départ ${fin}`
+    dit('9.1 pointeur sur la barre : elle devient cliquable', avant && !pendant, detail)
+    dit('9.2 pointeur parti : elle redevient traversante (aucun clic volé au jeu)', apres && fin, detail)
+    dit('9.3 second survol : de nouveau cliquable', !encore, detail)
+  }
 }
 
 await app.close().catch(() => {})

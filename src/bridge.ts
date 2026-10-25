@@ -53,6 +53,8 @@ export interface BridgeEvents {
   'etat-encre': (message: EtatEncre) => void
   /** la fenêtre clavier a perdu le focus : rejoué en `blur` sur la page */
   'clavier-perdu': () => void
+  /** le pointeur a quitté la barre réduite : la fenêtre est redevenue traversante */
+  'interface-sortie': () => void
   /** état RÉEL des réservations système (réservées, refusées, replis), poussé par le processus principal */
   'raccourcis-status': (value: unknown) => void
   /** Commande adressée par la couche interface au moteur (couche encre). */
@@ -264,6 +266,8 @@ export interface HexaBridgeApi {
    * Réduit à la barre, il ne coûte plus rien — et l'utilisateur garde ses outils.
    */
   setInterfaceRect(rect: { x: number; y: number; width: number; height: number } | null): void
+  /** L'outil courant suit le curseur en mode jeu (laser, projecteur, loupe). */
+  setSuiviCurseur(on: boolean): void
   /**
    * Masquer l'interface de Hexa dans les captures (OBS, Discord, impressions
    * d'écran). Renvoie ce qui a RÉELLEMENT été appliqué.
@@ -346,6 +350,7 @@ export const bridge: HexaBridgeApi = {
   setInterfaceCliquable: (value) => window.hexa?.setInterfaceCliquable?.(value),
   setInterfaceModale: (value) => window.hexa?.setInterfaceModale?.(value),
   setInterfaceRect: (rect) => window.hexa?.setInterfaceRect?.(rect),
+  setSuiviCurseur: (on) => window.hexa?.setSuiviCurseur?.(on),
   setProtectionCapture: async (on) =>
     window.hexa?.setProtectionCapture ? window.hexa.setProtectionCapture(on) : null,
 }

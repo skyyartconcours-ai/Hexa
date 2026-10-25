@@ -272,6 +272,8 @@ let demandeEnCours = false
 
 /* --- compteurs de diagnostic, lus par /health et par les campagnes ------- */
 let totalConnexions = 0
+/** l'avertissement « plusieurs vues à la fois » a-t-il déjà été donné pour ce passage ? */
+let doublonSignale = false
 let totalRetards = 0
 let totalCoupures = 0
 /**
@@ -994,9 +996,22 @@ async function startNow(opts: ObsServerOptions): Promise<ObsServerStatus> {
     if (totalConnexions <= 10 || totalConnexions % 50 === 0) {
       log(`vue OBS connectée (${clients.size} connectée(s), ${totalConnexions} depuis le départ)`)
     }
+    // Deux vues EN MÊME TEMPS, c'est presque toujours une source navigateur en
+    // double dans OBS (relevé les 24 et 25/10 : deux vues à la même seconde) —
+    // chacune redessine tout, et la seconde ne sert à rien. On le dit, une
+    // fois par passage à plusieurs vues.
+    if (clients.size >= 2 && !doublonSignale) {
+      doublonSignale = true
+      log(
+        `ATTENTION : ${clients.size} vues OBS connectées en même temps — une source navigateur ` +
+          'obs.html est probablement en double dans OBS (deux scènes, ou une scène imbriquée). ' +
+          'Une seule suffit : chaque vue en plus refait tout le rendu.',
+      )
+    }
 
     const drop = (): void => {
       if (!clients.delete(client)) return
+      if (clients.size < 2) doublonSignale = false
       desarmerSecours(client)
       desarmerRattrapage(client)
       // On DÉTRUIT : recevoir le FIN du client ne referme pas notre moitié
