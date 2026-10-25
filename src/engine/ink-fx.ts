@@ -608,6 +608,8 @@ export const fxStats = {
   reprises: 0,
   /** touches panique rendues en un seul fondu d'image (voir `creerFondu`) */
   fondus: 0,
+  /** traits retirés du calque sans le reconstruire (voir `retirerLocalement`) */
+  retraits: 0,
   /** durée de la dernière consolidation, en ms */
   composeMs: 0,
   /** cause de la dernière reconstruction — une reconstruction coûte cher, on
@@ -637,6 +639,23 @@ const BUDGET_MS = 6
  * En dessous, la cascade d'origine coûte peu et reste plus jolie.
  */
 const FONDU_MIN = 40
+
+/**
+ * Retrait local (voir `retirerLocalement`) : au-delà de ce nombre de traits
+ * partis dans la même image, ou de cette part de l'écran à repeindre, la
+ * reconstruction complète coûte moins cher que des zones à rejouer une à une.
+ */
+const RETRAIT_MAX = 8
+const RETRAIT_AIRE_MAX = 0.4
+
+/**
+ * Outils dont l'emprise peinte se déduit sûrement des points : halo le plus
+ * large 3,6 × l'épaisseur (rayon 1,8), ombre portée 2,7 × décalée de 0,16 ×,
+ * contour perfect-freehand dans l'enveloppe des points. Les autres (textes,
+ * pastilles et leur lien, tampons, flèches, formes) n'ont pas d'emprise
+ * connue : un retrait parmi eux reconstruit comme avant.
+ */
+const EMPRISE_SURE = new Set(['pen', 'highlight', 'line'])
 
 /**
  * Traits VISIBLES qu'on accepte de peindre à la main pendant une
@@ -720,6 +739,14 @@ export class InkLayer {
   private differes = new Set<number>()
   /** ce que l'appelant doit sauter quand ce n'est pas exactement `set` */
   private masque = new Set<number>()
+  /**
+   * Emprise peinte de chaque trait du calque, en pixels périphériques, notée
+   * au moment où il y est peint (null = inconnue, voir EMPRISE_SURE). Vaut
+   * pour la matrice courante : `vider` l'oublie avec le reste.
+   */
+  private emprises = new Map<number, Boite | null>()
+  /** toile de travail du retrait local (taille du calque), libérée avec lui */
+  private brouillonCv: HTMLCanvasElement | null = null
 
   /** libère le calque (destruction du moteur, ou repli en rendu direct) */
   reset(): void {
@@ -733,6 +760,12 @@ export class InkLayer {
   private vider(): void {
     this.ids = []
     this.set.clear()
+    this.emprises.clear()
+    if (this.brouillonCv) {
+      this.brouillonCv.width = 0
+      this.brouillonCv.height = 0
+      this.brouillonCv = null
+    }
     if (this.cv) {
       this.cv.width = 0
       this.cv.height = 0
@@ -1040,6 +1073,11 @@ export class InkLayer {
         }
       }
     }
+    // Des traits sont seulement PARTIS (fondu, gomme, annulation) : on efface
+    // leur zone et on n'y repeint que ce qui la touche, au lieu de tout.
+    if (!keep && !force && !refonte && want.length > 0 && this.retirerLocalement(want, o, devW, devH)) {
+      keep = true
+    }
 
     if (want.length === 0) {
       if (this.ids.length > 0 || force) this.clearLayer()
@@ -1094,6 +1132,7 @@ export class InkLayer {
       if (i > debut && performance.now() >= limite) break
       o.paint(lctx, want[i])
       this.ids.push(want[i].id)
+      this.emprises.set(want[i].id, emprise(want[i], this.mat))
       fxStats.appends++
     }
     // Ce qui reste et n'est couvert par rien sera peint à la main par
@@ -1108,6 +1147,7 @@ export class InkLayer {
         for (; i < want.length; i++) {
           o.paint(lctx, want[i])
           this.ids.push(want[i].id)
+          this.emprises.set(want[i].id, emprise(want[i], this.mat))
           fxStats.appends++
         }
       }
@@ -1115,6 +1155,10 @@ export class InkLayer {
     this.noterCheckpoint(devW, devH)
     this.set.clear()
     for (const id of this.ids) this.set.add(id)
+    // les reconstructions complètes laissent les emprises des traits partis
+    if (this.emprises.size > 2 * this.ids.length + 64) {
+      for (const id of this.emprises.keys()) if (!this.set.has(id)) this.emprises.delete(id)
+    }
     if (i < want.length) this.etale = true
     else this.finEtalement()
 
@@ -1124,6 +1168,146 @@ export class InkLayer {
     fxStats.direct = strokes.length - res.size
     fxStats.composeMs = performance.now() - t0
     return res
+  }
+
+  /**
+   * RETRAIT LOCAL : des traits ont quitté le calque, rien d'autre n'a bougé.
+   *
+   * ⚠️ C'EST LE COÛT DU FONDU À 2 MINUTES. Le plus ancien trait part le
+   * premier : le calque cessait d'être un préfixe, le point de reprise aussi
+   * (il commence par ce trait), et TOUT était repeint dans une image — 22 ms à
+   * 100 traits, une fois par trait qui part, dans l'overlay ET dans la source
+   * OBS. Ici, on ne refait que l'emprise de chaque trait parti.
+   *
+   * ⚠️ PAS DE `clip()`. Mesuré (toiles processeur, donc lisibles au pixel) :
+   * un trait néon peint sous une découpe ne donne PAS les mêmes pixels que le
+   * même trait peint en entier — jusqu'à 116/255 d'alpha d'écart dans la zone,
+   * un rectangle fantôme à l'antenne. Le bord d'une toile découpe pareil.
+   * On peint donc les traits gardés qui touchent la zone, ENTIERS, sur une
+   * toile de travail de la taille de l'écran, puis on recopie la zone seule
+   * dans le calque, effacée au préalable.
+   *
+   * Le rendu est alors identique au pixel près (banc d'essai sur toiles
+   * processeur : 0 pixel différent d'une reconstruction en 240 étapes, dont 216
+   * retraits locaux — stylo, surligneur, ligne, pastilles, formes, et la
+   * matrice de la vue OBS ; 10 fois moins cher au stylo seul, 3 fois en
+   * mélange) : hors de la zone, le trait parti n'avait rien peint ; dedans, ce
+   * sont les mêmes traits, entiers, dans le même ordre.
+   * Un trait gardé sans emprise connue (pastille, texte…) est repeint à chaque
+   * fois, faute de savoir s'il touche la zone : plus lent, toujours exact.
+   * Prix en mémoire : une toile de la taille de l'écran par calque, gardée
+   * après le premier retrait local.
+   *
+   * Renvoie false (reconstruction d'avant) dès que ce n'est pas un retrait pur,
+   * qu'un trait parti n'a pas d'emprise sûre, ou que la zone est trop grande.
+   */
+  private retirerLocalement(
+    want: readonly Stroke[],
+    o: ComposeOptions,
+    devW: number,
+    devH: number,
+  ): boolean {
+    const c = this.ctx
+    const cv = this.cv
+    if (!c || !cv || this.etale || this.ancien || this.ids.length === 0) return false
+    if (cv.width !== devW || cv.height !== devH || !droite(this.mat)) return false
+    const voulus = new Set<number>()
+    for (const s of want) voulus.add(s.id)
+    const gardes: number[] = []
+    const partis: number[] = []
+    const zones: Boite[] = []
+    let aire = 0
+    for (const id of this.ids) {
+      if (voulus.has(id)) {
+        gardes.push(id)
+        continue
+      }
+      const b = this.emprises.get(id)
+      if (!b || partis.length >= RETRAIT_MAX) return false
+      partis.push(id)
+      zones.push({ ...b })
+      aire += (b.x1 - b.x0) * (b.y1 - b.y0)
+    }
+    if (partis.length === 0 || aire > RETRAIT_AIRE_MAX * devW * devH) return false
+    if (!prefixe(gardes, want)) return false
+
+    // les zones, bornées à la toile ; la toile de travail les contient
+    for (const z of zones) borner(z, devW, devH)
+    const u: Boite = { x0: devW, y0: devH, x1: 0, y1: 0 }
+    for (const z of zones) etendre(u, z)
+    // traits gardés à repeindre : ceux qui touchent une zone, dans l'ordre
+    const touchent: Stroke[] = []
+    let inconnu = false
+    for (let i = 0; i < gardes.length; i++) {
+      const b = this.emprises.get(want[i].id)
+      if (!b) inconnu = true
+      else if (!zones.some((z) => croise(b, z))) continue
+      else etendre(u, b)
+      touchent.push(want[i])
+    }
+    if (inconnu) {
+      u.x0 = 0
+      u.y0 = 0
+      u.x1 = devW
+      u.y1 = devH
+    }
+    borner(u, devW, devH)
+    if (u.x1 <= u.x0 || u.y1 <= u.y0) return false
+    // ⚠️ LA TOILE DE TRAVAIL A LA TAILLE DE L'ÉCRAN, sans décalage. Mesuré :
+    // décalée d'un nombre entier de pixels, jusqu'à 10/255 d'alpha d'écart ;
+    // rognée à droite et en bas au ras des emprises, encore 8/255 (Skia borne
+    // un trait large bien plus loin que son encre, et change alors de chemin).
+    const b = this.brouillon(devW, devH)
+    if (!b) return false
+
+    const m = this.mat
+    b.setTransform(m.a, m.b, m.c, m.d, m.e, m.f)
+    for (const s of touchent) o.paint(b, s)
+    c.save()
+    c.setTransform(1, 0, 0, 1, 0, 0)
+    c.globalCompositeOperation = 'source-over'
+    c.globalAlpha = 1
+    for (const z of zones) {
+      const w = z.x1 - z.x0
+      const h = z.y1 - z.y0
+      if (w <= 0 || h <= 0) continue
+      c.clearRect(z.x0, z.y0, w, h)
+      c.drawImage(b.canvas, z.x0, z.y0, w, h, z.x0, z.y0, w, h)
+    }
+    c.restore()
+    // On la rend vide pour la prochaine fois. Les traits d'emprise connue
+    // n'ont peint que dans `u` ; un trait sans emprise peut avoir peint partout.
+    b.setTransform(1, 0, 0, 1, 0, 0)
+    b.clearRect(u.x0, u.y0, u.x1 - u.x0, u.y1 - u.y0)
+    this.ids = gardes
+    let photoPerimee = false
+    for (const id of partis) {
+      this.emprises.delete(id)
+      if (this.ckSet.has(id)) photoPerimee = true
+    }
+    // La photographie contient le trait parti : on en reprendra une (une copie
+    // d'image, voir noterCheckpoint) plutôt que de la réparer aussi.
+    if (photoPerimee) this.oublierCheckpoint()
+    fxStats.retraits += partis.length
+    return true
+  }
+
+  /**
+   * Toile de travail de la taille du calque, VIDE (l'appelant la rend vide
+   * après usage). Gardée d'un retrait à l'autre : la réallouer à chaque trait
+   * qui part coûterait un écran entier de mémoire à chaque fois.
+   */
+  private brouillon(w: number, h: number): CanvasRenderingContext2D | null {
+    const cv = this.brouillonCv ?? document.createElement('canvas')
+    const c = cv.getContext('2d')
+    if (!c) return null
+    this.brouillonCv = cv
+    // redimensionner vide la toile et remet son état à neuf
+    if (cv.width !== w || cv.height !== h) {
+      cv.width = w
+      cv.height = h
+    }
+    return c
   }
 
   /** reconstruction terminée : la doublure et les marques n'ont plus d'objet */
@@ -1265,6 +1449,66 @@ interface Doublure {
   ordre: number[]
   set: Set<number>
   mat: Mat
+}
+
+/** rectangle en pixels périphériques entiers, bornes x1 et y1 exclues */
+interface Boite {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+/**
+ * Emprise peinte d'un trait posé sous la matrice `m`, ou null si on ne sait
+ * pas la borner sûrement (voir EMPRISE_SURE). Large de deux épaisseurs autour
+ * des points, plus deux pixels d'anticrénelage.
+ */
+function emprise(s: Stroke, m: Mat): Boite | null {
+  if (!EMPRISE_SURE.has(s.tool) || s.points.length === 0 || !droite(m)) return null
+  if (!(s.size > 0) || !Number.isFinite(s.size)) return null
+  let x0 = Infinity
+  let y0 = Infinity
+  let x1 = -Infinity
+  let y1 = -Infinity
+  for (const p of s.points) {
+    if (p.x < x0) x0 = p.x
+    if (p.y < y0) y0 = p.y
+    if (p.x > x1) x1 = p.x
+    if (p.y > y1) y1 = p.y
+  }
+  const r = s.size * 2 + 2
+  const ax = (x0 - r) * m.a + m.e
+  const bx = (x1 + r) * m.a + m.e
+  const ay = (y0 - r) * m.d + m.f
+  const by = (y1 + r) * m.d + m.f
+  const b = {
+    x0: Math.floor(Math.min(ax, bx)) - 2,
+    y0: Math.floor(Math.min(ay, by)) - 2,
+    x1: Math.ceil(Math.max(ax, bx)) + 2,
+    y1: Math.ceil(Math.max(ay, by)) + 2,
+  }
+  return Number.isFinite(b.x0 + b.y0 + b.x1 + b.y1) ? b : null
+}
+
+function croise(a: Boite, b: Boite): boolean {
+  return a.x1 > b.x0 && a.x0 < b.x1 && a.y1 > b.y0 && a.y0 < b.y1
+}
+
+/** agrandit `u` pour contenir `b` */
+function etendre(u: Boite, b: Boite): void {
+  if (b.x0 < u.x0) u.x0 = b.x0
+  if (b.y0 < u.y0) u.y0 = b.y0
+  if (b.x1 > u.x1) u.x1 = b.x1
+  if (b.y1 > u.y1) u.y1 = b.y1
+}
+
+/** ramène `b` dans la toile `w` × `h` */
+function borner(b: Boite, w: number, h: number): void {
+  b.x0 = Math.max(0, b.x0)
+  b.y0 = Math.max(0, b.y0)
+  b.x1 = Math.min(w, b.x1)
+  b.y1 = Math.min(h, b.y1)
 }
 
 /** une image peinte sous cette matrice peut-elle être reposée par `poser` ? */
